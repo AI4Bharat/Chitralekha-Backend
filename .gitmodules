@@ -1,0 +1,6 @@
+[submodule "Indic-Input-Tool-UI"]
+	path = Indic-Input-Tool-UI
+	url = https://github.com/AI4Bharat/Indic-Input-Tool-UI.git
+[submodule "bulma-extensions"]
+	path = bulma-extensions
+	url = https://github.com/Wikiki/bulma-extensions.git
