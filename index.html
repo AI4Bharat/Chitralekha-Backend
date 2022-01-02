@@ -426,6 +426,7 @@
         formData.append('url', url);
         console.log(formData);
         console.log(url);
+        // Replace the speech-api http path here
         axios.post('http://164.52.218.27:5000/download_video_to_local',
             formData, {
 						headers: {
@@ -438,6 +439,7 @@
 					this.process=false
           this.submitted = true
           this.video_url= response.data.video_url
+          // Replace the speech-api http path here
           this.audio_url= 'http://164.52.218.27:5000/'+response.data.audio_url
 				})
       },
@@ -450,6 +452,7 @@
         this.process = true;
         console.log(this.transcription_data);
         this.transcription_data.chunk_size = 7;
+        // Replace the speech-api http path here
         axios.post('http://164.52.218.27:5000/transcribe_local_audio',
             this.transcription_data, {
 						headers: {
@@ -484,6 +487,7 @@
 				formData.append('source_language', 'English');
 				formData.append('target_language', this.target_language);
 				formData.append('text', this.transcription);
+        // Replace the translation-api http path here
         axios.post('http://164.52.218.27:5050/translate_vtt',
 						formData, {
 						headers: {
@@ -581,6 +585,7 @@
         formData.append('feedback_rating', this.feedback_rating);
         formData.append('feedback_text', this.feedback_text);
         console.log(formData);
+        // Replace the feedback-api http path here
         axios.post('http://164.52.218.27:6070/feedback',
             formData, {
 						headers: {
