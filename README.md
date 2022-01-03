@@ -7,7 +7,7 @@ Transcribe your videos and translate it into Indic languages.
 2. Make sure you are using a python version >= 3.5
 3. Change the api http paths in the following lines in `index.html`. This step should be done once all the api servers are up and running.
 ```
-Line numbers - 430, 443, 456, 491, 589
+Line numbers - 408, 409, 410
 ```
 4. Fire up the HTTP server locally - `python -m http.server 8090 -b 0.0.0.0`
 

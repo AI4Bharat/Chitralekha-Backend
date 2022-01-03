@@ -136,11 +136,6 @@
 
               <div v-if="this.submitted">
                 <h5 class="title is-5">Video Preview:</h5>
-                <!-- <iframe style="width:100h;height:60h" src="http://www.youtube.com/embed/M7lc1UVf-VE?enablejsapi=1&origin=http://example.com" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"> </iframe> -->
-                <!-- <audio controls>
-                  <source v-bind:src="audio_url" type="audio/wav">
-                Your browser does not support the audio element.
-                </audio> -->
                 <video controls="controls" id="video1" width="450">
                     <source v-bind:src="video_url" type="video/mp4" />
                 </video>
@@ -410,6 +405,9 @@
 			target_language: 'Hindi',
       target_options: ['Assamese', 'Hindi', 'Marathi', 'Tamil', 'Bengali', 'Kannada', 'Oriya', 'Telugu', 'Gujarati', 'Malayalam', 'Punjabi'],
       vttBlob: null,
+      speech_api_address: 'http://164.52.218.27:5000',
+      translation_api_address: 'http://164.52.218.27:5050',
+      feedback_api_address: 'http://164.52.218.27:5050',
     },
     methods: {
       submitURL: function(){
@@ -427,7 +425,7 @@
         console.log(formData);
         console.log(url);
         // Replace the speech-api http path here
-        axios.post('http://164.52.218.27:5000/download_video_to_local',
+        axios.post(this.speech_api_address+'/download_video_to_local',
             formData, {
 						headers: {
 							'Content-Type': 'multipart/form-data'
@@ -440,12 +438,9 @@
           this.submitted = true
           this.video_url= response.data.video_url
           // Replace the speech-api http path here
-          this.audio_url= 'http://164.52.218.27:5000/'+response.data.audio_url
+          this.audio_url= this.speech_api_address+'/'+response.data.audio_url
 				})
       },
-      // transcribe: function(){
-      //   this.callTranscribeAPI();
-      // },
       transcribe: function(){
         console.log("Transcribing..");
         this.pagestate = '2';
@@ -453,7 +448,7 @@
         console.log(this.transcription_data);
         this.transcription_data.chunk_size = 7;
         // Replace the speech-api http path here
-        axios.post('http://164.52.218.27:5000/transcribe_local_audio',
+        axios.post(this.speech_api_address+'/transcribe_local_audio',
             this.transcription_data, {
 						headers: {
 							'Content-Type': 'application/json'
@@ -488,7 +483,7 @@
 				formData.append('target_language', this.target_language);
 				formData.append('text', this.transcription);
         // Replace the translation-api http path here
-        axios.post('http://164.52.218.27:5050/translate_vtt',
+        axios.post(this.translation_api_address+'/translate_vtt',
 						formData, {
 						headers: {
 							'Content-Type': 'multipart/form-data'
@@ -586,7 +581,7 @@
         formData.append('feedback_text', this.feedback_text);
         console.log(formData);
         // Replace the feedback-api http path here
-        axios.post('http://164.52.218.27:6070/feedback',
+        axios.post(this.feedback_api_address+'/feedback',
             formData, {
 						headers: {
 							'Content-Type': 'multipart/form-data'
