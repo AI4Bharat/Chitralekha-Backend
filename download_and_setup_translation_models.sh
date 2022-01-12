@@ -1,5 +1,6 @@
 # After running this code, you ll have a folder structure that looks like this
-# ├── indicTrans-web (Contains all the web code for indictrans translation models)
+# indicTrans-web (Contains all the web code for indictrans translation models)
+# ├── api
 # │   ├── api.py (Contains the code for the flask server)
 # │   ├── fairseq (Latest fairseq cloned here)
 # │   ├── indicTrans (Contains the indicTrans code cloned from repo)
@@ -13,6 +14,8 @@
 
 mkdir indicTrans-web
 cd indicTrans-web
+mkdir api
+cd api
 echo "Cloning IndicTrans  Repo"
 git clone https://github.com/AI4Bharat/indicTrans.git
 
@@ -35,12 +38,13 @@ cd fairseq
 # !git checkout da9eaba12d82b9bfc1442f0e2c6fc1b895f4d35d
 echo "Installing fairseq"
 pip3 install --editable ./
-%cd ..
+cd ..
 
 mv indicTrans/api/api.py .
 mv indicTrans/api/punctuate.py .
+mv indicTrans/model_configs .
 mv indicTrans/interface ..
-mv indicTrans/model_configs ..
+
 mkdir models
 
 cd  models
