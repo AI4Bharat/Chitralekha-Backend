@@ -1,0 +1,19 @@
+{
+    "en":{
+            "model_path":"/home/speechteam/coda_comad_backend/flask_dep/models/en/en.pt",
+            "lm_details" : 
+                         {
+                        "nbest":1, 
+                        "lexicon":"/home/speechteam/coda_comad_backend/flask_dep/models/en/lm5/lexicon.lst", 
+                        "kenlm_model":"/home/speechteam/coda_comad_backend/flask_dep/models/en/lm5/lm.binary", 
+                        "beam_size_token": 100, 
+                        "beam":8, 
+                        "beam_threshold":25,
+                        "lm_weight":1, 
+                        "word_score":0.5, 
+                        "sil_weight":0.0 
+                        },
+            "lm_usage" : "True"
+                
+         }
+}

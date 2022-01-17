@@ -1,0 +1,10 @@
+flask
+flask-cors
+pydub
+webvtt-py
+nltk
+yt-dlp
+ffmpeg
+gevent
+tensorboardX
+webrtcvad
