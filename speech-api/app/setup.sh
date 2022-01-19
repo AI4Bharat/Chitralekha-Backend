@@ -19,7 +19,7 @@ make -j 16
 cd ..
 export KENLM_ROOT=$PWD
 # for CPU uncomment the following line
-export USE_CUDA=0
+# export USE_CUDA=0
 cd ..
 
 #Install flashlight
