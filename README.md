@@ -1,6 +1,8 @@
 # Pratilipi
 Transcribe your videos and translate it into Indic languages.
 
+You can watch a demo of our tool - [Video](https://youtu.be/l9jUcja0E94)
+
 ## Setting up the Speech server locally
 
 1. Clone the repository - `git clone --recursive https://github.com/AI4Bharat/pratilipi.git`
