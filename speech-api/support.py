@@ -248,6 +248,7 @@ def load_model(mdl_path):
     return mdl[0].eval(), task.target_dictionary
 
 import soundfile as sf
+DOWNLOAD_FOLDER = 'media/'
 def load_data(wavpath,of='raw',**extra):
     if of == 'raw':    
         # wav, _ = read_wave(wavpath)
@@ -260,25 +261,24 @@ def load_data(wavpath,of='raw',**extra):
         #wavpath = wavpath+'_new.wav'
         wav= pydub.AudioSegment.from_file(wavpath+'_new.wav', sample_width=2, frame_rate=16000, channels=1)
     elif of == 'url': 
-        lang = extra['lang']
-        if not os.path.exists('../downloaded/'+lang+'/'):
-            os.makedirs('../downloaded/'+lang+'/')
-        urllib.request.urlretrieve(wavpath, '../downloaded/'+lang+'/'+os.path.split(wavpath)[1])
-        subprocess.call(['ffmpeg', '-i', '../downloaded/'+lang+'/'+os.path.split(wavpath)[1],'-ar', '16k', '-ac', '1', '-hide_banner', '-loglevel', 'error', '../downloaded/'+lang+'/'+os.path.split(wavpath)[1]+'new.wav'])
-        if os.path.exists('../downloaded/'+lang+'/'+os.path.split(wavpath)[1]):
-            os.remove('../downloaded/'+lang+'/'+os.path.split(wavpath)[1])
-        return load_data('../downloaded/'+lang+'/'+os.path.split(wavpath)[1]+'new.wav')
+        if not os.path.exists(DOWNLOAD_FOLDER):
+            os.makedirs(DOWNLOAD_FOLDER)
+        urllib.request.urlretrieve(wavpath, DOWNLOAD_FOLDER+os.path.split(wavpath)[1])
+        subprocess.call(['ffmpeg', '-i', DOWNLOAD_FOLDER+os.path.split(wavpath)[1],'-ar', '16k', '-ac', '1', '-hide_banner', '-loglevel', 'error', DOWNLOAD_FOLDER+os.path.split(wavpath)[1]+'new.wav'])
+        if os.path.exists(DOWNLOAD_FOLDER+os.path.split(wavpath)[1]):
+            os.remove(DOWNLOAD_FOLDER+os.path.split(wavpath)[1])
+        return load_data(DOWNLOAD_FOLDER+os.path.split(wavpath)[1]+'new.wav')
     elif of == 'bytes':
         lang = extra['lang']
         name = extra['bytes_name']
-        if not os.path.exists('../downloaded/'+lang+'/'):
-            os.makedirs('../downloaded/'+lang+'/')
-        with wave.open('../downloaded/'+lang+'/'+name, 'wb') as file:
+        if not os.path.exists(DOWNLOAD_FOLDER):
+            os.makedirs(DOWNLOAD_FOLDER)
+        with wave.open(DOWNLOAD_FOLDER+name, 'wb') as file:
             file.setnchannels(1)
             file.setsampwidth(2)
             file.setframerate(16000)
             file.writeframes(base64.b64decode(wavpath))
-        return load_data('../downloaded/'+lang+'/'+name)
+        return load_data(DOWNLOAD_FOLDER+name)
     
     # sarray = wav.get_array_of_samples()
     # fp_arr = np.array(sarray).T.astype(np.float64)

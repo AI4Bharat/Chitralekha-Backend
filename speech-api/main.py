@@ -130,7 +130,7 @@ class AudioRequest(BaseModel):
     language: Optional[str] = 'en'
 
 @app.post("/transcribe_audio/")
-async def transcribe_local_audio(audio_request: AudioRequest):
+async def transcribe_audio(audio_request: AudioRequest):
     status = "SUCCESS"
     audio_url = audio_request.audio_url
     vad_val = audio_request.vad_level
@@ -138,16 +138,14 @@ async def transcribe_local_audio(audio_request: AudioRequest):
     language = audio_request.language
     #la = req_data['config']['language']['sourceLanguage']
     #af = req_data['config']['audioFormat']
-    if audio_uri in [None,'']:
+    if audio_url in [None,'']:
         status = 'ERROR'
         return {"status":status, "output":""}
     elif audio_url.startswith('media'):
-        audio_uri = audio_url
+        fp_arr = load_data(audio_url,of='raw')
     else:
-        audio_uri = os.path.join(MEDIA_FOLDER, audio_url.split('/')[-1])
-        urllib.urlretrieve(audio_url, audio_uri)
+        fp_arr = load_data(audio_url, of='url')
 
-    fp_arr = load_data(audio_uri,of='raw')
     # try:
     #     fp_arr = load_data(audio_uri,of='raw')
     # except Exception as e:
