@@ -235,11 +235,13 @@ class W2lKenLMDecoder(W2lDecoder):
 def load_model(mdl_path):
     while True:
         try:
+            print("Loading model..")
             mdl, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([mdl_path])
             print("Successfully loaded model "+mdl_path)
             break
 
         except:
+            print(f"Model loading failed for path: {mdl_path}. Retrying..")
             m = torch.load(mdl_path)
             m['cfg']['task']['_name'] = 'audio_finetuning'
             torch.save(m,mdl_path)

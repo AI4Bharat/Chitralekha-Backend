@@ -26,7 +26,7 @@ from multiprocessing import Process
 cuda = sys.argv[1]
 # punct_model = RestorePuncts()
 
-with open('test.json','r') as j:
+with open('config.json','r') as j:
     config = json.load(j)
 
 name2model_dict = dict()
