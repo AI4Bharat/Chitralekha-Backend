@@ -17,6 +17,7 @@ from yt_dlp import YoutubeDL
 import numpy as np
 import torch
 from omegaconf import OmegaConf
+import urllib
 
 from support import load_model,W2lKenLMDecoder,W2lViterbiDecoder,load_data
 from vad import frame_generator, vad_collector
@@ -131,7 +132,7 @@ class AudioRequest(BaseModel):
 @app.post("/transcribe_audio/")
 async def transcribe_local_audio(audio_request: AudioRequest):
     status = "SUCCESS"
-    audio_uri = audio_request.audio_url
+    audio_url = audio_request.audio_url
     vad_val = audio_request.vad_level
     chunk_size = audio_request.chunk_size
     language = audio_request.language
@@ -140,6 +141,11 @@ async def transcribe_local_audio(audio_request: AudioRequest):
     if audio_uri in [None,'']:
         status = 'ERROR'
         return {"status":status, "output":""}
+    elif audio_url.startswith('media'):
+        audio_uri = audio_url
+    else:
+        audio_uri = os.path.join(MEDIA_FOLDER, audio_url.split('/')[-1])
+        urllib.urlretrieve(audio_url, audio_uri)
 
     fp_arr = load_data(audio_uri,of='raw')
     # try:
@@ -175,7 +181,7 @@ async def transcribe_local_audio(audio_request: AudioRequest):
                 #op += "{0}.000 --> {1}.000".format(time.strftime('%H:%M:%S', time.gmtime(start_frame+frame)),time.strftime('%H:%M:%S', time.gmtime(end_frame)))+'\n'
                 # print(len(arr[int((start_frame+frame)*16000):int((end_frame)*16000)]),'Done')
                 # print(end_frame-frame-start_frame)
-                op_pred = align(arr[int((frame)*16000):int((end_frame)*16000)],cuda) +'\n\n' 
+                op_pred = align(arr[int((frame)*16000):int((end_frame)*16000)],DEVICE) +'\n\n' 
                 if len(op_pred.strip()) >2:
                      op += str(counter) + '\n'
                      counter += 1
@@ -189,7 +195,7 @@ async def transcribe_local_audio(audio_request: AudioRequest):
             else:
                 #print('\nHere')
                 # print(int((start_frame+frame)*16000),int((start_frame+frame+5.1)*16000),'Done')
-                op_pred = align(arr[int((frame)*16000):int((frame+chunk_size+0.1)*16000)],cuda)
+                op_pred = align(arr[int((frame)*16000):int((frame+chunk_size+0.1)*16000)],DEVICE)
                 if len(op_pred.strip()) > 2:
                      op += str(counter) + '\n'
                      counter += 1

@@ -1,11 +1,11 @@
 {
     "en":{
-            "model_path":"/workspace/speech-api/models/english.pt",
+            "model_path":"models/english.pt",
             "lm_details" : 
                          {
                         "nbest":1, 
-                        "lexicon":"/workspace/speech-api/models/lm_english/lexicon.lst", 
-                        "kenlm_model":"/workspace/speech-api/models/lm_english/lm.binary", 
+                        "lexicon":"models/lm_english/lexicon.lst", 
+                        "kenlm_model":"models/lm_english/lm.binary", 
                         "beam_size_token": 100, 
                         "beam":8, 
                         "beam_threshold":25,

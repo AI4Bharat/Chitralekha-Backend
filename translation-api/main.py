@@ -15,7 +15,7 @@ from punctuate import RestorePuncts
 app = FastAPI()
 
 # indic2en_model = Model(expdir='models/v3/indic-en')
-en2indic_model = Model(expdir='/workspace/translation-api/models/en-indic')
+en2indic_model = Model(expdir='models/en-indic')
 # m2m_model = Model(expdir='models/m2m')
 
 rpunct = RestorePuncts()
@@ -101,7 +101,7 @@ class VTTTranslationRequest(BaseModel):
     source_language: Optional[str] = 'English'
     target_language: str
 
-@app.post("/batch_translate/")
+@app.post("/translate_vtt/")
 def infer_vtt_indic_en(translation_request: VTTTranslationRequest):
     start_time = time.time()
     model, source_lang, target_lang = get_inference_params(
