@@ -19,7 +19,7 @@ import subprocess
 import io
 from pydub import AudioSegment
 import webrtcvad
-from vad_old import frame_generator, vad_collector
+from vad import frame_generator, vad_collector
 
 from multiprocessing import Process
 

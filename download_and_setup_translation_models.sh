@@ -35,7 +35,7 @@ pip3 install mosestokenizer subword-nmt
 git clone https://github.com/pytorch/fairseq.git
 cd fairseq
 # uncomment the following line if you want to use a reliable old version of fairseq in case something breaks with latest version
-# !git checkout da9eaba12d82b9bfc1442f0e2c6fc1b895f4d35d
+git checkout da9eaba12d82b9bfc1442f0e2c6fc1b895f4d35d
 echo "Installing fairseq"
 pip3 install --editable ./
 cd ..

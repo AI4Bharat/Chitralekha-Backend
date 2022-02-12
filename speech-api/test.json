@@ -1,11 +1,11 @@
 {
     "en":{
-            "model_path":"/home/speechteam/coda_comad_backend/flask_dep/models/en/en.pt",
+            "model_path":"/workspace/speech-api/models/english.pt",
             "lm_details" : 
                          {
                         "nbest":1, 
-                        "lexicon":"/home/speechteam/coda_comad_backend/flask_dep/models/en/lm5/lexicon.lst", 
-                        "kenlm_model":"/home/speechteam/coda_comad_backend/flask_dep/models/en/lm5/lm.binary", 
+                        "lexicon":"/workspace/speech-api/models/lm_english/lexicon.lst", 
+                        "kenlm_model":"/workspace/speech-api/models/lm_english/lm.binary", 
                         "beam_size_token": 100, 
                         "beam":8, 
                         "beam_threshold":25,
