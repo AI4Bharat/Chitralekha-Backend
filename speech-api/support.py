@@ -19,6 +19,7 @@ from fairseq.utils import apply_to_sample
 from omegaconf import open_dict, OmegaConf
 from fairseq.dataclass.utils import convert_namespace_to_omegaconf
 import base64
+import uuid
 #from vad_old import read_wave
 import subprocess
 try:
@@ -263,11 +264,12 @@ def load_data(wavpath,of='raw',**extra):
     elif of == 'url': 
         if not os.path.exists(DOWNLOAD_FOLDER):
             os.makedirs(DOWNLOAD_FOLDER)
-        urllib.request.urlretrieve(wavpath, DOWNLOAD_FOLDER+os.path.split(wavpath)[1])
-        subprocess.call(['ffmpeg', '-i', DOWNLOAD_FOLDER+os.path.split(wavpath)[1],'-ar', '16k', '-ac', '1', '-hide_banner', '-loglevel', 'error', DOWNLOAD_FOLDER+os.path.split(wavpath)[1]+'new.wav'])
-        if os.path.exists(DOWNLOAD_FOLDER+os.path.split(wavpath)[1]):
-            os.remove(DOWNLOAD_FOLDER+os.path.split(wavpath)[1])
-        return load_data(DOWNLOAD_FOLDER+os.path.split(wavpath)[1]+'new.wav')
+        file_id = uuid.uuid4().hex[:6].upper()
+        urllib.request.urlretrieve(wavpath, DOWNLOAD_FOLDER+file_id)
+        subprocess.call(['ffmpeg', '-i', DOWNLOAD_FOLDER+file_id,'-ar', '16k', '-ac', '1', '-hide_banner', '-loglevel', 'error', DOWNLOAD_FOLDER+file_id+'new.wav'])
+        if os.path.exists(DOWNLOAD_FOLDER+file_id):
+            os.remove(DOWNLOAD_FOLDER+file_id)
+        return load_data(DOWNLOAD_FOLDER+file_id+'new.wav')
     elif of == 'bytes':
         lang = extra['lang']
         name = extra['bytes_name']

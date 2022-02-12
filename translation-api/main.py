@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from pydantic import BaseModel
 
@@ -12,7 +13,16 @@ from mosestokenizer import MosesSentenceSplitter
 
 from indicTrans.inference.engine import Model
 from punctuate import RestorePuncts
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    # allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # indic2en_model = Model(expdir='models/v3/indic-en')
 en2indic_model = Model(expdir='models/en-indic')
@@ -36,35 +46,29 @@ splitter = MosesSentenceSplitter('en')
 
 def get_inference_params(source_language, target_language):
 
-    if source_language in indic_language_dict and target_language == 'English':
+    if source_language in indic_language_dict.values() and target_language == 'en':
         model = indic2en_model
-        source_lang = indic_language_dict[source_language]
-        target_lang = 'en'
-    elif source_language == 'English' and target_language in indic_language_dict:
+    elif source_language == 'en' and target_language in indic_language_dict.values():
         model = en2indic_model
-        source_lang = 'en'
-        target_lang = indic_language_dict[target_language]
-    elif source_language in indic_language_dict and target_language in indic_language_dict:
+    elif source_language in indic_language_dict.values() and target_language in indic_language_dict:
         model = m2m_model
-        source_lang = indic_language_dict[source_language]
-        target_lang = indic_language_dict[target_language]
     
-    return model, source_lang, target_lang
+    return model, source_language, target_language
 
 @app.get("/")
 async def root():
     return {"message": "Welcom to IndicTrans API. For usage instructions, visit /docs."}
 
-@app.get("/supported_languages/")
+@app.get("/supported_languages")
 async def supported_languages():
     return indic_language_dict
 
 class SentenceTranslationRequest(BaseModel):
     text: str
-    source_language: Optional[str] = 'English'
+    source_language: Optional[str] = 'en'
     target_language: str
 
-@app.post("/translate_sentence/")
+@app.post("/translate_sentence")
 async def translate_sentence(translation_request: SentenceTranslationRequest):
     model, source_lang, target_lang = get_inference_params(
         translation_request.source_language,
@@ -80,10 +84,10 @@ async def translate_sentence(translation_request: SentenceTranslationRequest):
 
 class BatchTranslationRequest(BaseModel):
     text_lines: list
-    source_language: Optional[str] = 'English'
+    source_language: Optional[str] = 'en'
     target_language: str
 
-@app.post("/batch_translate/")
+@app.post("/batch_translate")
 async def batch_translate(translation_request: BatchTranslationRequest):
     model, source_lang, target_lang = get_inference_params(
         translation_request.source_language,
@@ -98,10 +102,10 @@ async def batch_translate(translation_request: BatchTranslationRequest):
 
 class VTTTranslationRequest(BaseModel):
     webvtt: str
-    source_language: Optional[str] = 'English'
+    source_language: Optional[str] = 'en'
     target_language: str
 
-@app.post("/translate_vtt/")
+@app.post("/translate_vtt")
 def infer_vtt_indic_en(translation_request: VTTTranslationRequest):
     start_time = time.time()
     model, source_lang, target_lang = get_inference_params(

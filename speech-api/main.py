@@ -8,6 +8,7 @@ import io
 from multiprocessing import Process
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import webvtt
 from pydub import AudioSegment
@@ -31,6 +32,15 @@ print("Modules imported")
 os.makedirs(MEDIA_FOLDER, exist_ok=True)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    # allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 with open(CONFIG_PATH,'r') as j:
     config = json.load(j)
 
@@ -98,7 +108,7 @@ Visit /docs for usage information."}
 class VideoRequest(BaseModel):
     url: str
 
-@app.post("/download_video_to_local/")
+@app.post("/download_video_to_local")
 async def download_video_to_local(video_request: VideoRequest):
     yt_url = video_request.url
     ydl_best = YoutubeDL({'format': 'best'})
@@ -129,7 +139,7 @@ class AudioRequest(BaseModel):
     chunk_size: Optional[float] = 10.0
     language: Optional[str] = 'en'
 
-@app.post("/transcribe_audio/")
+@app.post("/transcribe_audio")
 async def transcribe_audio(audio_request: AudioRequest):
     status = "SUCCESS"
     audio_url = audio_request.audio_url
