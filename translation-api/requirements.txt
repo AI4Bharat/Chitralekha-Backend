@@ -7,3 +7,4 @@ gevent
 tensorboardX
 webrtcvad
 fastapi[all]
+spacy

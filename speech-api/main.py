@@ -10,6 +10,8 @@ from multiprocessing import Process
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from starlette.responses import RedirectResponse
+
 import webvtt
 from pydub import AudioSegment
 import webrtcvad
@@ -22,6 +24,8 @@ import urllib
 
 from support import load_model,W2lKenLMDecoder,W2lViterbiDecoder,load_data
 from vad import frame_generator, vad_collector
+from youtube import get_yt_video_and_subs
+
 
 MEDIA_FOLDER = "media/"
 CONFIG_PATH = "config.json"
@@ -101,9 +105,19 @@ async def startup_event():
     print("Model loaded.")
 
 @app.get("/")
-async def root():
-    return {"message": "Welcome to AI4Bharat Speech-to-Text API. \
-Visit /docs for usage information."}
+async def homepage():
+    # Redirect homepage to Swagger
+    return RedirectResponse(url="/docs")
+
+
+@app.get("/get_youtube_video_link_with_captions")
+@app.post("/get_youtube_video_link_with_captions")
+async def _get_youtube_video_link_with_captions(
+    url: str,
+    lang: str = 'en'
+):
+
+    return get_yt_video_and_subs(url, lang)
 
 class VideoRequest(BaseModel):
     url: str

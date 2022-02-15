@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from pydantic import BaseModel
+from starlette.responses import RedirectResponse
 
 import time
 
@@ -13,6 +14,7 @@ from mosestokenizer import MosesSentenceSplitter
 
 from indicTrans.inference.engine import Model
 from punctuate import RestorePuncts
+from lemmatizer import lemmatize
 
 app = FastAPI()
 
@@ -56,12 +58,26 @@ def get_inference_params(source_language, target_language):
     return model, source_language, target_language
 
 @app.get("/")
-async def root():
-    return {"message": "Welcom to IndicTrans API. For usage instructions, visit /docs."}
+async def homepage():
+    # Redirect homepage to Swagger
+    return RedirectResponse(url="/docs")
 
 @app.get("/supported_languages")
 async def supported_languages():
     return indic_language_dict
+
+@app.get("/lemmatize_sentence")
+@app.post("/lemmatize_sentence")
+async def _lemmatize_sentence(
+    sentence: str,
+    lang: str = 'en'
+):
+
+    if lang != 'en':
+        return "ERROR: Language not supported!"
+
+    return lemmatize(sentence)
+
 
 class SentenceTranslationRequest(BaseModel):
     text: str
