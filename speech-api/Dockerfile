@@ -21,7 +21,7 @@ RUN pip install packaging soundfile swifter joblib==1.0.0 indic-nlp-library\
 WORKDIR /home
 RUN git clone https://github.com/pytorch/fairseq.git && \
     cd fairseq && \
-    git checkout da9eaba12d82b9bfc1442f0e2c6fc1b895f4d35d && \
+    git checkout cf8ff8c3c5242e6e71e8feb40de45dd699f3cc08 && \
     pip install --editable ./
 
 # WORKDIR /tmp/apex_build
