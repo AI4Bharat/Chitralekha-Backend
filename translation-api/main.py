@@ -10,13 +10,12 @@ import re
 from math import floor
 import webvtt
 from io import StringIO
-from mosestokenizer import MosesSentenceSplitter
 
-from indicTrans.inference.engine import Model
+from indicTrans.inference.engine import Model, split_sentences
 from punctuate import RestorePuncts
 from lemmatizer import lemmatize
 
-app = FastAPI()
+app = FastAPI(debug=True)
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,11 +25,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# indic2en_model = Model(expdir='models/v3/indic-en')
-en2indic_model = Model(expdir='models/en-indic')
-# m2m_model = Model(expdir='models/m2m')
+# print("Loading Indic-En Model..")
+# indic2en_model = Model(expdir='models/indic-en')
+# print("Loading En-Indic Model..")
+# en2indic_model = Model(expdir='models/en-indic')
+print("Loading M2M Model..")
+m2m_model = Model(expdir='models/m2m')
 
-rpunct = RestorePuncts()
+rpunct = RestorePuncts('hi')
 indic_language_dict = {
     'Assamese': 'as',
     'Hindi' : 'hi',
@@ -44,7 +46,7 @@ indic_language_dict = {
     'Malayalam' : 'ml',
     'Punjabi' : 'pa',
 }
-splitter = MosesSentenceSplitter('en')
+# splitter = MosesSentenceSplitter('en')
 
 def get_inference_params(source_language, target_language):
 
@@ -52,7 +54,7 @@ def get_inference_params(source_language, target_language):
         model = indic2en_model
     elif source_language == 'en' and target_language in indic_language_dict.values():
         model = en2indic_model
-    elif source_language in indic_language_dict.values() and target_language in indic_language_dict:
+    elif source_language in indic_language_dict.values() and target_language in indic_language_dict.values():
         model = m2m_model
     
     return model, source_language, target_language
@@ -143,12 +145,16 @@ def infer_vtt_indic_en(translation_request: VTTTranslationRequest):
     # print(split_sents)
 
     large_sentence = re.sub(r'[^\w\s]', '', large_sentence)
+    print("Large sentence", large_sentence)
     punctuated = rpunct.punctuate(large_sentence, batch_size=32)
     end_time = time.time()
     print("Time Taken for punctuation: {} s".format(end_time - start_time))
     start_time = time.time()
-    split_sents = splitter([punctuated]) ### Please uncomment
-
+    # split_sents = splitter([punctuated]) ### Please uncomment
+    print("Punctuated", punctuated)
+    split_sents = split_sentences(punctuated, source_lang)
+    print("split_sents", split_sents)
+    
 
     # print(split_sents)
     # output_sentence_punctuated = model.translate_paragraph(punctuated, source_lang, target_lang)

@@ -11,11 +11,11 @@
 #    ├── index.html
 #    └── logo.png
 
+sudo apt install -y liblzma-dev libbz2-dev libzstd-dev libsndfile1-dev libopenblas-dev libfftw3-dev libgflags-dev libgoogle-glog-dev
+sudo apt install -y build-essential cmake libboost-system-dev libboost-thread-dev libboost-program-options-dev libboost-test-dev libeigen3-dev zlib1g-dev libbz2-dev liblzma-dev
+sudo apt install -y git wget unzip 
 
-mkdir indicTrans-web
-cd indicTrans-web
-mkdir api
-cd api
+cd translation-api
 echo "Cloning IndicTrans  Repo"
 git clone https://github.com/AI4Bharat/indicTrans.git
 
@@ -29,30 +29,33 @@ cd ..
 
 echo "Installing required libraries and cloning Fairseq"
 # Install the necessary libraries
-pip3 install sacremoses pandas mock sacrebleu tensorboardX pyarrow indic-nlp-library
-pip3 install mosestokenizer subword-nmt
+pip install sacremoses pandas mock sacrebleu tensorboardX pyarrow indic-nlp-library
+pip install mosestokenizer subword-nmt simpletransformers
 # Install fairseq from source
 git clone https://github.com/pytorch/fairseq.git
 cd fairseq
 # uncomment the following line if you want to use a reliable old version of fairseq in case something breaks with latest version
-git checkout da9eaba12d82b9bfc1442f0e2c6fc1b895f4d35d
+git checkout cf8ff8c3c5242e6e71e8feb40de45dd699f3cc08
 echo "Installing fairseq"
-pip3 install --editable ./
+pip install --editable ./
 cd ..
-
-mv indicTrans/api/api.py .
-mv indicTrans/api/punctuate.py .
-mv indicTrans/model_configs .
-mv indicTrans/interface ..
 
 mkdir models
 
 cd  models
 echo "Downloading IndicTrans en-Indic Multilingual Model"
 wget https://storage.googleapis.com/samanantar-public/V0.3/models/en-indic.zip
+wget https://storage.googleapis.com/samanantar-public/V0.3/models/indic-en.zip
+wget https://storage.googleapis.com/samanantar-public/V0.3/models/m2m.zip
 # make sure unzip is installed with `sudo apt-get install unzip` before running this
 unzip en-indic.zip
 rm en-indic.zip
+unzip indic-en.zip
+rm indic-en.zip
+unzip m2m.zip
+rm m2m.zip
 cd ..
+
+pip install -r requirements.txt
 
 echo "Done"

@@ -15,22 +15,29 @@ import torch
 from io import StringIO
 from nltk.tokenize import sent_tokenize
 #from langdetect import detect
-from simpletransformers.ner import NERModel
+# from simpletransformers.ner import NERModel
+from punctuate_text import Punctuation
 
 
 class RestorePuncts:
-    def __init__(self, wrds_per_pred=250):
+    def __init__(self, lang:str='', wrds_per_pred=250):
         self.wrds_per_pred = wrds_per_pred
         self.overlap_wrds = 30
         self.valid_labels = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
-        self.model = NERModel("bert", "felflare/bert-restore-punctuation", labels=self.valid_labels,
-                              args={"silent": True, "max_seq_length": 512})
+        self.lang = lang
+        
+        # if self.lang == 'en':
+            # self.model = NERModel("bert", "felflare/bert-restore-punctuation", labels=self.valid_labels,
+            #                     args={"silent": True, "max_seq_length": 512})
+        # else:
+        self.model = Punctuation(self.lang)
         # use_cuda isnt working and this hack seems to load the model correctly to the gpu
-        self.model.device = torch.device("cuda:1")
+        self.model.device = torch.device("cuda")
         # dummy punctuate to load the model onto gpu
         self.punctuate("hello how are you")
 
-    def punctuate(self, text: str, batch_size:int=32, lang:str=''):
+
+    def punctuate(self, text: str, batch_size:int=32):
         """
         Performs punctuation restoration on arbitrarily large text.
         Detects if input is not English, if non-English was detected terminates predictions.
@@ -51,7 +58,6 @@ class RestorePuncts:
             return [L[x : x + n] for x in range(0, len(L), n)]
 
 
-
         # plit up large text into bert digestable chunks
         splits = self.split_on_toks(text, self.wrds_per_pred, self.overlap_wrds)
 
@@ -61,7 +67,11 @@ class RestorePuncts:
 
 
         for batch in batches:
-            batch_preds, _ = self.model.predict(batch)
+            # if self.lang == 'en':
+                # batch_preds, _ = self.model.predict(batch)
+            # else:
+            print("batch:", batch)
+            batch_preds = self.model.punctuate_text(batch)
             preds_lst.extend(batch_preds)
 
         
@@ -71,9 +81,13 @@ class RestorePuncts:
         # extract predictions, and discard logits
         #preds_lst = [i[0][0] for i in full_preds_lst]
         # join text slices
-        combined_preds = self.combine_results(text, preds_lst)
+        print("Combining results")
+        print(preds_lst)
+        punct_text = " ".join(preds_lst)
+        # combined_preds = self.combine_results(text, preds_lst)
         # create punctuated prediction
-        punct_text = self.punctuate_texts(combined_preds)
+        # punct_text = self.punctuate_texts(combined_preds)
+        print("Returning text")
         return punct_text
 
     def predict(self, input_slice):

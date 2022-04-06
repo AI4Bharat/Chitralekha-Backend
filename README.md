@@ -18,6 +18,7 @@ wget https://storage.googleapis.com/indicwav2vec-public/shared_to_vivek/lm.binar
 ```
 8. Change model path in test.json
 9. Run the server using ```python flask_api.py <cpu/cuda:0>``` 
+```uvicorn main:app --host 0.0.0.0 --port 5000```
 
 ## Setting up the Translation server locally
 
@@ -25,6 +26,7 @@ wget https://storage.googleapis.com/indicwav2vec-public/shared_to_vivek/lm.binar
 2. Install dependencies - ```bash download_and_setup_translation_models.sh```
 3. Fire up the flask server locally - 
 `FLASK_APP=api flask run -p 5050 -h 0.0.0.0`
+`uvicorn main:app --host 0.0.0.0 --port 5050`
 
 ## Setting up the Feedback API server locally
 
