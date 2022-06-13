@@ -2,6 +2,11 @@
 */media/
 */downloads/
 */placeholder.vtt
+*/flashlight/
+*/fairseq/
+*/kenlm/
+*/indic-punct/
+*/indicTrans/
 
 *.db
 
