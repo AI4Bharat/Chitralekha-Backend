@@ -26,6 +26,8 @@ from support import load_model,W2lKenLMDecoder,W2lViterbiDecoder,load_data
 from vad import frame_generator, vad_collector
 from youtube import get_yt_video_and_subs
 
+from tqdm import tqdm
+
 
 MEDIA_FOLDER = "media/"
 CONFIG_PATH = "config.json"
@@ -59,6 +61,7 @@ for k,m in config.items():
         model,dictionary = load_model(m['model_path'])
         if DEVICE != 'cpu' and torch.cuda.is_available():
             model.to(DEVICE)
+        print("Loading LM..")
         generator = W2lKenLMDecoder(lmarg, dictionary)
     else:
         lmarg = OmegaConf.create({'nbest':1})
@@ -148,18 +151,30 @@ async def download_video_to_local(video_request: VideoRequest):
 
 
 class AudioRequest(BaseModel):
-    audio_url: str
+    url: str
     vad_level: Optional[int] = 2
     chunk_size: Optional[float] = 10.0
     language: Optional[str] = 'en'
 
-@app.post("/transcribe_audio")
+@app.post("/transcribe")
 async def transcribe_audio(audio_request: AudioRequest):
-    status = "SUCCESS"
-    audio_url = audio_request.audio_url
-    vad_val = audio_request.vad_level
-    chunk_size = audio_request.chunk_size
+    url = audio_request.url
+    # vad_val = audio_request.vad_level
+    vad_val = 3
+    # chunk_size = audio_request.chunk_size
+    chunk_size = 10
     language = audio_request.language
+
+    if "youtube.com" in url or "youtu.be" in url:
+        audio_url = download_yt_audio(url)
+    else:
+        audio_url = url
+
+    return process_audio(audio_url, vad_val, chunk_size, language)
+    
+
+def process_audio(audio_url, vad_val, chunk_size, language):
+    status = "SUCCESS"
     #la = req_data['config']['language']['sourceLanguage']
     #af = req_data['config']['audioFormat']
     if audio_url in [None,'']:
@@ -168,6 +183,7 @@ async def transcribe_audio(audio_request: AudioRequest):
     elif audio_url.startswith('media'):
         fp_arr = load_data(audio_url,of='raw')
     else:
+        print("Loading data from url..")
         fp_arr = load_data(audio_url, of='url')
 
     # try:
@@ -181,12 +197,13 @@ async def transcribe_audio(audio_request: AudioRequest):
     op_nochunk = "WEBVTT\n\n"
     sample_rate = 16000
     vad = webrtcvad.Vad(vad_val) #2
-    frames = frame_generator(30, fp_arr, sample_rate)
+    frames = frame_generator(10, fp_arr, sample_rate)
     frames = list(frames)
-    segments = vad_collector(sample_rate, 30, 300, vad, frames)
+    segments = vad_collector(sample_rate, 10, 100, vad, frames)
     vad_time_stamps = []
     counter = 1
-    for i, (segment, (start_frame, end_frame)) in enumerate(segments):
+    print("Transcribing..")
+    for i, (segment, (start_frame, end_frame)) in enumerate(tqdm(segments)):
         song=AudioSegment.from_raw(io.BytesIO(segment), sample_width=2, frame_rate=16000, channels=1)
         samples = song.get_array_of_samples()
         fp_arr = np.array(samples).T.astype(np.float64)

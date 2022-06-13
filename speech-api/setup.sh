@@ -5,11 +5,11 @@ pip install packaging soundfile swifter
 
 
 # Install Fairseq
-git clone https://github.com/pytorch/fairseq.git
-cd fairseq
-git checkout cf8ff8c3c5242e6e71e8feb40de45dd699f3cc08
-pip install -e .
-cd ..
+# git clone https://github.com/pytorch/fairseq.git
+# cd fairseq
+# git checkout cf8ff8c3c5242e6e71e8feb40de45dd699f3cc08
+# pip install -e .
+# cd ..
 
 # Install KenLM
 git clone https://github.com/kpu/kenlm.git

@@ -140,11 +140,12 @@ def infer_vtt_indic_en(translation_request: VTTTranslationRequest):
 
     # for each vad timestamp, do:
     large_sentence = ' '.join(source_sentences) # only sentences in that time range
-    large_sentence = large_sentence.lower()
+    # Only for english
+    # large_sentence = large_sentence.lower()
+    # large_sentence = re.sub(r'[^\w\s]', '', large_sentence)
     # split_sents = sentence_split(large_sentence, 'en')
     # print(split_sents)
 
-    large_sentence = re.sub(r'[^\w\s]', '', large_sentence)
     print("Large sentence", large_sentence)
     punctuated = rpunct.punctuate(large_sentence, batch_size=32)
     end_time = time.time()
@@ -159,6 +160,7 @@ def infer_vtt_indic_en(translation_request: VTTTranslationRequest):
     # print(split_sents)
     # output_sentence_punctuated = model.translate_paragraph(punctuated, source_lang, target_lang)
     output_sents = model.batch_translate(split_sents, source_lang, target_lang)
+    print("output_sents", output_sents)
     # print(output_sents)
     # output_sents = split_sents
     # print(output_sents)

@@ -7,12 +7,15 @@ from indicnlp.tokenize import indic_tokenize
 import os
 import wget
 import sys
+import re
 from nemo.collections.nlp.models import PunctuationCapitalizationModel
 import sysconfig
 import string
 import shutil
 cache = sysconfig.get_path('purelib') + '/'
 
+
+HINDI_PUNCTUATOR = re.compile('(हूं|है|हैं|हूँ|थे|था|थी|थीं)')
 
 class Punctuation:
     def __init__(self, language_code):
@@ -158,23 +161,27 @@ class Punctuation:
 
         return full_text
 
-    def punctuate_text_others_buffer(self, sentence, buffer_length=400):
+    def punctuate_text_others_buffer(self, sentence, buffer_length=50):
         words = sentence.split()
         sentence_length = len(words)
         txt = ''
         beg_word = 0
         i = 1
         while sentence_length > buffer_length:
-            sentence_segment = ' '.join(words[beg_word:i*buffer_length])
+            print("sentence_length", sentence_length)
+            # sentence_segment = ' '.join(words[beg_word:*buffer_length])
+            sentence_segment = ' '.join(words[beg_word:beg_word+buffer_length])
+            print("Sentence len", len(sentence_segment.split()))
             txt = txt + self.punctuate_text_others_sentence(sentence_segment) + ' '
             full_stop_position = len(txt) - txt[::-1].find('.') - 1
             viram_position = len(txt) - txt[::-1].find('।') - 1
             question_mark_position = len(txt) - txt[::-1].find('?') - 1
             end_position = max([full_stop_position, viram_position, question_mark_position])
             beg_word = len(txt[:end_position].translate(str.maketrans('', '', string.punctuation + '।')).split())
-            sentence_length = sentence_length - beg_word
             i = i + 1
             sentence = ' '.join(words[beg_word:])
+            sentence_length = len(sentence.split())
+        print("last Sentence len", len(sentence.split()))
         return txt + self.punctuate_text_others_sentence(sentence)
 
     def punctuate_text_others(self, text):
@@ -210,9 +217,11 @@ class Punctuation:
 
     def punctuate_text(self, text):
         if self.language_code in ['en', 'en_bio']:
-            return self.punctuate_text_english(text)
+            return self.punctuate_text_english([text])[0]
+        # elif self.language_code == 'hi':
+        #     return HINDI_PUNCTUATOR.sub('\\1।', text)
         elif self.language_code in ['hi', 'gu', 'te', 'mr', 'kn', 'pa', 'ta', 'bn', 'or', 'ml', 'as']:
-            return self.punctuate_text_others(text)
+            return self.punctuate_text_others([text])[0]
 
 
 if __name__ == "__main__":

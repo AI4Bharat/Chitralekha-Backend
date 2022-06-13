@@ -12,7 +12,7 @@ import fairseq
 import soundfile as sf,wave
 import numpy as np
 import torch
-import urllib.request
+import urllib.response, requests
 from examples.speech_recognition.data.replabels import unpack_replabels
 from fairseq import tasks
 from fairseq.utils import apply_to_sample
@@ -250,7 +250,10 @@ def load_model(mdl_path):
 
 import soundfile as sf
 DOWNLOAD_FOLDER = 'media/'
+HEADERS = {"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"}
 def load_data(wavpath,of='raw',**extra):
+    print("Wavpath", wavpath)
+    print("of", of)
     if of == 'raw':    
         # wav, _ = read_wave(wavpath)
         # wav = pydub.AudioSegment.from_file(wavpath).set_frame_rate(16000).set_sample_width(2).set_channels(1)
@@ -265,11 +268,22 @@ def load_data(wavpath,of='raw',**extra):
         if not os.path.exists(DOWNLOAD_FOLDER):
             os.makedirs(DOWNLOAD_FOLDER)
         file_id = uuid.uuid4().hex[:6].upper()
-        urllib.request.urlretrieve(wavpath, DOWNLOAD_FOLDER+file_id)
+        # urllib.request.urlretrieve(wavpath, DOWNLOAD_FOLDER+file_id)
+        try:
+            print("Downloading file..")
+            resp = requests.get(wavpath, headers=HEADERS).content
+            with open(DOWNLOAD_FOLDER+file_id, "wb") as f:
+                f.write(resp)
+            print("Audio is saved")
+        except Exception as e:
+            print(e)
+        print("wavpath", wavpath)
+        print("downloads", DOWNLOAD_FOLDER+file_id)
         subprocess.call(['ffmpeg', '-i', DOWNLOAD_FOLDER+file_id,'-ar', '16k', '-ac', '1', '-hide_banner', '-loglevel', 'error', DOWNLOAD_FOLDER+file_id+'new.wav'])
         if os.path.exists(DOWNLOAD_FOLDER+file_id):
             os.remove(DOWNLOAD_FOLDER+file_id)
         return load_data(DOWNLOAD_FOLDER+file_id+'new.wav')
+        # return load_data(DOWNLOAD_FOLDER+file_id)
     elif of == 'bytes':
         lang = extra['lang']
         name = extra['bytes_name']

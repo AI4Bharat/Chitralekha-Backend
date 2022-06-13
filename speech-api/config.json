@@ -1,16 +1,16 @@
 {
     "en":{
-            "model_path":"models/english.pt",
+            "model_path":"models/hindi_large.pt",
             "lm_details" : 
                          {
                         "nbest":1, 
-                        "lexicon":"models/lm_english/lexicon.lst", 
-                        "kenlm_model":"models/lm_english/lm.binary", 
-                        "beam_size_token": 100, 
-                        "beam":8, 
-                        "beam_threshold":25,
-                        "lm_weight":1, 
-                        "word_score":0.5, 
+                        "lexicon":"models/lm_hindi/lm_mucs_both/hindi/lexicon.lst", 
+                        "kenlm_model":"models/lm_hindi/lm_mucs_both/hindi/lm.binary", 
+                        "beam_size_token": 1000, 
+                        "beam":256, 
+                        "beam_threshold":250,
+                        "lm_weight":0.5, 
+                        "word_score":2, 
                         "sil_weight":0.0 
                         },
             "lm_usage" : "True"

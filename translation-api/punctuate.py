@@ -34,7 +34,7 @@ class RestorePuncts:
         # use_cuda isnt working and this hack seems to load the model correctly to the gpu
         self.model.device = torch.device("cuda")
         # dummy punctuate to load the model onto gpu
-        self.punctuate("hello how are you")
+        self.punctuate("इस श्रेणी में केवल निम्नलिखित उपश्रेणी है मेहुल को भारत को सौंप दिया जाए")
 
 
     def punctuate(self, text: str, batch_size:int=32):
@@ -54,39 +54,42 @@ class RestorePuncts:
         #    If you are certain the input is English, pass argument lang='en' to this function.
         #    Punctuate received: {text}""")
 
-        def chunks(L, n):
-            return [L[x : x + n] for x in range(0, len(L), n)]
+        # def chunks(L, n):
+        #     return [L[x : x + n] for x in range(0, len(L), n)]
 
 
-        # plit up large text into bert digestable chunks
-        splits = self.split_on_toks(text, self.wrds_per_pred, self.overlap_wrds)
+        # # plit up large text into bert digestable chunks
+        # splits = self.split_on_toks(text, self.wrds_per_pred, self.overlap_wrds)
 
-        texts = [i["text"] for i in splits]
-        batches = chunks(texts, batch_size)
-        preds_lst = []
+        # texts = [i["text"] for i in splits]
+        # batches = chunks(texts, batch_size)
+        # preds_lst = []
 
 
-        for batch in batches:
-            # if self.lang == 'en':
-                # batch_preds, _ = self.model.predict(batch)
-            # else:
-            print("batch:", batch)
-            batch_preds = self.model.punctuate_text(batch)
-            preds_lst.extend(batch_preds)
+        # for batch in batches:
+        #     # if self.lang == 'en':
+        #         # batch_preds, _ = self.model.predict(batch)
+        #     # else:
+        #     print("batch:", batch)
+        #     batch_preds = self.model.punctuate_text(batch)
+        #     preds_lst.extend(batch_preds)
 
         
-        # predict slices
-        # full_preds_lst contains tuple of labels and logits
-        #full_preds_lst = [self.predict(i['text']) for i in splits]
-        # extract predictions, and discard logits
-        #preds_lst = [i[0][0] for i in full_preds_lst]
-        # join text slices
-        print("Combining results")
-        print(preds_lst)
-        punct_text = " ".join(preds_lst)
+        # # predict slices
+        # # full_preds_lst contains tuple of labels and logits
+        # #full_preds_lst = [self.predict(i['text']) for i in splits]
+        # # extract predictions, and discard logits
+        # #preds_lst = [i[0][0] for i in full_preds_lst]
+        # # join text slices
+        # print("Combining results")
+        # print(preds_lst)
+        # punct_text = " ".join(preds_lst)
         # combined_preds = self.combine_results(text, preds_lst)
         # create punctuated prediction
         # punct_text = self.punctuate_texts(combined_preds)
+        # punct_text = self.model.punctuate_text([text])[0]
+        punct_text = self.model.punctuate_text(text)
+        print("punct text", punct_text)
         print("Returning text")
         return punct_text
 
