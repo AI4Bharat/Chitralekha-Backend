@@ -25,6 +25,7 @@ cd ..
 
 #Install flashlight
 git clone https://github.com/flashlight/flashlight.git
+git checkout 06ddb51857ab1780d793c52948a0759f0ccc6ddb
 cd flashlight/bindings/python
 export USE_MKL=0
 python setup.py install
