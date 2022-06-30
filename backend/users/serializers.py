@@ -1,3 +1,4 @@
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers, status
@@ -55,3 +56,14 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(validated_data["password"])
         user.save()
         return user
+
+# Serializer to Login User
+class LoginUserSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField()
+
+    def validate(self, data):
+        user = authenticate(**data)
+        if user and user.is_active:
+            return user
+        raise serializers.ValidationError("Invalid Details.")

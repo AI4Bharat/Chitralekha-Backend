@@ -9,7 +9,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import RegisterSerializer, UserSerializer
+from .serializers import RegisterSerializer, UserSerializer, LoginUserSerializer
 
 
 # Class based view to Get User Details using Token Authentication
@@ -17,11 +17,13 @@ class UserDetailAPI(APIView):
     authentication_classes = (TokenAuthentication,)
     permission_classes = (AllowAny,)
 
-    def get(self, request, *args, **kwargs):
-        user = User.objects.get(id=request.user.id)
+    def get(self, request, pk, *args, **kwargs):
+        try:
+            user = User.objects.get(id=pk)
+        except Exception:
+            return Response({"message": "User not found"}, status=404)
         serializer = UserSerializer(user)
         return Response(serializer.data)
-
 
 # Class based view to register user
 class RegisterAPIView(generics.CreateAPIView):
@@ -39,12 +41,18 @@ class RegisterAPIView(generics.CreateAPIView):
         })
 
 # Class based view to login user
-class LoginAPI(KnoxLoginView):
-    permission_classes = (permissions.AllowAny,)
+class LoginAPI(generics.GenericAPIView):
+    serializer_class = LoginUserSerializer
 
-    def post(self, request, format=None):
-        serializer = AuthTokenSerializer(data=request.data)
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data['user']
-        login(request, user)
-        return super(LoginAPI, self).post(request, format=None)
+        user = serializer.validated_data
+        
+        return Response({
+            "user": UserSerializer(user, context=self.get_serializer_context()).data,
+            "token": AuthToken.objects.create(user)[1]
+        })
+
+    
+        
