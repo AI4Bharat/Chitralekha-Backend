@@ -21,8 +21,8 @@ router = routers.DefaultRouter()
 # Register the viewsets
 
 
-
 urlpatterns = [
     path('', include(router.urls)),
-    path('admin/', admin.site.urls)
+    path('admin/', admin.site.urls), 
+    path('users/', include('users.urls')),
 ]
