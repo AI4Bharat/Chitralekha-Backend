@@ -1,0 +1,4 @@
+Django==4.0.5
+djangorestframework==3.13.1
+python-dotenv==0.20.0
+yt-dlp==2022.6.29
