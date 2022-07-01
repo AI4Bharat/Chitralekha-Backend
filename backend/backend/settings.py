@@ -26,13 +26,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY")
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = '*' if DEBUG else os.getenv("SECRET_KEY")
+
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"]
+if DEBUG:
+    ALLOWED_HOSTS.append('*')
 
 # Application definition
 
@@ -50,6 +52,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -59,9 +62,19 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+if DEBUG:
+    INSTALLED_APPS.append('corsheaders')
+    CORS_ALLOW_ALL_ORIGINS = True
+    CSRF_COOKIE_SECURE = False
+
 CORS_ORIGIN_ALLOW_ALL = True
 
 CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:*',  # for localhost (Developlemt)
+    'https://*.ai4bharat.org',
+]
 
 ROOT_URLCONF = 'backend.urls'
 
