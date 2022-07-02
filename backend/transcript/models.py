@@ -11,7 +11,7 @@ MANUALLY_CREATED = "manually_created"
 TRANSCRIPT_TYPE = (
     (MACHINE_GENERATED, "machine_generated"),
     (HUMAN_EDITED, "human_edited"),
-    (HUMAN_EDITED, "manually_created"),
+    (MANUALLY_CREATED, "manually_created"),
 )
 
 LANGUAGE_CHOICES = (

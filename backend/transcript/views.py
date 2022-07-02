@@ -94,19 +94,16 @@ def retrieve_transcription(request):
     if "video_id" and "language" in dict(request.query_params):
         video_id = request.query_params["video_id"]
         lang = request.query_params["language"]
+        user_id = request.user.id 
 
         # Get the latest transcript
         transcript = (
             Transcript.objects.filter(video_id__exact=video_id)
-            .filter(language=lang)
-            .order_by("-id")
-            .first()
+            .filter(language=lang).filter(user=user_id)
         )
 
-        # return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
-
-        # Check if user has been alloted to this transcript
-        if transcript.user == request.user:
+        # Check if there are records in transcript 
+        if transcript:
             return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
 
         else:
@@ -120,7 +117,20 @@ def retrieve_transcription(request):
 
             # Check if the load latest transcript flag is set to true
             if load_latest_transcript == "true":
-                return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
+                
+                # Get the latest transcript
+                transcript = (
+                    Transcript.objects.filter(video_id__exact=video_id)
+                    .filter(language=lang).order_by('-updated_at').first() 
+                )
+
+                if transcript:
+                    return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
+                else:
+                    return Response(
+                        {"message": "No transcript found"},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
             else:
                 return Response(
                     {"message": "You are not allowed to load this transcript."},
