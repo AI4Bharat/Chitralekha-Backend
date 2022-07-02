@@ -48,7 +48,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'knox', 
     'users.apps.UsersConfig',
-    'video'
+    'video', 
+    'transcript.apps.TranscriptConfig',  
 ]
 
 MIDDLEWARE = [
