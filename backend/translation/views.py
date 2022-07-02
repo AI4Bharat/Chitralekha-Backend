@@ -144,7 +144,7 @@ def generate_translation(request):
 
     # Check if the cached translation is valid and return if it is valid
     try:
-        translation = Translation.objects.get(transcript=transcript_id, target_lang=target_lang)
+        translation = Translation.objects.get(transcript=transcript_id, target_lang=target_lang, user=request.user.id)
         if (translation.updated_at - translation.transcript.updated_at).total_seconds() >= 0:
             serializer = TranslationSerializer(translation)
             return Response(serializer.data)
