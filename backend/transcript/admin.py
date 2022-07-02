@@ -10,7 +10,6 @@ class TranscriptAdmin(admin.ModelAdmin):
     search_fields = ('video', 'language', 'transcript_type')
     ordering = ('id',)
 
-
 # Register the model in the admin panel
 admin.site.register(Transcript, TranscriptAdmin)
 

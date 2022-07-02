@@ -19,7 +19,7 @@ def make_asr_api_call(url, lang):
         headers = {"Content-Type": "application/json"}
         body = {"url": url, "language": lang}
         request_url = "http://216.48.181.177:5050/transcribe"
-        response = requests.post(url=request_url, headers = headers, json = body,verify=False)
+        response = requests.post(url=request_url, headers=headers, json = body,verify=False)
         response_data = json.loads(response.content)
         return response_data
     except Exception as e:
@@ -31,22 +31,31 @@ def create_transcription(request):
     """
     Endpoint to get or generate(if not existing) a transcription for a video
     """
-    if "video_id" in dict(request.query_params):
+    if "video_id" and "language" in dict(request.query_params):
         video_id = request.query_params["video_id"]
         lang = request.query_params["language"]
         transcript = Transcript.objects.filter(video_id__exact = video_id).filter(language=lang)
     else:
-        return Response({"message": "missing param : video_id"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "missing param : video_id or language"}, status=status.HTTP_400_BAD_REQUEST)
 
     if transcript:
         transcript_serializer = TranscriptSerializer(transcript)
         return Response({"data": transcript_serializer.data['payload']}, status=status.HTTP_200_OK)
+    
     else:
         # generate transcript using ASR API
-        video = Video.objects.get(pk=video_id)
+        try: 
+            video = Video.objects.get(pk=video_id)
+        except Video.DoesNotExist:
+            return Response({"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND)
         transcribed_data = make_asr_api_call(video.url, lang)
         if transcribed_data is not None:
-            transcript_obj = Transcript(transcript_type=MACHINE_GENERATED, video=video, language=lang, payload=transcribed_data)
+            transcript_obj = Transcript(
+                transcript_type=MACHINE_GENERATED, 
+                video=video, 
+                language=lang, 
+                payload=transcribed_data
+            )
             transcript_obj.save()
             return Response({"data": transcript_obj.payload}, status=status.HTTP_200_OK)
         else:
@@ -65,14 +74,21 @@ def retrieve_transcription(request):
         video_id = request.query_params["video_id"]
         lang = request.query_params["language"]
 
-        transcript = Transcript.objects.filter(video_id__exact=video_id).filter(language=lang)
+        # Get the latest transcript 
+        transcript = Transcript.objects.filter(video_id__exact = video_id).filter(language=lang).order_by('-id').first() 
+
+        # return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
 
         # Check if user has been alloted to this transcript 
         if transcript.user == request.user:
             return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
 
         else:   
-            load_latest_transcript = request.query_params["load_latest_transcript"]
+            try: 
+                load_latest_transcript = request.query_params["load_latest_transcript"]
+            except: 
+                return Response({"message": "You are not allowed to load this transcript."}, status=status.HTTP_400_BAD_REQUEST)   
+            
             # Check if the load latest transcript flag is set to true
             if load_latest_transcript == "true":
                 return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
@@ -162,6 +178,5 @@ class TranscriptViewSet(ModelViewSet):
     '''
     queryset = Transcript.objects.all()
     serializer_class = TranscriptSerializer
-    # permission_classes = (IsAuthenticatedOrReadOnly,)
 
     
