@@ -20,10 +20,10 @@ def make_asr_api_call(url, lang, vad_level=2, chunk_size=10):
             "accept": "application/json",
         }
         json_data = {
-            "url": "https://www.youtube.com/watch?v=lTTajzrSkCw",
-            "vad_level": 2,
-            "chunk_size": 10,
-            "language": "en",
+            "url": url,
+            "vad_level": vad_level,
+            "chunk_size": chunk_size,
+            "language": lang,
         }
         request_url = "http://216.48.182.174:5000/transcribe"
         response = requests.post(request_url, headers=headers, json=json_data)
