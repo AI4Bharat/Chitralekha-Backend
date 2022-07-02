@@ -14,14 +14,22 @@ from video.models import Video
 from .serializers import TranscriptSerializer
 
 ## Utility Functions 
-def make_asr_api_call(url, lang):
+def make_asr_api_call(url, lang, vad_level=2, chunk_size=10):
     try:
-        headers = {"Content-Type": "application/json"}
-        body = {"url": url, "language": lang}
-        request_url = "http://216.48.181.177:5050/transcribe"
-        response = requests.post(url=request_url, headers=headers, json = body,verify=False)
-        response_data = json.loads(response.content)
-        return response_data
+        headers = {
+            'accept': 'application/json',
+        }
+        json_data = {
+            'url': 'https://www.youtube.com/watch?v=lTTajzrSkCw',
+            'vad_level': 2,
+            'chunk_size': 10,
+            'language': 'en',
+        }
+        request_url = 'http://216.48.182.174:5000/transcribe'
+        response = requests.post(request_url, headers=headers, json=json_data)
+        
+        return json.loads(response.content)
+
     except Exception as e:
         return None
 
