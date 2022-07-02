@@ -42,7 +42,6 @@ def create_transcription(request):
     Endpoint to get or generate(if not existing) a transcription for a video
     """
     if ("language" or "video_id") not in dict(request.query_params):
-        print(request.query_params)
         return Response(
             {"message": "missing param : video_id or language"},
             status=status.HTTP_400_BAD_REQUEST,
