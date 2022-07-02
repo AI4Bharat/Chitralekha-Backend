@@ -2,6 +2,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import api_view
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 import requests
 
@@ -9,7 +10,7 @@ from .models import *
 from video.models import Video
 from .serializers import TranscriptSerializer
 
-
+## Utility Functions 
 def make_asr_api_call(url, lang):
     try:
         headers = {"Content-Type": "application/json"}
@@ -21,6 +22,7 @@ def make_asr_api_call(url, lang):
     except Exception as e:
         return None
 
+# Define the API views 
 @api_view(['GET'])
 def create_transcription(request):
     """
@@ -46,3 +48,18 @@ def create_transcription(request):
             return Response({"data": transcript_obj.payload}, status=status.HTTP_200_OK)
         else:
             return Response({"message": "Error while calling ASR API"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+## Define the Transcript ViewSet
+class TranscriptViewSet(ModelViewSet):
+    '''
+    API ViewSet for the Transcript model.
+    Performs CRUD operations on the Video model.
+    Endpoint: /transcript/api/
+    Methods: GET, POST, PUT, DELETE
+    '''
+    queryset = Transcript.objects.all()
+    serializer_class = TranscriptSerializer
+    # permission_classes = (IsAuthenticatedOrReadOnly,)
+
+    
