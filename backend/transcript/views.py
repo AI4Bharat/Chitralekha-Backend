@@ -37,25 +37,26 @@ def make_asr_api_call(url, lang, vad_level=2, chunk_size=10):
 # Define the API views
 @api_view(["GET"])
 def create_transcription(request):
+    # sourcery skip: remove-redundant-if, remove-unreachable-code
     """
     Endpoint to get or generate(if not existing) a transcription for a video
     """
-    if "video_id" and "language" in dict(request.query_params):
-        video_id = request.query_params["video_id"]
-        lang = request.query_params["language"]
-        transcript = Transcript.objects.filter(video_id__exact=video_id).filter(
-            language=lang
-        )
-    else:
+    if ("language" or "video_id") not in dict(request.query_params):
+        print(request.query_params)
         return Response(
             {"message": "missing param : video_id or language"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    video_id = request.query_params["video_id"]
+    lang = request.query_params["language"]
+    transcript = Transcript.objects.filter(video_id__exact=video_id).filter(
+        language=lang
+    )
     if transcript:
-        transcript_serializer = TranscriptSerializer(transcript)
+        transcript_serializer = TranscriptSerializer(transcript, many=True)
         return Response(
-            {"data": transcript_serializer.data["payload"]}, status=status.HTTP_200_OK
+            {"data": transcript_serializer.data}, status=status.HTTP_200_OK
         )
 
     else:
@@ -85,7 +86,7 @@ def create_transcription(request):
 
 @api_view(["GET"])
 @permission_classes((IsAuthenticated,))
-def retrieve_transcription(request):
+def retrieve_transcription(request):  # sourcery skip: do-not-use-bare-except
     """
     Endpoint to retrive a transcription for a transcription entry
     """
