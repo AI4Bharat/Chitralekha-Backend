@@ -137,7 +137,11 @@ def save_transcription(request):
 
             # Save the new transcript object
             transcript_obj.save()
-            
+
+            # Set the transcript object language
+            transcript.language = language
+            transcript.save()
+
             return Response(
                 {
                     "data": transcript.payload
@@ -147,7 +151,15 @@ def save_transcription(request):
 
         else:
             # Update the transcript object with the new payload
-            transcript.update(payload=transcribed_data)
+            transcript.payload = transcribed_data
+            transcript.save()
+
+            return Response(
+                {
+                    "data": transcript.payload
+                }, 
+                status=status.HTTP_200_OK
+            )
 
     except Transcript.DoesNotExist: 
         return Response({"message": "Transcript Object does not exist Check transcript ID."}, status=status.HTTP_400_BAD_REQUEST)
