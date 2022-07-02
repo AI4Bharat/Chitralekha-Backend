@@ -20,10 +20,10 @@ def make_asr_api_call(url, lang, vad_level=2, chunk_size=10):
             "accept": "application/json",
         }
         json_data = {
-            "url": "https://www.youtube.com/watch?v=lTTajzrSkCw",
-            "vad_level": 2,
-            "chunk_size": 10,
-            "language": "en",
+            "url": url,
+            "vad_level": vad_level,
+            "chunk_size": chunk_size,
+            "language": lang,
         }
         request_url = "http://216.48.182.174:5000/transcribe"
         response = requests.post(request_url, headers=headers, json=json_data)
@@ -37,25 +37,26 @@ def make_asr_api_call(url, lang, vad_level=2, chunk_size=10):
 # Define the API views
 @api_view(["GET"])
 def create_transcription(request):
+    # sourcery skip: remove-redundant-if, remove-unreachable-code
     """
     Endpoint to get or generate(if not existing) a transcription for a video
     """
-    if "video_id" and "language" in dict(request.query_params):
-        video_id = request.query_params["video_id"]
-        lang = request.query_params["language"]
-        transcript = Transcript.objects.filter(video_id__exact=video_id).filter(
-            language=lang
-        )
-    else:
+    if ("language" or "video_id") not in dict(request.query_params):
+        print(request.query_params)
         return Response(
             {"message": "missing param : video_id or language"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    video_id = request.query_params["video_id"]
+    lang = request.query_params["language"]
+    transcript = Transcript.objects.filter(video_id__exact=video_id).filter(
+        language=lang
+    )
     if transcript:
-        transcript_serializer = TranscriptSerializer(transcript)
+        transcript_serializer = TranscriptSerializer(transcript, many=True)
         return Response(
-            {"data": transcript_serializer.data["payload"]}, status=status.HTTP_200_OK
+            {"data": transcript_serializer.data}, status=status.HTTP_200_OK
         )
 
     else:
@@ -85,7 +86,7 @@ def create_transcription(request):
 
 @api_view(["GET"])
 @permission_classes((IsAuthenticated,))
-def retrieve_transcription(request):
+def retrieve_transcription(request):  # sourcery skip: do-not-use-bare-except
     """
     Endpoint to retrive a transcription for a transcription entry
     """
@@ -94,19 +95,16 @@ def retrieve_transcription(request):
     if "video_id" and "language" in dict(request.query_params):
         video_id = request.query_params["video_id"]
         lang = request.query_params["language"]
+        user_id = request.user.id 
 
         # Get the latest transcript
         transcript = (
             Transcript.objects.filter(video_id__exact=video_id)
-            .filter(language=lang)
-            .order_by("-id")
-            .first()
+            .filter(language=lang).filter(user=user_id)
         )
 
-        # return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
-
-        # Check if user has been alloted to this transcript
-        if transcript.user == request.user:
+        # Check if there are records in transcript 
+        if transcript:
             return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
 
         else:
@@ -120,7 +118,20 @@ def retrieve_transcription(request):
 
             # Check if the load latest transcript flag is set to true
             if load_latest_transcript == "true":
-                return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
+                
+                # Get the latest transcript
+                transcript = (
+                    Transcript.objects.filter(video_id__exact=video_id)
+                    .filter(language=lang).order_by('-updated_at').first() 
+                )
+
+                if transcript:
+                    return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
+                else:
+                    return Response(
+                        {"message": "No transcript found"},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
             else:
                 return Response(
                     {"message": "You are not allowed to load this transcript."},
