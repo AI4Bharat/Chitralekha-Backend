@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     'knox', 
     'users.apps.UsersConfig',
     'video', 
-    'transcript', 
+    'transcript.apps.TranscriptConfig',  
 ]
 
 MIDDLEWARE = [
