@@ -3,6 +3,8 @@ djangorestframework==3.13.1
 django-cors-headers>=3.13
 python-dotenv==0.20.0
 yt-dlp==2022.6.29
+requests==2.25.1
+webvtt-py==0.4.6
 
 # Deps for knox
 knox>=0.1
