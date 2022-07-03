@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from .models import Translation
 
+
 class TranslationSerializer(serializers.ModelSerializer):
     translation_type = serializers.SerializerMethodField()
     target_lang = serializers.SerializerMethodField()

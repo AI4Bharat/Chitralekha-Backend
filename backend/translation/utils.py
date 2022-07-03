@@ -1,5 +1,6 @@
 from uuid import UUID
 
+
 def validate_uuid4(val):
     try:
         UUID(str(val))
