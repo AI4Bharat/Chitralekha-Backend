@@ -13,6 +13,7 @@ from .serializers import VideoSerializer
 # Define the YouTube Downloader object
 ydl = YoutubeDL({'format': 'best'})
 
+
 @api_view(['GET'])
 def get_video(request):
     '''
@@ -43,14 +44,24 @@ def get_video(request):
     duration = timedelta(seconds=info['duration'])
 
     # Create a new DB entry if URL does not exist, else return the existing entry
-    video, created = Video.objects.get_or_create(url=normalized_url, defaults={'name':title, 'duration':duration})
+    video, created = Video.objects.get_or_create(
+        url=normalized_url, defaults={'name': title, 'duration': duration})
     if created:
         video.save()
 
     # Return the Direct URL to the video
-    direct_url = info['url']
+    direct_video_url = info['url']
+
+    for fmt in info['formats']:
+        if fmt['resolution'] == 'audio only' and fmt['ext'] == 'm4a' and fmt['quality'] == 3:
+            direct_audio_url = fmt['url']
+            break
+
+    serializer = VideoSerializer(video)
     return Response({
-        'direct_url': direct_url,
+        'direct_audio_url': direct_audio_url,
+        'direct_video_url': direct_video_url,
+        'video': serializer.data
     }, status=status.HTTP_200_OK)
 
 
