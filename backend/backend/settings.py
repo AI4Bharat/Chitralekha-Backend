@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from distutils.util import strtobool
 
 load_dotenv()
 
@@ -27,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = bool(strtobool(os.getenv('DEBUG', 'True')))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = '*' if DEBUG else os.getenv("SECRET_KEY")
@@ -54,7 +55,6 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -64,19 +64,24 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-if DEBUG:
+ENABLE_CORS = bool(strtobool(os.getenv('ENABLE_CORS', 'False')))
+
+if ENABLE_CORS:
     INSTALLED_APPS.append('corsheaders')
+    MIDDLEWARE.insert(0, 'corsheaders.middleware.CorsMiddleware')
+
     CORS_ALLOW_ALL_ORIGINS = True
     CSRF_COOKIE_SECURE = False
+    CORS_ORIGIN_ALLOW_ALL = True
+    CORS_ALLOW_CREDENTIALS = True
 
-CORS_ORIGIN_ALLOW_ALL = True
+    CSRF_TRUSTED_ORIGINS = [
+        'http://localhost:*',  # for localhost (Developlemt)
+    ]
+    CUSTOM_CSRF_TRUSTED_ORIGINS = os.getenv('CORS_TRUSTED_ORIGINS', '')
+    if CUSTOM_CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.extend(CUSTOM_CSRF_TRUSTED_ORIGINS.split(','))
 
-CORS_ALLOW_CREDENTIALS = True
-
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:*',  # for localhost (Developlemt)
-    'https://*.ai4bharat.org',
-]
 
 ROOT_URLCONF = 'backend.urls'
 
@@ -112,12 +117,24 @@ REST_FRAMEWORK = {
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if os.getenv('POSTGRES_DB_NAME', None):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'NAME': os.getenv('POSTGRES_DB_NAME'),
+            'USER': os.getenv('POSTGRES_DB_USERNAME'),
+            'PASSWORD': os.getenv('POSTGRES_DB_PASSWORD'),
+            'HOST': os.getenv('POSTGRES_DB_HOST'),
+            'PORT': os.getenv('POSTGRES_DB_PORT'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
