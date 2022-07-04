@@ -25,6 +25,7 @@ def get_video(request):
 
     # Get the video URL from the query params
     url = request.query_params.get('video_url')
+    lang = request.query_params.get('lang', 'en')
     if url is None:
         return Response({
             'error': 'Video URL not provided in query params.'
@@ -52,6 +53,27 @@ def get_video(request):
     # Return the Direct URL to the video
     direct_video_url = info['url']
 
+    subtitle_payload = None
+    if 'subtitles' in info:
+        if lang in info['subtitles']:
+            # If it's named "English"
+            subtitle_payload = info['subtitles'][lang]
+        else:
+            # If it has a custom name like "English transcript by NPTEL"
+            for s_key in info['subtitles']:
+                if s_key.startswith(lang + '-'):
+                    subtitle_payload = info['subtitles'][s_key]
+                    break
+
+    # If manual captions not found, search for ASR transcripts
+    if not subtitle_payload and 'automatic_captions' in info:
+        if lang in info['automatic_captions']:
+            subtitle_payload = info['automatic_captions'][lang]
+
+    if subtitle_payload:
+        subtitle_payload = [item['url'] for item in subtitle_payload if item['ext'] == 'vtt'][0]
+
+
     for fmt in info['formats']:
         if fmt['resolution'] == 'audio only' and fmt['ext'] == 'm4a' and fmt['quality'] == 3:
             direct_audio_url = fmt['url']
@@ -61,6 +83,7 @@ def get_video(request):
     return Response({
         'direct_audio_url': direct_audio_url,
         'direct_video_url': direct_video_url,
+        'subtitles': subtitle_payload,
         'video': serializer.data
     }, status=status.HTTP_200_OK)
 
