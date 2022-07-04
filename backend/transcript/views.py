@@ -95,7 +95,6 @@ def create_transcription(request):
 
 
 @api_view(["GET"])
-@permission_classes((IsAuthenticated,))
 def retrieve_transcription(request):  # sourcery skip: do-not-use-bare-except
     """
     Endpoint to retrive a transcription for a transcription entry
