@@ -54,9 +54,7 @@ def create_transcription(request):
     )
     if transcript:
         transcript_serializer = TranscriptSerializer(transcript, many=True)
-        return Response(
-            {"data": transcript_serializer.data}, status=status.HTTP_200_OK
-        )
+        return Response({"data": transcript_serializer.data}, status=status.HTTP_200_OK)
 
     else:
         # generate transcript using ASR API
@@ -75,7 +73,11 @@ def create_transcription(request):
                 payload=transcribed_data,
             )
             transcript_obj.save()
-            return Response({"data": transcript_obj.payload}, status=status.HTTP_200_OK)
+
+            return Response(
+                {"id": transcript_obj.id, "data": transcript_obj.payload},
+                status=status.HTTP_200_OK,
+            )
         else:
             return Response(
                 {"message": "Error while calling ASR API"},
@@ -94,17 +96,21 @@ def retrieve_transcription(request):  # sourcery skip: do-not-use-bare-except
     if "video_id" and "language" in dict(request.query_params):
         video_id = request.query_params["video_id"]
         lang = request.query_params["language"]
-        user_id = request.user.id 
+        user_id = request.user.id
 
         # Get the latest transcript
         transcript = (
             Transcript.objects.filter(video_id__exact=video_id)
-            .filter(language=lang).filter(user=user_id)
+            .filter(language=lang)
+            .filter(user=user_id)
         )
 
-        # Check if there are records in transcript 
+        # Check if there are records in transcript
         if transcript:
-            return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
+            return Response(
+                {"id": transcript.id, "data": transcript.payload},
+                status=status.HTTP_200_OK,
+            )
 
         else:
             try:
@@ -117,15 +123,20 @@ def retrieve_transcription(request):  # sourcery skip: do-not-use-bare-except
 
             # Check if the load latest transcript flag is set to true
             if load_latest_transcript == "true":
-                
+
                 # Get the latest transcript
                 transcript = (
                     Transcript.objects.filter(video_id__exact=video_id)
-                    .filter(language=lang).order_by('-updated_at').first() 
+                    .filter(language=lang)
+                    .order_by("-updated_at")
+                    .first()
                 )
 
                 if transcript:
-                    return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
+                    return Response(
+                        {"id": transcript.id, "data": transcript.payload},
+                        status=status.HTTP_200_OK,
+                    )
                 else:
                     return Response(
                         {"message": "No transcript found"},
