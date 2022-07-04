@@ -43,11 +43,11 @@ class TranslationView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # Get the translation for the given transcript_id, target_lang and user_id
-        try:
-            queryset = Translation.objects.get(
-                transcript_id=transcript_id, target_lang=target_lang, user=request.user.id)
+        queryset = Translation.objects.filter(
+            transcript_id=transcript_id, target_lang=target_lang, user=request.user.id
+            ).order_by('-updated_at').first()
         # If no translation exists for this user, check if the latest translation can be fetched
-        except Translation.DoesNotExist:
+        if queryset is None:
             if get_latest:
                 queryset = Translation.objects.filter(
                     transcript_id=transcript_id, target_lang=target_lang
@@ -150,21 +150,20 @@ def generate_translation(request):
     transcript = get_object_or_404(Transcript, pk=transcript_id)
 
     # Check if the cached translation is valid and return if it is valid
-    try:
-        translation = Translation.objects.get(
-            transcript=transcript_id, target_lang=target_lang, user=request.user.id)
+    translation = Translation.objects.filter(
+        transcript=transcript_id, target_lang=target_lang, user=request.user.id).order_by('-updated_at').first()
+    if translation is not None:
         if (translation.updated_at - translation.transcript.updated_at).total_seconds() >= 0:
             serializer = TranslationSerializer(translation)
             return Response(serializer.data)
     # If there is no cached translation, create a new one
-    except Translation.DoesNotExist:
-        translation = Translation.objects.create(
-            translation_type='mg',
-            transcript_id=transcript_id,
-            target_lang=target_lang,
-            user=None,
-            payload={}
-        )
+    translation = Translation.objects.create(
+        translation_type='mg',
+        transcript_id=transcript_id,
+        target_lang=target_lang,
+        user=None,
+        payload={}
+    )
 
     # Read the sentences from the transcript
     sentence_list = []
