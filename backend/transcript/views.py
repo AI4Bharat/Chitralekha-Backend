@@ -53,8 +53,17 @@ def create_transcription(request):
         language=lang
     )
     if transcript:
-        transcript_serializer = TranscriptSerializer(transcript, many=True)
-        return Response({"data": transcript_serializer.data}, status=status.HTTP_200_OK)
+
+        # Filter the transcript where the type is MACHINE_GENERATED
+        transcript = (
+            transcript.filter(transcript_type=MACHINE_GENERATED)
+            .order_by("-updated_at")
+            .first()
+        )
+
+        return Response(
+            {"id": transcript.id, "data": transcript.payload}, status=status.HTTP_200_OK
+        )
 
     else:
         # generate transcript using ASR API
