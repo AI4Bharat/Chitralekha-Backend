@@ -8,7 +8,7 @@ class TranscriptAdmin(admin.ModelAdmin):
     list_display = ('id', 'video', 'language', 'transcript_type', 'payload') 
     list_filter = ('video', 'language', 'transcript_type')
     search_fields = ('video', 'language', 'transcript_type')
-    ordering = ('id',)
+    ordering = ('-updated_at',)
 
 # Register the model in the admin panel
 admin.site.register(Transcript, TranscriptAdmin)

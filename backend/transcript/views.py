@@ -112,6 +112,7 @@ def retrieve_transcription(request):  # sourcery skip: do-not-use-bare-except
             Transcript.objects.filter(video_id__exact=video_id)
             .filter(language=lang)
             .filter(user=user_id)
+            .first()
         )
 
         # Check if there are records in transcript
@@ -206,10 +207,6 @@ def save_transcription(request):
 
             # Save the new transcript object
             transcript_obj.save()
-
-            # Set the transcript object language
-            transcript.language = language
-            transcript.save()
 
             return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
 
