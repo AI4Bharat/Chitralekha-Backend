@@ -113,9 +113,9 @@ def create_youtube_transcription(request):
     )
     if transcript:
 
-        # Filter the transcript where the type is MACHINE_GENERATED
+        # Filter the transcript where the type is ORIGINAL_SOURCE
         transcript = (
-            transcript.filter(transcript_type=MACHINE_GENERATED)
+            transcript.filter(transcript_type=ORIGINAL_SOURCE)
             .order_by("-updated_at")
             .first()
         )
@@ -125,7 +125,7 @@ def create_youtube_transcription(request):
         )
 
     else:
-        # generate transcript using ASR API
+        # generate transcript using Youtube captions
         try:
             video = Video.objects.get(pk=video_id)
         except Video.DoesNotExist:
@@ -135,7 +135,7 @@ def create_youtube_transcription(request):
         subtitles = video.subtitles
         if subtitles is not None:
             transcript_obj = Transcript(
-                transcript_type=MACHINE_GENERATED,
+                transcript_type=ORIGINAL_SOURCE,
                 video=video,
                 language=lang,
                 payload=subtitles,

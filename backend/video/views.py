@@ -75,6 +75,7 @@ def get_video(request):
         if lang in info['automatic_captions']:
             subtitles = info['automatic_captions'][lang]
 
+    subtitle_payload = None
     subtitles_list = []
     if subtitles:
         # Get the VTT URL from the subtitle info and make a GET request to fetch the data

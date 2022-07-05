@@ -7,11 +7,13 @@ from video.models import Video
 MACHINE_GENERATED = "machine_generated"
 HUMAN_EDITED = "human_edited"
 MANUALLY_CREATED = "manually_created"
+ORIGINAL_SOURCE = "original_source"
 
 TRANSCRIPT_TYPE = (
     (MACHINE_GENERATED, "machine_generated"),
     (HUMAN_EDITED, "human_edited"),
     (MANUALLY_CREATED, "manually_created"),
+    (ORIGINAL_SOURCE, "original_source"),
 )
 
 LANGUAGE_CHOICES = (
