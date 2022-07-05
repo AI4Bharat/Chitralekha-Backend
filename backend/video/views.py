@@ -89,6 +89,13 @@ def get_video(request):
                 'text': caption.text
             })
 
+    # Save the subtitles to the video object 
+    video.subtitles = {
+        'status': 'SUCCESS',
+        'output': subtitle_payload,
+    }
+    video.save()
+
     # Get the direct audio URL
     for fmt in info['formats']:
         if fmt['resolution'] == 'audio only' and fmt['ext'] == 'm4a' and fmt['quality'] == 3:
