@@ -208,14 +208,20 @@ def save_transcription(request):
             # Save the new transcript object
             transcript_obj.save()
 
-            return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
+            return Response(
+                {"id": transcript_id, "data": transcript.payload},
+                status=status.HTTP_200_OK,
+            )
 
         else:
             # Update the transcript object with the new payload
             transcript.payload = transcribed_data
             transcript.save()
 
-            return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
+            return Response(
+                {"id": transcript_id, "data": transcript.payload},
+                status=status.HTTP_200_OK,
+            )
 
     except Transcript.DoesNotExist:
 
@@ -235,7 +241,10 @@ def save_transcription(request):
         # Save the new transcript object
         transcript_obj.save()
 
-        return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
+        return Response(
+            {"id": transcript_obj.id, "data": transcript.payload},
+            status=status.HTTP_200_OK,
+        )
 
 
 @api_view(["GET"])
