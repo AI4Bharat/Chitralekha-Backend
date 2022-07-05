@@ -177,7 +177,8 @@ def save_transcription(request):
     {
         "transcript_id": "",
         "language": "",
-        "payload": ""
+        "payload": "",
+        "video_id": "",
     }
     """
 
@@ -196,7 +197,7 @@ def save_transcription(request):
 
             # Create a new transcript object with the existing transcript as parent
             transcript_obj = Transcript(
-                transcript_type=MANUALLY_CREATED,
+                transcript_type=HUMAN_EDITED,
                 parent_transcript=transcript,
                 video=transcript.video,
                 language=language,
@@ -217,10 +218,24 @@ def save_transcription(request):
             return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
 
     except Transcript.DoesNotExist:
-        return Response(
-            {"message": "Transcript Object does not exist Check transcript ID."},
-            status=status.HTTP_400_BAD_REQUEST,
+
+        # Collect the video object
+        video_id = request.data["video_id"]
+        video = Video.objects.get(pk=video_id)
+
+        # If transcript doesn't exist then save a new transcript object
+        transcript_obj = Transcript(
+            transcript_type=MANUALLY_CREATED,
+            video=video,
+            language=language,
+            payload=transcribed_data,
+            user_id=user_id,
         )
+
+        # Save the new transcript object
+        transcript_obj.save()
+
+        return Response({"data": transcript.payload}, status=status.HTTP_200_OK)
 
 
 @api_view(["GET"])
