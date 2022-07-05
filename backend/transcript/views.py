@@ -95,6 +95,65 @@ def create_transcription(request):
 
 
 @api_view(["GET"])
+def create_youtube_transcription(request):
+    # sourcery skip: remove-redundant-if, remove-unreachable-code
+    """
+    Endpoint to get or generate(if not existing) a transcription for a video based on the youtube subtitles
+    """
+    if ("language" or "video_id") not in dict(request.query_params):
+        return Response(
+            {"message": "missing param : video_id or language"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    video_id = request.query_params["video_id"]
+    lang = request.query_params["language"]
+    transcript = Transcript.objects.filter(video_id__exact=video_id).filter(
+        language=lang
+    )
+    if transcript:
+
+        # Filter the transcript where the type is MACHINE_GENERATED
+        transcript = (
+            transcript.filter(transcript_type=MACHINE_GENERATED)
+            .order_by("-updated_at")
+            .first()
+        )
+
+        return Response(
+            {"id": transcript.id, "data": transcript.payload}, status=status.HTTP_200_OK
+        )
+
+    else:
+        # generate transcript using ASR API
+        try:
+            video = Video.objects.get(pk=video_id)
+        except Video.DoesNotExist:
+            return Response(
+                {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        subtitles = video.subtitles
+        if subtitles is not None:
+            transcript_obj = Transcript(
+                transcript_type=MACHINE_GENERATED,
+                video=video,
+                language=lang,
+                payload=subtitles,
+            )
+            transcript_obj.save()
+
+            return Response(
+                {"id": transcript_obj.id, "data": transcript_obj.payload},
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {"message": "No subtitles found."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+@api_view(["GET"])
 def retrieve_transcription(request):  # sourcery skip: do-not-use-bare-except
     """
     Endpoint to retrive a transcription for a transcription entry
