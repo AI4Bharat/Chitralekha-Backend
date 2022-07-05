@@ -1,4 +1,9 @@
+from io import StringIO
 from datetime import timedelta
+
+import requests
+import webvtt
+
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -53,27 +58,38 @@ def get_video(request):
     # Return the Direct URL to the video
     direct_video_url = info['url']
 
-    subtitle_payload = None
+    subtitles = None
     if 'subtitles' in info:
         if lang in info['subtitles']:
             # If it's named "English"
-            subtitle_payload = info['subtitles'][lang]
+            subtitles = info['subtitles'][lang]
         else:
             # If it has a custom name like "English transcript by NPTEL"
             for s_key in info['subtitles']:
                 if s_key.startswith(lang + '-'):
-                    subtitle_payload = info['subtitles'][s_key]
+                    subtitles = info['subtitles'][s_key]
                     break
 
     # If manual captions not found, search for ASR transcripts
-    if not subtitle_payload and 'automatic_captions' in info:
+    if not subtitles and 'automatic_captions' in info:
         if lang in info['automatic_captions']:
-            subtitle_payload = info['automatic_captions'][lang]
+            subtitles = info['automatic_captions'][lang]
 
-    if subtitle_payload:
-        subtitle_payload = [item['url'] for item in subtitle_payload if item['ext'] == 'vtt'][0]
+    subtitles_list = []
+    if subtitles:
+        # Get the VTT URL from the subtitle info and make a GET request to fetch the data
+        subtitle_url = [item['url'] for item in subtitles if item['ext'] == 'vtt'][0]
+        subtitle_payload = requests.get(subtitle_url).text
 
+        # Parse the VTT file contents and append to the subtitle list
+        for caption in webvtt.read_buffer(StringIO(subtitle_payload)):
+            subtitles_list.append({
+                'start': caption.start,
+                'end': caption.end,
+                'text': caption.text
+            })
 
+    # Get the direct audio URL
     for fmt in info['formats']:
         if fmt['resolution'] == 'audio only' and fmt['ext'] == 'm4a' and fmt['quality'] == 3:
             direct_audio_url = fmt['url']
@@ -83,7 +99,7 @@ def get_video(request):
     return Response({
         'direct_audio_url': direct_audio_url,
         'direct_video_url': direct_video_url,
-        'subtitles': subtitle_payload,
+        'subtitles': subtitles_list,
         'video': serializer.data
     }, status=status.HTTP_200_OK)
 
