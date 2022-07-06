@@ -154,7 +154,9 @@ def create_youtube_transcription(request):
 
 
 @api_view(["GET"])
-def retrieve_transcription(request):  # sourcery skip: assign-if-exp, do-not-use-bare-except, remove-unnecessary-else, swap-if-else-branches
+def retrieve_transcription(
+    request,
+):  # sourcery skip: assign-if-exp, do-not-use-bare-except, remove-unnecessary-else, swap-if-else-branches
     """
     Endpoint to retrive a transcription for a transcription entry
     """
@@ -164,7 +166,7 @@ def retrieve_transcription(request):  # sourcery skip: assign-if-exp, do-not-use
         return Response(
             {"message": "missing param : video_id"},
             status=status.HTTP_400_BAD_REQUEST,
-        ) 
+        )
     if "language" not in dict(request.query_params):
         return Response(
             {"message": "missing param : language"},
@@ -233,6 +235,7 @@ def retrieve_transcription(request):  # sourcery skip: assign-if-exp, do-not-use
                 {"message": "You are not allowed to load this transcript."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
 
 @api_view(["POST"])
 @permission_classes(
