@@ -138,10 +138,6 @@ def get_video(request):
                 status=status.HTTP_200_OK,
             )
 
-        # Change language format
-        if lang == "en":
-            lang = "English"
-
         # Save a transcript object
         transcript_obj = Transcript(
             transcript_type=ORIGINAL_SOURCE,

@@ -17,8 +17,8 @@ TRANSCRIPT_TYPE = (
 )
 
 LANGUAGE_CHOICES = (
-    ("English", "English"),
-    ("Hindi", "Hindi"),
+    ("en", "English"),
+    ("hi", "Hindi"),
 )
 
 class Transcript(models.Model):
