@@ -13,6 +13,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
 from .models import Video
+from transcript.models import * 
 from .serializers import VideoSerializer
 
 # Define the YouTube Downloader object
@@ -103,13 +104,37 @@ def get_video(request):
             direct_audio_url = fmt['url']
             break
 
-    serializer = VideoSerializer(video)
-    return Response({
-        'direct_audio_url': direct_audio_url,
-        'direct_video_url': direct_video_url,
-        'subtitles': subtitles_list,
-        'video': serializer.data
-    }, status=status.HTTP_200_OK)
+    # Check if the user passed a boolean to create the transcript
+    create_youtube_transcript = request.query_params.get('create_youtube_transcript', False) 
+    if create_youtube_transcript: 
+        
+        # Save a transcript object 
+        transcript_obj = Transcript(
+            transcript_type=ORIGINAL_SOURCE,
+            video=video,
+            language=lang,
+            payload=video.subtitles,
+        )
+        transcript_obj.save()
+
+       
+        serializer = VideoSerializer(video)
+        return Response({
+            'direct_audio_url': direct_audio_url,
+            'direct_video_url': direct_video_url,
+            'subtitles': subtitles_list,
+            'video': serializer.data, 
+            'transcript_id': transcript_obj.id
+        }, status=status.HTTP_200_OK)
+    
+    else: 
+        serializer = VideoSerializer(video)
+        return Response({
+            'direct_audio_url': direct_audio_url,
+            'direct_video_url': direct_video_url,
+            'subtitles': subtitles_list,
+            'video': serializer.data, 
+        }, status=status.HTTP_200_OK)
 
 
 class VideoViewSet(ModelViewSet):
