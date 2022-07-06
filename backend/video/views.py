@@ -107,6 +107,25 @@ def get_video(request):
     # Check if the user passed a boolean to create the transcript
     create_youtube_transcript = request.query_params.get('create_youtube_transcript', False) 
     if create_youtube_transcript: 
+
+        # Check if the transcription for the video already exists 
+        transcript = Transcript.objects.filter(video=video).filter(language=lang).filter(transcript_type='original_source').first()
+
+        # If it does, return the existing transcript
+        if transcript: 
+            
+            serializer = VideoSerializer(video)
+            return Response({
+                'direct_audio_url': direct_audio_url,
+                'direct_video_url': direct_video_url,
+                'subtitles': subtitles_list,
+                'video': serializer.data, 
+                'transcript_id': transcript.id
+            }, status=status.HTTP_200_OK)
+        
+        # Change language format 
+        if lang == 'en':
+            lang = 'English'
         
         # Save a transcript object 
         transcript_obj = Transcript(
@@ -117,7 +136,6 @@ def get_video(request):
         )
         transcript_obj.save()
 
-       
         serializer = VideoSerializer(video)
         return Response({
             'direct_audio_url': direct_audio_url,

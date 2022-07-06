@@ -160,11 +160,19 @@ def retrieve_transcription(request):  # sourcery skip: assign-if-exp, do-not-use
     """
 
     # Check if video_id and language and transcript_type has been passed
-    if ("video_id" or "language" or "transcript_type") not in dict(
-        request.query_params
-    ):
+    if "video_id" not in dict(request.query_params):
         return Response(
-            {"message": "missing param : video_id or language or transcript_type"},
+            {"message": "missing param : video_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        ) 
+    if "language" not in dict(request.query_params):
+        return Response(
+            {"message": "missing param : language"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if "transcript_type" not in dict(request.query_params):
+        return Response(
+            {"message": "missing param : transcript_type"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
