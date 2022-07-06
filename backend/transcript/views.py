@@ -154,72 +154,87 @@ def create_youtube_transcription(request):
 
 
 @api_view(["GET"])
-def retrieve_transcription(request):  # sourcery skip: do-not-use-bare-except
+def retrieve_transcription(
+    request,
+):  # sourcery skip: assign-if-exp, do-not-use-bare-except, remove-unnecessary-else, swap-if-else-branches
     """
     Endpoint to retrive a transcription for a transcription entry
     """
 
-    # Check if video_id and language has been passed
-    if "video_id" and "language" in dict(request.query_params):
-        video_id = request.query_params["video_id"]
-        lang = request.query_params["language"]
-        user_id = request.user.id
-
-        # Get the latest transcript
-        transcript = (
-            Transcript.objects.filter(video_id__exact=video_id)
-            .filter(language=lang)
-            .filter(user=user_id)
-            .first()
-        )
-
-        # Check if there are records in transcript
-        if transcript:
-            return Response(
-                {"id": transcript.id, "data": transcript.payload},
-                status=status.HTTP_200_OK,
-            )
-
-        else:
-            try:
-                load_latest_transcript = request.query_params["load_latest_transcript"]
-            except:
-                return Response(
-                    {"message": "You are not allowed to load this transcript."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            # Check if the load latest transcript flag is set to true
-            if load_latest_transcript == "true":
-
-                # Get the latest transcript
-                transcript = (
-                    Transcript.objects.filter(video_id__exact=video_id)
-                    .filter(language=lang)
-                    .order_by("-updated_at")
-                    .first()
-                )
-
-                if transcript:
-                    return Response(
-                        {"id": transcript.id, "data": transcript.payload},
-                        status=status.HTTP_200_OK,
-                    )
-                else:
-                    return Response(
-                        {"message": "No transcript found"},
-                        status=status.HTTP_404_NOT_FOUND,
-                    )
-            else:
-                return Response(
-                    {"message": "You are not allowed to load this transcript."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-    else:
+    # Check if video_id and language and transcript_type has been passed
+    if "video_id" not in dict(request.query_params):
         return Response(
-            {"message": "missing param : video_id or language"},
+            {"message": "missing param : video_id"},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    if "language" not in dict(request.query_params):
+        return Response(
+            {"message": "missing param : language"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if "transcript_type" not in dict(request.query_params):
+        return Response(
+            {"message": "missing param : transcript_type"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    video_id = request.query_params["video_id"]
+    lang = request.query_params["language"]
+    transcript_type = request.query_params["transcript_type"]
+    user_id = request.user.id
+
+    # Get the latest transcript
+    transcript = (
+        Transcript.objects.filter(video_id__exact=video_id)
+        .filter(language=lang)
+        .filter(user=user_id)
+        .filter(transcript_type=transcript_type)
+        .first()
+    )
+
+    # Check if there are records in transcript
+    if transcript:
+        return Response(
+            {"id": transcript.id, "data": transcript.payload},
+            status=status.HTTP_200_OK,
+        )
+
+    else:
+        try:
+            load_latest_transcript = request.query_params["load_latest_transcript"]
+        except:
+            return Response(
+                {"message": "You are not allowed to load this transcript."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check if the load latest transcript flag is set to true
+        if load_latest_transcript == "true":
+
+            # Get the latest transcript
+            transcript = (
+                Transcript.objects.filter(video_id=video_id)
+                .filter(language=lang)
+                .filter(transcript_type=transcript_type)
+                .order_by("-updated_at")
+                .first()
+            )
+
+            if transcript:
+                return Response(
+                    {"id": transcript.id, "data": transcript.payload},
+                    status=status.HTTP_200_OK,
+                )
+            else:
+                return Response(
+                    {"message": "No transcript found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        else:
+            return Response(
+                {"message": "You are not allowed to load this transcript."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 @api_view(["POST"])
