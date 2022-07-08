@@ -49,9 +49,11 @@ def create_transcription(request):
 
     video_id = request.query_params["video_id"]
     lang = request.query_params["language"]
-    transcript = Transcript.objects.filter(video_id__exact=video_id).filter(
-        language=lang
-    ).filter(transcript_type=MACHINE_GENERATED)
+    transcript = (
+        Transcript.objects.filter(video_id=video_id)
+        .filter(language=lang)
+        .filter(transcript_type=MACHINE_GENERATED)
+    )
     if transcript:
 
         # Filter the transcript where the type is MACHINE_GENERATED
