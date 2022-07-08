@@ -51,15 +51,11 @@ def create_transcription(request):
     lang = request.query_params["language"]
     transcript = Transcript.objects.filter(video_id__exact=video_id).filter(
         language=lang
-    )
+    ).filter(transcript_type=MACHINE_GENERATED)
     if transcript:
 
         # Filter the transcript where the type is MACHINE_GENERATED
-        transcript = (
-            transcript.filter(transcript_type=MACHINE_GENERATED)
-            .order_by("-updated_at")
-            .first()
-        )
+        transcript = transcript.order_by("-updated_at").first()
 
         return Response(
             {"id": transcript.id, "data": transcript.payload}, status=status.HTTP_200_OK
