@@ -185,13 +185,13 @@ def list_recent(request):
     # Get a list of videos from recently transcribed videos
     recent_transcripts = [
         (transcript.video, transcript.updated_at)
-        for transcript in Transcript.objects.all()
+        for transcript in Transcript.objects.filter(user=request.user.id)
     ]
 
     # Get a list of videos from recently translated videos
     recent_translations = [
         (translation.transcript.video, translation.updated_at)
-        for translation in Translation.objects.select_related('transcript')
+        for translation in Translation.objects.filter(user=request.user.id).select_related('transcript')
     ]
 
     # Form a union of the lists and sort by updated_at
