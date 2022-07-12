@@ -12,8 +12,9 @@ from rest_framework.viewsets import ModelViewSet
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
+from transcript.models import Transcript, ORIGINAL_SOURCE
+from translation.models import Translation
 from .models import Video
-from transcript.models import *
 from .serializers import VideoSerializer
 
 # Define the YouTube Downloader object
@@ -119,7 +120,7 @@ def get_video(request):
         transcript = (
             Transcript.objects.filter(video=video)
             .filter(language=lang)
-            .filter(transcript_type="original_source")
+            .filter(transcript_type=ORIGINAL_SOURCE)
             .first()
         )
 
@@ -170,6 +171,44 @@ def get_video(request):
             },
             status=status.HTTP_200_OK,
         )
+
+@api_view(["GET"])
+def list_recent(request):
+    """
+    API Endpoint to list the recent videos
+    Endpoint: /video/list_recent/
+    Method: GET
+    """
+    # Get the query param from the request, default count is 10
+    count = int(request.query_params.get("count", 10))
+
+    # Get a list of videos from recently transcribed videos
+    recent_transcripts = [
+        (transcript.video, transcript.updated_at)
+        for transcript in Transcript.objects.filter(user=request.user.id)
+    ]
+
+    # Get a list of videos from recently translated videos
+    recent_translations = [
+        (translation.transcript.video, translation.updated_at)
+        for translation in Translation.objects.filter(user=request.user.id).select_related('transcript')
+    ]
+
+    # Form a union of the lists and sort by updated_at
+    union_list = recent_transcripts + recent_translations
+    union_list.sort(key=lambda x: x[1], reverse=True)
+
+    # Find the first N unique videos in the union list
+    videos = []
+    for video, _ in union_list:
+        if len(videos) >= count:
+            break
+        if video not in videos:
+            videos.append(video)
+
+    # Fetch and return the videos
+    serializer = VideoSerializer(videos, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class VideoViewSet(ModelViewSet):
