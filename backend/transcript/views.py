@@ -273,7 +273,7 @@ def save_transcription(request):
             transcript_obj.save()
 
             return Response(
-                {"id": transcript_id, "data": transcript.payload},
+                {"id": transcript_obj.id, "data": transcript.payload},
                 status=status.HTTP_200_OK,
             )
 
@@ -295,7 +295,7 @@ def save_transcription(request):
 
         # If transcript doesn't exist then save a new transcript object
         transcript_obj = Transcript(
-            transcript_type=ORIGINAL_SOURCE,
+            transcript_type=UPDATED_MACHINE_GENERATED,
             video=video,
             language=language,
             payload=transcribed_data,
