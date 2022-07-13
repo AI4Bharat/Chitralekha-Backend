@@ -42,7 +42,7 @@ class Transcript(models.Model):
         related_name="transcripts"
     )
     language = models.CharField(
-        choices=LANGUAGE_CHOICES, max_length=50, default="English",
+        choices=LANGUAGE_CHOICES, max_length=2, default="en",
         verbose_name="Transcript Language"
     )
     user = models.ForeignKey(

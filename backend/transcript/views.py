@@ -105,6 +105,8 @@ def create_youtube_transcription(request):
     transcript = Transcript.objects.filter(video_id__exact=video_id).filter(
         language=lang
     )
+    # TODO: Check if this is the expected workflow? In this case, if only a machine
+    # generated transcript exists, the second filtering in the if block returns nothing
     if transcript:
 
         # Filter the transcript where the type is ORIGINAL_SOURCE
@@ -245,7 +247,7 @@ def save_transcription(request):
     """
 
     # Collect the request parameters
-    transcript_id = request.data["transcript_id"]
+    transcript_id = request.data.get("transcript_id", None)
     language = request.data["language"]
     transcribed_data = request.data["payload"]
     user_id = request.user.id
@@ -273,7 +275,7 @@ def save_transcription(request):
             transcript_obj.save()
 
             return Response(
-                {"id": transcript_obj.id, "data": transcript.payload},
+                {"id": transcript_obj.id, "data": transcript_obj.payload},
                 status=status.HTTP_200_OK,
             )
 
@@ -294,6 +296,7 @@ def save_transcription(request):
         video = Video.objects.get(pk=video_id)
 
         # If transcript doesn't exist then save a new transcript object
+        # TODO: Check if this is the expected transcript type?
         transcript_obj = Transcript(
             transcript_type=UPDATED_MACHINE_GENERATED,
             video=video,
@@ -306,7 +309,7 @@ def save_transcription(request):
         transcript_obj.save()
 
         return Response(
-            {"id": transcript_obj.id, "data": transcript.payload},
+            {"id": transcript_obj.id, "data": transcript_obj.payload},
             status=status.HTTP_200_OK,
         )
 
