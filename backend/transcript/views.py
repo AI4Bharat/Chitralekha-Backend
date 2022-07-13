@@ -1,16 +1,13 @@
+import requests
+
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
+
 from video.models import Video
-from .serializers import TranscriptSerializer
-
-import requests
-import json
-
 from .models import *
-from video.models import Video
 from .serializers import TranscriptSerializer
 
 ## Utility Functions
@@ -28,9 +25,8 @@ def make_asr_api_call(url, lang, vad_level=2, chunk_size=10):
         request_url = "http://216.48.182.174:5000/transcribe"
         response = requests.post(request_url, headers=headers, json=json_data)
 
-        return json.loads(response.content)
-
-    except Exception as e:
+        return response.json()
+    except:
         return None
 
 
@@ -94,9 +90,9 @@ def create_transcription(request):
 
 @api_view(["GET"])
 def create_youtube_transcription(request):
-    # sourcery skip: remove-redundant-if, remove-unreachable-code
     """
-    Endpoint to get or generate(if not existing) a transcription for a video based on the youtube subtitles
+    Endpoint to get or generate(if not existing) a transcription for a video
+    based on the youtube subtitles
     """
     if ("language" or "video_id") not in dict(request.query_params):
         return Response(
@@ -152,9 +148,7 @@ def create_youtube_transcription(request):
 
 
 @api_view(["GET"])
-def retrieve_transcription(
-    request,
-):  # sourcery skip: assign-if-exp, do-not-use-bare-except, remove-unnecessary-else, swap-if-else-branches
+def retrieve_transcription(request):
     """
     Endpoint to retrive a transcription for a transcription entry
     """
@@ -236,11 +230,7 @@ def retrieve_transcription(
 
 
 @api_view(["POST"])
-@permission_classes(
-    [
-        IsAuthenticated,
-    ]
-)
+@permission_classes([IsAuthenticated])
 def save_transcription(request):
     """
     Endpoint to save a transcript for a video
@@ -266,10 +256,12 @@ def save_transcription(request):
 
         # Check if the transcript has a user
         if transcript.user is None:
-
+            transcript_type = (
+                UPDATED_ORIGINAL_SOURCE if transcript.transcript_type == ORIGINAL_SOURCE else UPDATED_MACHINE_GENERATED
+            )
             # Create a new transcript object with the existing transcript as parent
             transcript_obj = Transcript(
-                transcript_type=HUMAN_EDITED,
+                transcript_type=transcript_type,
                 parent_transcript=transcript,
                 video=transcript.video,
                 language=language,
@@ -303,7 +295,7 @@ def save_transcription(request):
 
         # If transcript doesn't exist then save a new transcript object
         transcript_obj = Transcript(
-            transcript_type=MANUALLY_CREATED,
+            transcript_type=ORIGINAL_SOURCE,
             video=video,
             language=language,
             payload=transcribed_data,
@@ -330,9 +322,9 @@ def get_supported_languages(request):
         headers = {"Content-Type": "application/json"}
         request_url = "http://216.48.182.174:5000/supported_languages"
         response = requests.get(url=request_url, headers=headers, verify=False)
-        response_data = json.loads(response.content)
+        response_data = response.json()
         return Response({"data": response_data}, status=status.HTTP_200_OK)
-    except Exception as e:
+    except Exception:
         return Response(
             {"message": "Error while calling ASR API"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
