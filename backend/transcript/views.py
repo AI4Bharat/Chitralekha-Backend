@@ -33,7 +33,6 @@ def make_asr_api_call(url, lang, vad_level=2, chunk_size=10):
 # Define the API views
 @api_view(["GET"])
 def create_transcription(request):
-    # sourcery skip: remove-redundant-if, remove-unreachable-code
     """
     Endpoint to get or generate(if not existing) a transcription for a video
     """
@@ -102,16 +101,17 @@ def create_youtube_transcription(request):
 
     video_id = request.query_params["video_id"]
     lang = request.query_params["language"]
-    transcript = Transcript.objects.filter(video_id__exact=video_id).filter(
-        language=lang
+    transcript = (
+        Transcript.objects
+        .filter(video_id__exact=video_id)
+        .filter(language=lang)
+        .filter(transcript_type=ORIGINAL_SOURCE)
     )
-    # TODO: Check if this is the expected workflow? In this case, if only a machine
-    # generated transcript exists, the second filtering in the if block returns nothing
     if transcript:
 
         # Filter the transcript where the type is ORIGINAL_SOURCE
         transcript = (
-            transcript.filter(transcript_type=ORIGINAL_SOURCE)
+            transcript
             .order_by("-updated_at")
             .first()
         )
@@ -297,8 +297,9 @@ def save_transcription(request):
 
         # If transcript doesn't exist then save a new transcript object
         # TODO: Check if this is the expected transcript type?
+        # FIX: The except block will never be reached. If reached, directly return an error.
         transcript_obj = Transcript(
-            transcript_type=UPDATED_MACHINE_GENERATED,
+            transcript_type=MANUALLY_CREATED,
             video=video,
             language=language,
             payload=transcribed_data,

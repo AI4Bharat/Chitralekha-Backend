@@ -8,12 +8,14 @@ ORIGINAL_SOURCE = "os"
 UPDATED_ORIGINAL_SOURCE = "uos"
 MACHINE_GENERATED = "mg"
 UPDATED_MACHINE_GENERATED = "umg"
+MANUALLY_CREATED = "mc"
 
 TRANSCRIPT_TYPE = (
     (ORIGINAL_SOURCE, "Original Source"),
     (UPDATED_ORIGINAL_SOURCE, "Updated Original Source"),
     (MACHINE_GENERATED, "Machine Generated"),
     (UPDATED_MACHINE_GENERATED, "Updated Machine Generated"),
+    (MANUALLY_CREATED, "Manually Created"),
 )
 
 LANGUAGE_CHOICES = (
@@ -30,7 +32,7 @@ class Transcript(models.Model):
         primary_key=True, default=uuid.uuid4, editable=False, verbose_name="Transcript ID"
     )
     transcript_type = models.CharField(
-        choices=TRANSCRIPT_TYPE, max_length=3, default=MACHINE_GENERATED,
+        choices=TRANSCRIPT_TYPE, max_length=10, default=MACHINE_GENERATED,
         verbose_name="Transcript Type"
     )
     parent_transcript = models.ForeignKey(
@@ -42,7 +44,7 @@ class Transcript(models.Model):
         related_name="transcripts"
     )
     language = models.CharField(
-        choices=LANGUAGE_CHOICES, max_length=2, default="en",
+        choices=LANGUAGE_CHOICES, max_length=10, default="en",
         verbose_name="Transcript Language"
     )
     user = models.ForeignKey(
