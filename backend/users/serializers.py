@@ -55,6 +55,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
+
 # Serializer to Login User
 class LoginUserSerializer(serializers.Serializer):
 
@@ -63,7 +64,7 @@ class LoginUserSerializer(serializers.Serializer):
     password = serializers.CharField(label="Password")
 
     def validate(self, data):
-        
+
         # Check if the username or email exists
         user = User.objects.filter(email=data["username_email"]).first()
         if user is None:
