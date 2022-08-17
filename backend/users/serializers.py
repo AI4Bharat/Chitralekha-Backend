@@ -60,15 +60,17 @@ class RegisterSerializer(serializers.ModelSerializer):
 class LoginUserSerializer(serializers.Serializer):
 
     # Take the username or email as the input
-    username_email = serializers.CharField(label="Username or Email")
+    username = serializers.CharField(label="Username")
     password = serializers.CharField(label="Password")
 
     def validate(self, data):
 
-        # Check if the username or email exists
-        user = User.objects.filter(email=data["username_email"]).first()
+        # Check if the username exists
+        user = User.objects.filter(username=data["username"]).first()
         if user is None:
-            user = User.objects.filter(username=data["username_email"]).first()
+            # If not, check if it is an email address
+            user = User.objects.filter(email=data["username"]).first()
+        
         if user is None:
             raise serializers.ValidationError("User doesn't exist")
 
