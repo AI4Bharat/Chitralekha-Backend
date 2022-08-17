@@ -1,8 +1,6 @@
-from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
-from rest_framework import serializers, status
-from rest_framework.response import Response
+from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
 
@@ -57,13 +55,25 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
+
 # Serializer to Login User
 class LoginUserSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    password = serializers.CharField()
+
+    # Take the username or email as the input
+    username_email = serializers.CharField(label="Username or Email")
+    password = serializers.CharField(label="Password")
 
     def validate(self, data):
-        user = authenticate(**data)
-        if user and user.is_active:
-            return user
-        raise serializers.ValidationError("Invalid Details.")
+
+        # Check if the username or email exists
+        user = User.objects.filter(email=data["username_email"]).first()
+        if user is None:
+            user = User.objects.filter(username=data["username_email"]).first()
+        if user is None:
+            raise serializers.ValidationError("User doesn't exist")
+
+        # Check if the password is correct
+        if not user.check_password(data["password"]):
+            raise serializers.ValidationError("Incorrect password")
+
+        return user
