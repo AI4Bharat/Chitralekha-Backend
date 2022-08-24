@@ -1,4 +1,19 @@
-# Define the translation model metadata here
+# Indic Trans API supported languages
+INDIC_TRANS_SUPPORTED_LANGUAGES = {
+  "Assamese": "as",
+  "English": "en",
+  "Hindi": "hi",
+  "Marathi": "mr",
+  "Tamil": "ta",
+  "Bengali": "bn",
+  "Kannada": "kn",
+  "Oriya": "or",
+  "Telugu": "te",
+  "Gujarati": "gu",
+  "Malayalam": "ml",
+  "Punjabi": "pa"
+}
+
 LANG_NAME_TO_CODE_ULCA = {
     "English": "en",
     "Assamese": "as",

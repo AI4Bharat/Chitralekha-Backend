@@ -15,8 +15,7 @@ from .models import Translation
 from .serializers import TranslationSerializer
 from .utils import validate_uuid4, get_batch_translations_using_indictrans_nmt_api
 
-TRANSLATION_API_URL = "http://216.48.181.177:5050"
-
+from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES, LANG_TRANS_MODEL_CODES
 
 class TranslationView(APIView):
     permission_classes = (IsAuthenticatedOrReadOnly,)
@@ -136,19 +135,15 @@ class TranslationView(APIView):
 
 @api_view(["GET"])
 def get_supported_languages(request):
-    # Make a request to the Translation API
-    response = requests.get(TRANSLATION_API_URL + "/supported_languages/")
 
-    # If the request was successful, return the response data
-    if response.status_code == 200:
-        return Response(response.json(), status=status.HTTP_200_OK)
-
-    # If the request was not successful, return the error response
+    # Return the allowed translations and model codes
     return Response(
-        {"error": "Error while fetching supported languages."},
-        status=status.HTTP_400_BAD_REQUEST,
+        {
+            "supported_languages": INDIC_TRANS_SUPPORTED_LANGUAGES,
+            "indic_trans_model_codes": LANG_TRANS_MODEL_CODES,
+        },
+        status=status.HTTP_200_OK,
     )
-
 
 @api_view(["GET"])
 def generate_translation(request):
