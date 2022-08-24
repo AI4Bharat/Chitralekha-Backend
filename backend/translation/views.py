@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 from transcript.models import Transcript
 from .models import Translation
 from .serializers import TranslationSerializer
-from .utils import validate_uuid4
+from .utils import validate_uuid4, get_batch_translations_using_indictrans_nmt_api
 
 TRANSLATION_API_URL = "http://216.48.181.177:5050"
 
@@ -130,9 +130,24 @@ def get_supported_languages(request):
 
 @api_view(['GET'])
 def generate_translation(request):
+    """GET Request endpoint to generate translation for a given transcript_id and target_lang
+
+    Args:
+        request : HTTP GET request
+    
+    GET params:
+        transcript_id : UUID of the transcript
+        target_lang : Target language of the translation
+        batch_size : Number of transcripts to be translated at a time [optional]
+
+    Returns:
+        Response: Response containing the generated translations
+    """
+
     # Get the query params
     transcript_id = request.query_params.get('transcript_id')
     target_lang = request.query_params.get('target_lang')
+    batch_size = request.query_params.get('batch_size', 75)
 
     # Ensure that the UUID is valid
     if not validate_uuid4(transcript_id):
@@ -149,6 +164,9 @@ def generate_translation(request):
     # Check if the given transcript ID exists
     transcript = get_object_or_404(Transcript, pk=transcript_id)
 
+    # Get the transcript source language 
+    source_lang = transcript.language
+
     # Check if the cached translation is valid and return if it is valid
     translation = Translation.objects.filter(
         transcript=transcript_id, target_lang=target_lang, user=request.user.id).order_by('-updated_at').first()
@@ -156,6 +174,7 @@ def generate_translation(request):
         if (translation.updated_at - translation.transcript.updated_at).total_seconds() >= 0:
             serializer = TranslationSerializer(translation)
             return Response(serializer.data)
+    
     # If there is no cached translation, create a new one
     translation = Translation.objects.create(
         translation_type='mg',
@@ -171,32 +190,46 @@ def generate_translation(request):
     for vtt_line in webvtt.read_buffer(StringIO(vtt_output)):
         sentence_list.append(vtt_line.text)
 
-    # Create the request body and send a GET request to the Translation API
-    request_body = {
-        "text_lines": sentence_list,
-        "source_language": 'en',
-        "target_language": target_lang
+    all_translated_sentences = [] # List to store all the translated sentences
+    
+    # Iterate over the sentences in batch format and send them to the Translation API
+    for i in range(0, len(sentence_list), batch_size):
+        batch_of_input_sentences = sentence_list[i:i+batch_size]
+        
+        # Get the translation using the Indictrans NMT API
+        translations_output = get_batch_translations_using_indictrans_nmt_api(
+            sentence_list=batch_of_input_sentences,
+            source_language=source_lang, 
+            target_language=target_lang,
+        ) 
+
+        # Check if translations output doesn't return a string error 
+        if isinstance(translations_output, str):
+            return Response({
+                'error': translations_output
+            }, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # Add the translated sentences to the list
+            all_translated_sentences.extend(translations_output)
+    
+    # Check if the length of the translated sentences is equal to the length of the input sentences
+    if len(all_translated_sentences) != len(sentence_list):
+        return Response({
+            'error': 'Error while generating translation.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Update the translation payload with the generated translations
+    payload = []
+    for (source, target) in zip(sentence_list, all_translated_sentences):
+        payload.append({
+            'source': source,
+            'target': target
+        })
+    translation.payload = {
+        "translations": payload
     }
-    response = requests.post(TRANSLATION_API_URL +
-                             '/batch_translate/', json=request_body)
+    translation.save()
 
-    # If the request was successful, load the payload into the Translation object
-    # and return the response
-    if response.status_code == 200:
-        payload = []
-        for (source, target) in zip(sentence_list, response.json()['text_lines']):
-            payload.append({
-                "source": source,
-                "target": target
-            })
-        translation.payload = {
-            "translations": payload
-        }
-        translation.save()
-
-        serializer = TranslationSerializer(translation)
-        return Response(serializer.data)
-
-    return Response({
-        'error': 'Error while generating translation.',
-    }, status=status.HTTP_400_BAD_REQUEST)
+    # Return the translation
+    serializer = TranslationSerializer(translation)
+    return Response(serializer.data) 
