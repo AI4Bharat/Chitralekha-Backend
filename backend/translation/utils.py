@@ -1,6 +1,10 @@
 import requests
 from uuid import UUID
-from .metadata import LANG_TRANS_MODEL_CODES, DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID, LANG_CODE_TO_NAME_ULCA
+from .metadata import (
+    LANG_TRANS_MODEL_CODES,
+    DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID,
+    LANG_CODE_TO_NAME_ULCA,
+)
 
 ### Utility Functions ###
 def validate_uuid4(val):
@@ -9,6 +13,7 @@ def validate_uuid4(val):
         return True
     except ValueError:
         return False
+
 
 def get_batch_translations_using_indictrans_nmt_api(
     sentence_list,
@@ -25,13 +30,14 @@ def get_batch_translations_using_indictrans_nmt_api(
         list: List of dictionaries containing the translated sentences.
     """
 
-    # Convert language code to language text 
+    # Convert language code to language text
     source_language_name = LANG_CODE_TO_NAME_ULCA[source_language]
     target_language_name = LANG_CODE_TO_NAME_ULCA[target_language]
 
     # Get the translation model ID
     model_id = LANG_TRANS_MODEL_CODES.get(
-        f"{source_language_name}-{target_language_name}", DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID
+        f"{source_language_name}-{target_language_name}",
+        DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID,
     )
 
     # Create the input sentences list
@@ -61,6 +67,3 @@ def get_batch_translations_using_indictrans_nmt_api(
 
     except Exception as e:
         return str(e)
-
-
-

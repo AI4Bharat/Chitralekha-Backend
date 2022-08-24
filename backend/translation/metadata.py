@@ -1,4 +1,4 @@
-# Define the translation model metadata here 
+# Define the translation model metadata here
 LANG_NAME_TO_CODE_ULCA = {
     "English": "en",
     "Assamese": "as",
@@ -58,4 +58,4 @@ LANG_TRANS_MODEL_CODES = {
     "Telugu-English": 142,
 }  # 144 for all the other  indic-indic translations
 
-DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID = 144 
+DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID = 144
