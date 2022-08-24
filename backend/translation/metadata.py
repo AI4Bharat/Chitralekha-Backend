@@ -1,17 +1,17 @@
 # Indic Trans API supported languages
 INDIC_TRANS_SUPPORTED_LANGUAGES = {
   "Assamese": "as",
-  "English": "en",
-  "Hindi": "hi",
-  "Marathi": "mr",
-  "Tamil": "ta",
   "Bengali": "bn",
-  "Kannada": "kn",
-  "Oriya": "or",
-  "Telugu": "te",
+  "English": "en",
   "Gujarati": "gu",
+  "Hindi": "hi",
+  "Kannada": "kn",
   "Malayalam": "ml",
-  "Punjabi": "pa"
+  "Marathi": "mr",
+  "Oriya": "or",
+  "Punjabi": "pa",
+  "Tamil": "ta",
+  "Telugu": "te",
 }
 
 LANG_NAME_TO_CODE_ULCA = {

@@ -138,10 +138,7 @@ def get_supported_languages(request):
 
     # Return the allowed translations and model codes
     return Response(
-        {
-            "supported_languages": INDIC_TRANS_SUPPORTED_LANGUAGES,
-            "indic_trans_model_codes": LANG_TRANS_MODEL_CODES,
-        },
+        INDIC_TRANS_SUPPORTED_LANGUAGES,
         status=status.HTTP_200_OK,
     )
 
