@@ -6,7 +6,12 @@ import os
 import sys
 import io
 from multiprocessing import Process
+import string
+import logging
+logging.basicConfig()
+logging.getLogger().setLevel(logging.DEBUG)
 
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -21,6 +26,8 @@ import numpy as np
 import torch
 from omegaconf import OmegaConf
 import urllib
+from transformers import AutoTokenizer, AutoModelForTokenClassification
+from punctuate import RestorePuncts
 
 from support import load_model,W2lKenLMDecoder,W2lViterbiDecoder,load_data
 from vad import frame_generator, vad_collector
@@ -35,9 +42,13 @@ DEVICE = "cuda"
 
 print("Modules imported")
 
+# tokenizer = AutoTokenizer.from_pretrained("felflare/bert-restore-punctuation")
+# rpunct_model = AutoModelForTokenClassification.from_pretrained("felflare/bert-restore-punctuation")
+
+
 os.makedirs(MEDIA_FOLDER, exist_ok=True)
 
-app = FastAPI()
+app = FastAPI(debug=True)
 
 app.add_middleware(
     CORSMiddleware,
@@ -52,27 +63,43 @@ with open(CONFIG_PATH,'r') as j:
 
 print("Config loaded.")
 
+# Load punctuation model
+rpunct = RestorePuncts()
+print("Punctuation model loaded.")
+# output = rpunct.punctuate("i am here to introduce the course data science for engineers")
+outputs = rpunct.punctuate_batch([
+    "i am here to introduce the course data science for engineers",
+    "hello how are you",
+    "i am fine what about you",
+    "my name is giorgio giovanni"
+    ])
+print(outputs)
+# breakpoint()
+
 print("Loading models from config..")
 name2model_dict = dict()
 for k,m in config.items():
     if eval(m['lm_usage']):
         lmarg = OmegaConf.create(m['lm_details'])
         lmarg.unk_weight = -math.inf
+        device = m['device']
         model,dictionary = load_model(m['model_path'])
         if DEVICE != 'cpu' and torch.cuda.is_available():
-            model.to(DEVICE)
+            model.to(device)
         print("Loading LM..")
         generator = W2lKenLMDecoder(lmarg, dictionary)
     else:
         lmarg = OmegaConf.create({'nbest':1})
         model,dictionary = load_model(m['model_path'])
+        device = m['device']
         if DEVICE != 'cpu' and torch.cuda.is_available():
-            model.to(DEVICE)
+            model.to(device)
         generator = W2lViterbiDecoder(lmarg, dictionary)
     name2model_dict[k] = [model,generator,dictionary]
 
 
-def align(fp_arr,DEVICE):
+def align(fp_arr, DEVICE, lang, restore_punct=True):
+
     feature = torch.from_numpy(fp_arr).float()
     if DEVICE != 'cpu' and torch.cuda.is_available():
         feature = feature.to(DEVICE)
@@ -82,8 +109,8 @@ def align(fp_arr,DEVICE):
         sample["net_input"]["padding_mask"] = torch.BoolTensor(sample["net_input"]["source"].size(1)).fill_(False).unsqueeze(0).to(DEVICE)
     else:
         sample["net_input"]["padding_mask"] = torch.BoolTensor(sample["net_input"]["source"].size(1)).fill_(False).unsqueeze(0)
-        
-    model,generator,dictionary = name2model_dict['en']
+    
+    model,generator,dictionary = name2model_dict[lang]
 
     with torch.no_grad():
         hypo = generator.generate([model], sample, prefix_tokens=None)
@@ -112,6 +139,36 @@ async def homepage():
     # Redirect homepage to Swagger
     return RedirectResponse(url="/docs")
 
+# indic_language_dict = {
+#     'English' : 'en',
+#     'Hindi' : 'hi',
+#     'Bengali' : 'bn',
+#     'Gujarati' : 'gu',
+#     'Kannada' : 'kn',
+#     'Malayalam' : 'ml',
+#     'Marathi' : 'mr',
+#     'Odia' : 'or',
+#     'Punjabi' : 'pa',
+#     'Sanskrit' : 'sa',
+#     'Tamil' : 'ta',
+#     'Telugu' : 'te',
+#     'Urdu' : 'ur',
+# }
+
+indic_language_dict = {
+    'English' : 'en',
+    'Hindi' : 'hi',
+    'Bengali' : 'bn',
+    'Gujarati' : 'gu',
+    'Marathi' : 'mr',
+    'Odia' : 'or',
+    'Tamil' : 'ta',
+    'Telugu' : 'te',
+}
+
+@app.get("/supported_languages")
+async def supported_languages():
+    return indic_language_dict
 
 @app.get("/get_youtube_video_link_with_captions")
 @app.post("/get_youtube_video_link_with_captions")
@@ -155,6 +212,7 @@ class AudioRequest(BaseModel):
     vad_level: Optional[int] = 2
     chunk_size: Optional[float] = 10.0
     language: Optional[str] = 'en'
+    restore_punct: Optional[bool] = True
 
 @app.post("/transcribe")
 async def transcribe_audio(audio_request: AudioRequest):
@@ -164,16 +222,29 @@ async def transcribe_audio(audio_request: AudioRequest):
     # chunk_size = audio_request.chunk_size
     chunk_size = 10
     language = audio_request.language
+    retsore_punct= audio_request.restore_punct
 
     if "youtube.com" in url or "youtu.be" in url:
         audio_url = download_yt_audio(url)
     else:
         audio_url = url
 
-    return process_audio(audio_url, vad_val, chunk_size, language)
+    return process_audio(audio_url, vad_val, chunk_size, language, retsore_punct)
     
 
-def process_audio(audio_url, vad_val, chunk_size, language):
+def get_punctuated(transcript, lang, restore_punct=True):
+    if restore_punct:
+        if lang == 'en':
+            tr_nopunct = transcript.translate(str.maketrans(string.punctuation, ' '*len(string.punctuation))).lower()
+            tr_nopunct = " ".join(tr_nopunct.split())
+            if tr_nopunct != '':
+                transcript = rpunct.punctuate(tr_nopunct, batch_size=128)
+                print(transcript)
+                print("Punctuation complete.")
+    return transcript
+
+
+def process_audio(audio_url, vad_val, chunk_size, language, restore_punct=True):
     status = "SUCCESS"
     #la = req_data['config']['language']['sourceLanguage']
     #af = req_data['config']['audioFormat']
@@ -199,11 +270,11 @@ def process_audio(audio_url, vad_val, chunk_size, language):
     vad = webrtcvad.Vad(vad_val) #2
     frames = frame_generator(10, fp_arr, sample_rate)
     frames = list(frames)
-    segments = vad_collector(sample_rate, 10, 100, vad, frames)
+    segments = list(vad_collector(sample_rate, 10, 100, vad, frames))
     vad_time_stamps = []
     counter = 1
     print("Transcribing..")
-    for i, (segment, (start_frame, end_frame)) in enumerate(tqdm(segments)):
+    for i, (segment, (start_frame, end_frame)) in enumerate(tqdm(segments, total=len(segments))):
         song=AudioSegment.from_raw(io.BytesIO(segment), sample_width=2, frame_rate=16000, channels=1)
         samples = song.get_array_of_samples()
         fp_arr = np.array(samples).T.astype(np.float64)
@@ -220,7 +291,7 @@ def process_audio(audio_url, vad_val, chunk_size, language):
                 #op += "{0}.000 --> {1}.000".format(time.strftime('%H:%M:%S', time.gmtime(start_frame+frame)),time.strftime('%H:%M:%S', time.gmtime(end_frame)))+'\n'
                 # print(len(arr[int((start_frame+frame)*16000):int((end_frame)*16000)]),'Done')
                 # print(end_frame-frame-start_frame)
-                op_pred = align(arr[int((frame)*16000):int((end_frame)*16000)],DEVICE) +'\n\n' 
+                op_pred = align(arr[int((frame)*16000):int((end_frame)*16000)], DEVICE, language, restore_punct) +'\n\n' 
                 if len(op_pred.strip()) >2:
                      op += str(counter) + '\n'
                      counter += 1
@@ -234,7 +305,7 @@ def process_audio(audio_url, vad_val, chunk_size, language):
             else:
                 #print('\nHere')
                 # print(int((start_frame+frame)*16000),int((start_frame+frame+5.1)*16000),'Done')
-                op_pred = align(arr[int((frame)*16000):int((frame+chunk_size+0.1)*16000)],DEVICE)
+                op_pred = align(arr[int((frame)*16000):int((frame+chunk_size+0.1)*16000)], DEVICE, language)
                 if len(op_pred.strip()) > 2:
                      op += str(counter) + '\n'
                      counter += 1
@@ -260,6 +331,29 @@ def process_audio(audio_url, vad_val, chunk_size, language):
         f.write(op)
 
     captions = webvtt.read('placeholder.vtt')
+
+    print("Punctuating..")
+    all_text = ''
+    word_positions = [0]
+    for i in range(len(captions)):
+        all_text += captions[i].text + ' '
+        word_positions.append(len(all_text.split()))
+    punct_text = get_punctuated(all_text, language, restore_punct=restore_punct)
+    punct_words = punct_text.split()
+    print("Lengths", len(punct_words), len(all_text.split()))
+    for i in range(len(captions)):
+        captions[i].text = ' '.join(punct_words[word_positions[i]:word_positions[i+1]])
+
+    ## Batch punctuation (depreciated because punctuation model won't perform best if each chunk is sent individually)
+    # all_captions = []
+    # for i in range(len(captions)):
+    #     tr_nopunct = captions[i].text.translate(str.maketrans(string.punctuation, ' '*len(string.punctuation))).lower()
+    #     tr_nopunct = " ".join(tr_nopunct.split())
+    #     all_captions.append(tr_nopunct)
+    # punct_captions = rpunct.punctuate_batch(all_captions, batch_size=128)
+    # for i in range(len(captions)):
+    #     captions[i].text = punct_captions[i]
+
 
     merged_caption = webvtt.WebVTT()
 
@@ -302,3 +396,6 @@ def process_audio(audio_url, vad_val, chunk_size, language):
 
     op = merged_caption.content
     return {"status":status, "output":op,'vad_nochunk':op_nochunk}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=5050)
