@@ -1,7 +1,8 @@
 import uuid
 
-from django.db import models
 from django.contrib.auth import get_user_model
+from django.db import models
+from translation.metadata import LANGUAGE_CHOICES
 from video.models import Video
 
 ORIGINAL_SOURCE = "os"
@@ -17,12 +18,6 @@ TRANSCRIPT_TYPE = (
     (UPDATED_MACHINE_GENERATED, "Updated Machine Generated"),
     (MANUALLY_CREATED, "Manually Created"),
 )
-
-LANGUAGE_CHOICES = (
-    ("en", "English"),
-    ("hi", "Hindi"),
-)
-
 
 class Transcript(models.Model):
     """

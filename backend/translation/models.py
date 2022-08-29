@@ -1,7 +1,8 @@
-from django.db import models
 from django.contrib.auth import get_user_model
-
+from django.db import models
 from transcript.models import Transcript
+
+from .metadata import LANGUAGE_CHOICES
 
 
 class Translation(models.Model):
@@ -12,11 +13,6 @@ class Translation(models.Model):
         ('mg', 'Machine Generated'),
         ('he', 'Human Edited'),
         ('mc', 'Manually Created'),
-    ]
-
-    LANGUAGE_CHOICES = [
-        ('en', 'English'),
-        ('hi', 'Hindi'),
     ]
 
     translation_type = models.CharField(

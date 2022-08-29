@@ -1,3 +1,29 @@
+# Translation and Transcription language choices
+LANGUAGE_CHOICES = [
+        ('en', 'English'),
+        ('hi', 'Hindi'),
+        ("as", "Assamese"),
+        ("bn", "Bengali"),
+        ("brx", "Bodo"),
+        ("gu", "Gujarati"),
+        ("kn", "Kannada"),
+        ("ks", "Kashmiri"),
+        ("gom", "Konkani"),
+        ("mai", "Maithili"),
+        ("ml", "Malayalam"),
+        ("mr", "Marathi"),
+        ("mni", "Manipuri"),
+        ("ne", "Nepali"),
+        ("or", "Oriya"),
+        ("pa", "Punjabi"),
+        ("sa", "Sanskrit"),
+        ("sd", "Sindhi"),
+        ("si", "Sinhala"),
+        ("ta", "Tamil"),
+        ("te", "Telugu"),
+        ("ur", "Urdu"),
+    ]
+
 # Indic Trans API supported languages
 INDIC_TRANS_SUPPORTED_LANGUAGES = {
   "Assamese": "as",
