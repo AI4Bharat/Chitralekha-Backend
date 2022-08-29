@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'knox',
+    'drf_yasg',
     'users.apps.UsersConfig',
     'video',
     'transcript',
