@@ -27,7 +27,7 @@ class Translation(models.Model):
         related_name="translations"
     )
     target_lang = models.CharField(
-        choices=LANGUAGE_CHOICES, max_length=2, verbose_name="Target Language"
+        choices=LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language"
     )
     user = models.ForeignKey(
         get_user_model(), verbose_name="Translator", null=True,
