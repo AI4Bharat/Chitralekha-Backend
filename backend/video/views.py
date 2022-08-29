@@ -3,6 +3,8 @@ from io import StringIO
 
 import requests
 import webvtt
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -20,6 +22,37 @@ from .serializers import VideoSerializer
 ydl = YoutubeDL({"format": "best"})
 
 
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "video_url",
+            openapi.IN_QUERY,
+            description=("A string to pass the url of the video to be transcribed"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+        openapi.Parameter(
+            "lang",
+            openapi.IN_QUERY,
+            description=(
+                "A string to pass the language in which the video should be transcribed"
+            ),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+        openapi.Parameter(
+            "create_youtube_transcript",
+            openapi.IN_QUERY,
+            description=(
+                "A boolean to pass whether or not to create a YouTube transcript"
+            ),
+            type=openapi.TYPE_BOOLEAN,
+            required=False,
+        ),
+    ],
+    responses={200: "Return the video subtitle payload"},
+)
 @api_view(["GET"])
 def get_video(request):
     """

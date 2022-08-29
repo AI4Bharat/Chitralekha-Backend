@@ -1,16 +1,40 @@
-from rest_framework.response import Response
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-
+from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
 from video.models import Video
+
 from .models import *
 from .serializers import TranscriptSerializer
+from .utils.asr import get_asr_supported_languages, make_asr_api_call
 
-from .utils.asr import make_asr_api_call, get_asr_supported_languages
 
 # Define the API views
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "video_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the video id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+        openapi.Parameter(
+            "language",
+            openapi.IN_QUERY,
+            description=("A string to pass the language of the transcript"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+    ],
+    responses={
+        200: "Generates the transcript and returns the transcript id and payload"
+    },
+)
 @api_view(["GET"])
 def create_transcription(request):
     """
@@ -67,6 +91,28 @@ def create_transcription(request):
             )
 
 
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "video_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the video id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+        openapi.Parameter(
+            "language",
+            openapi.IN_QUERY,
+            description=("A string to pass the language of the transcript"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+    ],
+    responses={
+        200: "Generates the transcript and returns the transcript id and payload from youtube"
+    },
+)
 @api_view(["GET"])
 def create_youtube_transcription(request):
     """
@@ -124,6 +170,42 @@ def create_youtube_transcription(request):
             )
 
 
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "video_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the video id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+        openapi.Parameter(
+            "language",
+            openapi.IN_QUERY,
+            description=("A string to pass the language of the transcript"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+        openapi.Parameter(
+            "transcript_type",
+            openapi.IN_QUERY,
+            description=("A string to pass the type of the transcript"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+        openapi.Parameter(
+            "load_latest_transcript",
+            openapi.IN_QUERY,
+            description=(
+                "A boolean to pass check whether to allow user to load latest transcript"
+            ),
+            type=openapi.TYPE_BOOLEAN,
+            required=False,
+        ),
+    ],
+    responses={200: "Returns the transcription for a particular video and language"},
+)
 @api_view(["GET"])
 def retrieve_transcription(request):
     """
@@ -177,8 +259,12 @@ def retrieve_transcription(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Convert load_latest_transcript to boolean
+        if type(load_latest_transcript) == str:
+            load_latest_transcript = load_latest_transcript.lower() == "true"
+
         # Check if the load latest transcript flag is set to true
-        if load_latest_transcript == "true":
+        if load_latest_transcript:
 
             # Get the latest transcript
             transcript = (
@@ -300,7 +386,9 @@ def get_supported_languages(request):
 
     # Make a call to the FASTAPI endpoint to get the list of supported languages
     try:
-        return Response({"data": get_asr_supported_languages()}, status=status.HTTP_200_OK)
+        return Response(
+            {"data": get_asr_supported_languages()}, status=status.HTTP_200_OK
+        )
     except Exception:
         return Response(
             {"message": "Error while calling ASR API"},
