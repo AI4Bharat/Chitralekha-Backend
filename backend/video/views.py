@@ -187,7 +187,7 @@ def list_recent(request):
     # will always have one video associated with it.
     # In the future, if that constraint is removed then we might need to alter the logic.
 
-    # Get the 2n latest transcripts from the DB for the user
+    # Get the N latest transcripts from the DB for the user
     recent_transcripts = [
         (transcript.video, transcript.updated_at)
         for transcript in Transcript.objects.filter(user=request.user.id).order_by(
@@ -195,14 +195,14 @@ def list_recent(request):
         )[:count]
     ]
 
-    # Get the date of the first trancript from the above list
-    first_transcript_date = recent_transcripts[-1][1]
+    # Get the date of the nth recently updated trancript from the above list
+    least_recently_updated_transcript_date = recent_transcripts[-1][1]
 
-    # Get the 2n latest translations from the DB for the user
+    # Get the latest translations from the DB for the user which are updated after the nth recently updated transcript
     recent_translations = [
         (translation.transcript.video, translation.updated_at)
         for translation in Translation.objects.filter(user=request.user.id)
-        .filter(updated_at__gt=first_transcript_date)
+        .filter(updated_at__gt=least_recently_updated_transcript_date)
         .select_related("transcript")
         .order_by("-updated_at")
     ]
