@@ -1,7 +1,8 @@
 import uuid
 
-from django.db import models
 from django.contrib.auth import get_user_model
+from django.db import models
+from translation.metadata import LANGUAGE_CHOICES
 from video.models import Video
 
 ORIGINAL_SOURCE = "os"
@@ -18,38 +19,50 @@ TRANSCRIPT_TYPE = (
     (MANUALLY_CREATED, "Manually Created"),
 )
 
-LANGUAGE_CHOICES = (
-    ("en", "English"),
-    ("hi", "Hindi"),
-)
-
 
 class Transcript(models.Model):
     """
     Model for Transcripts
     """
+
     id = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False, verbose_name="Transcript ID"
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        verbose_name="Transcript ID",
     )
     transcript_type = models.CharField(
-        choices=TRANSCRIPT_TYPE, max_length=10, default=MACHINE_GENERATED,
-        verbose_name="Transcript Type"
+        choices=TRANSCRIPT_TYPE,
+        max_length=10,
+        default=MACHINE_GENERATED,
+        verbose_name="Transcript Type",
     )
     parent_transcript = models.ForeignKey(
-        'self', verbose_name='Parent Transcript', null=True, blank=True, default=None,
-        on_delete=models.PROTECT
+        "self",
+        verbose_name="Parent Transcript",
+        null=True,
+        blank=True,
+        default=None,
+        on_delete=models.PROTECT,
     )
     video = models.ForeignKey(
-        Video, on_delete=models.CASCADE, verbose_name="Transcript Video ID",
-        related_name="transcripts"
+        Video,
+        on_delete=models.CASCADE,
+        verbose_name="Transcript Video ID",
+        related_name="transcripts",
     )
     language = models.CharField(
-        choices=LANGUAGE_CHOICES, max_length=10, default="en",
-        verbose_name="Transcript Language"
+        choices=LANGUAGE_CHOICES,
+        max_length=10,
+        default="en",
+        verbose_name="Transcript Language",
     )
     user = models.ForeignKey(
-        get_user_model(), verbose_name="Transcriptor", null=True, blank=True,
-        on_delete=models.SET_NULL
+        get_user_model(),
+        verbose_name="Transcriptor",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
     )
     payload = models.JSONField(verbose_name="Transcription Output")
     created_at = models.DateTimeField(

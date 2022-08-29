@@ -17,6 +17,7 @@ from .utils import validate_uuid4, get_batch_translations_using_indictrans_nmt_a
 
 from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES, LANG_TRANS_MODEL_CODES
 
+
 class TranslationView(APIView):
     permission_classes = (IsAuthenticatedOrReadOnly,)
 
@@ -141,6 +142,7 @@ def get_supported_languages(request):
         INDIC_TRANS_SUPPORTED_LANGUAGES,
         status=status.HTTP_200_OK,
     )
+
 
 @api_view(["GET"])
 def generate_translation(request):
