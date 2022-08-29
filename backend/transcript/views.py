@@ -1,5 +1,3 @@
-import requests
-
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
@@ -10,25 +8,7 @@ from video.models import Video
 from .models import *
 from .serializers import TranscriptSerializer
 
-## Utility Functions
-def make_asr_api_call(url, lang, vad_level=2, chunk_size=10):
-    try:
-        headers = {
-            "accept": "application/json",
-        }
-        json_data = {
-            "url": url,
-            "vad_level": vad_level,
-            "chunk_size": chunk_size,
-            "language": lang,
-        }
-        request_url = "http://216.48.182.174:5000/transcribe"
-        response = requests.post(request_url, headers=headers, json=json_data)
-
-        return response.json()
-    except:
-        return None
-
+from .utils.asr import make_asr_api_call, get_asr_supported_languages
 
 # Define the API views
 @api_view(["GET"])
@@ -320,11 +300,7 @@ def get_supported_languages(request):
 
     # Make a call to the FASTAPI endpoint to get the list of supported languages
     try:
-        headers = {"Content-Type": "application/json"}
-        request_url = "http://216.48.182.174:5000/supported_languages"
-        response = requests.get(url=request_url, headers=headers, verify=False)
-        response_data = response.json()
-        return Response({"data": response_data}, status=status.HTTP_200_OK)
+        return Response({"data": get_asr_supported_languages()}, status=status.HTTP_200_OK)
     except Exception:
         return Response(
             {"message": "Error while calling ASR API"},
