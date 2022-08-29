@@ -2,25 +2,57 @@ from io import StringIO
 
 import requests
 import webvtt
-
 from django.shortcuts import get_object_or_404
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from transcript.models import Transcript
+
+from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES
 from .models import Translation
 from .serializers import TranslationSerializer
-from .utils import validate_uuid4, get_batch_translations_using_indictrans_nmt_api
-
-from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES, LANG_TRANS_MODEL_CODES
+from .utils import get_batch_translations_using_indictrans_nmt_api, validate_uuid4
 
 
 class TranslationView(APIView):
     permission_classes = (IsAuthenticatedOrReadOnly,)
 
+    @swagger_auto_schema(
+        method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "transcript_id",
+                openapi.IN_QUERY,
+                description=("A string to pass the transcript uuid"),
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                "target_lang",
+                openapi.IN_QUERY,
+                description=("A string to pass the target language of the translation"),
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                "get_latest",
+                openapi.IN_QUERY,
+                description=(
+                    "A string to pass whether to get the latest translation or not"
+                ),
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+        ],
+        responses={
+            200: "Generates the translation for the given transcript_id and target_lang"
+        },
+    )
+    @api_view(["GET"])
     def get(self, request):
         # Get the query params
         transcript_id = request.query_params.get("transcript_id")
@@ -81,6 +113,34 @@ class TranslationView(APIView):
         serializer = TranslationSerializer(queryset)
         return Response(serializer.data)
 
+    @swagger_auto_schema(
+        method="post",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["translation_id", "target_lang", "captions"],
+            properties={
+                "translation_id": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="An integer identifying the translation instance",
+                ),
+                "target_lang": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="A string to pass the target language of the translation",
+                ),
+                "captions": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="A string to pass the translated captions",
+                ),
+            },
+            description="Post request body for projects which have save_type == new_record",
+        ),
+        responses={
+            200: "Translation has been created/updated successfully",
+            400: "Bad request",
+            404: "No translation found for the given transcript_id and target_lang",
+        },
+    )
+    @api_view(["POST"])
     def post(self, request):
         # Get the required data from the POST body
         translation_id = request.data["translation_id"]
@@ -144,6 +204,35 @@ def get_supported_languages(request):
     )
 
 
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "transcript_id",
+            openapi.IN_QUERY,
+            description=("A string to pass the transcript uuid"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+        openapi.Parameter(
+            "target_lang",
+            openapi.IN_QUERY,
+            description=("A string to pass the target language of the translation"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+        openapi.Parameter(
+            "batch_size",
+            openapi.IN_QUERY,
+            description=("An integer to pass the batch size"),
+            type=openapi.TYPE_STRING,
+            required=False,
+        ),
+    ],
+    responses={
+        200: "Generates the translation for the given transcript_id and target_lang"
+    },
+)
 @api_view(["GET"])
 def generate_translation(request):
     """GET Request endpoint to generate translation for a given transcript_id and target_lang

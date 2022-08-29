@@ -6,6 +6,7 @@ yt-dlp==2022.6.29
 requests==2.25.1
 webvtt-py==0.4.6
 psycopg2-binary>=2.9
+drf-yasg==1.21.3
 
 # Deps for knox
 knox>=0.1
