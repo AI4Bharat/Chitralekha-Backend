@@ -113,6 +113,34 @@ class TranslationView(APIView):
         serializer = TranslationSerializer(queryset)
         return Response(serializer.data)
 
+    @swagger_auto_schema(
+        method="post",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["translation_id", "target_lang", "captions"],
+            properties={
+                "translation_id": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="An integer identifying the translation instance",
+                ),
+                "target_lang": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="A string to pass the target language of the translation",
+                ),
+                "captions": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="A string to pass the translated captions",
+                ),
+            },
+            description="Post request body for projects which have save_type == new_record",
+        ),
+        responses={
+            200: "Translation has been created/updated successfully",
+            400: "Bad request",
+            404: "No translation found for the given transcript_id and target_lang",
+        },
+    )
+    @api_view(["POST"])
     def post(self, request):
         # Get the required data from the POST body
         translation_id = request.data["translation_id"]

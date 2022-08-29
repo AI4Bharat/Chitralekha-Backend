@@ -291,7 +291,35 @@ def retrieve_transcription(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["payload", "language"],
+        properties={
+            "transcript_id": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="A uuid string identifying the transcript instance",
+            ),
+            "language": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="A string to pass the language of the transcript",
+            ),
+            "payload": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="A string to pass the transcript data",
+            ),
+            "video_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer to pass the video ID",
+            ),
+        },
+        description="Post request body for projects which have save_type == new_record",
+    ),
+    responses={
+        200: "Transcript has been saved successfully",
+    },
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def save_transcription(request):
