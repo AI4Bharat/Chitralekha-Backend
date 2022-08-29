@@ -1,19 +1,19 @@
-from io import StringIO
+import time
 from datetime import timedelta
+from io import StringIO
 
 import requests
 import webvtt
-
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
+from transcript.models import ORIGINAL_SOURCE, Transcript
+from translation.models import Translation
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
-from transcript.models import Transcript, ORIGINAL_SOURCE
-from translation.models import Translation
 from .models import Video
 from .serializers import VideoSerializer
 
@@ -182,16 +182,27 @@ def list_recent(request):
     # Get the query param from the request, default count is 10
     count = int(request.query_params.get("count", 10))
 
-    # Get a list of videos from recently transcribed videos
+    # Time calculation 
+    start_time = time.time()
+
+    # Note: Currently, we have implemented this get recent method based on the logic that 
+    # one Transcript of either type ORIGINAL_SOURCE or type MACHINE_GENERATED 
+    # will always have one video associated with it. 
+    # In the future, if that constraint is removed then we might need to alter the logic.  
+
+    # Get the 2n latest transcripts from the DB for the user
     recent_transcripts = [
         (transcript.video, transcript.updated_at)
-        for transcript in Transcript.objects.filter(user=request.user.id)
+        for transcript in Transcript.objects.filter(user=request.user.id).order_by("-updated_at")[:count]
     ]
 
-    # Get a list of videos from recently translated videos
+    # Get the date of the first trancript from the above list 
+    first_transcript_date = recent_transcripts[-1][1]
+
+    # Get the 2n latest translations from the DB for the user
     recent_translations = [
         (translation.transcript.video, translation.updated_at)
-        for translation in Translation.objects.filter(user=request.user.id).select_related('transcript')
+        for translation in Translation.objects.filter(user=request.user.id).filter(updated_at__gt=first_transcript_date).select_related('transcript').order_by("-updated_at")
     ]
 
     # Form a union of the lists and sort by updated_at
@@ -205,6 +216,12 @@ def list_recent(request):
             break
         if video not in videos:
             videos.append(video)
+
+    # End time calculation
+    end_time = time.time()
+    time_taken = end_time - start_time
+    print("Time taken to fetch videos: {}".format(time_taken)) 
+
 
     # Fetch and return the videos
     serializer = VideoSerializer(videos, many=True)
