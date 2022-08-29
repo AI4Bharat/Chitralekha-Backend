@@ -102,19 +102,14 @@ def create_youtube_transcription(request):
     video_id = request.query_params["video_id"]
     lang = request.query_params["language"]
     transcript = (
-        Transcript.objects
-        .filter(video_id__exact=video_id)
+        Transcript.objects.filter(video_id__exact=video_id)
         .filter(language=lang)
         .filter(transcript_type=ORIGINAL_SOURCE)
     )
     if transcript:
 
         # Filter the transcript where the type is ORIGINAL_SOURCE
-        transcript = (
-            transcript
-            .order_by("-updated_at")
-            .first()
-        )
+        transcript = transcript.order_by("-updated_at").first()
 
         return Response(
             {"id": transcript.id, "data": transcript.payload}, status=status.HTTP_200_OK
@@ -259,7 +254,9 @@ def save_transcription(request):
         # Check if the transcript has a user
         if transcript.user is None:
             transcript_type = (
-                UPDATED_ORIGINAL_SOURCE if transcript.transcript_type == ORIGINAL_SOURCE else UPDATED_MACHINE_GENERATED
+                UPDATED_ORIGINAL_SOURCE
+                if transcript.transcript_type == ORIGINAL_SOURCE
+                else UPDATED_MACHINE_GENERATED
             )
             # Create a new transcript object with the existing transcript as parent
             transcript_obj = Transcript(
