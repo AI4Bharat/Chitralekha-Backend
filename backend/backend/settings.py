@@ -156,6 +156,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Add Knox settings to Django settings
+REST_KNOX = {
+  "AUTO_REFRESH": True,
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/
