@@ -76,7 +76,7 @@ def get_video(request):
     lang = request.query_params.get("lang", "en")
     audio_only = request.query_params.get("audio_only", False)
 
-    # Convert audio only to boolean 
+    # Convert audio only to boolean
     audio_only = audio_only.lower() == "true"
 
     if url is None:
@@ -97,16 +97,16 @@ def get_video(request):
     # Check if the link is for Google Drive or YouTube
     if "drive.google.com" in url:
 
-        # Get the file ID from the URL 
-        file_id = info['id']
-        
-        # Create a direct download link by extracting the ID from the URL 
+        # Get the file ID from the URL
+        file_id = info["id"]
+
+        # Create a direct download link by extracting the ID from the URL
         # and appending it to the Google Drive direct download link
         url = "https://drive.google.com/uc?export=download&confirm=yTib&id=" + file_id
         info["url"] = url
 
-        # If the link provided is just an audio then the direct audio url is the url itself 
-        direct_audio_url = url if audio_only else None 
+        # If the link provided is just an audio then the direct audio url is the url itself
+        direct_audio_url = url if audio_only else None
 
     # Extract required data from the video info
     normalized_url = info["webpage_url"]
@@ -189,15 +189,15 @@ def get_video(request):
 
             serializer = VideoSerializer(video)
 
-            # Check if it's audio only 
-            if audio_only: 
+            # Check if it's audio only
+            if audio_only:
                 return Response(
-                {
-                    "direct_audio_url": direct_audio_url,
-                    "subtitles": subtitles_list,
-                    "video": serializer.data,
-                    "transcript_id": transcript.id,
-                },
+                    {
+                        "direct_audio_url": direct_audio_url,
+                        "subtitles": subtitles_list,
+                        "video": serializer.data,
+                        "transcript_id": transcript.id,
+                    },
                     status=status.HTTP_200_OK,
                 )
 
