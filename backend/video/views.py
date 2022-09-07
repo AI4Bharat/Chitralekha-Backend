@@ -42,7 +42,7 @@ ydl = YoutubeDL({"format": "best"})
             required=True,
         ),
         openapi.Parameter(
-            "create_youtube_transcript",
+            "save_original_transcript",
             openapi.IN_QUERY,
             description=(
                 "A boolean to pass whether or not to create a YouTube transcript"
@@ -179,14 +179,14 @@ def get_video(request):
     }
 
     # Check if the user passed a boolean to create the transcript
-    create_youtube_transcript = request.query_params.get(
-        "create_youtube_transcript", "false"
+    save_original_transcript = request.query_params.get(
+        "save_original_transcript", "false"
     )
 
     # Convert to boolean
-    create_youtube_transcript = create_youtube_transcript.lower() == "true"
+    save_original_transcript = save_original_transcript.lower() == "true"
 
-    if create_youtube_transcript:
+    if save_original_transcript:
 
         # Check if the transcription for the video already exists
         transcript = (
