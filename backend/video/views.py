@@ -74,7 +74,7 @@ def get_video(request):
     # Get the video URL from the query params
     url = request.query_params.get("video_url")
     lang = request.query_params.get("lang", "en")
-    audio_only = request.query_params.get("audio_only", False)
+    audio_only = request.query_params.get("audio_only", "false")
 
     # Convert audio only to boolean
     audio_only = audio_only.lower() == "true"
@@ -104,6 +104,7 @@ def get_video(request):
         # and appending it to the Google Drive direct download link
         url = "https://drive.google.com/uc?export=download&confirm=yTib&id=" + file_id
         info["url"] = url
+        info["webpage_url"] = "https://drive.google.com/file/d/" + file_id
 
         # If the link provided is just an audio then the direct audio url is the url itself
         direct_audio_url = url if audio_only else None
@@ -170,10 +171,21 @@ def get_video(request):
             direct_audio_url = fmt["url"]
             break
 
+    # Create the response data to be returned
+    serializer = VideoSerializer(video)
+    response_data = {
+        "subtitles": subtitles_list,
+        "video": serializer.data,
+    }
+
     # Check if the user passed a boolean to create the transcript
     create_youtube_transcript = request.query_params.get(
-        "create_youtube_transcript", False
+        "create_youtube_transcript", "false"
     )
+
+    # Convert to boolean
+    create_youtube_transcript = create_youtube_transcript.lower() == "true"
+
     if create_youtube_transcript:
 
         # Check if the transcription for the video already exists
@@ -184,65 +196,30 @@ def get_video(request):
             .first()
         )
 
-        # If it does, return the existing transcript
-        if transcript:
+        if not transcript:
 
-            serializer = VideoSerializer(video)
-
-            # Check if it's audio only
-            if audio_only:
-                return Response(
-                    {
-                        "direct_audio_url": direct_audio_url,
-                        "subtitles": subtitles_list,
-                        "video": serializer.data,
-                        "transcript_id": transcript.id,
-                    },
-                    status=status.HTTP_200_OK,
-                )
-
-            return Response(
-                {
-                    "direct_video_url": direct_video_url,
-                    "subtitles": subtitles_list,
-                    "video": serializer.data,
-                    "transcript_id": transcript.id,
-                },
-                status=status.HTTP_200_OK,
+            # Save a transcript object
+            transcript = Transcript(
+                transcript_type=ORIGINAL_SOURCE,
+                video=video,
+                language=lang,
+                payload=video.subtitles,
             )
+            transcript.save()
 
-        # Save a transcript object
-        transcript_obj = Transcript(
-            transcript_type=ORIGINAL_SOURCE,
-            video=video,
-            language=lang,
-            payload=video.subtitles,
-        )
-        transcript_obj.save()
+        # Add the transcript to the response data
+        response_data["transcript_id"] = transcript.id
 
-        serializer = VideoSerializer(video)
-        return Response(
-            {
-                "direct_audio_url": direct_audio_url,
-                "direct_video_url": direct_video_url,
-                "subtitles": subtitles_list,
-                "video": serializer.data,
-                "transcript_id": transcript_obj.id,
-            },
-            status=status.HTTP_200_OK,
-        )
-
+    # Check if it's audio only
+    if audio_only:
+        response_data["audio_url"] = direct_audio_url
     else:
-        serializer = VideoSerializer(video)
-        return Response(
-            {
-                "direct_audio_url": direct_audio_url,
-                "direct_video_url": direct_video_url,
-                "subtitles": subtitles_list,
-                "video": serializer.data,
-            },
-            status=status.HTTP_200_OK,
-        )
+        response_data["video_url"] = direct_video_url
+
+    return Response(
+        response_data,
+        status=status.HTTP_200_OK,
+    )
 
 
 @api_view(["GET"])
