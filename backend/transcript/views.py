@@ -114,7 +114,7 @@ def create_transcription(request):
     },
 )
 @api_view(["GET"])
-def create_youtube_transcription(request):
+def create_original_source_transcript(request):
     """
     Endpoint to get or generate(if not existing) a transcription for a video
     based on the youtube subtitles

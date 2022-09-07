@@ -7,9 +7,9 @@ from . import views
 urlpatterns = [
     path("generate/", views.create_transcription, name="create_transcription"),
     path(
-        "generate_from_youtube/",
-        views.create_youtube_transcription,
-        name="create_transcription_from_youtube",
+        "generate_original_transcript/",
+        views.create_original_source_transcript,
+        name="generate_original_transcript",
     ),
     path("save/", views.save_transcription, name="save_transcript"),
     path("", views.retrieve_transcription, name="retrieve_transcription"),
