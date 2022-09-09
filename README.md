@@ -1,7 +1,96 @@
 # Chitralekha Backend
 Transcribe your videos and translate it into Indic languages.
 
+This repository contains the [Chitralekha](https://github.com/AI4Bharat/Chitralekha) Backend codebase. The backend is built using Django and Django Rest Framework.
+
 You can watch a demo of our tool - [Video](https://youtu.be/l9jUcja0E94)
+
+## Pre-requisites
+
+The project was created using [Python 3.7](https://www.python.org/downloads/). All major dependencies are listed below; the rest are in the `backend/deploy/requirements.txt` file.
+
+- django
+- djangorestframework
+- django-cors-headers
+- knox
+- drf-yasg
+- psycopg2
+- python-dotenv
+- webvtt-py
+
+<!-- ## Installation
+
+The installation and setup instructions have been tested on the following platforms:
+
+- Docker
+- Docker-Compose
+- Ubuntu 20.04
+
+If you are using a different operating system, you will have to look at external resources (eg. StackOverflow) to correct any errors. -->
+
+### Create a Virtual Environment
+
+We recommend you to create a virtual environment to install all the dependencies required for the project.
+
+```bash
+python3 -m venv <YOUR-ENVIRONMENT-NAME>
+source <YOUR-ENVIRONMENT-NAME>/bin/activate # this command may be different based on your OS
+
+# Install dependencies
+pip install -r deploy/requirements-dev.txt
+```
+
+### Environment file
+
+To set up the environment variables needed for the project, run the following lines:
+```bash
+cp .env.example ./backend/.env
+```
+
+This creates an `.env` file at the root of the project. It is needed to make sure that the project runs correctly. Please go through the file and set the parameters according to your installation.
+
+To create a new secret key, run the following commands (within the virtual environment):
+
+```bash
+# Open a Python shell
+python backend/manage.py shell
+
+>> from django.core.management.utils import get_random_secret_key
+>> get_random_secret_key()
+```
+
+Paste the value you get there into the `.env` file.
+
+## Run the project
+
+To run the project, run the following commands:
+
+```bash
+# Check if there are makemigrations 
+python backend/manage.py makemigrations
+
+# Run migrations
+python backend/manage.py migrate
+
+# Create superuser
+python backend/manage.py createsuperuser
+
+# Run the server
+python backend/manage.py runserver
+```
+
+The project will start running on `http://localhost:8000/`.
+
+### Running Linters and Formatters
+
+Installing the dev requirements file would have also installed linters. We have `black` available for formatting. You can run the following commands to check for linting errors and format the code:
+
+
+```bash
+black ./backend/
+```
+
+# Individual Server Components
 
 ## Setting up the Speech server locally
 
