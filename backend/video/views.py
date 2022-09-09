@@ -222,6 +222,26 @@ def get_video(request):
     )
 
 
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "audio_only",
+            openapi.IN_QUERY,
+            description=("A boolean to only return audio entries or video entries"),
+            type=openapi.TYPE_BOOLEAN,
+            required=True,
+        ),
+        openapi.Parameter(
+            "count",
+            openapi.IN_QUERY,
+            description=("The number of entries to return"),
+            type=openapi.TYPE_INTEGER,
+            required=False,
+        ),
+    ],
+    responses={200: "Return the video subtitle payload"},
+)
 @api_view(["GET"])
 def list_recent(request):
     """
@@ -229,6 +249,10 @@ def list_recent(request):
     Endpoint: /video/list_recent/
     Method: GET
     """
+    # Get the audio only param
+    audio_only = request.query_params.get("audio_only", "false")
+    audio_only = audio_only.lower() == "true"
+
     # Get the query param from the request, default count is 10
     count = int(request.query_params.get("count", 10))
 
@@ -237,25 +261,74 @@ def list_recent(request):
     # will always have one video associated with it.
     # In the future, if that constraint is removed then we might need to alter the logic.
 
-    # Get the N latest transcripts from the DB for the user
-    recent_transcripts = [
-        (transcript.video, transcript.updated_at)
-        for transcript in Transcript.objects.filter(user=request.user.id).order_by(
-            "-updated_at"
-        )[:count]
-    ]
+    try:
+        # Collect only those transcripts where the video is checked as audio only
+        if audio_only:
+            # Get the list of videos that are audio only
+            audio_only_videos = Video.objects.filter(audio_only=True)
 
-    # Get the date of the nth recently updated trancript from the above list
-    least_recently_updated_transcript_date = recent_transcripts[-1][1]
+            # Get the associated transcripts for the videos
+            recent_transcripts = [
+                (transcript.video, transcript.updated_at, transcript.id)
+                for transcript in Transcript.objects.filter(user=request.user.id)
+                .filter(video__in=audio_only_videos)
+                .order_by("-updated_at")[:count]
+            ]
 
-    # Get the latest translations from the DB for the user which are updated after the nth recently updated transcript
-    recent_translations = [
-        (translation.transcript.video, translation.updated_at)
-        for translation in Translation.objects.filter(user=request.user.id)
-        .filter(updated_at__gt=least_recently_updated_transcript_date)
-        .select_related("transcript")
-        .order_by("-updated_at")
-    ]
+            # Get the date of the nth recently updated trancript from the above list
+            least_recently_updated_transcript_date = recent_transcripts[-1][1]
+
+            # Get the list of transcript IDs from recent translations
+            filtered_transcript_ids = [
+                transcript[2] for transcript in recent_transcripts
+            ]
+
+            # Filter the translations by transcript IDs and
+            # Get the latest translations from the DB for the user which are updated after the nth recently updated transcript
+            recent_translations = [
+                (
+                    translation.transcript.video,
+                    translation.updated_at,
+                    translation.transcript.id,
+                )
+                for translation in Translation.objects.filter(user=request.user.id)
+                .filter(transcript__in=filtered_transcript_ids)
+                .filter(updated_at__gt=least_recently_updated_transcript_date)
+                .select_related("transcript")
+                .order_by("-updated_at")
+            ]
+
+        else:
+            # Get the N latest transcripts from the DB for the user
+            recent_transcripts = [
+                (transcript.video, transcript.updated_at, transcript.id)
+                for transcript in Transcript.objects.filter(
+                    user=request.user.id
+                ).order_by("-updated_at")[:count]
+            ]
+
+            # Get the date of the nth recently updated trancript from the above list
+            least_recently_updated_transcript_date = recent_transcripts[-1][1]
+
+            # Get the latest translations from the DB for the user which are updated after the nth recently updated transcript
+            recent_translations = [
+                (
+                    translation.transcript.video,
+                    translation.updated_at,
+                    translation.transcript.id,
+                )
+                for translation in Translation.objects.filter(user=request.user.id)
+                .filter(updated_at__gt=least_recently_updated_transcript_date)
+                .select_related("transcript")
+                .order_by("-updated_at")
+            ]
+
+    except IndexError:
+        # If there are no transcripts in the DB for the user
+        return Response(
+            {"message": "No recent videos found!"},
+            status=status.HTTP_200_OK,
+        )
 
     # Form a union of the lists and sort by updated_at
     union_list = recent_transcripts + recent_translations
@@ -263,7 +336,7 @@ def list_recent(request):
 
     # Find the first N unique videos in the union list
     videos = []
-    for video, _ in union_list:
+    for video, date, _ in union_list:
         if len(videos) >= count:
             break
         if video not in videos:
