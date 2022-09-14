@@ -337,8 +337,15 @@ def save_transcription(request):
 
     # Collect the request parameters
     transcript_id = request.data.get("transcript_id", None)
-    language = request.data["language"]
-    transcribed_data = request.data["payload"]
+    try: 
+        language = request.data["language"]
+        transcribed_data = request.data["payload"]
+    except KeyError:
+        return Response(
+            {"message": "Missing required parameters - language or payload"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+        
     user_id = request.user.id
 
     # Retrieve the transcript object
@@ -383,25 +390,36 @@ def save_transcription(request):
     except Transcript.DoesNotExist:
 
         # Collect the video object
-        video_id = request.data["video_id"]
-        video = Video.objects.get(pk=video_id)
+        try: 
+            video_id = request.data["video_id"]
+            video = Video.objects.get(pk=video_id)
+        except KeyError:
+            return Response(
+                {"message": "Missing required parameters - video_id or video does not exist."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        # If transcript doesn't exist then save a new transcript object
-        # TODO: Check if this is the expected transcript type?
-        # FIX: The except block will never be reached. If reached, directly return an error.
-        transcript_obj = Transcript(
-            transcript_type=MANUALLY_CREATED,
-            video=video,
-            language=language,
-            payload=transcribed_data,
-            user_id=user_id,
-        )
-
-        # Save the new transcript object
-        transcript_obj.save()
-
+        # Check if a transcript exists for this video, language, user and transcript_type
+        transcript = Transcript.objects.filter(
+            video=video, language=language, user=user_id, transcript_type=MANUALLY_CREATED
+        ).first() 
+        
+        # If a transcript exists, update the payload else create a new transcript
+        if transcript:
+            transcript.payload = transcribed_data
+        
+        else: 
+            transcript = Transcript(
+                transcript_type=MANUALLY_CREATED,
+                video=video,
+                language=language,
+                payload=transcribed_data,
+                user_id=user_id,
+            )
+        
+        transcript.save()
         return Response(
-            {"id": transcript_obj.id, "data": transcript_obj.payload},
+            {"id": transcript.id, "data": transcript_obj.payload},
             status=status.HTTP_200_OK,
         )
 
