@@ -404,30 +404,22 @@ def save_transcription(request):
             video=video, language=language, user=user_id, transcript_type=MANUALLY_CREATED
         ).first() 
         
-        # If a transcript exists, update the payload
+        # If a transcript exists, update the payload else create a new transcript
         if transcript:
             transcript.payload = transcribed_data
-            transcript.save()
-
-            return Response(
-                {"id": transcript.id, "data": transcript.payload},
-                status=status.HTTP_200_OK,
+        
+        else: 
+            transcript = Transcript(
+                transcript_type=MANUALLY_CREATED,
+                video=video,
+                language=language,
+                payload=transcribed_data,
+                user_id=user_id,
             )
-
-        # If transcript doesn't exist then save a new transcript object
-        transcript_obj = Transcript(
-            transcript_type=MANUALLY_CREATED,
-            video=video,
-            language=language,
-            payload=transcribed_data,
-            user_id=user_id,
-        )
-
-        # Save the new transcript object
-        transcript_obj.save()
-
+        
+        transcript.save()
         return Response(
-            {"id": transcript_obj.id, "data": transcript_obj.payload},
+            {"id": transcript.id, "data": transcript_obj.payload},
             status=status.HTTP_200_OK,
         )
 
