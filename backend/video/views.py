@@ -51,7 +51,7 @@ ydl = YoutubeDL({"format": "best"})
             required=False,
         ),
         openapi.Parameter(
-            "audio_only",
+            "is_audio_only",
             openapi.IN_QUERY,
             description=(
                 "A boolean to pass whether the user submitted a video or audio"
@@ -74,10 +74,10 @@ def get_video(request):
     # Get the video URL from the query params
     url = request.query_params.get("video_url")
     lang = request.query_params.get("lang", "en")
-    audio_only = request.query_params.get("audio_only", "false")
+    is_audio_only = request.query_params.get("is_audio_only", "false")
 
     # Convert audio only to boolean
-    audio_only = audio_only.lower() == "true"
+    is_audio_only = is_audio_only.lower() == "true"
 
     if url is None:
         return Response(
@@ -107,7 +107,7 @@ def get_video(request):
         info["webpage_url"] = "https://drive.google.com/file/d/" + file_id
 
         # If the link provided is just an audio then the direct audio url is the url itself
-        direct_audio_url = url if audio_only else None
+        direct_audio_url = url if is_audio_only else None
 
     # Extract required data from the video info
     normalized_url = info["webpage_url"]
@@ -211,7 +211,7 @@ def get_video(request):
         response_data["transcript_id"] = transcript.id
 
     # Check if it's audio only
-    if audio_only:
+    if is_audio_only:
         response_data["audio_url"] = direct_audio_url
     else:
         response_data["video_url"] = direct_video_url
@@ -226,7 +226,7 @@ def get_video(request):
     method="get",
     manual_parameters=[
         openapi.Parameter(
-            "audio_only",
+            "is_audio_only",
             openapi.IN_QUERY,
             description=("A boolean to only return audio entries or video entries"),
             type=openapi.TYPE_BOOLEAN,
@@ -250,7 +250,7 @@ def list_recent(request):
     Method: GET
     """
     # Get the audio only param
-    is_audio_only = request.query_params.get("audio_only", "false")
+    is_audio_only = request.query_params.get("is_audio_only", "false")
     is_audio_only = is_audio_only.lower() == "true"
 
     # Get the query param from the request, default count is 10
