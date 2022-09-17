@@ -1,242 +1,245 @@
 from io import StringIO
 
-import requests
 import webvtt
 from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import api_view
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from transcript.models import Transcript
 
 from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES
-from .models import Translation
+from .models import * 
 from .serializers import TranslationSerializer
 from .utils import get_batch_translations_using_indictrans_nmt_api, validate_uuid4
 
 
-class TranslationView(APIView):
-    permission_classes = (IsAuthenticatedOrReadOnly,)
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "transcript_id",
+            openapi.IN_QUERY,
+            description=("A string to pass the transcript uuid"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+        openapi.Parameter(
+            "target_lang",
+            openapi.IN_QUERY,
+            description=("A string to pass the target language of the translation"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+        openapi.Parameter(
+            "translation_type",
+            openapi.IN_QUERY,
+            description=("A string to pass the target language of the translation"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+        openapi.Parameter(
+            "get_latest",
+            openapi.IN_QUERY,
+            description=(
+                "A string to pass whether to get the latest translation or not"
+            ),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+    ],
+    responses={
+        200: "Generates the translation for the given transcript_id and target_lang"
+    },
+)
+@api_view(["GET"])
+def retrieve_translation(request):
+    """
+    Endpoint to retrive a translation for a given transcript and language
+    """
+    
+    # Get the query params
+    transcript_id = request.query_params.get("transcript_id")
+    target_lang = request.query_params.get("target_lang")
+    get_latest = request.query_params.get("get_latest")
+    translation_type = request.query_params.get("translation_type")
 
-    @swagger_auto_schema(
-        method="get",
-        manual_parameters=[
-            openapi.Parameter(
-                "transcript_id",
-                openapi.IN_QUERY,
-                description=("A string to pass the transcript uuid"),
-                type=openapi.TYPE_STRING,
-                required=True,
-            ),
-            openapi.Parameter(
-                "target_lang",
-                openapi.IN_QUERY,
-                description=("A string to pass the target language of the translation"),
-                type=openapi.TYPE_STRING,
-                required=True,
-            ),
-            openapi.Parameter(
-                "translation_type",
-                openapi.IN_QUERY,
-                description=("A string to pass the target language of the translation"),
-                type=openapi.TYPE_STRING,
-                required=True,
-            ),
-            openapi.Parameter(
-                "get_latest",
-                openapi.IN_QUERY,
-                description=(
-                    "A string to pass whether to get the latest translation or not"
-                ),
-                type=openapi.TYPE_STRING,
-                required=True,
-            ),
-        ],
-        responses={
-            200: "Generates the translation for the given transcript_id and target_lang"
-        },
+    # Ensure that the UUID is valid
+    if not validate_uuid4(transcript_id):
+        return Response(
+            {"error": "Invalid transcript_id."}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Convert get_latest to boolean
+    get_latest = get_latest == "true"
+
+    # Ensure that required params are present
+    if not (transcript_id and target_lang and translation_type):
+        return Response(
+            {
+                "error": "Missing required query params [transcript_id, target_lang, translation_type]."
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Get the translation for the given transcript_id, target_lang and user_id
+    queryset = (
+        Translation.objects.filter(
+            transcript_id=transcript_id,
+            target_lang=target_lang,
+            user=request.user.id,
+            translation_type=translation_type,
+        )
+        .order_by("-updated_at")
+        .first()
     )
-    @api_view(["GET"])
-    def get(self, request):
-        # Get the query params
-        transcript_id = request.query_params.get("transcript_id")
-        target_lang = request.query_params.get("target_lang")
-        get_latest = request.query_params.get("get_latest")
-        translation_type = request.query_params.get("translation_type")
+    # If no translation exists for this user, check if the latest translation can be fetched
+    if queryset is None:
+        if get_latest:
+            queryset = (
+                Translation.objects.filter(
+                    transcript_id=transcript_id, target_lang=target_lang
+                )
+                .order_by("-updated_at")
+                .first()
+            )
+        else:
+            queryset = None
+
+    # If queryset is empty, return appropriate error
+    if not queryset:
+        return Response(
+            {
+                "error": "No translation found for the given transcript_id and target_lang."
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # Serialize and return the data
+    serializer = TranslationSerializer(queryset)
+    return Response(serializer.data)        
+
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["target_lang", "captions"],
+        properties={
+            "translation_id": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="An integer identifying the translation instance",
+            ),
+            "target_lang": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="A string to pass the target language of the translation",
+            ),
+            "captions": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="A string to pass the translated captions",
+            ),
+            "transcript_id": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="A string to pass the transcript uuid",
+            ),
+        },
+        description="Post request body",
+    ),
+    responses={
+        200: "Translation has been created/updated successfully",
+        400: "Bad request",
+        404: "No translation found for the given transcript_id and target_lang",
+    },
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def save_translation(request):
+    
+    # Get the required data from the POST body
+    translation_id = request.data.get("translation_id", None)
+    target_lang = request.data["target_lang"]
+    captions = request.data["captions"]
+    user = request.user
+
+    # If translation_id is not present, save a new translation object 
+    if translation_id is None:
+        
+        # Check if transcript_id is present in the POST body
+        if "transcript_id" not in request.data:
+            return Response(
+                {"error": "Transcript_id is missing from the POST body, which needs to be passed if translation_id is not passed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Get the transcript_id from the POST body
+        transcript_id = request.data["transcript_id"]
 
         # Ensure that the UUID is valid
         if not validate_uuid4(transcript_id):
             return Response(
                 {"error": "Invalid transcript_id."}, status=status.HTTP_400_BAD_REQUEST
             )
-
-        # Convert get_latest to boolean
-        get_latest = get_latest == "true"
-
-        # Ensure that required params are present
-        if not (transcript_id and target_lang and translation_type):
+        
+        try: 
+            # Get a transcript object for the given transcript_id
+            transcript = Transcript.objects.get(id=transcript_id)
+        
+        except Transcript.DoesNotExist:
             return Response(
-                {
-                    "error": "Missing required query params [transcript_id, target_lang, translation_type]."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+                {"error": "No transcript found for the given transcript_id."},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Get the translation for the given transcript_id, target_lang and user_id
-        queryset = (
-            Translation.objects.filter(
-                transcript_id=transcript_id,
-                target_lang=target_lang,
-                user=request.user.id,
-                translation_type=translation_type,
-            )
-            .order_by("-updated_at")
-            .first()
+        # Create a translation object 
+        new_translation = Translation.objects.create(
+            translation_type=MANUALLY_CREATED,
+            transcript=transcript,
+            target_lang=target_lang,
+            user=user,
+            payload=captions,
         )
-        # If no translation exists for this user, check if the latest translation can be fetched
-        if queryset is None:
-            if get_latest:
-                queryset = (
-                    Translation.objects.filter(
-                        transcript_id=transcript_id, target_lang=target_lang
-                    )
-                    .order_by("-updated_at")
-                    .first()
-                )
-            else:
-                queryset = None
 
-        # If queryset is empty, return appropriate error
-        if not queryset:
+    else: 
+        # Try to get the translation for the given translation_id and target_lang
+        try:
+            translation = Translation.objects.get(
+                pk=translation_id, target_lang=target_lang
+            )
+        except Translation.DoesNotExist:
             return Response(
                 {
-                    "error": "No translation found for the given transcript_id and target_lang."
+                    "error": "No translation found for the given translation_id and target_lang."
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Serialize and return the data
-        serializer = TranslationSerializer(queryset)
-        return Response(serializer.data)
-
-    @swagger_auto_schema(
-        method="post",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=["target_lang", "captions"],
-            properties={
-                "translation_id": openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="An integer identifying the translation instance",
-                ),
-                "target_lang": openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="A string to pass the target language of the translation",
-                ),
-                "captions": openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="A string to pass the translated captions",
-                ),
-            },
-            description="Post request body",
-        ),
-        responses={
-            200: "Translation has been created/updated successfully",
-            400: "Bad request",
-            404: "No translation found for the given transcript_id and target_lang",
-        },
-    )
-    @api_view(["POST"])
-    def post(self, request):
-        
-        # Get the required data from the POST body
-        translation_id = request.data.get("translation_id", None)
-        target_lang = request.data["target_lang"]
-        captions = request.data["captions"]
-        user = request.user
-
-        # If translation_id is not present, save a new translation object 
-        if translation_id is None:
+        # If the translation belongs to the current user, update the translation
+        if translation.user == user:
+            translation.captions = captions
+            translation.translation_type=HUMAN_EDITED
+            translation.save()
             
-            # Check if transcript_id is present in the POST body
-            if "transcript_id" not in request.data:
-                return Response(
-                    {"error": "Transcript_id is missing from the POST body, which needs to be passed if translation_id is not passed."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            
-            # Get the transcript_id from the POST body
-            transcript_id = request.data["transcript_id"]
-
-            # Ensure that the UUID is valid
-            if not validate_uuid4(transcript_id):
-                return Response(
-                    {"error": "Invalid transcript_id."}, status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            try: 
-                # Get a transcript object for the given transcript_id
-                transcript = Transcript.objects.get(id=transcript_id)
-            
-            except Transcript.DoesNotExist:
-                return Response(
-                    {"error": "No transcript found for the given transcript_id."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            # Create a translation object 
+            return Response(
+            {"message": "Translation updated successfully."}, status=status.HTTP_200_OK)
+    
+        else: 
             new_translation = Translation.objects.create(
-                translation_type="mc",
-                transcript=transcript,
+                translation_type=MANUALLY_CREATED,
+                parent=translation,
+                transcript=translation.transcript,
                 target_lang=target_lang,
                 user=user,
                 payload=captions,
             )
+            
+    new_translation.save()
+    return Response(
+        {"message": "Translation created successfully."},
+        status=status.HTTP_201_CREATED,
+    )
 
-        else: 
-            # Try to get the translation for the given translation_id and target_lang
-            try:
-                translation = Translation.objects.get(
-                    pk=translation_id, target_lang=target_lang
-                )
-            except Translation.DoesNotExist:
-                return Response(
-                    {
-                        "error": "No translation found for the given translation_id and target_lang."
-                    },
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            # If the translation belongs to the current user, update the translation
-            if translation.user == user:
-                translation.captions = captions
-                translation.translation_type="he"
-                translation.save()
-                
-                return Response(
-                {"message": "Translation updated successfully."}, status=status.HTTP_200_OK)
-        
-            else: 
-                new_translation = Translation.objects.create(
-                    translation_type="mc",
-                    parent=translation,
-                    transcript=translation.transcript,
-                    target_lang=target_lang,
-                    user=user,
-                    payload=captions,
-                )
-                
-        new_translation.save()
-        return Response(
-            {"message": "Translation created successfully."},
-            status=status.HTTP_201_CREATED,
-        )
-
-        
-
+    
 @api_view(["GET"])
 def get_supported_languages(request):
 
@@ -333,7 +336,7 @@ def generate_translation(request):
 
     # If there is no cached translation, create a new one
     translation = Translation.objects.create(
-        translation_type="mg",
+        translation_type=MACHINE_GENERATED,
         transcript_id=transcript_id,
         target_lang=target_lang,
         user=None,
