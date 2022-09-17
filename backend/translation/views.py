@@ -39,6 +39,13 @@ class TranslationView(APIView):
                 required=True,
             ),
             openapi.Parameter(
+                "translation_type",
+                openapi.IN_QUERY,
+                description=("A string to pass the target language of the translation"),
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
                 "get_latest",
                 openapi.IN_QUERY,
                 description=(
@@ -58,6 +65,7 @@ class TranslationView(APIView):
         transcript_id = request.query_params.get("transcript_id")
         target_lang = request.query_params.get("target_lang")
         get_latest = request.query_params.get("get_latest")
+        translation_type = request.query_params.get("translation_type")
 
         # Ensure that the UUID is valid
         if not validate_uuid4(transcript_id):
@@ -69,10 +77,10 @@ class TranslationView(APIView):
         get_latest = get_latest == "true"
 
         # Ensure that required params are present
-        if not (transcript_id and target_lang):
+        if not (transcript_id and target_lang and translation_type):
             return Response(
                 {
-                    "error": "Missing required query params [transcript_id, target_lang]."
+                    "error": "Missing required query params [transcript_id, target_lang, translation_type]."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -83,6 +91,7 @@ class TranslationView(APIView):
                 transcript_id=transcript_id,
                 target_lang=target_lang,
                 user=request.user.id,
+                translation_type=translation_type,
             )
             .order_by("-updated_at")
             .first()
@@ -117,7 +126,7 @@ class TranslationView(APIView):
         method="post",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=["translation_id", "target_lang", "captions"],
+            required=["target_lang", "captions"],
             properties={
                 "translation_id": openapi.Schema(
                     type=openapi.TYPE_STRING,
@@ -132,7 +141,7 @@ class TranslationView(APIView):
                     description="A string to pass the translated captions",
                 ),
             },
-            description="Post request body for projects which have save_type == new_record",
+            description="Post request body",
         ),
         responses={
             200: "Translation has been created/updated successfully",
@@ -142,21 +151,75 @@ class TranslationView(APIView):
     )
     @api_view(["POST"])
     def post(self, request):
+        
         # Get the required data from the POST body
-        translation_id = request.data["translation_id"]
+        translation_id = request.data.get("translation_id", None)
         target_lang = request.data["target_lang"]
         captions = request.data["captions"]
         user = request.user
 
-        created = False
-        # Try to get the translation for the given translation_id and target_lang
-        try:
-            translation = Translation.objects.get(
-                pk=translation_id, target_lang=target_lang
+        # If translation_id is not present, save a new translation object 
+        if translation_id is None:
+            
+            # Check if transcript_id is present in the POST body
+            if "transcript_id" not in request.data:
+                return Response(
+                    {"error": "Transcript_id is missing from the POST body, which needs to be passed if translation_id is not passed."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            
+            # Get the transcript_id from the POST body
+            transcript_id = request.data["transcript_id"]
+
+            # Ensure that the UUID is valid
+            if not validate_uuid4(transcript_id):
+                return Response(
+                    {"error": "Invalid transcript_id."}, status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            try: 
+                # Get a transcript object for the given transcript_id
+                transcript = Transcript.objects.get(id=transcript_id)
+            
+            except Transcript.DoesNotExist:
+                return Response(
+                    {"error": "No transcript found for the given transcript_id."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # Create a translation object 
+            new_translation = Translation.objects.create(
+                translation_type="mc",
+                transcript=transcript,
+                target_lang=target_lang,
+                user=user,
+                payload=captions,
             )
-            # If the translation mentioned does not belong to the current user,
-            # create a new translation with parent as referred translation_id
-            if translation.user != user:
+
+        else: 
+            # Try to get the translation for the given translation_id and target_lang
+            try:
+                translation = Translation.objects.get(
+                    pk=translation_id, target_lang=target_lang
+                )
+            except Translation.DoesNotExist:
+                return Response(
+                    {
+                        "error": "No translation found for the given translation_id and target_lang."
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # If the translation belongs to the current user, update the translation
+            if translation.user == user:
+                translation.captions = captions
+                translation.translation_type="he"
+                translation.save()
+                
+                return Response(
+                {"message": "Translation updated successfully."}, status=status.HTTP_200_OK)
+        
+            else: 
                 new_translation = Translation.objects.create(
                     translation_type="mc",
                     parent=translation,
@@ -165,34 +228,14 @@ class TranslationView(APIView):
                     user=user,
                     payload=captions,
                 )
-                new_translation.save()
-                created = True
-            # Update the existing translation
-            else:
-                translation.payload = captions
-                translation.translation_type = "he"
-                translation.save()
-        # If no translation exists for the given translation_id and target_lang,
-        # return error response
-        except Translation.DoesNotExist:
-            return Response(
-                {
-                    "error": "No translation found for the given translation_id and target_lang."
-                },
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        # Return the appropriate response depending on whether a new translation was created or not
-        if created:
-            return Response(
-                {"message": "Translation created successfully."},
-                status=status.HTTP_201_CREATED,
-            )
-
+                
+        new_translation.save()
         return Response(
-            {"message": "Translation updated successfully."}, status=status.HTTP_200_OK
+            {"message": "Translation created successfully."},
+            status=status.HTTP_201_CREATED,
         )
 
+        
 
 @api_view(["GET"])
 def get_supported_languages(request):
