@@ -206,6 +206,7 @@ def save_translation(request):
             translation = Translation.objects.get(
                 pk=translation_id, target_lang=target_lang
             )
+            current_translation_type = translation.translation_type
         except Translation.DoesNotExist:
             return Response(
                 {
@@ -217,7 +218,11 @@ def save_translation(request):
         # If the translation belongs to the current user, update the translation
         if translation.user == user:
             translation.captions = captions
-            translation.translation_type=HUMAN_EDITED
+            translation.translation_type=(
+                HUMAN_EDITED
+                if current_translation_type == MACHINE_GENERATED
+                else MANUALLY_CREATED
+            )
             translation.save()
             
             return Response(
