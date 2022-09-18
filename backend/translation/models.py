@@ -9,8 +9,8 @@ MACHINE_GENERATED = "mg"
 MANUALLY_CREATED = "mc"
 
 TRANSLATION_TYPE_CHOICES = (
-    (HUMAN_EDITED, "Human Edited"),
     (MACHINE_GENERATED, "Machine Generated"),
+    (HUMAN_EDITED, "Human Edited"),
     (MANUALLY_CREATED, "Manually Created"),
 )
 
@@ -36,7 +36,7 @@ class Translation(models.Model):
         verbose_name="Translation Transcript",
         related_name="translations",
     )
-    target_lang = models.CharField(
+    target_language = models.CharField(
         choices=LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language"
     )
     user = models.ForeignKey(
