@@ -66,12 +66,6 @@ def retrieve_translation(request):
     get_latest = request.query_params.get("get_latest")
     translation_type = request.query_params.get("translation_type")
 
-    # Ensure that the UUID is valid
-    if not validate_uuid4(transcript_id):
-        return Response(
-            {"error": "Invalid transcript_id."}, status=status.HTTP_400_BAD_REQUEST
-        )
-
     # Convert get_latest to boolean
     get_latest = get_latest == "true"
 
@@ -119,13 +113,13 @@ def retrieve_translation(request):
 
     # Serialize and return the data
     serializer = TranslationSerializer(queryset)
-    return Response(serializer.data)        
+    return Response(serializer.data, status=status.HTTP_200_OK)        
 
 @swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        required=["target_lang", "captions"],
+        required=["target_lang", "payload"],
         properties={
             "translation_id": openapi.Schema(
                 type=openapi.TYPE_STRING,
@@ -135,9 +129,9 @@ def retrieve_translation(request):
                 type=openapi.TYPE_STRING,
                 description="A string to pass the target language of the translation",
             ),
-            "captions": openapi.Schema(
+            "payload": openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description="A string to pass the translated captions",
+                description="A string to pass the translated subtitles and metadata",
             ),
             "transcript_id": openapi.Schema(
                 type=openapi.TYPE_STRING,
@@ -159,7 +153,7 @@ def save_translation(request):
     # Get the required data from the POST body
     translation_id = request.data.get("translation_id", None)
     target_lang = request.data["target_lang"]
-    captions = request.data["captions"]
+    payload = request.data["payload"]
     user = request.user
 
     # If translation_id is not present, save a new translation object 
@@ -197,7 +191,7 @@ def save_translation(request):
             transcript=transcript,
             target_lang=target_lang,
             user=user,
-            payload=captions,
+            payload=payload,
         )
 
     else: 
@@ -217,7 +211,7 @@ def save_translation(request):
 
         # If the translation belongs to the current user, update the translation
         if translation.user == user:
-            translation.captions = captions
+            translation.payload = payload
             translation.translation_type=(
                 HUMAN_EDITED
                 if current_translation_type == MACHINE_GENERATED
@@ -226,23 +220,30 @@ def save_translation(request):
             translation.save()
             
             return Response(
-            {"message": "Translation updated successfully."}, status=status.HTTP_200_OK)
-    
+            {"message": "Translation updated successfully.", "id":translation.id, "data": translation.payload}, status=status.HTTP_200_OK)
+
+        # else if the user is not assigned, create a new translation object
         else: 
+
+            # Check if the translation doesn't have a user 
+            if translation.user is not None: 
+                return Response(
+                    {"error": "Translation already has a user assigned to it. You cannot edit this translation."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             new_translation = Translation.objects.create(
                 translation_type=MANUALLY_CREATED,
                 parent=translation,
                 transcript=translation.transcript,
                 target_lang=target_lang,
                 user=user,
-                payload=captions,
+                payload=payload,
             )
             
     new_translation.save()
     return Response(
-        {"message": "Translation created successfully."},
-        status=status.HTTP_201_CREATED,
-    )
+        {"message": "Translation created successfully.", "id": new_translation.id, "data": new_translation.payload}, status=status.HTTP_200_OK)
 
     
 @api_view(["GET"])
@@ -337,7 +338,7 @@ def generate_translation(request):
             translation.updated_at - translation.transcript.updated_at
         ).total_seconds() >= 0:
             serializer = TranslationSerializer(translation)
-            return Response(serializer.data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
     # If there is no cached translation, create a new one
     translation = Translation.objects.create(
@@ -392,4 +393,4 @@ def generate_translation(request):
 
     # Return the translation
     serializer = TranslationSerializer(translation)
-    return Response(serializer.data)
+    return Response(serializer.data, status=status.HTTP_200_OK)
