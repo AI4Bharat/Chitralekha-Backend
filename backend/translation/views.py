@@ -212,11 +212,6 @@ def save_translation(request):
         # If the translation belongs to the current user, update the translation
         if translation.user == user:
             translation.payload = payload
-            translation.translation_type=(
-                HUMAN_EDITED
-                if current_translation_type == MACHINE_GENERATED
-                else MANUALLY_CREATED
-            )
             translation.save()
             
             return Response(
