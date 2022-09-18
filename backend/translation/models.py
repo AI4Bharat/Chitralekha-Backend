@@ -4,17 +4,20 @@ from transcript.models import Transcript
 
 from .metadata import LANGUAGE_CHOICES
 
+HUMAN_EDITED = "he"
+MACHINE_GENERATED = "mg"
+MANUALLY_CREATED = "mc"
+
+TRANSLATION_TYPE_CHOICES = (
+    (HUMAN_EDITED, "Human Edited"),
+    (MACHINE_GENERATED, "Machine Generated"),
+    (MANUALLY_CREATED, "Manually Created"),
+)
 
 class Translation(models.Model):
     """
     Translation model
     """
-
-    TRANSLATION_TYPE_CHOICES = [
-        ("mg", "Machine Generated"),
-        ("he", "Human Edited"),
-        ("mc", "Manually Created"),
-    ]
 
     translation_type = models.CharField(
         choices=TRANSLATION_TYPE_CHOICES, max_length=2, verbose_name="Translation Type"

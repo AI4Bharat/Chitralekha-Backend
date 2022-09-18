@@ -4,7 +4,8 @@ from . import views
 
 
 urlpatterns = [
-    path("", views.TranslationView.as_view(), name="translation"),
+    path("", views.retrieve_translation, name="retrieve_translation"),
+    path("save", views.save_translation, name="save_translation"),
     path(
         "generate/supported_languages",
         views.get_supported_languages,
