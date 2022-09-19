@@ -13,7 +13,7 @@ from transcript.models import Transcript
 from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES
 from .models import Translation, MACHINE_GENERATED, MANUALLY_CREATED, UPDATED_MACHINE_GENERATED
 from .serializers import TranslationSerializer
-from .utils import get_batch_translations_using_indictrans_nmt_api, validate_uuid4
+from .utils import get_batch_translations_using_indictrans_nmt_api
 
 
 @swagger_auto_schema(
@@ -47,7 +47,7 @@ from .utils import get_batch_translations_using_indictrans_nmt_api, validate_uui
                 "A string to pass whether to get the latest translation or not"
             ),
             type=openapi.TYPE_STRING,
-            required=True,
+            required=False,
         ),
     ],
     responses={
@@ -106,7 +106,7 @@ def retrieve_translation(request):
     if not queryset:
         return Response(
             {
-                "error": "No translation found for the given transcript_id and target_language."
+                "error": "No translation found for the given transcript_id, target_language and transcript_type."
             },
             status=status.HTTP_404_NOT_FOUND,
         )
@@ -168,12 +168,6 @@ def save_translation(request):
         
         # Get the transcript_id from the POST body
         transcript_id = request.data["transcript_id"]
-
-        # Ensure that the UUID is valid
-        if not validate_uuid4(transcript_id):
-            return Response(
-                {"error": "Invalid transcript_id."}, status=status.HTTP_400_BAD_REQUEST
-            )
         
         try: 
             # Get a transcript object for the given transcript_id
@@ -198,7 +192,7 @@ def save_translation(request):
         # Try to get the translation for the given translation_id and target_language
         try:
             translation = Translation.objects.get(
-                pk=translation_id, target_language=target_language
+                pk=translation_id
             )
 
         except Translation.DoesNotExist:
@@ -227,8 +221,10 @@ def save_translation(request):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            # Since the translation doesn't have a user, it's of type machine generated
+            # so the edited version should be of type updated machine generated
             new_translation = Translation.objects.create(
-                translation_type=MANUALLY_CREATED,
+                translation_type=UPDATED_MACHINE_GENERATED,
                 parent=translation,
                 transcript=translation.transcript,
                 target_language=target_language,
@@ -301,12 +297,6 @@ def generate_translation(request):
     target_language = request.query_params.get("target_language")
     batch_size = request.query_params.get("batch_size", 75)
 
-    # Ensure that the UUID is valid
-    if not validate_uuid4(transcript_id):
-        return Response(
-            {"error": "Invalid transcript_id."}, status=status.HTTP_400_BAD_REQUEST
-        )
-
     # Ensure that required params are present
     if not (transcript_id and target_language):
         return Response(
@@ -323,7 +313,7 @@ def generate_translation(request):
     # Check if the cached translation is valid and return if it is valid
     translation = (
         Translation.objects.filter(
-            transcript=transcript_id, target_language=target_language, user=request.user.id
+            transcript=transcript_id, target_language=target_language, translation_type=MACHINE_GENERATED
         )
         .order_by("-updated_at")
         .first()

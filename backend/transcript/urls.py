@@ -5,11 +5,11 @@ from . import views
 
 # Create the url patterns
 urlpatterns = [
-    path("generate/", views.create_transcription, name="create_transcription"),
+    path("generate/", views.generate_transcription, name="generate_transcription"),
     path(
         "generate_from_youtube/",
-        views.create_youtube_transcription,
-        name="create_transcription_from_youtube",
+        views.generate_youtube_transcription,
+        name="generate_transcription_from_youtube",
     ),
     path("save/", views.save_transcription, name="save_transcript"),
     path("", views.retrieve_transcription, name="retrieve_transcription"),
