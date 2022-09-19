@@ -4,13 +4,13 @@ from transcript.models import Transcript
 
 from .metadata import LANGUAGE_CHOICES
 
-HUMAN_EDITED = "he"
+UPDATED_MACHINE_GENERATED = "umg"
 MACHINE_GENERATED = "mg"
 MANUALLY_CREATED = "mc"
 
 TRANSLATION_TYPE_CHOICES = (
     (MACHINE_GENERATED, "Machine Generated"),
-    (HUMAN_EDITED, "Human Edited"),
+    (UPDATED_MACHINE_GENERATED, "Updated Machine Generated"),
     (MANUALLY_CREATED, "Manually Created"),
 )
 
@@ -20,7 +20,7 @@ class Translation(models.Model):
     """
 
     translation_type = models.CharField(
-        choices=TRANSLATION_TYPE_CHOICES, max_length=2, verbose_name="Translation Type"
+        choices=TRANSLATION_TYPE_CHOICES, max_length=3, verbose_name="Translation Type"
     )
     parent = models.ForeignKey(
         "self",

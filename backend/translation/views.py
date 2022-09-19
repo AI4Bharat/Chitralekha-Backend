@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from transcript.models import Transcript
 
 from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES
-from .models import * 
+from .models import Translation, MACHINE_GENERATED, MANUALLY_CREATED, UPDATED_MACHINE_GENERATED
 from .serializers import TranslationSerializer
 from .utils import get_batch_translations_using_indictrans_nmt_api, validate_uuid4
 
@@ -41,7 +41,7 @@ from .utils import get_batch_translations_using_indictrans_nmt_api, validate_uui
             required=True,
         ),
         openapi.Parameter(
-            "get_latest",
+            "load_latest_transcript",
             openapi.IN_QUERY,
             description=(
                 "A string to pass whether to get the latest translation or not"
@@ -63,11 +63,11 @@ def retrieve_translation(request):
     # Get the query params
     transcript_id = request.query_params.get("transcript_id")
     target_language = request.query_params.get("target_language")
-    get_latest = request.query_params.get("get_latest")
+    load_latest_transcript = request.query_params.get("load_latest_transcript", "false")
     translation_type = request.query_params.get("translation_type")
 
-    # Convert get_latest to boolean
-    get_latest = get_latest == "true"
+    # Convert load_latest_transcript to boolean
+    load_latest_transcript = load_latest_transcript == "true"
 
     # Ensure that required params are present
     if not (transcript_id and target_language and translation_type):
@@ -91,7 +91,7 @@ def retrieve_translation(request):
     )
     # If no translation exists for this user, check if the latest translation can be fetched
     if queryset is None:
-        if get_latest:
+        if load_latest_transcript:
             queryset = (
                 Translation.objects.filter(
                     transcript_id=transcript_id, target_language=target_language, translation_type=translation_type,
@@ -200,7 +200,7 @@ def save_translation(request):
             translation = Translation.objects.get(
                 pk=translation_id, target_language=target_language
             )
-            current_translation_type = translation.translation_type
+
         except Translation.DoesNotExist:
             return Response(
                 {

@@ -345,7 +345,7 @@ def save_transcription(request):
             {"message": "Missing required parameters - language or payload"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-        
+
     user_id = request.user.id
 
     # Retrieve the transcript object
@@ -378,15 +378,20 @@ def save_transcription(request):
             )
 
         else:
-            # Update the transcript object with the new payload
+            
+            if transcript.user != request.user:
+                return Response(
+                    {"message": "You are not allowed to update this transcript."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             transcript.payload = transcribed_data
             transcript.save()
 
             return Response(
-                {"id": transcript_id, "data": transcript.payload},
+                {"id": transcript.id, "data": transcript.payload},
                 status=status.HTTP_200_OK,
             )
-
     except Transcript.DoesNotExist:
 
         # Collect the video object
@@ -403,11 +408,11 @@ def save_transcription(request):
         transcript = Transcript.objects.filter(
             video=video, language=language, user=user_id, transcript_type=MANUALLY_CREATED
         ).first() 
-        
+
         # If a transcript exists, update the payload else create a new transcript
         if transcript:
             transcript.payload = transcribed_data
-        
+
         else: 
             transcript = Transcript(
                 transcript_type=MANUALLY_CREATED,
@@ -416,7 +421,7 @@ def save_transcription(request):
                 payload=transcribed_data,
                 user_id=user_id,
             )
-        
+
         transcript.save()
         return Response(
             {"id": transcript.id, "data": transcript_obj.payload},
