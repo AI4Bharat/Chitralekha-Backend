@@ -8,7 +8,7 @@ class VideoAdmin(admin.ModelAdmin):
     VideoAdmin class to render the video admin panel.
     """
 
-    list_display = ("name", "url", "duration")
+    list_display = ("name", "url", "duration", "video_uuid")
 
 
 admin.site.register(Video, VideoAdmin)

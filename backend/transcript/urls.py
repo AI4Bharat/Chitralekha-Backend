@@ -5,7 +5,7 @@ from . import views
 
 # Create the url patterns
 urlpatterns = [
-    path("generate/", views.create_transcription, name="create_transcription"),
+    path("generate/", views.generate_transcription, name="generate_transcription"),
     path(
         "generate_original_transcript/",
         views.create_original_source_transcript,
