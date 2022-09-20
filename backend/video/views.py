@@ -1,11 +1,12 @@
+from tracemalloc import start
+import urllib
 from datetime import timedelta
 from io import StringIO
-
 import requests
-import urllib
 import webvtt
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from mutagen.mp3 import MP3
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -98,13 +99,15 @@ def get_video(request):
             )
 
         url = f"https://drive.google.com/uc?export=download&confirm=yTib&id={file_id['data']}"
-        print("FILE ID", file_id["data"])
+
         # Get the video metadata
         title = urllib.request.urlopen(urllib.request.Request(url)).info().get_filename()
         direct_audio_url = url
-
-        # Set duration to 0
-        duration = timedelta(seconds=0)
+    
+        # Calculate the duration 
+        filename, headers = urllib.request.urlretrieve(url)
+        audio = MP3(filename)
+        duration = timedelta(seconds=int(audio.info.length))
 
         # Create a new DB entry if URL does not exist, else return the existing entry
         video, created = Video.objects.get_or_create(
