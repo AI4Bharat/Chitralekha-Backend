@@ -1,4 +1,3 @@
-from tracemalloc import start
 import urllib
 from datetime import timedelta
 from io import StringIO
@@ -19,7 +18,7 @@ from yt_dlp.utils import DownloadError
 
 from .models import Video
 from .serializers import VideoSerializer
-from .utils import extract_google_drive_link_id
+from .utils import drive_info_extractor
 
 # Define the YouTube Downloader object
 ydl = YoutubeDL({"format": "best"})
@@ -90,20 +89,21 @@ def get_video(request):
     if "drive.google.com" in url and is_audio_only:
 
         # Construct a direct download link from the google drive url 
-        # get the id from the drive link 
-        file_id = extract_google_drive_link_id(url)
-        if not file_id["valid"]:
+        # get the id from the drive link
+        try:
+            file_id = drive_info_extractor._match_id(url)
+        except Exception:
             return Response(
-                {"error": file_id["data"]},
+                {"error": "Invalid Google Drive URL."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        url = f"https://drive.google.com/uc?export=download&confirm=yTib&id={file_id['data']}"
+        url = f"https://drive.google.com/uc?export=download&confirm=yTib&id={file_id}"
 
         # Get the video metadata
         title = urllib.request.urlopen(urllib.request.Request(url)).info().get_filename()
         direct_audio_url = url
-    
+
         # Calculate the duration 
         filename, headers = urllib.request.urlretrieve(url)
         audio = MP3(filename)
