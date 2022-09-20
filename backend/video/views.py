@@ -1,10 +1,11 @@
+import urllib
 from datetime import timedelta
 from io import StringIO
-
 import requests
 import webvtt
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from mutagen.mp3 import MP3
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -17,10 +18,10 @@ from yt_dlp.utils import DownloadError
 
 from .models import Video
 from .serializers import VideoSerializer
+from .utils import drive_info_extractor
 
 # Define the YouTube Downloader object
 ydl = YoutubeDL({"format": "best"})
-
 
 @swagger_auto_schema(
     method="get",
@@ -42,7 +43,7 @@ ydl = YoutubeDL({"format": "best"})
             required=True,
         ),
         openapi.Parameter(
-            "create_youtube_transcript",
+            "save_original_transcript",
             openapi.IN_QUERY,
             description=(
                 "A boolean to pass whether or not to create a YouTube transcript"
@@ -51,7 +52,7 @@ ydl = YoutubeDL({"format": "best"})
             required=False,
         ),
         openapi.Parameter(
-            "audio_only",
+            "is_audio_only",
             openapi.IN_QUERY,
             description=(
                 "A boolean to pass whether the user submitted a video or audio"
@@ -74,15 +75,58 @@ def get_video(request):
     # Get the video URL from the query params
     url = request.query_params.get("video_url")
     lang = request.query_params.get("lang", "en")
-    audio_only = request.query_params.get("audio_only", False)
+    is_audio_only = request.query_params.get("is_audio_only", "false")
 
     # Convert audio only to boolean
-    audio_only = audio_only.lower() == "true"
-
+    is_audio_only = is_audio_only.lower() == "true"
     if url is None:
         return Response(
             {"error": "Video URL not provided in query params."},
             status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    ## TEMP: Handle audio_only files separately for google drive links
+    if "drive.google.com" in url and is_audio_only:
+
+        # Construct a direct download link from the google drive url 
+        # get the id from the drive link
+        try:
+            file_id = drive_info_extractor._match_id(url)
+        except Exception:
+            return Response(
+                {"error": "Invalid Google Drive URL."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        url = f"https://drive.google.com/uc?export=download&confirm=yTib&id={file_id}"
+
+        # Get the video metadata
+        title = urllib.request.urlopen(urllib.request.Request(url)).info().get_filename()
+        direct_audio_url = url
+
+        # Calculate the duration 
+        filename, headers = urllib.request.urlretrieve(url)
+        audio = MP3(filename)
+        duration = timedelta(seconds=int(audio.info.length))
+
+        # Create a new DB entry if URL does not exist, else return the existing entry
+        video, created = Video.objects.get_or_create(
+            url=url, defaults={"name": title, "duration": duration, "audio_only": is_audio_only}
+        )
+        if created:
+            # Save the subtitles to the video object
+            video.subtitles = {
+                "status": "SUCCESS",
+                "output": None,
+            }
+            video.save()
+
+        return Response(
+            {
+                "video": VideoSerializer(video).data,
+                "direct_audio_url": direct_audio_url,
+            },
+            status=status.HTTP_200_OK,
         )
 
     # Get the video info from the YouTube API
@@ -104,9 +148,7 @@ def get_video(request):
         # and appending it to the Google Drive direct download link
         url = "https://drive.google.com/uc?export=download&confirm=yTib&id=" + file_id
         info["url"] = url
-
-        # If the link provided is just an audio then the direct audio url is the url itself
-        direct_audio_url = url if audio_only else None
+        info["webpage_url"] = "https://drive.google.com/file/d/" + file_id
 
     # Extract required data from the video info
     normalized_url = info["webpage_url"]
@@ -115,7 +157,7 @@ def get_video(request):
 
     # Create a new DB entry if URL does not exist, else return the existing entry
     video, created = Video.objects.get_or_create(
-        url=normalized_url, defaults={"name": title, "duration": duration}
+        url=normalized_url, defaults={"name": title, "duration": duration, "audio_only": is_audio_only}
     )
     if created:
         video.save()
@@ -136,9 +178,8 @@ def get_video(request):
                     break
 
     # If manual captions not found, search for ASR transcripts
-    if not subtitles and "automatic_captions" in info:
-        if lang in info["automatic_captions"]:
-            subtitles = info["automatic_captions"][lang]
+    if not subtitles and "automatic_captions" in info and lang in info["automatic_captions"]:
+        subtitles = info["automatic_captions"][lang]
 
     subtitle_payload = None
     subtitles_list = []
@@ -148,10 +189,7 @@ def get_video(request):
         subtitle_payload = requests.get(subtitle_url).text
 
         # Parse the VTT file contents and append to the subtitle list
-        for caption in webvtt.read_buffer(StringIO(subtitle_payload)):
-            subtitles_list.append(
-                {"start": caption.start, "end": caption.end, "text": caption.text}
-            )
+        subtitles_list.extend({"start": caption.start, "end": caption.end, "text": caption.text} for caption in webvtt.read_buffer(StringIO(subtitle_payload)))
 
     # Save the subtitles to the video object
     video.subtitles = {
@@ -170,11 +208,22 @@ def get_video(request):
             direct_audio_url = fmt["url"]
             break
 
+    # Create the response data to be returned
+    serializer = VideoSerializer(video)
+    response_data = {
+        "subtitles": subtitles_list,
+        "video": serializer.data,
+    }
+
     # Check if the user passed a boolean to create the transcript
-    create_youtube_transcript = request.query_params.get(
-        "create_youtube_transcript", False
+    save_original_transcript = request.query_params.get(
+        "save_original_transcript", "false"
     )
-    if create_youtube_transcript:
+
+    # Convert to boolean
+    save_original_transcript = save_original_transcript.lower() == "true"
+
+    if save_original_transcript:
 
         # Check if the transcription for the video already exists
         transcript = (
@@ -184,67 +233,52 @@ def get_video(request):
             .first()
         )
 
-        # If it does, return the existing transcript
-        if transcript:
+        if not transcript:
 
-            serializer = VideoSerializer(video)
-
-            # Check if it's audio only
-            if audio_only:
-                return Response(
-                    {
-                        "direct_audio_url": direct_audio_url,
-                        "subtitles": subtitles_list,
-                        "video": serializer.data,
-                        "transcript_id": transcript.id,
-                    },
-                    status=status.HTTP_200_OK,
-                )
-
-            return Response(
-                {
-                    "direct_video_url": direct_video_url,
-                    "subtitles": subtitles_list,
-                    "video": serializer.data,
-                    "transcript_id": transcript.id,
-                },
-                status=status.HTTP_200_OK,
+            # Save a transcript object
+            transcript = Transcript(
+                transcript_type=ORIGINAL_SOURCE,
+                video=video,
+                language=lang,
+                payload=video.subtitles,
             )
+            transcript.save()
 
-        # Save a transcript object
-        transcript_obj = Transcript(
-            transcript_type=ORIGINAL_SOURCE,
-            video=video,
-            language=lang,
-            payload=video.subtitles,
-        )
-        transcript_obj.save()
+        # Add the transcript to the response data
+        response_data["transcript_id"] = transcript.id
 
-        serializer = VideoSerializer(video)
-        return Response(
-            {
-                "direct_audio_url": direct_audio_url,
-                "direct_video_url": direct_video_url,
-                "subtitles": subtitles_list,
-                "video": serializer.data,
-                "transcript_id": transcript_obj.id,
-            },
-            status=status.HTTP_200_OK,
-        )
-
+    # Check if it's audio only
+    if is_audio_only:
+        response_data["audio_url"] = direct_audio_url
     else:
-        serializer = VideoSerializer(video)
-        return Response(
-            {
-                "direct_audio_url": direct_audio_url,
-                "direct_video_url": direct_video_url,
-                "subtitles": subtitles_list,
-                "video": serializer.data,
-            },
-            status=status.HTTP_200_OK,
-        )
+        response_data["video_url"] = direct_video_url
+
+    return Response(
+        response_data,
+        status=status.HTTP_200_OK,
+    )
 
 
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "is_audio_only",
+            openapi.IN_QUERY,
+            description=("A boolean to only return audio entries or video entries"),
+            type=openapi.TYPE_BOOLEAN,
+            required=True,
+        ),
+        openapi.Parameter(
+            "count",
+            openapi.IN_QUERY,
+            description=("The number of entries to return"),
+            type=openapi.TYPE_INTEGER,
+            required=False,
+        ),
+    ],
+    responses={200: "Return the video subtitle payload"},
+)
 @api_view(["GET"])
 def list_recent(request):
     """
@@ -252,6 +286,10 @@ def list_recent(request):
     Endpoint: /video/list_recent/
     Method: GET
     """
+    # Get the audio only param
+    is_audio_only = request.query_params.get("is_audio_only", "false")
+    is_audio_only = is_audio_only.lower() == "true"
+
     # Get the query param from the request, default count is 10
     count = int(request.query_params.get("count", 10))
 
@@ -260,25 +298,48 @@ def list_recent(request):
     # will always have one video associated with it.
     # In the future, if that constraint is removed then we might need to alter the logic.
 
-    # Get the N latest transcripts from the DB for the user
-    recent_transcripts = [
-        (transcript.video, transcript.updated_at)
-        for transcript in Transcript.objects.filter(user=request.user.id).order_by(
-            "-updated_at"
-        )[:count]
-    ]
+    try:
 
-    # Get the date of the nth recently updated trancript from the above list
-    least_recently_updated_transcript_date = recent_transcripts[-1][1]
+        # Get the relevant videos, based on the audio only param
+        video_list = Video.objects.filter(audio_only=is_audio_only)
 
-    # Get the latest translations from the DB for the user which are updated after the nth recently updated transcript
-    recent_translations = [
-        (translation.transcript.video, translation.updated_at)
-        for translation in Translation.objects.filter(user=request.user.id)
-        .filter(updated_at__gt=least_recently_updated_transcript_date)
-        .select_related("transcript")
-        .order_by("-updated_at")
-    ]
+        # Get the N latest transcripts from the DB for the user associated with the video_list 
+        recent_transcripts = [
+            (transcript.video, transcript.updated_at, transcript.id)
+            for transcript in Transcript.objects.filter(user=request.user.id)
+            .filter(video__in=video_list)
+            .order_by("-updated_at")[:count]
+        ]
+
+        # Get the date of the nth recently updated trancript from the above list
+        least_recently_updated_transcript_date = recent_transcripts[-1][1]
+
+        # Get the list of transcript IDs from recent translations
+        filtered_transcript_ids = [
+            transcript[2] for transcript in recent_transcripts
+        ]
+
+        # Filter the translations by transcript IDs and
+        # Get the latest translations from the DB for the user which are updated after the nth recently updated transcript
+        recent_translations = [
+            (
+                translation.transcript.video,
+                translation.updated_at,
+                translation.transcript.id,
+            )
+            for translation in Translation.objects.filter(user=request.user.id)
+            .filter(transcript__in=filtered_transcript_ids)
+            .filter(updated_at__gt=least_recently_updated_transcript_date)
+            .select_related("transcript")
+            .order_by("-updated_at")
+        ]
+
+    except IndexError:
+        # If there are no transcripts in the DB for the user
+        return Response(
+            {"message": "No recent videos found!"},
+            status=status.HTTP_200_OK,
+        )
 
     # Form a union of the lists and sort by updated_at
     union_list = recent_transcripts + recent_translations
@@ -286,7 +347,7 @@ def list_recent(request):
 
     # Find the first N unique videos in the union list
     videos = []
-    for video, _ in union_list:
+    for video, date, _ in union_list:
         if len(videos) >= count:
             break
         if video not in videos:
