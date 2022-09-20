@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth import get_user_model
 from django.db import models
 from transcript.models import Transcript
@@ -19,6 +21,13 @@ class Translation(models.Model):
     Translation model
     """
 
+    translation_uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+        verbose_name="Translation UUID",
+        primary_key=False, 
+    )
     translation_type = models.CharField(
         choices=TRANSLATION_TYPE_CHOICES, max_length=3, verbose_name="Translation Type"
     )
@@ -53,3 +62,6 @@ class Translation(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True, verbose_name="Translation Updated At"
     )
+
+    def __str__(self):
+        return "Translation: " + str(self.translation_uuid)
