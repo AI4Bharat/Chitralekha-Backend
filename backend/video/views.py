@@ -2,6 +2,7 @@ from datetime import timedelta
 from io import StringIO
 
 import requests
+import urllib
 import webvtt
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -78,11 +79,45 @@ def get_video(request):
 
     # Convert audio only to boolean
     is_audio_only = is_audio_only.lower() == "true"
-
     if url is None:
         return Response(
             {"error": "Video URL not provided in query params."},
             status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    ## TEMP: Handle audio_only files separately for google drive links 
+    if "drive.google.com" in url and is_audio_only:
+
+        # Construct a direct download link from the google drive url 
+        # get the id from the drive link 
+        file_id = url.split("/")[-2]
+        url = f"https://drive.google.com/uc?export=download&confirm=yTib&id={file_id}"
+
+        # Get the video metadata
+        title = urllib.request.urlopen(urllib.request.Request(url)).info().get_filename()
+        direct_audio_url = url
+        
+        # Set duration to 0
+        duration = timedelta(seconds=0)
+
+        # Create a new DB entry if URL does not exist, else return the existing entry
+        video, created = Video.objects.get_or_create(
+            url=url, defaults={"name": title, "duration": duration, "audio_only": is_audio_only}
+        )
+        if created:
+            # Save the subtitles to the video object
+            video.subtitles = {
+                "status": "SUCCESS",
+                "output": None,
+            }
+            video.save()
+
+        return Response(
+            {
+                "video": VideoSerializer(video).data,
+                "direct_audio_url": direct_audio_url,
+            },
+            status=status.HTTP_200_OK,
         )
 
     # Get the video info from the YouTube API
@@ -106,9 +141,6 @@ def get_video(request):
         info["url"] = url
         info["webpage_url"] = "https://drive.google.com/file/d/" + file_id
 
-        # If the link provided is just an audio then the direct audio url is the url itself
-        direct_audio_url = url if is_audio_only else None
-
     # Extract required data from the video info
     normalized_url = info["webpage_url"]
     title = info["title"]
@@ -116,7 +148,7 @@ def get_video(request):
 
     # Create a new DB entry if URL does not exist, else return the existing entry
     video, created = Video.objects.get_or_create(
-        url=normalized_url, defaults={"name": title, "duration": duration}
+        url=normalized_url, defaults={"name": title, "duration": duration, "audio_only": is_audio_only}
     )
     if created:
         video.save()
@@ -137,9 +169,8 @@ def get_video(request):
                     break
 
     # If manual captions not found, search for ASR transcripts
-    if not subtitles and "automatic_captions" in info:
-        if lang in info["automatic_captions"]:
-            subtitles = info["automatic_captions"][lang]
+    if not subtitles and "automatic_captions" in info and lang in info["automatic_captions"]:
+        subtitles = info["automatic_captions"][lang]
 
     subtitle_payload = None
     subtitles_list = []
@@ -149,10 +180,7 @@ def get_video(request):
         subtitle_payload = requests.get(subtitle_url).text
 
         # Parse the VTT file contents and append to the subtitle list
-        for caption in webvtt.read_buffer(StringIO(subtitle_payload)):
-            subtitles_list.append(
-                {"start": caption.start, "end": caption.end, "text": caption.text}
-            )
+        subtitles_list.extend({"start": caption.start, "end": caption.end, "text": caption.text} for caption in webvtt.read_buffer(StringIO(subtitle_payload)))
 
     # Save the subtitles to the video object
     video.subtitles = {
