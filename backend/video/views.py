@@ -18,10 +18,10 @@ from yt_dlp.utils import DownloadError
 
 from .models import Video
 from .serializers import VideoSerializer
+from .utils import extract_google_drive_link_id
 
 # Define the YouTube Downloader object
 ydl = YoutubeDL({"format": "best"})
-
 
 @swagger_auto_schema(
     method="get",
@@ -84,19 +84,25 @@ def get_video(request):
             {"error": "Video URL not provided in query params."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
-    ## TEMP: Handle audio_only files separately for google drive links 
+
+    ## TEMP: Handle audio_only files separately for google drive links
     if "drive.google.com" in url and is_audio_only:
 
         # Construct a direct download link from the google drive url 
         # get the id from the drive link 
-        file_id = url.split("/")[-2]
-        url = f"https://drive.google.com/uc?export=download&confirm=yTib&id={file_id}"
+        file_id = extract_google_drive_link_id(url)
+        if not file_id["valid"]:
+            return Response(
+                {"error": file_id["data"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
+        url = f"https://drive.google.com/uc?export=download&confirm=yTib&id={file_id['data']}"
+        print("FILE ID", file_id["data"])
         # Get the video metadata
         title = urllib.request.urlopen(urllib.request.Request(url)).info().get_filename()
         direct_audio_url = url
-        
+
         # Set duration to 0
         duration = timedelta(seconds=0)
 
