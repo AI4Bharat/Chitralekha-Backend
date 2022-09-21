@@ -27,9 +27,9 @@ ydl = YoutubeDL({"format": "best"})
     method="get",
     manual_parameters=[
         openapi.Parameter(
-            "video_url",
+            "file_url",
             openapi.IN_QUERY,
-            description=("A string to pass the url of the video to be transcribed"),
+            description=("A string to pass the url of the file to be transcribed"),
             type=openapi.TYPE_STRING,
             required=True,
         ),
@@ -69,11 +69,11 @@ def get_video(request):
     API Endpoint to get the direct URL to a video
     Endpoint: /video/
     Method: GET
-    Query Params: video_url (required)
+    Query Params: file_url (required)
     """
 
     # Get the video URL from the query params
-    url = request.query_params.get("video_url")
+    url = request.query_params.get("file_url")
     lang = request.query_params.get("lang", "en")
     is_audio_only = request.query_params.get("is_audio_only", "false")
 
@@ -249,9 +249,9 @@ def get_video(request):
 
     # Check if it's audio only
     if is_audio_only:
-        response_data["audio_url"] = direct_audio_url
+        response_data["direct_audio_url"] = direct_audio_url
     else:
-        response_data["video_url"] = direct_video_url
+        response_data["direct_video_url"] = direct_video_url
 
     return Response(
         response_data,
