@@ -14,42 +14,60 @@ import webvtt
 import torch
 from io import StringIO
 from nltk.tokenize import sent_tokenize
-#from langdetect import detect
+
+# from langdetect import detect
 # from simpletransformers.ner import NERModel
 from punctuate_text import Punctuation
 
 
 class RestorePuncts:
-    def __init__(self, lang:str='', wrds_per_pred=250):
+    def __init__(self, lang: str = "", wrds_per_pred=250):
         self.wrds_per_pred = wrds_per_pred
         self.overlap_wrds = 30
-        self.valid_labels = ['OU', 'OO', '.O', '!O', ',O', '.U', '!U', ',U', ':O', ';O', ':U', "'O", '-O', '?O', '?U']
+        self.valid_labels = [
+            "OU",
+            "OO",
+            ".O",
+            "!O",
+            ",O",
+            ".U",
+            "!U",
+            ",U",
+            ":O",
+            ";O",
+            ":U",
+            "'O",
+            "-O",
+            "?O",
+            "?U",
+        ]
         self.lang = lang
-        
+
         # if self.lang == 'en':
-            # self.model = NERModel("bert", "felflare/bert-restore-punctuation", labels=self.valid_labels,
-            #                     args={"silent": True, "max_seq_length": 512})
+        # self.model = NERModel("bert", "felflare/bert-restore-punctuation", labels=self.valid_labels,
+        #                     args={"silent": True, "max_seq_length": 512})
         # else:
         self.model = Punctuation(self.lang)
         # use_cuda isnt working and this hack seems to load the model correctly to the gpu
         self.model.device = torch.device("cuda")
         # dummy punctuate to load the model onto gpu
-        self.punctuate("इस श्रेणी में केवल निम्नलिखित उपश्रेणी है मेहुल को भारत को सौंप दिया जाए")
+        self.punctuate(
+            "इस श्रेणी में केवल निम्नलिखित उपश्रेणी है मेहुल को भारत को सौंप दिया जाए"
+        )
 
-
-    def punctuate(self, text: str, batch_size:int=32):
+    def punctuate(self, text: str, batch_size: int = 32):
         """
         Performs punctuation restoration on arbitrarily large text.
         Detects if input is not English, if non-English was detected terminates predictions.
         Overrride by supplying `lang='en'`
-        
+
         Args:
             - text (str): Text to punctuate, can be few words to as large as you want.
             - lang (str): Explicit language of input text.
         """
-        #if not lang and len(text) > 10:
+        # if not lang and len(text) > 10:
         #    lang = detect(text)
-        #if lang != 'en':
+        # if lang != 'en':
         #    raise Exception(F"""Non English text detected. Restore Punctuation works only for English.
         #    If you are certain the input is English, pass argument lang='en' to this function.
         #    Punctuate received: {text}""")
@@ -57,14 +75,12 @@ class RestorePuncts:
         # def chunks(L, n):
         #     return [L[x : x + n] for x in range(0, len(L), n)]
 
-
         # # plit up large text into bert digestable chunks
         # splits = self.split_on_toks(text, self.wrds_per_pred, self.overlap_wrds)
 
         # texts = [i["text"] for i in splits]
         # batches = chunks(texts, batch_size)
         # preds_lst = []
-
 
         # for batch in batches:
         #     # if self.lang == 'en':
@@ -74,7 +90,6 @@ class RestorePuncts:
         #     batch_preds = self.model.punctuate_text(batch)
         #     preds_lst.extend(batch_preds)
 
-        
         # # predict slices
         # # full_preds_lst contains tuple of labels and logits
         # #full_preds_lst = [self.predict(i['text']) for i in splits]
@@ -110,15 +125,15 @@ class RestorePuncts:
         Example output:
         [{...}, {"text": "...", 'start_idx': 31354, 'end_idx': 32648}, {...}]
         """
-        wrds = text.replace('\n', ' ').split(" ")
+        wrds = text.replace("\n", " ").split(" ")
         resp = []
         lst_chunk_idx = 0
         i = 0
 
         while True:
             # words in the chunk and the overlapping portion
-            wrds_len = wrds[(length * i):(length * (i + 1))]
-            wrds_ovlp = wrds[(length * (i + 1)):((length * (i + 1)) + overlap)]
+            wrds_len = wrds[(length * i) : (length * (i + 1))]
+            wrds_ovlp = wrds[(length * (i + 1)) : ((length * (i + 1)) + overlap)]
             wrds_split = wrds_len + wrds_ovlp
 
             # Break loop if no more words
@@ -147,7 +162,7 @@ class RestorePuncts:
         Given a full text and predictions of each slice combines predictions into a single text again.
         Performs validataion wether text was combined correctly
         """
-        split_full_text = full_text.replace('\n', ' ').split(" ")
+        split_full_text = full_text.replace("\n", " ").split(" ")
         split_full_text = [i for i in split_full_text if i]
         split_full_text_len = len(split_full_text)
         output_text = []
@@ -163,12 +178,18 @@ class RestorePuncts:
                 if index == split_full_text_len:
                     break
 
-                if split_full_text[index] == str(list(wrd.keys())[0]) and \
-                        ix <= slice_wrds - 3 and text_slices[-1] != _slice:
+                if (
+                    split_full_text[index] == str(list(wrd.keys())[0])
+                    and ix <= slice_wrds - 3
+                    and text_slices[-1] != _slice
+                ):
                     index += 1
                     pred_item_tuple = list(wrd.items())[0]
                     output_text.append(pred_item_tuple)
-                elif split_full_text[index] == str(list(wrd.keys())[0]) and text_slices[-1] == _slice:
+                elif (
+                    split_full_text[index] == str(list(wrd.keys())[0])
+                    and text_slices[-1] == _slice
+                ):
                     index += 1
                     pred_item_tuple = list(wrd.items())[0]
                     output_text.append(pred_item_tuple)
@@ -206,22 +227,24 @@ if __name__ == "__main__":
     punct_model = RestorePuncts()
 
     load_model = time.time()
-    print(f'Time to load model: {load_model - start}')
+    print(f"Time to load model: {load_model - start}")
     # read test file
     # with open('en_lower.txt', 'r') as fp:
     #     # test_sample = fp.read()
     #     lines = fp.readlines()
 
-    with open('sample.vtt', 'r') as fp:
+    with open("sample.vtt", "r") as fp:
         source_text = fp.read()
 
     # captions = webvtt.read_buffer(StringIO(source_text))
-    captions = webvtt.read('sample.vtt')
-    source_sentences = [caption.text.replace('\r', '').replace('\n', ' ') for caption in captions]
+    captions = webvtt.read("sample.vtt")
+    source_sentences = [
+        caption.text.replace("\r", "").replace("\n", " ") for caption in captions
+    ]
 
     # print(source_sentences)
 
-    sent = ' '.join(source_sentences)
+    sent = " ".join(source_sentences)
     punctuated = punct_model.punctuate(sent)
 
     tokenised = sent_tokenize(punctuated)
@@ -230,8 +253,8 @@ if __name__ == "__main__":
     for i in range(len(tokenised)):
         captions[i].text = tokenised[i]
     # return captions.content
-    captions.save('my_captions.vtt')
+    captions.save("my_captions.vtt")
 
     end = time.time()
-    print(f'Time for run: {end - load_model}')
-    print(f'Total time: {end  - start}')
+    print(f"Time for run: {end - load_model}")
+    print(f"Total time: {end  - start}")

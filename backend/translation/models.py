@@ -16,6 +16,7 @@ TRANSLATION_TYPE_CHOICES = (
     (MANUALLY_CREATED, "Manually Created"),
 )
 
+
 class Translation(models.Model):
     """
     Translation model
@@ -26,7 +27,7 @@ class Translation(models.Model):
         unique=True,
         editable=False,
         verbose_name="Translation UUID",
-        primary_key=False, 
+        primary_key=False,
     )
     translation_type = models.CharField(
         choices=TRANSLATION_TYPE_CHOICES, max_length=3, verbose_name="Translation Type"

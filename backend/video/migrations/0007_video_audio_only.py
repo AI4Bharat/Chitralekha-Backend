@@ -6,13 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('video', '0006_remove_uuid_null'),
+        ("video", "0006_remove_uuid_null"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='video',
-            name='audio_only',
-            field=models.BooleanField(default=False, help_text='Does this object only contain audio?', verbose_name='Audio Only'),
+            model_name="video",
+            name="audio_only",
+            field=models.BooleanField(
+                default=False,
+                help_text="Does this object only contain audio?",
+                verbose_name="Audio Only",
+            ),
         ),
     ]

@@ -70,7 +70,7 @@ class LoginUserSerializer(serializers.Serializer):
         if user is None:
             # If not, check if it is an email address
             user = User.objects.filter(email=data["username"]).first()
-        
+
         if user is None:
             raise serializers.ValidationError("User doesn't exist")
 

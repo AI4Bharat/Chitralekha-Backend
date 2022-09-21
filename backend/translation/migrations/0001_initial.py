@@ -10,23 +10,86 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('transcript', '0001_initial'),
+        ("transcript", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Translation',
+            name="Translation",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('translation_type', models.CharField(choices=[('mg', 'Machine Generated'), ('he', 'Human Edited'), ('mc', 'Manually Created')], max_length=2, verbose_name='Translation Type')),
-                ('target_lang', models.CharField(choices=[('en', 'English'), ('hi', 'Hindi')], max_length=2, verbose_name='Target Language')),
-                ('payload', models.JSONField(verbose_name='Translation Output')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Translation Created At')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Translation Updated At')),
-                ('parent', models.ForeignKey(blank=True, default=None, null=True, on_delete=django.db.models.deletion.PROTECT, to='translation.translation', verbose_name='Parent Translation')),
-                ('transcript', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='translations', to='transcript.transcript', verbose_name='Translation Transcript')),
-                ('user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL, verbose_name='Translator')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "translation_type",
+                    models.CharField(
+                        choices=[
+                            ("mg", "Machine Generated"),
+                            ("he", "Human Edited"),
+                            ("mc", "Manually Created"),
+                        ],
+                        max_length=2,
+                        verbose_name="Translation Type",
+                    ),
+                ),
+                (
+                    "target_lang",
+                    models.CharField(
+                        choices=[("en", "English"), ("hi", "Hindi")],
+                        max_length=2,
+                        verbose_name="Target Language",
+                    ),
+                ),
+                ("payload", models.JSONField(verbose_name="Translation Output")),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="Translation Created At"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(
+                        auto_now=True, verbose_name="Translation Updated At"
+                    ),
+                ),
+                (
+                    "parent",
+                    models.ForeignKey(
+                        blank=True,
+                        default=None,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        to="translation.translation",
+                        verbose_name="Parent Translation",
+                    ),
+                ),
+                (
+                    "transcript",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="translations",
+                        to="transcript.transcript",
+                        verbose_name="Translation Transcript",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="Translator",
+                    ),
+                ),
             ],
         ),
     ]

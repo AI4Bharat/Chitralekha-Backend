@@ -2,6 +2,7 @@
 ## Utility Functions
 import requests
 
+
 def make_asr_api_call(url, lang, vad_level=2, chunk_size=10):
     try:
         json_data = {
@@ -15,12 +16,13 @@ def make_asr_api_call(url, lang, vad_level=2, chunk_size=10):
     except:
         traceback.print_stack()
         return None
-    
+
     try:
         return response.json()
     except:
         print(response.text)
         return None
+
 
 def get_asr_supported_languages():
     request_url = "http://216.48.182.174:5000/supported_languages"

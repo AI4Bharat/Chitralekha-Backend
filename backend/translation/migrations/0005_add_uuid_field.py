@@ -7,13 +7,15 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('translation', '0004_alter_translation_translation_type'),
+        ("translation", "0004_alter_translation_translation_type"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='translation',
-            name='translation_uuid',
-            field=models.UUIDField(default=uuid.uuid4, null=True, verbose_name='Translation UUID'),
+            model_name="translation",
+            name="translation_uuid",
+            field=models.UUIDField(
+                default=uuid.uuid4, null=True, verbose_name="Translation UUID"
+            ),
         ),
     ]

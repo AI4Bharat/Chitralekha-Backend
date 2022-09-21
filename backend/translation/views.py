@@ -11,7 +11,12 @@ from rest_framework.response import Response
 from transcript.models import Transcript
 
 from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES
-from .models import Translation, MACHINE_GENERATED, MANUALLY_CREATED, UPDATED_MACHINE_GENERATED
+from .models import (
+    Translation,
+    MACHINE_GENERATED,
+    MANUALLY_CREATED,
+    UPDATED_MACHINE_GENERATED,
+)
 from .serializers import TranslationSerializer
 from .utils import get_batch_translations_using_indictrans_nmt_api
 
@@ -59,7 +64,7 @@ def retrieve_translation(request):
     """
     Endpoint to retrive a translation for a given transcript and language
     """
-    
+
     # Get the query params
     transcript_id = request.query_params.get("transcript_id")
     target_language = request.query_params.get("target_language")
@@ -94,7 +99,9 @@ def retrieve_translation(request):
         if load_latest_transcript:
             queryset = (
                 Translation.objects.filter(
-                    transcript_id=transcript_id, target_language=target_language, translation_type=translation_type,
+                    transcript_id=transcript_id,
+                    target_language=target_language,
+                    translation_type=translation_type,
                 )
                 .order_by("-updated_at")
                 .first()
@@ -113,7 +120,8 @@ def retrieve_translation(request):
 
     # Serialize and return the data
     serializer = TranslationSerializer(queryset)
-    return Response(serializer.data, status=status.HTTP_200_OK)        
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 @swagger_auto_schema(
     method="post",
@@ -149,37 +157,39 @@ def retrieve_translation(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def save_translation(request):
-    
+
     # Get the required data from the POST body
     translation_id = request.data.get("translation_id", None)
     target_language = request.data["target_language"]
     payload = request.data["payload"]
     user = request.user
 
-    # If translation_id is not present, save a new translation object 
+    # If translation_id is not present, save a new translation object
     if translation_id is None:
-        
+
         # Check if transcript_id is present in the POST body
         if "transcript_id" not in request.data:
             return Response(
-                {"error": "Transcript_id is missing from the POST body, which needs to be passed if translation_id is not passed."},
+                {
+                    "error": "Transcript_id is missing from the POST body, which needs to be passed if translation_id is not passed."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         # Get the transcript_id from the POST body
         transcript_id = request.data["transcript_id"]
-        
-        try: 
+
+        try:
             # Get a transcript object for the given transcript_id
             transcript = Transcript.objects.get(id=transcript_id)
-        
+
         except Transcript.DoesNotExist:
             return Response(
                 {"error": "No transcript found for the given transcript_id."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Create a translation object 
+        # Create a translation object
         new_translation = Translation.objects.create(
             translation_type=MANUALLY_CREATED,
             transcript=transcript,
@@ -188,12 +198,10 @@ def save_translation(request):
             payload=payload,
         )
 
-    else: 
+    else:
         # Try to get the translation for the given translation_id and target_language
         try:
-            translation = Translation.objects.get(
-                pk=translation_id
-            )
+            translation = Translation.objects.get(pk=translation_id)
 
         except Translation.DoesNotExist:
             return Response(
@@ -207,17 +215,25 @@ def save_translation(request):
         if translation.user == user:
             translation.payload = payload
             translation.save()
-            
+
             return Response(
-            {"message": "Translation updated successfully.", "id":translation.id, "data": translation.payload}, status=status.HTTP_200_OK)
+                {
+                    "message": "Translation updated successfully.",
+                    "id": translation.id,
+                    "data": translation.payload,
+                },
+                status=status.HTTP_200_OK,
+            )
 
         # else if the user is not assigned, create a new translation object
-        else: 
+        else:
 
-            # Check if the translation doesn't have a user 
-            if translation.user is not None: 
+            # Check if the translation doesn't have a user
+            if translation.user is not None:
                 return Response(
-                    {"error": "Translation already has a user assigned to it. You cannot edit this translation."},
+                    {
+                        "error": "Translation already has a user assigned to it. You cannot edit this translation."
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -231,12 +247,18 @@ def save_translation(request):
                 user=user,
                 payload=payload,
             )
-            
+
     new_translation.save()
     return Response(
-        {"message": "Translation created successfully.", "id": new_translation.id, "data": new_translation.payload}, status=status.HTTP_200_OK)
+        {
+            "message": "Translation created successfully.",
+            "id": new_translation.id,
+            "data": new_translation.payload,
+        },
+        status=status.HTTP_200_OK,
+    )
 
-    
+
 @api_view(["GET"])
 def get_supported_languages(request):
 
@@ -300,7 +322,9 @@ def generate_translation(request):
     # Ensure that required params are present
     if not (transcript_id and target_language):
         return Response(
-            {"error": "Missing required query params [transcript_id, target_language]."},
+            {
+                "error": "Missing required query params [transcript_id, target_language]."
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -313,7 +337,9 @@ def generate_translation(request):
     # Check if the cached translation is valid and return if it is valid
     translation = (
         Translation.objects.filter(
-            transcript=transcript_id, target_language=target_language, translation_type=MACHINE_GENERATED
+            transcript=transcript_id,
+            target_language=target_language,
+            translation_type=MACHINE_GENERATED,
         )
         .order_by("-updated_at")
         .first()

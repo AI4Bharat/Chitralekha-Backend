@@ -6,13 +6,40 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('translation', '0001_initial'),
+        ("translation", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='translation',
-            name='target_lang',
-            field=models.CharField(choices=[('en', 'English'), ('hi', 'Hindi'), ('as', 'Assamese'), ('bn', 'Bengali'), ('brx', 'Bodo'), ('gu', 'Gujarati'), ('kn', 'Kannada'), ('ks', 'Kashmiri'), ('gom', 'Konkani'), ('mai', 'Maithili'), ('ml', 'Malayalam'), ('mr', 'Marathi'), ('mni', 'Manipuri'), ('ne', 'Nepali'), ('or', 'Oriya'), ('pa', 'Punjabi'), ('sa', 'Sanskrit'), ('sd', 'Sindhi'), ('si', 'Sinhala'), ('ta', 'Tamil'), ('te', 'Telugu'), ('ur', 'Urdu')], max_length=4, verbose_name='Target Language'),
+            model_name="translation",
+            name="target_lang",
+            field=models.CharField(
+                choices=[
+                    ("en", "English"),
+                    ("hi", "Hindi"),
+                    ("as", "Assamese"),
+                    ("bn", "Bengali"),
+                    ("brx", "Bodo"),
+                    ("gu", "Gujarati"),
+                    ("kn", "Kannada"),
+                    ("ks", "Kashmiri"),
+                    ("gom", "Konkani"),
+                    ("mai", "Maithili"),
+                    ("ml", "Malayalam"),
+                    ("mr", "Marathi"),
+                    ("mni", "Manipuri"),
+                    ("ne", "Nepali"),
+                    ("or", "Oriya"),
+                    ("pa", "Punjabi"),
+                    ("sa", "Sanskrit"),
+                    ("sd", "Sindhi"),
+                    ("si", "Sinhala"),
+                    ("ta", "Tamil"),
+                    ("te", "Telugu"),
+                    ("ur", "Urdu"),
+                ],
+                max_length=4,
+                verbose_name="Target Language",
+            ),
         ),
     ]

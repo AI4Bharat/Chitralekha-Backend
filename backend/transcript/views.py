@@ -7,7 +7,14 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
 
-from .models import Transcript, ORIGINAL_SOURCE, UPDATED_ORIGINAL_SOURCE, MACHINE_GENERATED, UPDATED_MACHINE_GENERATED, MANUALLY_CREATED
+from .models import (
+    Transcript,
+    ORIGINAL_SOURCE,
+    UPDATED_ORIGINAL_SOURCE,
+    MACHINE_GENERATED,
+    UPDATED_MACHINE_GENERATED,
+    MANUALLY_CREATED,
+)
 from .serializers import TranscriptSerializer
 from .utils.asr import get_asr_supported_languages, make_asr_api_call
 
@@ -273,13 +280,24 @@ def retrieve_transcription(request):
             .first()
         )
 
-        return Response({"id": transcript.id, "data": transcript.payload}, status=status.HTTP_200_OK,) if transcript else Response({"message": "No transcript found"}, status=status.HTTP_404_NOT_FOUND,)
+        return (
+            Response(
+                {"id": transcript.id, "data": transcript.payload},
+                status=status.HTTP_200_OK,
+            )
+            if transcript
+            else Response(
+                {"message": "No transcript found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        )
 
     else:
         return Response(
             {"message": "You are not allowed to load this transcript."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
 
 @swagger_auto_schema(
     method="post",
@@ -327,7 +345,7 @@ def save_transcription(request):
 
     # Collect the request parameters
     transcript_id = request.data.get("transcript_id", None)
-    try: 
+    try:
         language = request.data["language"]
         transcribed_data = request.data["payload"]
     except KeyError:
@@ -368,7 +386,7 @@ def save_transcription(request):
             )
 
         else:
-            
+
             if transcript.user != request.user:
                 return Response(
                     {"message": "You are not allowed to update this transcript."},
@@ -385,25 +403,30 @@ def save_transcription(request):
     except Transcript.DoesNotExist:
 
         # Collect the video object
-        try: 
+        try:
             video_id = request.data["video_id"]
             video = Video.objects.get(pk=video_id)
         except KeyError:
             return Response(
-                {"message": "Missing required parameters - video_id or video does not exist."},
+                {
+                    "message": "Missing required parameters - video_id or video does not exist."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Check if a transcript exists for this video, language, user and transcript_type
         transcript = Transcript.objects.filter(
-            video=video, language=language, user=user_id, transcript_type=MANUALLY_CREATED
-        ).first() 
+            video=video,
+            language=language,
+            user=user_id,
+            transcript_type=MANUALLY_CREATED,
+        ).first()
 
         # If a transcript exists, update the payload else create a new transcript
         if transcript:
             transcript.payload = transcribed_data
 
-        else: 
+        else:
             transcript = Transcript(
                 transcript_type=MANUALLY_CREATED,
                 video=video,

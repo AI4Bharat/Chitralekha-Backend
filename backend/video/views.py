@@ -23,6 +23,7 @@ from .utils import drive_info_extractor
 # Define the YouTube Downloader object
 ydl = YoutubeDL({"format": "best"})
 
+
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
@@ -88,7 +89,7 @@ def get_video(request):
     ## TEMP: Handle audio_only files separately for google drive links
     if "drive.google.com" in url and is_audio_only:
 
-        # Construct a direct download link from the google drive url 
+        # Construct a direct download link from the google drive url
         # get the id from the drive link
         try:
             file_id = drive_info_extractor._match_id(url)
@@ -101,17 +102,20 @@ def get_video(request):
         url = f"https://drive.google.com/uc?export=download&confirm=yTib&id={file_id}"
 
         # Get the video metadata
-        title = urllib.request.urlopen(urllib.request.Request(url)).info().get_filename()
+        title = (
+            urllib.request.urlopen(urllib.request.Request(url)).info().get_filename()
+        )
         direct_audio_url = url
 
-        # Calculate the duration 
+        # Calculate the duration
         filename, headers = urllib.request.urlretrieve(url)
         audio = MP3(filename)
         duration = timedelta(seconds=int(audio.info.length))
 
         # Create a new DB entry if URL does not exist, else return the existing entry
         video, created = Video.objects.get_or_create(
-            url=url, defaults={"name": title, "duration": duration, "audio_only": is_audio_only}
+            url=url,
+            defaults={"name": title, "duration": duration, "audio_only": is_audio_only},
         )
         if created:
             # Save the subtitles to the video object
@@ -157,7 +161,8 @@ def get_video(request):
 
     # Create a new DB entry if URL does not exist, else return the existing entry
     video, created = Video.objects.get_or_create(
-        url=normalized_url, defaults={"name": title, "duration": duration, "audio_only": is_audio_only}
+        url=normalized_url,
+        defaults={"name": title, "duration": duration, "audio_only": is_audio_only},
     )
     if created:
         video.save()
@@ -178,7 +183,11 @@ def get_video(request):
                     break
 
     # If manual captions not found, search for ASR transcripts
-    if not subtitles and "automatic_captions" in info and lang in info["automatic_captions"]:
+    if (
+        not subtitles
+        and "automatic_captions" in info
+        and lang in info["automatic_captions"]
+    ):
         subtitles = info["automatic_captions"][lang]
 
     subtitle_payload = None
@@ -189,7 +198,10 @@ def get_video(request):
         subtitle_payload = requests.get(subtitle_url).text
 
         # Parse the VTT file contents and append to the subtitle list
-        subtitles_list.extend({"start": caption.start, "end": caption.end, "text": caption.text} for caption in webvtt.read_buffer(StringIO(subtitle_payload)))
+        subtitles_list.extend(
+            {"start": caption.start, "end": caption.end, "text": caption.text}
+            for caption in webvtt.read_buffer(StringIO(subtitle_payload))
+        )
 
     # Save the subtitles to the video object
     video.subtitles = {
@@ -303,7 +315,7 @@ def list_recent(request):
         # Get the relevant videos, based on the audio only param
         video_list = Video.objects.filter(audio_only=is_audio_only)
 
-        # Get the N latest transcripts from the DB for the user associated with the video_list 
+        # Get the N latest transcripts from the DB for the user associated with the video_list
         recent_transcripts = [
             (transcript.video, transcript.updated_at, transcript.id)
             for transcript in Transcript.objects.filter(user=request.user.id)
@@ -315,9 +327,7 @@ def list_recent(request):
         least_recently_updated_transcript_date = recent_transcripts[-1][1]
 
         # Get the list of transcript IDs from recent translations
-        filtered_transcript_ids = [
-            transcript[2] for transcript in recent_transcripts
-        ]
+        filtered_transcript_ids = [transcript[2] for transcript in recent_transcripts]
 
         # Filter the translations by transcript IDs and
         # Get the latest translations from the DB for the user which are updated after the nth recently updated transcript
