@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
 
-from .models import *
+from .models import Transcript, ORIGINAL_SOURCE, UPDATED_ORIGINAL_SOURCE, MACHINE_GENERATED, UPDATED_MACHINE_GENERATED, MANUALLY_CREATED
 from .serializers import TranscriptSerializer
 from .utils.asr import get_asr_supported_languages, make_asr_api_call
 
@@ -36,7 +36,7 @@ from .utils.asr import get_asr_supported_languages, make_asr_api_call
     },
 )
 @api_view(["GET"])
-def create_transcription(request):
+def generate_transcription(request):
     """
     Endpoint to get or generate(if not existing) a transcription for a video
     """
@@ -243,53 +243,43 @@ def retrieve_transcription(request):
         .first()
     )
 
-    # Check if there are records in transcript
     if transcript:
         return Response(
             {"id": transcript.id, "data": transcript.payload},
             status=status.HTTP_200_OK,
         )
 
-    else:
-        try:
-            load_latest_transcript = request.query_params["load_latest_transcript"]
-        except:
-            return Response(
-                {"message": "You are not allowed to load this transcript."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+    try:
+        load_latest_transcript = request.query_params["load_latest_transcript"]
+    except Exception:
+        return Response(
+            {"message": "You are not allowed to load this transcript."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
-        # Convert load_latest_transcript to boolean
-        if type(load_latest_transcript) == str:
-            load_latest_transcript = load_latest_transcript.lower() == "true"
+    # Convert load_latest_transcript to boolean
+    if type(load_latest_transcript) == str:
+        load_latest_transcript = load_latest_transcript.lower() == "true"
 
         # Check if the load latest transcript flag is set to true
-        if load_latest_transcript:
+    if load_latest_transcript:
 
-            # Get the latest transcript
-            transcript = (
-                Transcript.objects.filter(video_id=video_id)
-                .filter(language=lang)
-                .filter(transcript_type=transcript_type)
-                .order_by("-updated_at")
-                .first()
-            )
+        # Get the latest transcript
+        transcript = (
+            Transcript.objects.filter(video_id=video_id)
+            .filter(language=lang)
+            .filter(transcript_type=transcript_type)
+            .order_by("-updated_at")
+            .first()
+        )
 
-            if transcript:
-                return Response(
-                    {"id": transcript.id, "data": transcript.payload},
-                    status=status.HTTP_200_OK,
-                )
-            else:
-                return Response(
-                    {"message": "No transcript found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-        else:
-            return Response(
-                {"message": "You are not allowed to load this transcript."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        return Response({"id": transcript.id, "data": transcript.payload}, status=status.HTTP_200_OK,) if transcript else Response({"message": "No transcript found"}, status=status.HTTP_404_NOT_FOUND,)
+
+    else:
+        return Response(
+            {"message": "You are not allowed to load this transcript."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 @swagger_auto_schema(
     method="post",
@@ -345,7 +335,7 @@ def save_transcription(request):
             {"message": "Missing required parameters - language or payload"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-        
+
     user_id = request.user.id
 
     # Retrieve the transcript object
@@ -378,15 +368,20 @@ def save_transcription(request):
             )
 
         else:
-            # Update the transcript object with the new payload
+            
+            if transcript.user != request.user:
+                return Response(
+                    {"message": "You are not allowed to update this transcript."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             transcript.payload = transcribed_data
             transcript.save()
 
             return Response(
-                {"id": transcript_id, "data": transcript.payload},
+                {"id": transcript.id, "data": transcript.payload},
                 status=status.HTTP_200_OK,
             )
-
     except Transcript.DoesNotExist:
 
         # Collect the video object
@@ -403,11 +398,11 @@ def save_transcription(request):
         transcript = Transcript.objects.filter(
             video=video, language=language, user=user_id, transcript_type=MANUALLY_CREATED
         ).first() 
-        
+
         # If a transcript exists, update the payload else create a new transcript
         if transcript:
             transcript.payload = transcribed_data
-        
+
         else: 
             transcript = Transcript(
                 transcript_type=MANUALLY_CREATED,
@@ -416,7 +411,7 @@ def save_transcription(request):
                 payload=transcribed_data,
                 user_id=user_id,
             )
-        
+
         transcript.save()
         return Response(
             {"id": transcript.id, "data": transcript_obj.payload},

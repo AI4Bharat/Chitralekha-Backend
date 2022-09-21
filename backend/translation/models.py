@@ -1,16 +1,18 @@
+import uuid
+
 from django.contrib.auth import get_user_model
 from django.db import models
 from transcript.models import Transcript
 
 from .metadata import LANGUAGE_CHOICES
 
-HUMAN_EDITED = "he"
+UPDATED_MACHINE_GENERATED = "umg"
 MACHINE_GENERATED = "mg"
 MANUALLY_CREATED = "mc"
 
 TRANSLATION_TYPE_CHOICES = (
-    (HUMAN_EDITED, "Human Edited"),
     (MACHINE_GENERATED, "Machine Generated"),
+    (UPDATED_MACHINE_GENERATED, "Updated Machine Generated"),
     (MANUALLY_CREATED, "Manually Created"),
 )
 
@@ -19,8 +21,15 @@ class Translation(models.Model):
     Translation model
     """
 
+    translation_uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+        verbose_name="Translation UUID",
+        primary_key=False, 
+    )
     translation_type = models.CharField(
-        choices=TRANSLATION_TYPE_CHOICES, max_length=2, verbose_name="Translation Type"
+        choices=TRANSLATION_TYPE_CHOICES, max_length=3, verbose_name="Translation Type"
     )
     parent = models.ForeignKey(
         "self",
@@ -36,7 +45,7 @@ class Translation(models.Model):
         verbose_name="Translation Transcript",
         related_name="translations",
     )
-    target_lang = models.CharField(
+    target_language = models.CharField(
         choices=LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language"
     )
     user = models.ForeignKey(
@@ -53,3 +62,6 @@ class Translation(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True, verbose_name="Translation Updated At"
     )
+
+    def __str__(self):
+        return "Translation: " + str(self.translation_uuid)

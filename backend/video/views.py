@@ -1,10 +1,11 @@
+import urllib
 from datetime import timedelta
 from io import StringIO
-
 import requests
 import webvtt
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from mutagen.mp3 import MP3
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -17,10 +18,10 @@ from yt_dlp.utils import DownloadError
 
 from .models import Video
 from .serializers import VideoSerializer
+from .utils import drive_info_extractor
 
 # Define the YouTube Downloader object
 ydl = YoutubeDL({"format": "best"})
-
 
 @swagger_auto_schema(
     method="get",
@@ -51,7 +52,7 @@ ydl = YoutubeDL({"format": "best"})
             required=False,
         ),
         openapi.Parameter(
-            "audio_only",
+            "is_audio_only",
             openapi.IN_QUERY,
             description=(
                 "A boolean to pass whether the user submitted a video or audio"
@@ -74,15 +75,58 @@ def get_video(request):
     # Get the video URL from the query params
     url = request.query_params.get("video_url")
     lang = request.query_params.get("lang", "en")
-    audio_only = request.query_params.get("audio_only", "false")
+    is_audio_only = request.query_params.get("is_audio_only", "false")
 
     # Convert audio only to boolean
-    audio_only = audio_only.lower() == "true"
-
+    is_audio_only = is_audio_only.lower() == "true"
     if url is None:
         return Response(
             {"error": "Video URL not provided in query params."},
             status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    ## TEMP: Handle audio_only files separately for google drive links
+    if "drive.google.com" in url and is_audio_only:
+
+        # Construct a direct download link from the google drive url 
+        # get the id from the drive link
+        try:
+            file_id = drive_info_extractor._match_id(url)
+        except Exception:
+            return Response(
+                {"error": "Invalid Google Drive URL."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        url = f"https://drive.google.com/uc?export=download&confirm=yTib&id={file_id}"
+
+        # Get the video metadata
+        title = urllib.request.urlopen(urllib.request.Request(url)).info().get_filename()
+        direct_audio_url = url
+
+        # Calculate the duration 
+        filename, headers = urllib.request.urlretrieve(url)
+        audio = MP3(filename)
+        duration = timedelta(seconds=int(audio.info.length))
+
+        # Create a new DB entry if URL does not exist, else return the existing entry
+        video, created = Video.objects.get_or_create(
+            url=url, defaults={"name": title, "duration": duration, "audio_only": is_audio_only}
+        )
+        if created:
+            # Save the subtitles to the video object
+            video.subtitles = {
+                "status": "SUCCESS",
+                "output": None,
+            }
+            video.save()
+
+        return Response(
+            {
+                "video": VideoSerializer(video).data,
+                "direct_audio_url": direct_audio_url,
+            },
+            status=status.HTTP_200_OK,
         )
 
     # Get the video info from the YouTube API
@@ -106,9 +150,6 @@ def get_video(request):
         info["url"] = url
         info["webpage_url"] = "https://drive.google.com/file/d/" + file_id
 
-        # If the link provided is just an audio then the direct audio url is the url itself
-        direct_audio_url = url if audio_only else None
-
     # Extract required data from the video info
     normalized_url = info["webpage_url"]
     title = info["title"]
@@ -116,7 +157,7 @@ def get_video(request):
 
     # Create a new DB entry if URL does not exist, else return the existing entry
     video, created = Video.objects.get_or_create(
-        url=normalized_url, defaults={"name": title, "duration": duration}
+        url=normalized_url, defaults={"name": title, "duration": duration, "audio_only": is_audio_only}
     )
     if created:
         video.save()
@@ -137,9 +178,8 @@ def get_video(request):
                     break
 
     # If manual captions not found, search for ASR transcripts
-    if not subtitles and "automatic_captions" in info:
-        if lang in info["automatic_captions"]:
-            subtitles = info["automatic_captions"][lang]
+    if not subtitles and "automatic_captions" in info and lang in info["automatic_captions"]:
+        subtitles = info["automatic_captions"][lang]
 
     subtitle_payload = None
     subtitles_list = []
@@ -149,10 +189,7 @@ def get_video(request):
         subtitle_payload = requests.get(subtitle_url).text
 
         # Parse the VTT file contents and append to the subtitle list
-        for caption in webvtt.read_buffer(StringIO(subtitle_payload)):
-            subtitles_list.append(
-                {"start": caption.start, "end": caption.end, "text": caption.text}
-            )
+        subtitles_list.extend({"start": caption.start, "end": caption.end, "text": caption.text} for caption in webvtt.read_buffer(StringIO(subtitle_payload)))
 
     # Save the subtitles to the video object
     video.subtitles = {
@@ -211,7 +248,7 @@ def get_video(request):
         response_data["transcript_id"] = transcript.id
 
     # Check if it's audio only
-    if audio_only:
+    if is_audio_only:
         response_data["audio_url"] = direct_audio_url
     else:
         response_data["video_url"] = direct_video_url
@@ -226,7 +263,7 @@ def get_video(request):
     method="get",
     manual_parameters=[
         openapi.Parameter(
-            "audio_only",
+            "is_audio_only",
             openapi.IN_QUERY,
             description=("A boolean to only return audio entries or video entries"),
             type=openapi.TYPE_BOOLEAN,
@@ -250,8 +287,8 @@ def list_recent(request):
     Method: GET
     """
     # Get the audio only param
-    audio_only = request.query_params.get("audio_only", "false")
-    audio_only = audio_only.lower() == "true"
+    is_audio_only = request.query_params.get("is_audio_only", "false")
+    is_audio_only = is_audio_only.lower() == "true"
 
     # Get the query param from the request, default count is 10
     count = int(request.query_params.get("count", 10))
@@ -262,66 +299,40 @@ def list_recent(request):
     # In the future, if that constraint is removed then we might need to alter the logic.
 
     try:
-        # Collect only those transcripts where the video is checked as audio only
-        if audio_only:
-            # Get the list of videos that are audio only
-            audio_only_videos = Video.objects.filter(audio_only=True)
 
-            # Get the associated transcripts for the videos
-            recent_transcripts = [
-                (transcript.video, transcript.updated_at, transcript.id)
-                for transcript in Transcript.objects.filter(user=request.user.id)
-                .filter(video__in=audio_only_videos)
-                .order_by("-updated_at")[:count]
-            ]
+        # Get the relevant videos, based on the audio only param
+        video_list = Video.objects.filter(audio_only=is_audio_only)
 
-            # Get the date of the nth recently updated trancript from the above list
-            least_recently_updated_transcript_date = recent_transcripts[-1][1]
+        # Get the N latest transcripts from the DB for the user associated with the video_list 
+        recent_transcripts = [
+            (transcript.video, transcript.updated_at, transcript.id)
+            for transcript in Transcript.objects.filter(user=request.user.id)
+            .filter(video__in=video_list)
+            .order_by("-updated_at")[:count]
+        ]
 
-            # Get the list of transcript IDs from recent translations
-            filtered_transcript_ids = [
-                transcript[2] for transcript in recent_transcripts
-            ]
+        # Get the date of the nth recently updated trancript from the above list
+        least_recently_updated_transcript_date = recent_transcripts[-1][1]
 
-            # Filter the translations by transcript IDs and
-            # Get the latest translations from the DB for the user which are updated after the nth recently updated transcript
-            recent_translations = [
-                (
-                    translation.transcript.video,
-                    translation.updated_at,
-                    translation.transcript.id,
-                )
-                for translation in Translation.objects.filter(user=request.user.id)
-                .filter(transcript__in=filtered_transcript_ids)
-                .filter(updated_at__gt=least_recently_updated_transcript_date)
-                .select_related("transcript")
-                .order_by("-updated_at")
-            ]
+        # Get the list of transcript IDs from recent translations
+        filtered_transcript_ids = [
+            transcript[2] for transcript in recent_transcripts
+        ]
 
-        else:
-            # Get the N latest transcripts from the DB for the user
-            recent_transcripts = [
-                (transcript.video, transcript.updated_at, transcript.id)
-                for transcript in Transcript.objects.filter(
-                    user=request.user.id
-                ).order_by("-updated_at")[:count]
-            ]
-
-            # Get the date of the nth recently updated trancript from the above list
-            least_recently_updated_transcript_date = recent_transcripts[-1][1]
-
-            # Get the latest translations from the DB for the user which are updated after the nth recently updated transcript
-            recent_translations = [
-                (
-                    translation.transcript.video,
-                    translation.updated_at,
-                    translation.transcript.id,
-                )
-                for translation in Translation.objects.filter(user=request.user.id)
-                .filter(updated_at__gt=least_recently_updated_transcript_date)
-                .select_related("transcript")
-                .order_by("-updated_at")
-            ]
+        # Filter the translations by transcript IDs and
+        # Get the latest translations from the DB for the user which are updated after the nth recently updated transcript
+        recent_translations = [
+            (
+                translation.transcript.video,
+                translation.updated_at,
+                translation.transcript.id,
+            )
+            for translation in Translation.objects.filter(user=request.user.id)
+            .filter(transcript__in=filtered_transcript_ids)
+            .filter(updated_at__gt=least_recently_updated_transcript_date)
+            .select_related("transcript")
+            .order_by("-updated_at")
+        ]
 
     except IndexError:
         # If there are no transcripts in the DB for the user

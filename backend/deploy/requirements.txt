@@ -7,6 +7,7 @@ requests==2.25.1
 webvtt-py==0.4.6
 psycopg2-binary>=2.9
 drf-yasg==1.21.3
+mutagen==1.45.1
 
 # Deps for knox
 knox>=0.1
