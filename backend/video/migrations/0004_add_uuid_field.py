@@ -7,13 +7,15 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('video', '0003_video_subtitles'),
+        ("video", "0003_video_subtitles"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='video',
-            name='video_uuid',
-            field=models.UUIDField(default=uuid.uuid4, null=True, verbose_name='Video UUID'),
+            model_name="video",
+            name="video_uuid",
+            field=models.UUIDField(
+                default=uuid.uuid4, null=True, verbose_name="Video UUID"
+            ),
         ),
     ]

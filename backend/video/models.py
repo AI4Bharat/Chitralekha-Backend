@@ -1,5 +1,6 @@
 from django.db import models
-import uuid 
+import uuid
+
 
 class Video(models.Model):
     """
@@ -11,7 +12,7 @@ class Video(models.Model):
         unique=True,
         editable=False,
         verbose_name="Video UUID",
-        primary_key=False, 
+        primary_key=False,
     )
     name = models.CharField(max_length=255, verbose_name="Video Name")
     url = models.URLField(unique=True, verbose_name="Video URL", db_index=True)

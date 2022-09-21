@@ -6,18 +6,33 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('transcript', '0005_alter_transcript_created_at_alter_transcript_id_and_more'),
+        ("transcript", "0005_alter_transcript_created_at_alter_transcript_id_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='transcript',
-            name='language',
-            field=models.CharField(choices=[('en', 'English'), ('hi', 'Hindi')], default='en', max_length=10, verbose_name='Transcript Language'),
+            model_name="transcript",
+            name="language",
+            field=models.CharField(
+                choices=[("en", "English"), ("hi", "Hindi")],
+                default="en",
+                max_length=10,
+                verbose_name="Transcript Language",
+            ),
         ),
         migrations.AlterField(
-            model_name='transcript',
-            name='transcript_type',
-            field=models.CharField(choices=[('os', 'Original Source'), ('uos', 'Updated Original Source'), ('mg', 'Machine Generated'), ('umg', 'Updated Machine Generated')], default='mg', max_length=10, verbose_name='Transcript Type'),
+            model_name="transcript",
+            name="transcript_type",
+            field=models.CharField(
+                choices=[
+                    ("os", "Original Source"),
+                    ("uos", "Updated Original Source"),
+                    ("mg", "Machine Generated"),
+                    ("umg", "Updated Machine Generated"),
+                ],
+                default="mg",
+                max_length=10,
+                verbose_name="Transcript Type",
+            ),
         ),
     ]

@@ -6,13 +6,22 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('transcript', '0001_initial'),
+        ("transcript", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='transcript',
-            name='transcript_type',
-            field=models.CharField(choices=[('machine_generated', 'machine_generated'), ('human_edited', 'human_edited'), ('manually_created', 'manually_created')], default='machine_generated', max_length=50, verbose_name='transcript_type'),
+            model_name="transcript",
+            name="transcript_type",
+            field=models.CharField(
+                choices=[
+                    ("machine_generated", "machine_generated"),
+                    ("human_edited", "human_edited"),
+                    ("manually_created", "manually_created"),
+                ],
+                default="machine_generated",
+                max_length=50,
+                verbose_name="transcript_type",
+            ),
         ),
     ]
