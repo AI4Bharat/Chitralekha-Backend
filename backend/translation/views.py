@@ -46,7 +46,7 @@ from .utils import get_batch_translations_using_indictrans_nmt_api
             required=True,
         ),
         openapi.Parameter(
-            "load_latest_transcript",
+            "load_latest_translation",
             openapi.IN_QUERY,
             description=(
                 "A string to pass whether to get the latest translation or not"
@@ -68,11 +68,11 @@ def retrieve_translation(request):
     # Get the query params
     transcript_id = request.query_params.get("transcript_id")
     target_language = request.query_params.get("target_language")
-    load_latest_transcript = request.query_params.get("load_latest_transcript", "false")
+    load_latest_translation = request.query_params.get("load_latest_translation", "false")
     translation_type = request.query_params.get("translation_type")
 
-    # Convert load_latest_transcript to boolean
-    load_latest_transcript = load_latest_transcript == "true"
+    # Convert load_latest_translation to boolean
+    load_latest_translation = load_latest_translation == "true"
 
     # Ensure that required params are present
     if not (transcript_id and target_language and translation_type):
@@ -96,7 +96,7 @@ def retrieve_translation(request):
     )
     # If no translation exists for this user, check if the latest translation can be fetched
     if queryset is None:
-        if load_latest_transcript:
+        if load_latest_translation:
             queryset = (
                 Translation.objects.filter(
                     transcript_id=transcript_id,
