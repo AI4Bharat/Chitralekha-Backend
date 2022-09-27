@@ -221,6 +221,7 @@ def get_video(request):
             break
 
     # Create the response data to be returned
+    video.audio_only = is_audio_only
     serializer = VideoSerializer(video)
     response_data = {
         "subtitles": subtitles_list,
