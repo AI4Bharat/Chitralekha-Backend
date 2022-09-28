@@ -217,7 +217,7 @@ def get_video(request):
             and fmt["ext"] == "m4a"
             and fmt["quality"] == 3
         ):
-            direct_audio_url = fmt["url"]
+            direct_audio_url = fmt["fragment_base_url"] if "fragment_base_url" in fmt else fmt["url"]
             break
 
     # Create the response data to be returned
