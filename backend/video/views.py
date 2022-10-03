@@ -13,16 +13,10 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from transcript.models import ORIGINAL_SOURCE, Transcript
 from translation.models import Translation
-from yt_dlp import YoutubeDL
-from yt_dlp.utils import DownloadError
 
 from .models import Video
 from .serializers import VideoSerializer
-from .utils import drive_info_extractor
-
-# Define the YouTube Downloader object
-ydl = YoutubeDL({"format": "best"})
-
+from .utils import get_data_from_google_video, drive_info_extractor, DownloadError
 
 @swagger_auto_schema(
     method="get",
@@ -80,13 +74,14 @@ def get_video(request):
 
     # Convert audio only to boolean
     is_audio_only = is_audio_only.lower() == "true"
-    if url is None:
+    if not url:
         return Response(
             {"error": "Video URL not provided in query params."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    ## TEMP: Handle audio_only files separately for google drive links
+    ## PATCH: Handle audio_only files separately for google drive links
+    ## TODO: Move it to an util function
     if "drive.google.com" in url and is_audio_only:
 
         # Construct a direct download link from the google drive url
@@ -118,11 +113,6 @@ def get_video(request):
             defaults={"name": title, "duration": duration, "audio_only": is_audio_only},
         )
         if created:
-            # Save the subtitles to the video object
-            video.subtitles = {
-                "status": "SUCCESS",
-                "output": None,
-            }
             video.save()
 
         return Response(
@@ -133,31 +123,14 @@ def get_video(request):
             status=status.HTTP_200_OK,
         )
 
-    # Get the video info from the YouTube API
     try:
-        info = ydl.extract_info(url, download=False)
+        # Get the video info from the YouTube API
+        direct_video_url, normalized_url, title, duration, subtitle_payload, direct_audio_url = get_data_from_google_video(url, lang)
     except DownloadError:
         return Response(
             {"error": f"{url} is an invalid video URL."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
-    # Check if the link is for Google Drive or YouTube
-    if "drive.google.com" in url:
-
-        # Get the file ID from the URL
-        file_id = info["id"]
-
-        # Create a direct download link by extracting the ID from the URL
-        # and appending it to the Google Drive direct download link
-        url = "https://drive.google.com/uc?export=download&confirm=yTib&id=" + file_id
-        info["url"] = url
-        info["webpage_url"] = "https://drive.google.com/file/d/" + file_id
-
-    # Extract required data from the video info
-    normalized_url = info["webpage_url"]
-    title = info["title"]
-    duration = timedelta(seconds=info["duration"])
 
     # Create a new DB entry if URL does not exist, else return the existing entry
     video, created = Video.objects.get_or_create(
@@ -167,68 +140,22 @@ def get_video(request):
     if created:
         video.save()
 
-    # Return the Direct URL to the video
-    direct_video_url = info["url"]
-
-    subtitles = None
-    if "subtitles" in info:
-        if lang in info["subtitles"]:
-            # If it's named "English"
-            subtitles = info["subtitles"][lang]
-        else:
-            # If it has a custom name like "English transcript by NPTEL"
-            for s_key in info["subtitles"]:
-                if s_key.startswith(lang + "-"):
-                    subtitles = info["subtitles"][s_key]
-                    break
-
-    # If manual captions not found, search for ASR transcripts
-    if (
-        not subtitles
-        and "automatic_captions" in info
-        and lang in info["automatic_captions"]
-    ):
-        subtitles = info["automatic_captions"][lang]
-
-    subtitle_payload = None
-    subtitles_list = []
-    if subtitles:
-        # Get the VTT URL from the subtitle info and make a GET request to fetch the data
-        subtitle_url = [item["url"] for item in subtitles if item["ext"] == "vtt"][0]
-        subtitle_payload = requests.get(subtitle_url).text
-
-        # Parse the VTT file contents and append to the subtitle list
-        subtitles_list.extend(
-            {"start": caption.start, "end": caption.end, "text": caption.text}
-            for caption in webvtt.read_buffer(StringIO(subtitle_payload))
-        )
-
-    # Save the subtitles to the video object
-    video.subtitles = {
-        "status": "SUCCESS",
-        "output": subtitle_payload,
-    }
-    video.save()
-
-    # Get the direct audio URL
-    for fmt in info["formats"]:
-        if (
-            fmt["resolution"] == "audio only"
-            and fmt["ext"] == "m4a"
-            and fmt["quality"] == 3
-        ):
-            direct_audio_url = fmt["fragment_base_url"] if "fragment_base_url" in fmt else fmt["url"]
-            break
+    if subtitle_payload:
+        # Save the subtitles to the video object
+        video.subtitles = {
+            # "status": "SUCCESS",
+            "output": subtitle_payload,
+        }
+        video.save()
 
     # Create the response data to be returned
     video.audio_only = is_audio_only
     serializer = VideoSerializer(video)
     response_data = {
-        "subtitles": subtitles_list,
         "video": serializer.data,
     }
 
-    # Check if the user passed a boolean to create the transcript
+    # Check if the user passed a boolean to auto-create the transcript
     save_original_transcript = request.query_params.get(
         "save_original_transcript", "false"
     )
@@ -236,7 +163,7 @@ def get_video(request):
     # Convert to boolean
     save_original_transcript = save_original_transcript.lower() == "true"
 
-    if save_original_transcript:
+    if save_original_transcript and subtitle_payload:
 
         # Check if the transcription for the video already exists
         transcript = (
