@@ -1,8 +1,6 @@
 import urllib
 from datetime import timedelta
-from io import StringIO
 import requests
-import webvtt
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from mutagen.mp3 import MP3
@@ -16,7 +14,7 @@ from translation.models import Translation
 
 from .models import Video
 from .serializers import VideoSerializer
-from .utils import get_data_from_google_video, drive_info_extractor, DownloadError
+from .utils import get_data_from_google_video, get_subtitles_from_google_video, drive_info_extractor, DownloadError
 
 @swagger_auto_schema(
     method="get",
@@ -125,7 +123,7 @@ def get_video(request):
 
     try:
         # Get the video info from the YouTube API
-        direct_video_url, normalized_url, title, duration, subtitle_payload, direct_audio_url = get_data_from_google_video(url, lang)
+        direct_video_url, normalized_url, title, duration, direct_audio_url = get_data_from_google_video(url)
     except DownloadError:
         return Response(
             {"error": f"{url} is an invalid video URL."},
@@ -139,14 +137,14 @@ def get_video(request):
     )
     if created:
         video.save()
-
-    if subtitle_payload:
-        # Save the subtitles to the video object
-        video.subtitles = {
-            # "status": "SUCCESS",
-            "output": subtitle_payload,
-        }
-        video.save()
+        subtitle_payload, is_machine_generated = get_subtitles_from_google_video(url, lang)
+        if subtitle_payload:
+            # Save the subtitles to the video object
+            video.subtitles = {
+                # "status": "SUCCESS",
+                "output": subtitle_payload,
+            }
+            video.save()
 
     # Create the response data to be returned
     video.audio_only = is_audio_only
@@ -163,7 +161,7 @@ def get_video(request):
     # Convert to boolean
     save_original_transcript = save_original_transcript.lower() == "true"
 
-    if save_original_transcript and subtitle_payload:
+    if save_original_transcript and video.subtitles:
 
         # Check if the transcription for the video already exists
         transcript = (
