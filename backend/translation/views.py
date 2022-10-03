@@ -398,7 +398,7 @@ def generate_translation(request):
     # Update the translation payload with the generated translations
     payload = []
     for (source, target) in zip(sentence_list, all_translated_sentences):
-        payload.append({"source": source, "target": target})
+        payload.append({"source": source, "target": target if source.strip() else source})
     translation.payload = {"translations": payload}
     translation.save()
 
