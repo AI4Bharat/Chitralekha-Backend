@@ -51,6 +51,8 @@ INSTALLED_APPS = [
     "knox",
     "drf_yasg",
     "users.apps.UsersConfig",
+    "organization",
+    "project",
     "video",
     "transcript",
     "translation",
