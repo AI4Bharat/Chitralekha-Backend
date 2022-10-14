@@ -8,7 +8,7 @@ webvtt-py==0.4.6
 psycopg2-binary>=2.9
 drf-yasg==1.21.3
 mutagen==1.45.1
-
+djoser
 # Deps for knox
 knox>=0.1
 boto3>=1.24

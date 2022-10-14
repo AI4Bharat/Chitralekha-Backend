@@ -8,3 +8,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
         fields = ["id", "title", "email_domain_name", "created_by", "created_at"]
         read_only_fields = ["id", "created_by", "created_at"]
 
+class InviteGenerationSerializer(serializers.Serializer):
+    emails = serializers.ListField(child=serializers.EmailField())
+    organization_id = serializers.IntegerField()
+    role = serializers.IntegerField()

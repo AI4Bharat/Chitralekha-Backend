@@ -1,13 +1,17 @@
-from django.contrib import admin
-from django.urls import include, path
-from knox import views as knox_views
+from django.urls import path, include
+from rest_framework import routers
+from .views import UserViewSet, InviteViewSet
 
-from .views import LoginAPI, RegisterAPIView, UserDetailAPI
+
+app_name = "users"
+
+router = routers.DefaultRouter()
+
+router.register(r"account", UserViewSet, basename="account")
+router.register(r"invite", InviteViewSet, basename="invite")
 
 urlpatterns = [
-    path("user/<str:pk>/", UserDetailAPI.as_view()),
-    path("api/register/", RegisterAPIView.as_view(), name="register"),
-    path("api/login/", LoginAPI.as_view(), name="login"),
-    path("api/logout/", knox_views.LogoutView.as_view(), name="logout"),
-    path("api/logoutall/", knox_views.LogoutAllView.as_view(), name="logoutall"),
+    path("auth/", include("djoser.urls")),
+    path("auth/", include("djoser.urls.jwt")),
+    path("", include(router.urls)),
 ]

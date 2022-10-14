@@ -47,15 +47,17 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "djoser",
+    "import_export",
     "rest_framework",
     "knox",
     "drf_yasg",
-    "users.apps.UsersConfig",
     "organization",
     "project",
     "video",
     "transcript",
     "translation",
+    "users"
 ]
 
 MIDDLEWARE = [
@@ -67,6 +69,14 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+DJOSER = {
+    "PASSWORD_RESET_CONFIRM_URL": "forget-password/confirm/{uid}/{token}",
+    "USERNAME_RESET_CONFIRM_URL": "users/auth/users/username/reset/confirm/{uid}/{token}",
+    "ACTIVATION_URL": "users/auth/users/activation/{uid}/{token}",
+    "SEND_ACTIVATION_EMAIL": True,
+    "SERIALIZERS": {},
+}
 
 ENABLE_CORS = bool(strtobool(os.getenv("ENABLE_CORS", "False")))
 
@@ -184,3 +194,4 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+AUTH_USER_MODEL = 'users.User'
