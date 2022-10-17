@@ -79,8 +79,10 @@ class UserFetchSerializer(serializers.ModelSerializer):
             "has_accepted_invite",
         ]
 
+
 class LanguageSerializer(serializers.Serializer):
     language = serializers.ListField(child=serializers.CharField())
+
 
 class UserEmailSerializer(serializers.ModelSerializer):
     class Meta:

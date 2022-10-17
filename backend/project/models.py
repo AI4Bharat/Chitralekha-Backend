@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from organization.models import Organization
 
+
 class Project(models.Model):
     """
     Model for Project Management

@@ -57,7 +57,7 @@ INSTALLED_APPS = [
     "video",
     "transcript",
     "translation",
-    "users"
+    "users",
 ]
 
 MIDDLEWARE = [
@@ -69,6 +69,18 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+# Email Settings
+EMAIL_BACKEND = "django_smtp_ssl.SSLEmailBackend"
+EMAIL_HOST = os.getenv("EMAIL_HOST")
+EMAIL_PORT = 465
+EMAIL_HOST_USER = ""
+EMAIL_HOST_PASSWORD = ""
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
+
+DOMAIN = "chitralekha.ai4bharat.org"
+SITE_NAME = "chitralekha.ai4bharat.org"
 
 DJOSER = {
     "PASSWORD_RESET_CONFIRM_URL": "forget-password/confirm/{uid}/{token}",
@@ -130,25 +142,16 @@ REST_FRAMEWORK = {
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
-if os.getenv("POSTGRES_DB_NAME", None):
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql_psycopg2",
-            "NAME": os.getenv("POSTGRES_DB_NAME"),
-            "USER": os.getenv("POSTGRES_DB_USERNAME"),
-            "PASSWORD": os.getenv("POSTGRES_DB_PASSWORD"),
-            "HOST": os.getenv("POSTGRES_DB_HOST"),
-            "PORT": os.getenv("POSTGRES_DB_PORT"),
-        }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "NAME": os.getenv("POSTGRES_DB_NAME"),
+        "USER": os.getenv("POSTGRES_DB_USERNAME"),
+        "PASSWORD": os.getenv("POSTGRES_DB_PASSWORD"),
+        "HOST": os.getenv("POSTGRES_DB_HOST"),
+        "PORT": os.getenv("POSTGRES_DB_PORT"),
     }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
-
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
@@ -194,4 +197,4 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-AUTH_USER_MODEL = 'users.User'
+AUTH_USER_MODEL = "users.User"

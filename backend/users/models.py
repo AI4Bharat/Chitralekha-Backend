@@ -60,7 +60,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         (TRANSLATION_REVIEWER, "Translation Reviewer"),
         (UNIVERSAL_EDITOR, "Universal Editor"),
         (PROJECT_MANGAGER, "Project Manager"),
-        (ORG_OWNER, "Organization Owner")
+        (ORG_OWNER, "Organization Owner"),
     )
 
     username = models.CharField(verbose_name="username", max_length=265)

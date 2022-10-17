@@ -5,13 +5,14 @@ from django.core.mail import send_mail
 import secrets
 import string
 
+
 class Organization(models.Model):
     """
     Model for organizations
     """
 
     title = models.CharField(
-        verbose_name='organization_title', max_length=512, null=False
+        verbose_name="organization_title", max_length=512, null=False
     )
 
     email_domain_name = models.CharField(
@@ -91,7 +92,7 @@ class Invite(models.Model):
                     invite.save()
                 send_mail(
                     "Invitation to join Organization",
-                    f"Hello! You are invited to {organization.title}. Your Invite link is: https://shoonya.ai4bharat.org/#/invite/{invite.invite_code}",
+                    f"Hello! You are invited to {organization.title}. Your Invite link is: https://chitralekha.ai4bharat.org/#/invite/{invite.invite_code}",
                     settings.DEFAULT_FROM_EMAIL,
                     [user.email],
                 )
