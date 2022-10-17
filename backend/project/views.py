@@ -7,6 +7,7 @@ from rest_framework import status
 from .models import Project
 from .serializers import ProjectSerializer
 
+
 class ProjectViewSet(viewsets.ModelViewSet):
     """
     Viewset for Project CRUD

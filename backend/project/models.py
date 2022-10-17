@@ -1,6 +1,7 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
 from organization.models import Organization
+
 
 class Project(models.Model):
     """
@@ -14,7 +15,7 @@ class Project(models.Model):
     )
 
     created_by = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         null=True,
         on_delete=models.SET_NULL,
         related_name="projects_created",
@@ -30,7 +31,7 @@ class Project(models.Model):
     )
 
     manager = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         related_name="projects_managed",
@@ -38,7 +39,7 @@ class Project(models.Model):
     )
 
     members = models.ManyToManyField(
-        User,
+        settings.AUTH_USER_MODEL,
         related_name="projects",
         help_text=("Project Members"),
     )
@@ -55,5 +56,3 @@ class Project(models.Model):
 
     def __str__(self):
         return str(self.title)
-
-

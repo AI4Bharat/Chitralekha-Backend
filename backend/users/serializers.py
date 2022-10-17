@@ -1,81 +1,90 @@
-from django.contrib.auth.models import User
-from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from rest_framework.validators import UniqueValidator
+from organization.serializers import OrganizationSerializer
+from .models import User
 
 
-# Serializer to Get User Details using Django Token Authentication
-class UserSerializer(serializers.ModelSerializer):
+class UserSignUpSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "username"]
+        fields = ["username", "password", "email"]
+
+    def update(self, instance, validated_data):
+        instance.username = validated_data.get("username")
+        instance.has_accepted_invite = True
+        instance.set_password(validated_data.get("password"))
+        instance.save()
+        return instance
 
 
-# Serializer to Register User
-class RegisterSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(
-        required=True, validators=[UniqueValidator(queryset=User.objects.all())]
-    )
-    password = serializers.CharField(
-        write_only=True, required=True, validators=[validate_password]
-    )
-    password2 = serializers.CharField(write_only=True, required=True)
-
+class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = (
+        fields = [
             "username",
-            "password",
-            "password2",
             "email",
             "first_name",
             "last_name",
-        )
-        extra_kwargs = {
-            "first_name": {"required": True},
-            "last_name": {"required": True},
-        }
-
-    # Serializer functions
-    def validate(self, attrs):
-        if attrs["password"] != attrs["password2"]:
-            raise serializers.ValidationError(
-                {"password": "Password fields didn't match."}
-            )
-        return attrs
-
-    def create(self, validated_data):
-        user = User.objects.create(
-            username=validated_data["username"],
-            email=validated_data["email"],
-            first_name=validated_data["first_name"],
-            last_name=validated_data["last_name"],
-        )
-        user.set_password(validated_data["password"])
-        user.save()
-        return user
+            "availability_status",
+            "phone",
+            "enable_mail",
+        ]
+        read_only_fields = ["email"]
 
 
-# Serializer to Login User
-class LoginUserSerializer(serializers.Serializer):
+class UserProfileSerializer(serializers.ModelSerializer):
+    organization = OrganizationSerializer(read_only=True)
 
-    # Take the username or email as the input
-    username = serializers.CharField(label="Username")
-    password = serializers.CharField(label="Password")
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "availability_status",
+            "enable_mail",
+            "first_name",
+            "last_name",
+            "phone",
+            "role",
+            "organization",
+            "unverified_email",
+            "date_joined",
+        ]
+        read_only_fields = [
+            "id",
+            "email",
+            "role",
+            "organization",
+            "unverified_email",
+            "date_joined",
+        ]
 
-    def validate(self, data):
 
-        # Check if the username exists
-        user = User.objects.filter(username=data["username"]).first()
-        if user is None:
-            # If not, check if it is an email address
-            user = User.objects.filter(email=data["username"]).first()
+class UserFetchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "role",
+            "has_accepted_invite",
+        ]
+        read_only_fields = [
+            "id",
+            "email",
+            "role",
+            "has_accepted_invite",
+        ]
 
-        if user is None:
-            raise serializers.ValidationError("User doesn't exist")
 
-        # Check if the password is correct
-        if not user.check_password(data["password"]):
-            raise serializers.ValidationError("Incorrect password")
+class LanguageSerializer(serializers.Serializer):
+    language = serializers.ListField(child=serializers.CharField())
 
-        return user
+
+class UserEmailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["email"]
