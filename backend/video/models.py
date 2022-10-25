@@ -2,6 +2,7 @@ from django.db import models
 import uuid
 from project.models import Project
 
+
 class Video(models.Model):
     """
     Model for the Video object.
