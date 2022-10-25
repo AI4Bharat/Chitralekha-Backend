@@ -6,6 +6,7 @@ from rest_framework import status
 from users.models import User
 from .models import Project
 from .serializers import ProjectSerializer
+from .decorators import is_project_owner
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -245,3 +246,24 @@ class ProjectViewSet(viewsets.ModelViewSet):
             {"error": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
+
+
+@is_project_owner
+def update(self, request, pk=None, *args, **kwargs):
+    """
+    Update project details
+    """
+    return super().update(request, *args, **kwargs)
+
+
+@is_project_owner
+def partial_update(self, request, pk=None, *args, **kwargs):
+    return super().partial_update(request, *args, **kwargs)
+
+
+@is_project_owner
+def destroy(self, request, pk=None, *args, **kwargs):
+    """
+    Delete a project
+    """
+    return super().delete(request, *args, **kwargs)

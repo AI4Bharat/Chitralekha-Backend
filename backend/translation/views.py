@@ -17,6 +17,8 @@ from .models import (
     MANUALLY_CREATED,
     UPDATED_MACHINE_GENERATED,
 )
+
+from .decorators import is_translation_editor
 from .serializers import TranslationSerializer
 from .utils import get_batch_translations_using_indictrans_nmt_api
 
@@ -60,6 +62,7 @@ from .utils import get_batch_translations_using_indictrans_nmt_api
     },
 )
 @api_view(["GET"])
+@is_translation_editor
 def retrieve_translation(request):
     """
     Endpoint to retrive a translation for a given transcript and language
@@ -68,7 +71,9 @@ def retrieve_translation(request):
     # Get the query params
     transcript_id = request.query_params.get("transcript_id")
     target_language = request.query_params.get("target_language")
-    load_latest_translation = request.query_params.get("load_latest_translation", "false")
+    load_latest_translation = request.query_params.get(
+        "load_latest_translation", "false"
+    )
     translation_type = request.query_params.get("translation_type")
 
     # Convert load_latest_translation to boolean
@@ -155,7 +160,7 @@ def retrieve_translation(request):
     },
 )
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@is_translation_editor
 def save_translation(request):
 
     # Get the required data from the POST body
@@ -299,6 +304,7 @@ def get_supported_languages(request):
     },
 )
 @api_view(["GET"])
+@is_translation_editor
 def generate_translation(request):
     """GET Request endpoint to generate translation for a given transcript_id and target_language
 
@@ -335,6 +341,7 @@ def generate_translation(request):
     source_lang = transcript.language
 
     # Check if the cached translation is valid and return if it is valid
+
     translation = (
         Translation.objects.filter(
             transcript=transcript_id,
@@ -398,7 +405,9 @@ def generate_translation(request):
     # Update the translation payload with the generated translations
     payload = []
     for (source, target) in zip(sentence_list, all_translated_sentences):
-        payload.append({"source": source, "target": target if source.strip() else source})
+        payload.append(
+            {"source": source, "target": target if source.strip() else source}
+        )
     translation.payload = {"translations": payload}
     translation.save()
 

@@ -1,8 +1,7 @@
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
@@ -15,8 +14,14 @@ from .models import (
     UPDATED_MACHINE_GENERATED,
     MANUALLY_CREATED,
 )
+
+from .decorators import is_transcript_editor
 from .serializers import TranscriptSerializer
 from .utils.asr import get_asr_supported_languages, make_asr_api_call
+from users.models import User
+from rest_framework.response import Response
+from functools import wraps
+from rest_framework import status
 
 
 # Define the API views
@@ -43,10 +48,12 @@ from .utils.asr import get_asr_supported_languages, make_asr_api_call
     },
 )
 @api_view(["GET"])
-def generate_transcription(request):
+@is_transcript_editor
+def generate_transcription(request, *args, **kwargs):
     """
     Endpoint to get or generate(if not existing) a transcription for a video
     """
+
     if ("language" or "video_id") not in dict(request.query_params):
         return Response(
             {"message": "missing param : video_id or language"},
@@ -120,6 +127,7 @@ def generate_transcription(request):
         200: "Generates the transcript and returns the transcript id and payload from youtube"
     },
 )
+@is_transcript_editor
 @api_view(["GET"])
 def create_original_source_transcript(request):
     """
@@ -139,6 +147,7 @@ def create_original_source_transcript(request):
         .filter(language=lang)
         .filter(transcript_type=ORIGINAL_SOURCE)
     )
+
     if transcript:
 
         # Filter the transcript where the type is ORIGINAL_SOURCE
@@ -329,11 +338,10 @@ def retrieve_transcription(request):
     },
 )
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@is_transcript_editor
 def save_transcription(request):
     """
     Endpoint to save a transcript for a video
-
     Request body:
     {
         "transcript_id": "",
