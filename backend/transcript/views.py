@@ -381,7 +381,7 @@ def save_transcription(request):
             transcript_obj.save()
 
             return Response(
-                {"id": transcript_obj.id, "data": transcript_obj.payload},
+                {"id": transcript_obj.id},
                 status=status.HTTP_200_OK,
             )
 
@@ -397,7 +397,7 @@ def save_transcription(request):
             transcript.save()
 
             return Response(
-                {"id": transcript.id, "data": transcript.payload},
+                {"id": transcript.id},
                 status=status.HTTP_200_OK,
             )
     except Transcript.DoesNotExist:
@@ -437,7 +437,7 @@ def save_transcription(request):
 
         transcript.save()
         return Response(
-            {"id": transcript.id, "data": transcript_obj.payload},
+            {"id": transcript.id},
             status=status.HTTP_200_OK,
         )
 
