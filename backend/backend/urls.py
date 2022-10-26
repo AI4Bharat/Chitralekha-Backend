@@ -13,6 +13,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path, re_path
 from rest_framework import routers, permissions
@@ -27,6 +28,11 @@ class BothHttpAndHttpsSchemaGenerator(OpenAPISchemaGenerator):
         schema.schemes = ["http", "https"]
         return schema
 
+class HttpsOnlySchemaGenerator(OpenAPISchemaGenerator):
+    def get_schema(self, request=None, public=False):
+        schema = super().get_schema(request, public)
+        schema.schemes = ["https"]
+        return schema
 
 router = routers.DefaultRouter()
 # Register the viewsets
@@ -41,7 +47,7 @@ schema_view = get_schema_view(
         contact=openapi.Contact(email="contact@snippets.local"),
         license=openapi.License(name="BSD License"),
     ),
-    generator_class=BothHttpAndHttpsSchemaGenerator,
+    generator_class=BothHttpAndHttpsSchemaGenerator if settings.DEBUG else HttpsOnlySchemaGenerator,
     public=True,
     permission_classes=[permissions.AllowAny],
 )

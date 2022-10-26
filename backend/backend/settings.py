@@ -38,6 +38,11 @@ ALLOWED_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"]
 if DEBUG:
     ALLOWED_HOSTS.append("*")
 
+if os.getenv("ALLOWED_HOSTS", ""):
+    additional_hosts = os.getenv("ALLOWED_HOSTS")
+    for additional_host in additional_hosts.split(','):
+        ALLOWED_HOSTS.append(additional_host)
+
 # Application definition
 
 INSTALLED_APPS = [
