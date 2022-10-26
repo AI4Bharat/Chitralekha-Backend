@@ -16,3 +16,4 @@ knox>=0.1
 boto3>=1.24
 click>=8.1
 django-rest-knox>=4.2
+WhiteNoise
