@@ -11,17 +11,18 @@ ydl = YoutubeDL({"format": "best"})
 # Declare a global variable to save the object for Google Drive ID extraction
 drive_info_extractor = get_info_extractor("GoogleDrive")()
 
+
 def get_data_from_google_video(url: str):
-    '''
+    """
     Get video details from Google's platforms:
     YouTube and Drive
-    '''
+    """
 
     try:
         info = ydl.extract_info(url, download=False)
     except DownloadError:
         raise
-    
+
     # Check if the link is for Google Drive or YouTube
     if "drive.google.com" in url:
 
@@ -33,7 +34,7 @@ def get_data_from_google_video(url: str):
         url = "https://drive.google.com/uc?export=download&confirm=yTib&id=" + file_id
         info["url"] = url
         info["webpage_url"] = "https://drive.google.com/file/d/" + file_id
-    
+
     # Extract required data from the video info
     normalized_url = info["webpage_url"]
     title = info["title"]
@@ -41,7 +42,7 @@ def get_data_from_google_video(url: str):
 
     # Get the Direct URL to the video
     direct_video_url = info["url"]
-    
+
     # Get the direct audio URL
     direct_audio_url = None
     for fmt in info["formats"]:
@@ -50,10 +51,13 @@ def get_data_from_google_video(url: str):
             and fmt["ext"] == "m4a"
             and fmt["quality"] == 3
         ):
-            direct_audio_url = fmt["fragment_base_url"] if "fragment_base_url" in fmt else fmt["url"]
+            direct_audio_url = (
+                fmt["fragment_base_url"] if "fragment_base_url" in fmt else fmt["url"]
+            )
             break
 
     return direct_video_url, normalized_url, title, duration, direct_audio_url
+
 
 def get_subtitles_from_google_video(url: str, lang: str = "en") -> str:
     info = ydl.extract_info(url, download=False)
@@ -96,11 +100,12 @@ def get_subtitles_from_google_video(url: str, lang: str = "en") -> str:
 
     return subtitle_payload, is_auto_generated
 
+
 def clean_youtube_asr_captions(subtitle_payload: str) -> str:
     parsed_vtt = webvtt.read_buffer(StringIO(subtitle_payload))
     clean_captions = []
     for caption in parsed_vtt:
-        lines = caption.text.split('\n')
+        lines = caption.text.split("\n")
         if len(lines) == 2:
             clean_text = lines[1].strip()
             if clean_text:
