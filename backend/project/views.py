@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework import status
+from video.models import Video
+from video.serializers import VideoSerializer
 from users.models import User
 from .models import Project
 from .serializers import ProjectSerializer
@@ -247,23 +249,45 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
+    # Add endpoint to list all related videos of a project (project_id)
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="List Project Videos",
+        url_name="list_project_videos",
+    )
+    def list_project_videos(self, request, pk=None, *args, **kwargs):
+        try:
+            project = Project.objects.get(pk=pk)
+            videos = Video.objects.filter(project_id=pk)
+            serializer = VideoSerializer(videos, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Project.DoesNotExist:
+            return Response(
+                {"error": "Project does not exist"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(
+            {"error": "invalid method"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
 
-@is_project_owner
-def update(self, request, pk=None, *args, **kwargs):
-    """
-    Update project details
-    """
-    return super().update(request, *args, **kwargs)
+        # Add endpoint to return all related videos using project_id
 
+    @is_project_owner
+    def update(self, request, pk=None, *args, **kwargs):
+        """
+        Update project details
+        """
+        return super().update(request, *args, **kwargs)
 
-@is_project_owner
-def partial_update(self, request, pk=None, *args, **kwargs):
-    return super().partial_update(request, *args, **kwargs)
+    @is_project_owner
+    def partial_update(self, request, pk=None, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
 
-
-@is_project_owner
-def destroy(self, request, pk=None, *args, **kwargs):
-    """
-    Delete a project
-    """
-    return super().delete(request, *args, **kwargs)
+    @is_project_owner
+    def destroy(self, request, pk=None, *args, **kwargs):
+        """
+        Delete a project
+        """
+        return super().delete(request, *args, **kwargs)
