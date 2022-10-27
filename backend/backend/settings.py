@@ -40,7 +40,7 @@ if DEBUG:
 
 if os.getenv("ALLOWED_HOSTS", ""):
     additional_hosts = os.getenv("ALLOWED_HOSTS")
-    for additional_host in additional_hosts.split(','):
+    for additional_host in additional_hosts.split(","):
         ALLOWED_HOSTS.append(additional_host)
 
 # Application definition
@@ -154,11 +154,11 @@ REST_FRAMEWORK = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "NAME": os.getenv("POSTGRES_DB_NAME"),
-        "USER": os.getenv("POSTGRES_DB_USERNAME"),
-        "PASSWORD": os.getenv("POSTGRES_DB_PASSWORD"),
-        "HOST": os.getenv("POSTGRES_DB_HOST"),
-        "PORT": os.getenv("POSTGRES_DB_PORT"),
+        "NAME": "postgres",
+        "USER": "postgres",
+        "PASSWORD": "Aliyar@75",
+        "HOST": "localhost",
+        "PORT": "5432",
     }
 }
 
