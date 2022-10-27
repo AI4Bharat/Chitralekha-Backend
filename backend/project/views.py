@@ -26,6 +26,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Add Project members",
         url_name="add_project_members",
     )
+    @is_project_owner
     def add_project_members(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
@@ -73,6 +74,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Remove Project members",
         url_name="remove_project_members",
     )
+    @is_project_owner
     def remove_project_members(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
@@ -120,6 +122,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Assign Project manager",
         url_name="assign_project_manager",
     )
+    @is_project_owner
     def assign_project_manager(self, request, pk=None, *args, **kwargs):
         if "user_id" in dict(request.data):
             ids = request.data.get("user_id", "")
@@ -177,6 +180,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Unassign Project manager",
         url_name="unassign_project_manager",
     )
+    @is_project_owner
     def unassign_project_manager(self, request, pk=None, *args, **kwargs):
         if "user_id" in dict(request.data):
             ids = request.data.get("user_id", "")
@@ -230,6 +234,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Archive Project",
         url_name="archive_project",
     )
+    @is_project_owner
     def archive_project(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
@@ -256,6 +261,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="List Project Videos",
         url_name="list_project_videos",
     )
+    @is_project_owner
     def list_project_videos(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)

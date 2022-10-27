@@ -11,22 +11,84 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('organization', '0001_initial'),
+        ("organization", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Project',
+            name="Project",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(help_text='Project Title', max_length=100)),
-                ('description', models.TextField(blank=True, help_text='Project Description', max_length=1000, null=True)),
-                ('is_archived', models.BooleanField(default=False, help_text='Indicates whether a project is archived or not.', verbose_name='project_is_archived')),
-                ('created_at', models.DateTimeField(auto_now_add=True, help_text='Project Created At')),
-                ('created_by', models.ForeignKey(help_text='Project Created By', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='projects_created', to=settings.AUTH_USER_MODEL, verbose_name='created_by')),
-                ('manager', models.ForeignKey(help_text='Project Manager', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='projects_managed', to=settings.AUTH_USER_MODEL)),
-                ('members', models.ManyToManyField(help_text='Project Members', related_name='projects', to=settings.AUTH_USER_MODEL)),
-                ('organization_id', models.ForeignKey(help_text='Organization to which the Project belongs', null=True, on_delete=django.db.models.deletion.SET_NULL, to='organization.organization')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("title", models.CharField(help_text="Project Title", max_length=100)),
+                (
+                    "description",
+                    models.TextField(
+                        blank=True,
+                        help_text="Project Description",
+                        max_length=1000,
+                        null=True,
+                    ),
+                ),
+                (
+                    "is_archived",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Indicates whether a project is archived or not.",
+                        verbose_name="project_is_archived",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, help_text="Project Created At"
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        help_text="Project Created By",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="projects_created",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="created_by",
+                    ),
+                ),
+                (
+                    "manager",
+                    models.ForeignKey(
+                        help_text="Project Manager",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="projects_managed",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "members",
+                    models.ManyToManyField(
+                        help_text="Project Members",
+                        related_name="projects",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "organization_id",
+                    models.ForeignKey(
+                        help_text="Organization to which the Project belongs",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="organization.organization",
+                    ),
+                ),
             ],
         ),
     ]

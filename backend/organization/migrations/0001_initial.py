@@ -15,16 +15,65 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Organization',
+            name="Organization",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(max_length=512, verbose_name='organization_title')),
-                ('email_domain_name', models.CharField(max_length=512, null=True, verbose_name='organization_email_domain')),
-                ('is_active', models.BooleanField(default=True, help_text='Designates whether an organization is active or not.', verbose_name='organization_is_active')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='created_at')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='updated_at')),
-                ('created_by', models.OneToOneField(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='organization_created', to=settings.AUTH_USER_MODEL, verbose_name='created_by')),
-                ('organization_owner', models.OneToOneField(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='organization_owned', to=settings.AUTH_USER_MODEL, verbose_name='organization_owner')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "title",
+                    models.CharField(max_length=512, verbose_name="organization_title"),
+                ),
+                (
+                    "email_domain_name",
+                    models.CharField(
+                        max_length=512,
+                        null=True,
+                        verbose_name="organization_email_domain",
+                    ),
+                ),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Designates whether an organization is active or not.",
+                        verbose_name="organization_is_active",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="created_at"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="updated_at"),
+                ),
+                (
+                    "created_by",
+                    models.OneToOneField(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="organization_created",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="created_by",
+                    ),
+                ),
+                (
+                    "organization_owner",
+                    models.OneToOneField(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="organization_owned",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="organization_owner",
+                    ),
+                ),
             ],
         ),
     ]
