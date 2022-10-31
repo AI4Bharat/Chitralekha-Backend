@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework import status
+from organization.decorators import is_organization_owner
 from video.models import Video
 from video.serializers import VideoSerializer
 from users.models import User
@@ -122,7 +123,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Assign Project manager",
         url_name="assign_project_manager",
     )
-    @is_project_owner
+    @is_organization_owner
     def assign_project_manager(self, request, pk=None, *args, **kwargs):
         if "user_id" in dict(request.data):
             ids = request.data.get("user_id", "")
@@ -180,7 +181,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Unassign Project manager",
         url_name="unassign_project_manager",
     )
-    @is_project_owner
+    @is_organization_owner
     def unassign_project_manager(self, request, pk=None, *args, **kwargs):
         if "user_id" in dict(request.data):
             ids = request.data.get("user_id", "")
