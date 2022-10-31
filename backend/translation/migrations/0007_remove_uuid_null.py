@@ -14,6 +14,11 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="translation",
             name="translation_uuid",
-            field=models.UUIDField(default=uuid.uuid4, editable=False, unique=True, verbose_name="Translation UUID"),
+            field=models.UUIDField(
+                default=uuid.uuid4,
+                editable=False,
+                unique=True,
+                verbose_name="Translation UUID",
+            ),
         ),
     ]
