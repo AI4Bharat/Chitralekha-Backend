@@ -9,17 +9,50 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('organization', '0001_initial'),
+        ("organization", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Invite',
+            name="Invite",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('invite_code', models.CharField(max_length=256, null=True, unique=True, verbose_name='invite_code')),
-                ('organization', models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='invite_oganization', to='organization.organization', verbose_name='organization')),
-                ('user', models.OneToOneField(null=True, on_delete=django.db.models.deletion.CASCADE, related_name='invite_users', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "invite_code",
+                    models.CharField(
+                        max_length=256,
+                        null=True,
+                        unique=True,
+                        verbose_name="invite_code",
+                    ),
+                ),
+                (
+                    "organization",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="invite_oganization",
+                        to="organization.organization",
+                        verbose_name="organization",
+                    ),
+                ),
+                (
+                    "user",
+                    models.OneToOneField(
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="invite_users",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
     ]

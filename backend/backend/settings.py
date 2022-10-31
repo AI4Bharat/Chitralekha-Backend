@@ -40,7 +40,7 @@ if DEBUG:
 
 if os.getenv("ALLOWED_HOSTS", ""):
     additional_hosts = os.getenv("ALLOWED_HOSTS")
-    for additional_host in additional_hosts.split(','):
+    for additional_host in additional_hosts.split(","):
         ALLOWED_HOSTS.append(additional_host)
 
 # Application definition

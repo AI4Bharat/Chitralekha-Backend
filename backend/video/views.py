@@ -14,7 +14,13 @@ from translation.models import Translation
 
 from .models import Video
 from .serializers import VideoSerializer
-from .utils import get_data_from_google_video, get_subtitles_from_google_video, drive_info_extractor, DownloadError
+from .utils import (
+    get_data_from_google_video,
+    get_subtitles_from_google_video,
+    drive_info_extractor,
+    DownloadError,
+)
+
 
 @swagger_auto_schema(
     method="get",
@@ -22,7 +28,9 @@ from .utils import get_data_from_google_video, get_subtitles_from_google_video, 
         openapi.Parameter(
             "multimedia_url",
             openapi.IN_QUERY,
-            description=("A string to pass the url of the video/audio file to be transcribed"),
+            description=(
+                "A string to pass the url of the video/audio file to be transcribed"
+            ),
             type=openapi.TYPE_STRING,
             required=True,
         ),
@@ -123,7 +131,13 @@ def get_video(request):
 
     try:
         # Get the video info from the YouTube API
-        direct_video_url, normalized_url, title, duration, direct_audio_url = get_data_from_google_video(url)
+        (
+            direct_video_url,
+            normalized_url,
+            title,
+            duration,
+            direct_audio_url,
+        ) = get_data_from_google_video(url)
     except DownloadError:
         return Response(
             {"error": f"{url} is an invalid video URL."},
@@ -137,7 +151,9 @@ def get_video(request):
     )
     if created:
         video.save()
-        subtitle_payload, is_machine_generated = get_subtitles_from_google_video(url, lang)
+        subtitle_payload, is_machine_generated = get_subtitles_from_google_video(
+            url, lang
+        )
         if subtitle_payload:
             # Save the subtitles to the video object
             video.subtitles = {

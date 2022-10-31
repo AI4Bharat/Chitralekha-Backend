@@ -28,11 +28,13 @@ class BothHttpAndHttpsSchemaGenerator(OpenAPISchemaGenerator):
         schema.schemes = ["http", "https"]
         return schema
 
+
 class HttpsOnlySchemaGenerator(OpenAPISchemaGenerator):
     def get_schema(self, request=None, public=False):
         schema = super().get_schema(request, public)
         schema.schemes = ["https"]
         return schema
+
 
 router = routers.DefaultRouter()
 # Register the viewsets
@@ -47,7 +49,9 @@ schema_view = get_schema_view(
         contact=openapi.Contact(email="contact@snippets.local"),
         license=openapi.License(name="BSD License"),
     ),
-    generator_class=BothHttpAndHttpsSchemaGenerator if settings.DEBUG else HttpsOnlySchemaGenerator,
+    generator_class=BothHttpAndHttpsSchemaGenerator
+    if settings.DEBUG
+    else HttpsOnlySchemaGenerator,
     public=True,
     permission_classes=[permissions.AllowAny],
 )
