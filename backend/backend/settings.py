@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from distutils.util import strtobool
+from datetime import timedelta
 
 load_dotenv()
 
@@ -55,7 +56,6 @@ INSTALLED_APPS = [
     "djoser",
     "import_export",
     "rest_framework",
-    "knox",
     "drf_yasg",
     "organization",
     "project",
@@ -99,7 +99,15 @@ DJOSER = {
     "SERIALIZERS": {},
 }
 
+SIMPLE_JWT = {
+    "AUTH_HEADER_TYPES": ("JWT",),
+    "BLACKLIST_AFTER_ROTATION": False,
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=20),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=100),
+}
+
 ENABLE_CORS = bool(strtobool(os.getenv("ENABLE_CORS", "False")))
+CSRF_COOKIE_SECURE = False
 
 if ENABLE_CORS:
     INSTALLED_APPS.append("corsheaders")
@@ -117,6 +125,7 @@ if ENABLE_CORS:
     if CUSTOM_CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.extend(CUSTOM_CSRF_TRUSTED_ORIGINS.split(","))
 
+AUTHENTICATION_BACKENDS = ("django.contrib.auth.backends.ModelBackend",)
 
 ROOT_URLCONF = "backend.urls"
 
@@ -139,13 +148,13 @@ TEMPLATES = [
 WSGI_APPLICATION = "backend.wsgi.application"
 
 REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
-    ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.BasicAuthentication",
-        "knox.auth.TokenAuthentication",
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
     ],
+     'DEFAULT_PERMISSION_CLASSES': [
+      'rest_framework.permissions.IsAuthenticated',
+   ]
 }
 
 # Database
@@ -179,11 +188,6 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
-
-# Add Knox settings to Django settings
-REST_KNOX = {
-    "TOKEN_TTL": None,  # None means no expiration
-}
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/
