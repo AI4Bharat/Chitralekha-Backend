@@ -10,13 +10,13 @@ PERMISSION_ERROR = {
 # Allow view only if user has translation editor or above roles.
 def is_project_owner(f):
     @wraps(f)
-    def wrapper(request):
+    def wrapper(self, request, *args, **kwargs):
         if request.user.is_authenticated and (
             request.user.role == User.PROJECT_MANGAGER
             or request.user.role == User.ORG_OWNER
             or request.user.is_superuser
         ):
-            return f(request)
-        return Response(PERMISSION_ERROR, status=403)
+            return f(self, request, *args, **kwargs)
+        return Response(self, PERMISSION_ERROR, status=403)
 
     return wrapper

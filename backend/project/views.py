@@ -10,7 +10,7 @@ from users.models import User
 from .models import Project
 from .serializers import ProjectSerializer
 from .decorators import is_project_owner
-
+from users.serializers import UserFetchSerializer
 
 class ProjectViewSet(viewsets.ModelViewSet):
     """
@@ -298,3 +298,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
         Delete a project
         """
         return super().delete(request, *args, **kwargs)
+
+    @action(
+        detail=True, methods=["GET"], name="Get Project members", url_name="members"
+    )
+    def users(self, request, pk=None, *args, **kwargs):
+        try:
+            project = Project.objects.get(pk=pk)
+        except Project.DoesNotExist:
+            return Response(
+                {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        users = project.members.all()
+        serializer = UserFetchSerializer(users, many=True)
+        return Response(serializer.data)
