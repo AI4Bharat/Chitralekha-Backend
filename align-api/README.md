@@ -23,6 +23,7 @@ unzip aligner_models.zip
 ```
 
 # Usage 
+Currently. the following langauges are supported. Please use the language codes to load models.
 
 ```
 English - en

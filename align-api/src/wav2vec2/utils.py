@@ -34,9 +34,10 @@ class Segment:
 
 
 class Wav2vec2:
-    def __init__(self, model_path, language_code, mode):
+    def __init__(self, model_path, language_code, mode, device):
         self.asr_path = glob(model_path + "/" + language_code + "/*.pt")[0]
         self.dict_path = glob(model_path + "/" + language_code + "/*.txt")[0]
+        self.device = device
         self.encoder = self.load_model_encoder()
         self.labels = self.get_labels()
         self.mode = mode
@@ -45,7 +46,8 @@ class Wav2vec2:
         model, _, _ = fairseq.checkpoint_utils.load_model_ensemble_and_task(
             [self.asr_path]
         )
-        model = model[0]
+        console.log(f"Model loaded on {self.device}")       
+        model = model[0].to(self.device)
         encoder = import_fairseq_model(model.w2v_encoder)
         console.log(
             f":thumbs_up: Wav2vec2 model loaded successfully from {self.asr_path}"
