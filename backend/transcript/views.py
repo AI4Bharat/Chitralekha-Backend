@@ -187,7 +187,39 @@ def generate_transcription(video, lang, user, transcript_type, task, payload):
     transcript_obj.save()
     return {"transcript_id": transcript_obj.id, "data": transcript_obj.payload}
 
-
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["payload", "task_id", "transcript_id", "video_id"],
+        properties={
+            "transcript_id": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="A uuid string identifying the transcript instance",
+            ),
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the task instance",
+            ),
+            "payload": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="A string to pass the transcript data",
+            ),
+            "video_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer to pass the video ID",
+            ),
+            "final": openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description="A boolean to pass check whether to allow user to load latest transcript",
+            ),
+        },
+        description="Post request body for projects which have save_type == new_record",
+    ),
+    responses={
+        200: "Transcript has been saved successfully",
+    },
+)
 @api_view(["POST"])
 def save_transcription(request):
     """
@@ -204,8 +236,8 @@ def save_transcription(request):
     # Collect the request parameters
     try:
         transcript_id = request.data["transcript_id"]
-        transcribed_data = request.data["payload"]
         task_id = request.data["task_id"]
+        video_id = request.data["video_id"]
         payload = request.data["payload"]
     except KeyError:
         return Response(
@@ -214,25 +246,23 @@ def save_transcription(request):
         )
 
     try:
-        video_id = request.data["video_id"]
         video = Video.objects.get(pk=video_id)
-    except KeyError:
+    except Video.DoesNotExist:
         return Response(
             {
-                "message": "Missing required parameters - video_id or video does not exist."
+                "message": "Video doesn't exist."
             },
-            status=status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_404_NOT_FOUND,
         )
 
     try:
-        task_id = request.data["task_id"]
         task = Task.objects.get(pk=task_id)
-    except KeyError:
+    except Task.DoesNotExist:
         return Response(
             {
-                "message": "Missing required parameters - task_id or task does not exist."
+                "message": "Task doesn't exist."
             },
-            status=status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_404_NOT_FOUND,
         )
 
     # Retrieve the transcript object
