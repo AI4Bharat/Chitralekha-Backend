@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from transcript.models import ORIGINAL_SOURCE, Transcript
 from translation.models import Translation
-
+from project.decorators  import is_project_owner
 from .models import Video
 from .serializers import VideoSerializer
 from .utils import (
@@ -20,6 +20,7 @@ from .utils import (
     drive_info_extractor,
     DownloadError,
 )
+from project.models import Project
 
 
 @swagger_auto_schema(
@@ -44,13 +45,13 @@ from .utils import (
             required=True,
         ),
         openapi.Parameter(
-            "save_original_transcript",
+            "project_id",
             openapi.IN_QUERY,
             description=(
-                "A boolean to pass whether or not to create a YouTube transcript"
+                "Id of the project to which this video belongs"
             ),
-            type=openapi.TYPE_BOOLEAN,
-            required=False,
+            type=openapi.TYPE_INTEGER,
+            required=True,
         ),
         openapi.Parameter(
             "is_audio_only",
@@ -76,6 +77,7 @@ def get_video(request):
     # Get the video URL from the query params
     url = request.query_params.get("multimedia_url")
     lang = request.query_params.get("lang", "en")
+    project_id = request.query_params.get("project_id")
     is_audio_only = request.query_params.get("is_audio_only", "false")
 
     # Convert audio only to boolean
@@ -84,6 +86,13 @@ def get_video(request):
         return Response(
             {"error": "Video URL not provided in query params."},
             status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    project = Project.objects.filter(pk=project_id).first()
+    if project is None:
+        return Response(
+            {"error": "Project is not found. "},
+            status=status.HTTP_404_NOT_FOUND,
         )
 
     ## PATCH: Handle audio_only files separately for google drive links
@@ -116,7 +125,8 @@ def get_video(request):
         # Create a new DB entry if URL does not exist, else return the existing entry
         video, created = Video.objects.get_or_create(
             url=url,
-            defaults={"name": title, "duration": duration, "audio_only": is_audio_only},
+            defaults={"name": title, "duration": duration, "project_id": project,
+                      "audio_only": is_audio_only, "language": lang},
         )
         if created:
             video.save()
@@ -147,7 +157,8 @@ def get_video(request):
     # Create a new DB entry if URL does not exist, else return the existing entry
     video, created = Video.objects.get_or_create(
         url=normalized_url,
-        defaults={"name": title, "duration": duration, "audio_only": is_audio_only},
+        defaults={"name": title, "duration": duration, "project_id": project,
+                  "audio_only": is_audio_only, "language": lang},
     )
     if created:
         video.save()
@@ -168,38 +179,6 @@ def get_video(request):
     response_data = {
         "video": serializer.data,
     }
-
-    # Check if the user passed a boolean to auto-create the transcript
-    save_original_transcript = request.query_params.get(
-        "save_original_transcript", "false"
-    )
-
-    # Convert to boolean
-    save_original_transcript = save_original_transcript.lower() == "true"
-
-    if save_original_transcript and video.subtitles:
-
-        # Check if the transcription for the video already exists
-        transcript = (
-            Transcript.objects.filter(video=video)
-            .filter(language=lang)
-            .filter(transcript_type=ORIGINAL_SOURCE)
-            .first()
-        )
-
-        if not transcript:
-
-            # Save a transcript object
-            transcript = Transcript(
-                transcript_type=ORIGINAL_SOURCE,
-                video=video,
-                language=lang,
-                payload=video.subtitles,
-            )
-            transcript.save()
-
-        # Add the transcript to the response data
-        response_data["transcript_id"] = transcript.id
 
     # Check if it's audio only
     if is_audio_only:
@@ -321,3 +300,28 @@ class VideoViewSet(ModelViewSet):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
     permission_classes = (IsAuthenticatedOrReadOnly,)
+
+    @is_project_owner
+    def create(self, request, *args, **kwargs):
+        """
+        Creates a video
+        """
+        return super().create(request, *args, **kwargs)
+
+    @is_project_owner
+    def update(self, request, pk=None, *args, **kwargs):
+        """
+        Update video details
+        """
+        return super().update(request, *args, **kwargs)
+
+    @is_project_owner
+    def partial_update(self, request, pk=None, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+
+    @is_project_owner
+    def destroy(self, request, pk=None, *args, **kwargs):
+        """
+        Delete a video
+        """
+        return super().delete(request, *args, **kwargs)
