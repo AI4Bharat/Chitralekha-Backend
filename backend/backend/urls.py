@@ -63,6 +63,7 @@ urlpatterns = [
     path("organization/", include("organization.urls")),
     path("project/", include("project.urls")),
     path("video/", include("video.urls")),
+    path("task/", include("task.urls")),
     path("translation/", include("translation.urls")),
     path("transcript/", include("transcript.urls")),
     re_path(

@@ -1,6 +1,7 @@
 from django.db import models
 import uuid
 from project.models import Project
+from translation.metadata import LANGUAGE_CHOICES
 
 
 class Video(models.Model):
@@ -22,6 +23,9 @@ class Video(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         help_text=("Organization to which the Project belongs"),
+    )
+    language = models.CharField(
+        choices=LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language"
     )
     duration = models.DurationField(verbose_name="Video Duration")
     subtitles = models.JSONField(verbose_name="Subtitles", null=True, blank=True)

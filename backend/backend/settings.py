@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "organization",
     "project",
     "video",
+    "task",
     "transcript",
     "translation",
     "users",
