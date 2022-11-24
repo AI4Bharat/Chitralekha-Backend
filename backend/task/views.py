@@ -412,8 +412,7 @@ class TaskViewSet(ModelViewSet):
                     user=user,
                     status="NEW")
                 new_task.save()
-                # transcribed_data = make_asr_api_call(video.url, lang)
-                transcribed_data = "Hello, World."
+                transcribed_data = make_asr_api_call(video.url, lang)
                 if transcribed_data is not None:
                     payloads["MACHINE_GENERATED"] = transcribed_data
                 else:

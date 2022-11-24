@@ -195,7 +195,6 @@ def save_transcription(request):
     Request body:
     {
         "transcript_id": "",
-        "language": "",
         "payload": "",
         "video_id": "",
         "task_id" : ""

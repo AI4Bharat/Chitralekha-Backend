@@ -54,7 +54,7 @@ class Task(models.Model):
         related_name="tasks",
     )
     target_language = models.CharField(
-        choices=LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language"
+        choices=LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language", blank=True
     )
     status = models.CharField(
         choices=TASK_STATUS, verbose_name="Task Status", max_length=35, default=None
@@ -62,9 +62,7 @@ class Task(models.Model):
     user = models.ForeignKey(
         get_user_model(),
         verbose_name="Task Assignee",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
