@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework import status
+from task.models import Task
+from task.serializers import TaskSerializer
 from organization.decorators import is_organization_owner
 from video.models import Video
 from video.serializers import VideoSerializer
@@ -11,6 +13,9 @@ from .models import Project
 from .serializers import ProjectSerializer
 from .decorators import is_project_owner
 from users.serializers import UserFetchSerializer
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 
 class ProjectViewSet(viewsets.ModelViewSet):
     """
@@ -21,6 +26,22 @@ class ProjectViewSet(viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
     permission_classes = (IsAuthenticated,)
 
+    @swagger_auto_schema(
+        method="post",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "user_id": openapi.Schema(type=openapi.TYPE_OBJECT),
+            },
+            required=["user_id"],
+        ),
+        responses={
+            200: "Project members added successfully",
+            400: "User doesnot exist",
+            404: "Project does not exist",
+            405: "Method is not allowed",
+        },
+    )
     @action(
         detail=True,
         methods=["POST"],
@@ -68,7 +89,22 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
-    # add an endpoint to remove project members
+    @swagger_auto_schema(
+        method="post",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "user_id": openapi.Schema(type=openapi.TYPE_OBJECT),
+            },
+            required=["user_id"],
+        ),
+        responses={
+            200: "Project members added successfully",
+            400: "User doesnot exist",
+            404: "Project does not exist",
+            405: "Method is not allowed",
+        },
+    )
     @action(
         detail=True,
         methods=["POST"],
@@ -117,6 +153,22 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
 
     # Add endpoint for assigning project manager
+    @swagger_auto_schema(
+        method="post",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "user_id": openapi.Schema(type=openapi.TYPE_OBJECT),
+            },
+            required=["user_id"],
+        ),
+        responses={
+            200: "Project members added successfully",
+            400: "User doesnot exist",
+            404: "Project does not exist",
+            405: "Method is not allowed",
+        },
+    )
     @action(
         detail=True,
         methods=["POST"],
@@ -175,6 +227,22 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
 
     # add an endpoint to unassign project manager
+    @swagger_auto_schema(
+        method="post",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "user_id": openapi.Schema(type=openapi.TYPE_OBJECT),
+            },
+            required=["user_id"],
+        ),
+        responses={
+            200: "Project members added successfully",
+            400: "User doesnot exist",
+            404: "Project does not exist",
+            405: "Method is not allowed",
+        },
+    )
     @action(
         detail=True,
         methods=["POST"],
@@ -279,6 +347,46 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
+    # Add endpoint to list all related Task in project by filtering video
+
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="List Project Task",
+        url_name="list_project_Task",
+    )
+    @is_project_owner
+    def list_project_tasks(self, request, pk=None, *args, **kwargs):
+        try:
+            project = Project.objects.get(pk=pk)
+            video_id = request.query_params.get("video_id", None)
+
+            if video_id:
+                video = Video.objects.filter(id=video_id)
+                if video:
+                    video_name = video.name
+                    Src_lang = video.language
+                tasks = Task.objects.filter(video_id=video_id)
+            else:
+                tasks = Task.objects.filter(video__project_id=pk)
+            serializer = TaskSerializer(tasks, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Project.DoesNotExist:
+            return Response(
+                {"error": "Project does not exist"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            print(e)
+            return Response(
+                {"error": e},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(
+            {"error": "invalid method"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
         # Add endpoint to return all related videos using project_id
 
     @is_project_owner
