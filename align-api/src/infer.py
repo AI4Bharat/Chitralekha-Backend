@@ -4,9 +4,8 @@ import requests
 import json
 
 audio = AudioSegment.from_file('sample.wav')
-chunk = audio[1000:2000]
 
-samples = np.array(chunk.get_array_of_samples()).astype("float64")
+samples = np.array(audio.get_array_of_samples()).astype("float64")
 
 url = "http://127.0.0.1:8000"
 

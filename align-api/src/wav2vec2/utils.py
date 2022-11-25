@@ -46,11 +46,11 @@ class Wav2vec2:
         model, _, _ = fairseq.checkpoint_utils.load_model_ensemble_and_task(
             [self.asr_path]
         )
-        console.log(f"Model loaded on {self.device}")       
+        console.log(f"Model loaded on [green underline]{self.device}")       
         model = model[0].to(self.device)
         encoder = import_fairseq_model(model.w2v_encoder)
         console.log(
-            f":thumbs_up: Wav2vec2 model loaded successfully from {self.asr_path}"
+            f":thumbs_up: Wav2vec2 model loaded successfully from [green underline]{self.asr_path}"
         )
         return encoder
 

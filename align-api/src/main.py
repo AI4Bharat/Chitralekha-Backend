@@ -1,10 +1,9 @@
-from configuration import ModelPath, Data
+from configuration import ModelPath
 from wav2vec2.utils import Wav2vec2
 from rich.console import Console
 from rich.traceback import install
 from fastapi import FastAPI
 from pydantic import BaseModel
-from pydub import AudioSegment
 import numpy as np
 import torch
 from utils import filter_text, SubtitleTimestamps
@@ -25,7 +24,7 @@ class AlignData(BaseModel):
 language_codes = ModelPath.language_codes
 aligner_models = {}
 for language in language_codes:
-    console.log(f"Loading aligner model for language {language}")
+    console.log(f"Loading aligner model for language [green underline]{language}")
     aligner_models[language] = Wav2vec2(
         ModelPath.wav2vec2_path,
         language_code=language,
@@ -34,8 +33,9 @@ for language in language_codes:
     )
 
 @app.post("/")
-def align(align_data: AlignData):
+def align(align_data: AlignData) -> dict:
     if align_data.language not in language_codes:
+        console.log(f"User is trying [red underline]{align_data.language} which is not loaded")
         return f"{align_data.language} is not loaded. Use another language."
     alignment = {}
     float_wav = np.array(align_data.wav_chunk)

@@ -1,4 +1,3 @@
-
 matplotlib==3.6.1
 pydub==0.25.1
 tensorboardX
@@ -7,3 +6,4 @@ srt==3.5.2
 Cython==0.29.32
 urduhack==1.1.1
 fastapi['all']
+indic-nlp-library

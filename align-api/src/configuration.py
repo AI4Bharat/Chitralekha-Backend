@@ -11,6 +11,5 @@ class ModelPath:
 @dataclass(order=True)
 class Data:
     wav_path: str = "audio/english.wav"
-    txt_path: str = "../examples/sample.txt"
     srt_path: str = "srt/English_corrected.srt"
     language: str = "hi"
