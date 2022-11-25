@@ -36,7 +36,7 @@ for language in language_codes:
 @app.post("/")
 def align(align_data: AlignData):
     if align_data.language not in language_codes:
-        raise Exception(f"{align_data.language} model is not loaded")
+        return f"{align_data.language} is not loaded. Use another language."
     alignment = {}
     float_wav = np.array(align_data.wav_chunk)
     wav_tensor = torch.from_numpy(float_wav).float().view(1, -1)
