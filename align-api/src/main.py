@@ -6,8 +6,9 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import numpy as np
 import torch
-from utils import filter_text, SubtitleTimestamps
+from utils import filter_text
 from typing import Optional
+import uvicorn
 
 install()
 console = Console()
@@ -16,7 +17,7 @@ app = FastAPI()
 
 class AlignData(BaseModel):
     text: str = None
-    wav_chunk: list = None
+    wav_chunk: list[float] = None
     start_time: Optional[float] = 0.0
     language: str = None
 
