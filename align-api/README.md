@@ -42,13 +42,12 @@ Urdu - ur
 ```
 Make changes in  `wav2vec2_path`, `language_codes` and `device` arguments in  `configuration.py` according to your needs.
 
-Run the server: 
+Start the server: 
 ```
-uvicorn main:app --host=0.0.0.0 --port=8000   
+uvicorn main:app --host=0.0.0.0 --port=8000
 
 python infer.py -w data/sample.wav -t "क्या सेंट मैरीस की एयर क्वालिटी घातक है" -l hi
 ```
-
 ```{json}
 {
   "text": "क्या सेंट मैरीस की एयर क्वालिटी घातक है",
@@ -111,4 +110,13 @@ python infer.py -w data/sample.wav -t "क्या सेंट मैरीस
     }
   ]
 }
+```
+API documentation can be accessed at http://0.0.0.0:8000/docs once the server has successfully started.
+
+## Align subtitle files
+
+Modify `wav_path`, `srt_path` and `language` in `configuration.py`. Make sure you have loaded the appropriate model while starting the server. `srt_align.py` directly generates the corresponding `.ytt' file for the given subtitles. 
+
+```{bash}
+python srt_align.py
 ```

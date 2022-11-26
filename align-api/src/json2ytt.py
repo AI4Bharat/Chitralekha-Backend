@@ -6,12 +6,13 @@ def get_ms_time(time_str):
     return ms_time
 
 
-def ytt_genorator(json_file_name, ytt_file_name, prev_line_in=0):
-    f = open(json_file_name)
-    # returns JSON object as
-    # a dictionary
-    data = json.load(f)
-
+def ytt_genorator(json_data, ytt_file_name, prev_line_in=0, mode='file'):
+    if mode=='file':
+        with open(json_data, encoding='utf-8') as f:
+            data = json.load(f)
+    else:
+        data = json_data
+        
     # some i/p, which can be set as user i/p later
     pos_id = 7
     pos_id_prev = 11
@@ -21,13 +22,13 @@ def ytt_genorator(json_file_name, ytt_file_name, prev_line_in=0):
 
     # Iterating through the json
     # list
-    file3 = open(ytt_file_name, "w")
+    ytt_file = open(ytt_file_name, "w")
 
     # write the xml format info, some of the i/p can be taken from users.
-    file3.write(
+    ytt_file.write(
         '<?xml version="1.0" encoding="utf-8" ?>\n<timedtext format="3">\n<head>\n'
     )
-    file3.write(
+    ytt_file.write(
         "\t<!-- Text styles -->\n"
         + '\t<pen id="1" b="1" />            <!-- Bold       -->\n'
         + '\t<pen id="2" i="1" />            <!-- Italic     -->\n'
@@ -59,7 +60,6 @@ def ytt_genorator(json_file_name, ytt_file_name, prev_line_in=0):
     temp_id = 0
     for j in range(1, len(data)):
         full_text = data[str(j)]["text"]
-        # print(j)
 
         if data[str(j)]["timestamps"] != None:
             if temp_id == 0:
@@ -139,9 +139,9 @@ def ytt_genorator(json_file_name, ytt_file_name, prev_line_in=0):
                             + end_str
                         )
                         if prev_line_in == 1:
-                            file3.write(prev_line)
+                            ytt_file.write(prev_line)
 
-                        file3.write(line)
+                        ytt_file.write(line)
 
                         dur_ms = (
                             start_timestamp_words[k + 1] - start_timestamp_words[k] - 10
@@ -186,9 +186,9 @@ def ytt_genorator(json_file_name, ytt_file_name, prev_line_in=0):
                             + end_str
                         )
                         if prev_line_in == 1:
-                            file3.write(prev_line)
+                            ytt_file.write(prev_line)
 
-                        file3.write(line)
+                        ytt_file.write(line)
 
                     else:
                         # middle words
@@ -235,9 +235,9 @@ def ytt_genorator(json_file_name, ytt_file_name, prev_line_in=0):
                             + end_str
                         )
                         if prev_line_in == 1:
-                            file3.write(prev_line)
+                            ytt_file.write(prev_line)
 
-                        file3.write(line)
+                        ytt_file.write(line)
                         # line =""
 
                 else:
@@ -286,15 +286,13 @@ def ytt_genorator(json_file_name, ytt_file_name, prev_line_in=0):
                         + end_str
                     )
                     if prev_line_in == 1:
-                        file3.write(prev_line)
+                        ytt_file.write(prev_line)
 
-                    file3.write(line + "\n")
+                    ytt_file.write(line + "\n")
 
-    file3.write("</body>\n</timedtext>")
+    ytt_file.write("</body>\n</timedtext>")
     # Closing file
-    file3.close()
-    f.close()
-    print("file generation complete")
+    ytt_file.close()
 
 
 if __name__ == "__main__":

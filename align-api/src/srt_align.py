@@ -1,78 +1,48 @@
-from wav2vec2.utils import Wav2vec2
-from configuration import ModelPath, Data
+from configuration import Data
 from rich.console import Console
 from rich.traceback import install
-import srt
-from pydub import AudioSegment
 import numpy as np
-import torch
 from tqdm import tqdm
-import json
-import re
-import string
-from indicnlp.normalize.indic_normalize import IndicNormalizerFactory
 import numpy as np
 from rich.console import Console
 from rich.traceback import install
+from infer import get_alignment
+from utils import SubtitleTimestamps
+from json2ytt import ytt_genorator
 
 install()
 console = Console()
 
-class SubtitleTimestamps:
-    def __init__(self, srt_path, wav_path, language):
-        self.srt_path = srt_path
-        self.segments = self.read_subtitles()
-        self.wav = AudioSegment.from_wav(wav_path)
-        self.language = language
-        self.factory = IndicNormalizerFactory()
-        console.log(f"Subtitle path: {srt_path}")
-        console.log(f"Audio path: {wav_path}")
-        console.log(f"Language:  {language}")
+def align_subtitle(subtitle_utils: SubtitleTimestamps):
+    subs = subtitle_utils.read_subtitles()
 
-    def read_subtitles(self):
+    aligned_srt = {}
 
-        with open(self.srt_path, "r", encoding="utf-8") as f:
-            subtitles = f.read()
+    for sub in tqdm(subs, leave=False):
 
-        subs = list(srt.parse(subtitles))
-        return subs
+        alignment = {}
 
-    def segment_start_end_times_seconds(self, segment):
-        return segment.start.total_seconds(), segment.end.total_seconds()
+        if sub.content == "[Music]":
+            alignment["text"] = sub.content
+            alignment["timestamps"] = None
+            aligned_srt[sub.index] = alignment
+            continue
 
-    def clip_audio(self, start, end):
-        return self.wav[start * 1000 : end * 1000]
+        start, end = subtitle_utils.segment_start_end_times_seconds(sub)
+        chunk = subtitle_utils.clip_audio(start, end)
+        float_wav = np.array(chunk.get_array_of_samples()).astype("float64")
+        cleaned_text = subtitle_utils.filter_text(sub.content)
+        word_segments = get_alignment(wav=float_wav, text=cleaned_text, lang='en', mode='tensor').json()
+        alignment["text"] = sub.content
+        alignment["timestamps"] = word_segments["timestamps"]
 
-    def filter_text(self, text):
+        aligned_srt[str(sub.index)] = alignment
+        
+    return aligned_srt
 
-        cleaned_text = re.sub("[%s]" % re.escape(string.punctuation + "।"), "", text)
-
-        if self.language == "en":
-            words = cleaned_text.split()
-            new_text = " "
-            for word in words:
-                new_text += word.lower() + " "
-            new_text = new_text.strip()
-            return new_text
-
-        else:
-            normalizer = self.factory.get_normalizer(self.language, remove_nuktas=False)
-            return normalizer.normalize(cleaned_text)
-
-    def adjust_alignment(self, data):
-
-        if self.language == "en":
-            for d, k in data.items():
-                words = k["text"].split()
-
-                for i in range(len(words)):
-
-                    old_key = list(k["timestamps"][i].keys())[0]
-
-                    if old_key != words[i]:
-                        k["timestamps"][i][words[i]] = k["timestamps"][i][old_key]
-                        del k["timestamps"][i][old_key]
-            return data
-
-        else:
-            return data
+if __name__ == '__main__':
+    obj = SubtitleTimestamps(Data.srt_path, Data.wav_path, Data.language)
+    aligned_srt = align_subtitle(obj)
+    alignment = obj.adjust_alignment(aligned_srt)
+ 
+    ytt_genorator(alignment, "alignment.ytt", mode='data')

@@ -4,11 +4,14 @@ import requests
 import json
 import argparse
 
-def get_alignment(wav: str, text: str, lang: str):
-
-    audio = AudioSegment.from_file(wav)
-
-    samples = np.array(audio.get_array_of_samples()).astype("float64")
+def get_alignment(wav, text, lang, mode='wav'):
+    
+    if mode=='wav':
+        
+        audio = AudioSegment.from_file(wav)
+        samples = np.array(audio.get_array_of_samples()).astype("float64")
+    else:
+        samples = wav
 
     url = "http://0.0.0.0:8000"
 
@@ -45,6 +48,14 @@ if __name__=='__main__':
         type=str
     )
     
+    parser.add_argument(
+        '-m',
+        '--mode',
+        help='load from file path or as numpy array',
+        default='wav',
+        type=str
+    )
+    
     args = parser.parse_args()
-    response = get_alignment(args.wav, args.text, args.lang)
-    print(response.text)
+    response = get_alignment(args.wav, args.text, args.lang, args.mode)
+    print(response.json())
