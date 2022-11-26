@@ -1,18 +1,19 @@
 import json
 
+
 def get_ms_time(time_str):
     h, m, s = time_str.split(":")
     ms_time = round((int(h) * 3600 + int(m) * 60 + float(s)) * 1000)
     return ms_time
 
 
-def ytt_genorator(json_data, ytt_file_name, prev_line_in=0, mode='file'):
-    if mode=='file':
-        with open(json_data, encoding='utf-8') as f:
+def ytt_genorator(json_data, ytt_file_name, prev_line_in=0, mode="file"):
+    if mode == "file":
+        with open(json_data, encoding="utf-8") as f:
             data = json.load(f)
     else:
         data = json_data
-        
+
     # some i/p, which can be set as user i/p later
     pos_id = 7
     pos_id_prev = 11

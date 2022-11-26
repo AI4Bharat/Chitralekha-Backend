@@ -14,6 +14,7 @@ console = Console()
 
 app = FastAPI()
 
+
 class AlignData(BaseModel):
     text: str = None
     wav_chunk: list[float] = None
@@ -32,15 +33,18 @@ for language in language_codes:
         device=ModelPath.device,
     )
 
+
 @app.post("/")
 def align(align_data: AlignData) -> dict:
     if align_data.language not in language_codes:
-        console.log(f"User is trying [red underline]{align_data.language} which is not loaded")
+        console.log(
+            f"User is trying [red underline]{align_data.language} which is not loaded"
+        )
         return f"{align_data.language} is not loaded. Use another language."
     alignment = {}
     float_wav = np.array(align_data.wav_chunk)
     wav_tensor = torch.from_numpy(float_wav).float().view(1, -1)
-    cleaned_text =  filter_text(align_data.text, align_data.language)
+    cleaned_text = filter_text(align_data.text, align_data.language)
     word_segments = aligner_models[align_data.language].merge_words(
         wav_tensor, cleaned_text, begin=align_data.start_time
     )

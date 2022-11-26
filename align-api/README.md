@@ -115,7 +115,7 @@ API documentation can be accessed at http://0.0.0.0:8000/docs once the server ha
 
 ## Align subtitle files
 
-Modify `wav_path`, `srt_path` and `language` in `configuration.py`. Make sure you have loaded the appropriate model while starting the server. `srt_align.py` directly generates the corresponding `.ytt' file for the given subtitles. 
+Modify `wav_path`, `srt_path` and `language` in `configuration.py`. Make sure you have loaded the appropriate model while starting the server. `srt_align.py` directly generates the corresponding `.ytt` file for the given subtitles. 
 
 ```{bash}
 python srt_align.py

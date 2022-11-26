@@ -5,8 +5,10 @@ from pydub import AudioSegment
 from rich.console import Console
 from rich.traceback import install
 import srt
+
 install()
 console = Console()
+
 
 class SubtitleTimestamps:
     def __init__(self, srt_path, wav_path, language):
@@ -66,10 +68,10 @@ class SubtitleTimestamps:
 
         else:
             return data
-        
+
 
 def filter_text(text, language):
-    
+
     factory = IndicNormalizerFactory()
     cleaned_text = re.sub("[%s]" % re.escape(string.punctuation + "।"), "", text)
 
