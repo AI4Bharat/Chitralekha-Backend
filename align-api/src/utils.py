@@ -1,11 +1,6 @@
-from rich.console import Console
-from rich.traceback import install
 import re
 import string
 from indicnlp.normalize.indic_normalize import IndicNormalizerFactory
-
-install()
-console = Console()
 
 def filter_text(text, language):
     
@@ -23,4 +18,3 @@ def filter_text(text, language):
     else:
         normalizer = factory.get_normalizer(language, remove_nuktas=False)
         return normalizer.normalize(cleaned_text)
-

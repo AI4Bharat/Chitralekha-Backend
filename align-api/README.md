@@ -40,7 +40,7 @@ Tamil - ta
 Telugu - te
 Urdu - ur
 ```
-In `wav2vec2_path`, `language_codes` and `device` in  `configuration.py`.
+Make changes in  `wav2vec2_path`, `language_codes` and `device` arguments in  `configuration.py` according to your needs.
 
 Run the server: 
 ```

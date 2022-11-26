@@ -8,7 +8,6 @@ import numpy as np
 import torch
 from utils import filter_text
 from typing import Optional
-import uvicorn
 
 install()
 console = Console()
