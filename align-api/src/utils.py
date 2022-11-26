@@ -17,9 +17,9 @@ class SubtitleTimestamps:
         self.wav = AudioSegment.from_wav(wav_path)
         self.language = language
         self.factory = IndicNormalizerFactory()
-        console.log(f"Subtitle path: {srt_path}")
-        console.log(f"Audio path: {wav_path}")
-        console.log(f"Language:  {language}")
+        console.log(f"Subtitle path: [green]{srt_path}")
+        console.log(f"Audio path: [green]{wav_path}")
+        console.log(f"Language:  [green]{language}")
 
     def read_subtitles(self):
 
