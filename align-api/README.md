@@ -46,7 +46,7 @@ Run the server:
 ```
 uvicorn main:app --host=0.0.0.0 --port=8000   
 
-python infer.py -w sample.wav -t "क्या सेंट मैरीस की एयर क्वालिटी घातक है" -l hi
+python infer.py -w data/sample.wav -t "क्या सेंट मैरीस की एयर क्वालिटी घातक है" -l hi
 ```
 
 ```{json}

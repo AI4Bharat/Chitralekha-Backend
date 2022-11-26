@@ -4,43 +4,47 @@ import requests
 import json
 import argparse
 
-parser = argparse.ArgumentParser(description="Align API")
+def get_alignment(wav: str, text: str, lang: str):
 
-parser.add_argument(
-    '-w',
-    '--wav',
-    help="wav file path",
-    type=str
-)
+    audio = AudioSegment.from_file(wav)
 
-parser.add_argument(
-    '-t',
-    '--text',
-    help="text",
-    type=str
-)
+    samples = np.array(audio.get_array_of_samples()).astype("float64")
 
-parser.add_argument(
-    '-l',
-    '--lang',
-    help="Language code",
-    type=str
-)
+    url = "http://0.0.0.0:8000"
 
-args = parser.parse_args()
+    payload = json.dumps({"text": text,
+                        "wav_chunk": samples.tolist(),
+                        "start_time": 0.0,
+                        "language": lang})
+    headers = {"Content-Type": "application/json"}
 
-audio = AudioSegment.from_file(args.wav)
+    response = requests.request("POST", url, headers=headers, data=payload)
+    return response
 
-samples = np.array(audio.get_array_of_samples()).astype("float64")
+if __name__=='__main__':
+    parser = argparse.ArgumentParser(description="Align API")
 
-url = "http://0.0.0.0:8000"
+    parser.add_argument(
+        '-w',
+        '--wav',
+        help="wav file path",
+        type=str
+    )
 
-payload = json.dumps({"text": args.text,
-                      "wav_chunk": samples.tolist(),
-                      "start_time": 0.0,
-                      "language": args.lang})
-headers = {"Content-Type": "application/json"}
+    parser.add_argument(
+        '-t',
+        '--text',
+        help="text",
+        type=str
+    )
 
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
+    parser.add_argument(
+        '-l',
+        '--lang',
+        help="Language code",
+        type=str
+    )
+    
+    args = parser.parse_args()
+    response = get_alignment(args.wav, args.text, args.lang)
+    print(response.text)
