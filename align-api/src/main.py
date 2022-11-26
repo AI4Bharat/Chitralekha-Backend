@@ -34,7 +34,7 @@ for language in language_codes:
     )
 
 
-@app.post("/")
+@app.post("/align_audio")
 def align(align_data: AlignData) -> dict:
     if align_data.language not in language_codes:
         console.log(

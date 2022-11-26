@@ -14,7 +14,7 @@ def get_alignment(wav, text, lang, mode="wav"):
     else:
         samples = wav
 
-    url = "http://0.0.0.0:8000"
+    url = "http://0.0.0.0:8000/align_audio"
 
     payload = json.dumps(
         {
