@@ -22,7 +22,7 @@ TRANSCRIPTION_REVIEW_COMPLETE = "TRANSCRIPTION_REVIEW_COMPLETE"
 TRANSCRIPT_TYPE = (
     (ORIGINAL_SOURCE, "Original Source"),
     (MACHINE_GENERATED, "Machine Generated"),
-    (MANUALLY_CREATED, "Manually Created")
+    (MANUALLY_CREATED, "Manually Created"),
 )
 
 TRANSCRIPTION_STATUS = (
@@ -32,7 +32,7 @@ TRANSCRIPTION_STATUS = (
     (TRANSCRIPTION_EDIT_COMPLETE, "Transcription Edit Complete"),
     (TRANSCRIPTION_REVIEWER_ASSIGNED, "Transcription Reviewer Assigned"),
     (TRANSCRIPTION_REVIEW_INPROGRESS, "Transcription Review In-progress"),
-    (TRANSCRIPTION_REVIEW_COMPLETE, "Transcription Review Complete")
+    (TRANSCRIPTION_REVIEW_COMPLETE, "Transcription Review Complete"),
 )
 
 
@@ -87,7 +87,10 @@ class Transcript(models.Model):
         related_name="transcript_tasks",
     )
     status = models.CharField(
-        choices=TRANSCRIPTION_STATUS, verbose_name="Transcription Status", max_length=35, default=None
+        choices=TRANSCRIPTION_STATUS,
+        verbose_name="Transcription Status",
+        max_length=35,
+        default=None,
     )
     payload = models.JSONField(verbose_name="Transcription Output")
 

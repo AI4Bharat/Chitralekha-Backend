@@ -7,25 +7,59 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('task', '0001_initial'),
-        ('transcript', '0008_alter_transcript_language'),
+        ("task", "0001_initial"),
+        ("transcript", "0008_alter_transcript_language"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='transcript',
-            name='status',
-            field=models.CharField(choices=[('TRANSCRIPTION_SELECT_SOURCE', 'Transcription selected source'), ('TRANSCRIPTION_EDITOR_ASSIGNED', 'Transcription Editor Assigned'), ('TRANSCRIPTION_EDIT_INPROGRESS', 'Transcription Edit In-progress'), ('TRANSCRIPTION_EDIT_COMPLETE', 'Transcription Edit Complete'), ('TRANSCRIPTION_REVIEWER_ASSIGNED', 'Transcription Reviewer Assigned'), ('TRANSCRIPTION_REVIEW_INPROGRESS', 'Transcription Review In-progress'), ('TRANSCRIPTION_REVIEW_COMPLETE', 'Transcription Review Complete')], default=None, max_length=35, verbose_name='Transcription Status'),
+            model_name="transcript",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("TRANSCRIPTION_SELECT_SOURCE", "Transcription selected source"),
+                    ("TRANSCRIPTION_EDITOR_ASSIGNED", "Transcription Editor Assigned"),
+                    ("TRANSCRIPTION_EDIT_INPROGRESS", "Transcription Edit In-progress"),
+                    ("TRANSCRIPTION_EDIT_COMPLETE", "Transcription Edit Complete"),
+                    (
+                        "TRANSCRIPTION_REVIEWER_ASSIGNED",
+                        "Transcription Reviewer Assigned",
+                    ),
+                    (
+                        "TRANSCRIPTION_REVIEW_INPROGRESS",
+                        "Transcription Review In-progress",
+                    ),
+                    ("TRANSCRIPTION_REVIEW_COMPLETE", "Transcription Review Complete"),
+                ],
+                default=None,
+                max_length=35,
+                verbose_name="Transcription Status",
+            ),
         ),
         migrations.AddField(
-            model_name='transcript',
-            name='task',
-            field=models.ForeignKey(default=None, on_delete=django.db.models.deletion.CASCADE, related_name='transcript_tasks', to='task.task', verbose_name='Task id'),
+            model_name="transcript",
+            name="task",
+            field=models.ForeignKey(
+                default=None,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="transcript_tasks",
+                to="task.task",
+                verbose_name="Task id",
+            ),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='transcript',
-            name='transcript_type',
-            field=models.CharField(choices=[('ORIGINAL_SOURCE', 'Original Source'), ('MACHINE_GENERATED', 'Machine Generated'), ('MANUALLY_CREATED', 'Manually Created')], default='MACHINE_GENERATED', max_length=35, verbose_name='Transcript Type'),
+            model_name="transcript",
+            name="transcript_type",
+            field=models.CharField(
+                choices=[
+                    ("ORIGINAL_SOURCE", "Original Source"),
+                    ("MACHINE_GENERATED", "Machine Generated"),
+                    ("MANUALLY_CREATED", "Manually Created"),
+                ],
+                default="MACHINE_GENERATED",
+                max_length=35,
+                verbose_name="Transcript Type",
+            ),
         ),
     ]

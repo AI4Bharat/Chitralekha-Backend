@@ -151,41 +151,42 @@ def retrieve_transcription(request):
     user_id = request.user.id
 
     # Get the latest transcript
-    transcript = (
-        Transcript.objects.filter(video_id__exact=video_id)
-    )
+    transcript = Transcript.objects.filter(video_id__exact=video_id)
 
     if transcript.filter(status="TRANSCRIPTION_REVIEW_COMPLETE").first() is not None:
-        transcript_obj = transcript.filter(status="TRANSCRIPTION_REVIEW_COMPLETE").first()
+        transcript_obj = transcript.filter(
+            status="TRANSCRIPTION_REVIEW_COMPLETE"
+        ).first()
         return Response(
             {"id": transcript_obj.id, "data": transcript_obj.payload},
-                status=status.HTTP_200_OK,
+            status=status.HTTP_200_OK,
         )
     elif transcript.filter(status="TRANSCRIPTION_EDIT_COMPLETE").first() is not None:
         transcript_obj = transcript.filter(status="TRANSCRIPTION_EDIT_COMPLETE").first()
         return Response(
-                {"id": transcript_obj.id, "data": transcript_obj.payload},
-                status=status.HTTP_200_OK,
-            )
+            {"id": transcript_obj.id, "data": transcript_obj.payload},
+            status=status.HTTP_200_OK,
+        )
     else:
         return Response(
-                {"message": "No transcript found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            {"message": "No transcript found"}, status=status.HTTP_404_NOT_FOUND
+        )
+
 
 def generate_transcription(video, lang, user, transcript_type, task, payload):
     status = TRANSCRIPTION_SELECT_SOURCE
     transcript_obj = Transcript(
-                transcript_type=transcript_type,
-                video=video,
-                language=lang,
-                payload=payload,
-                user=user,
-                task=task,
-                status=status
+        transcript_type=transcript_type,
+        video=video,
+        language=lang,
+        payload=payload,
+        user=user,
+        task=task,
+        status=status,
     )
     transcript_obj.save()
     return {"transcript_id": transcript_obj.id, "data": transcript_obj.payload}
+
 
 @swagger_auto_schema(
     method="post",
@@ -241,7 +242,9 @@ def save_transcription(request):
         payload = request.data["payload"]
     except KeyError:
         return Response(
-            {"message": "Missing required parameters - language or payload or task_id or transcript_id"},
+            {
+                "message": "Missing required parameters - language or payload or task_id or transcript_id"
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -249,9 +252,7 @@ def save_transcription(request):
         video = Video.objects.get(pk=video_id)
     except Video.DoesNotExist:
         return Response(
-            {
-                "message": "Video doesn't exist."
-            },
+            {"message": "Video doesn't exist."},
             status=status.HTTP_404_NOT_FOUND,
         )
 
@@ -259,9 +260,7 @@ def save_transcription(request):
         task = Task.objects.get(pk=task_id)
     except Task.DoesNotExist:
         return Response(
-            {
-                "message": "Task doesn't exist."
-            },
+            {"message": "Task doesn't exist."},
             status=status.HTTP_404_NOT_FOUND,
         )
 
@@ -278,7 +277,9 @@ def save_transcription(request):
         else:
             if transcript.status == TRANSCRIPTION_REVIEW_COMPLETE:
                 return Response(
-                    {"message": "Transcript can't be edited, as the final transcript already exists"},
+                    {
+                        "message": "Transcript can't be edited, as the final transcript already exists"
+                    },
                     status=status.HTTP_201_CREATED,
                 )
 
@@ -290,7 +291,7 @@ def save_transcription(request):
                 updated_transcript_type = UPDATED_MANUALLY_CREATED
 
             if "EDIT" in task.task_type:
-                if request.data.get('final'):
+                if request.data.get("final"):
                     tc_status = TRANSCRIPTION_EDIT_COMPLETE
                     task.status = "COMPLETE"
                     task.save()
@@ -310,8 +311,8 @@ def save_transcription(request):
                     status=tc_status,
                 )
             else:
-                if request.data.get('final'):
-                    tc_status =  TRANSCRIPTION_REVIEW_COMPLETE
+                if request.data.get("final"):
+                    tc_status = TRANSCRIPTION_REVIEW_COMPLETE
                     task.status = "COMPLETE"
                     task.save()
                     transcript_type = updated_transcript_type
@@ -327,21 +328,23 @@ def save_transcription(request):
                     payload=payload,
                     user=request.user,
                     task=task,
-                    status=tc_status
+                    status=tc_status,
                 )
             # Save the updated transcript object
             transcript_obj.save()
 
             return Response(
-                {"task_id": task_id, "transcript_id": transcript_obj.id, "data": transcript_obj.payload},
-                status=status.HTTP_200_OK
+                {
+                    "task_id": task_id,
+                    "transcript_id": transcript_obj.id,
+                    "data": transcript_obj.payload,
+                },
+                status=status.HTTP_200_OK,
             )
 
     except Transcript.DoesNotExist:
         return Response(
-            {
-                "message": "Transcript doesn't exist."
-            },
+            {"message": "Transcript doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

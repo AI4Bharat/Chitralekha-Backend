@@ -43,10 +43,7 @@ class Task(models.Model):
         verbose_name="Task UUID",
         primary_key=False,
     )
-    task_type = models.CharField(
-        choices=TASK_TYPE,
-        max_length=35
-    )
+    task_type = models.CharField(choices=TASK_TYPE, max_length=35)
     video = models.ForeignKey(
         Video,
         on_delete=models.CASCADE,
@@ -54,7 +51,10 @@ class Task(models.Model):
         related_name="tasks",
     )
     target_language = models.CharField(
-        choices=LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language", blank=True
+        choices=LANGUAGE_CHOICES,
+        max_length=4,
+        verbose_name="Target Language",
+        blank=True,
     )
     status = models.CharField(
         choices=TASK_STATUS, verbose_name="Task Status", max_length=35, default=None

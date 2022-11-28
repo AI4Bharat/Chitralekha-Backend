@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from transcript.models import ORIGINAL_SOURCE, Transcript
 from translation.models import Translation
-from project.decorators  import is_project_owner
+from project.decorators import is_project_owner
 from .models import Video
 from .serializers import VideoSerializer
 from .utils import (
@@ -47,9 +47,7 @@ from project.models import Project
         openapi.Parameter(
             "project_id",
             openapi.IN_QUERY,
-            description=(
-                "Id of the project to which this video belongs"
-            ),
+            description=("Id of the project to which this video belongs"),
             type=openapi.TYPE_INTEGER,
             required=True,
         ),
@@ -125,8 +123,13 @@ def get_video(request):
         # Create a new DB entry if URL does not exist, else return the existing entry
         video, created = Video.objects.get_or_create(
             url=url,
-            defaults={"name": title, "duration": duration, "project_id": project,
-                      "audio_only": is_audio_only, "language": lang},
+            defaults={
+                "name": title,
+                "duration": duration,
+                "project_id": project,
+                "audio_only": is_audio_only,
+                "language": lang,
+            },
         )
         if created:
             video.save()
@@ -157,8 +160,13 @@ def get_video(request):
     # Create a new DB entry if URL does not exist, else return the existing entry
     video, created = Video.objects.get_or_create(
         url=normalized_url,
-        defaults={"name": title, "duration": duration, "project_id": project,
-                  "audio_only": is_audio_only, "language": lang},
+        defaults={
+            "name": title,
+            "duration": duration,
+            "project_id": project,
+            "audio_only": is_audio_only,
+            "language": lang,
+        },
     )
     if created:
         video.save()
