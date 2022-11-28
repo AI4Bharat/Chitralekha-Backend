@@ -20,7 +20,7 @@ TRANSLATION_SELECT_SOURCE = "TRANSLATION_SELECT_SOURCE"
 TRANSLATION_TYPE_CHOICES = (
     (MACHINE_GENERATED, "Machine Generated"),
     (UPDATED_MACHINE_GENERATED, "Updated Machine Generated"),
-    (MANUALLY_CREATED, "Manually Created")
+    (MANUALLY_CREATED, "Manually Created"),
 )
 
 TRANSLATION_STATUS = (
@@ -32,6 +32,7 @@ TRANSLATION_STATUS = (
     (TRANSLATION_REVIEW_INPROGRESS, "Translation Review In-progress"),
     (TRANSLATION_REVIEW_COMPLETE, "Translation Review Complete"),
 )
+
 
 class Translation(models.Model):
     """
@@ -74,9 +75,12 @@ class Translation(models.Model):
         on_delete=models.SET_NULL,
     )
     status = models.CharField(
-        choices=TRANSLATION_STATUS, verbose_name="Translation Status", max_length=35, default=None
+        choices=TRANSLATION_STATUS,
+        verbose_name="Translation Status",
+        max_length=35,
+        default=None,
     )
-    payload = models.JSONField(verbose_name="Translation Output")    
+    payload = models.JSONField(verbose_name="Translation Output")
     video = models.ForeignKey(
         Video,
         on_delete=models.CASCADE,

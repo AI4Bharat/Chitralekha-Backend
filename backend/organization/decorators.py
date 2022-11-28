@@ -7,9 +7,7 @@ PERMISSION_ERROR = {
     "message": "You do not have enough permissions to access this view!"
 }
 NO_ORGANIZATION_FOUND = {"message": "No matching organization found."}
-NO_ORGANIZATION_OWNER_ERROR = {
-    "message": "You do not belong to this organization!"
-}
+NO_ORGANIZATION_OWNER_ERROR = {"message": "You do not belong to this organization!"}
 
 # Allow view only if is a organization owner.
 # Allow view only if is a organization owner.
@@ -23,6 +21,7 @@ def is_organization_owner(f):
         return Response(PERMISSION_ERROR, status=403)
 
     return wrapper
+
 
 # Allow detail view only if user is a particular organization's owner.
 def is_particular_organization_owner(f):
@@ -42,4 +41,5 @@ def is_particular_organization_owner(f):
             return f(self, request, pk, *args, **kwargs)
         else:
             return Response(PERMISSION_ERROR, status=403)
+
     return wrapper
