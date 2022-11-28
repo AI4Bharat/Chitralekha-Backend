@@ -358,10 +358,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
             video_id = request.query_params.get("video_id", None)
 
             if video_id:
-                video = Video.objects.filter(id=video_id)
-                if video:
-                    video_name = video.name
-                    Src_lang = video.language
                 tasks = Task.objects.filter(video_id=video_id)
             else:
                 tasks = Task.objects.filter(video__project_id=pk)
