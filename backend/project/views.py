@@ -355,12 +355,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def list_project_tasks(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
-            video_id = request.query_params.get("video_id", None)
-
-            if video_id:
-                tasks = Task.objects.filter(video_id=video_id)
-            else:
-                tasks = Task.objects.filter(video__project_id=pk)
+            videos = Video.objects.filter(project_id=pk)
+            for video in videos:
+                tasks = Task.objects.filter(video_id__in=videos)
             serializer = TaskSerializer(tasks, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
