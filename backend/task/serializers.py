@@ -19,4 +19,7 @@ class TaskSerializer(ModelSerializer):
             "target_language",
             "status",
             "user",
+            "eta",
+            "priority",
+            "description",
         )

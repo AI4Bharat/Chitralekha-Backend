@@ -52,6 +52,13 @@ from project.models import Project
             required=True,
         ),
         openapi.Parameter(
+            "description",
+            openapi.IN_QUERY,
+            description=("A string to give description about video"),
+            type=openapi.TYPE_STRING,
+            required=False,
+        ),
+        openapi.Parameter(
             "is_audio_only",
             openapi.IN_QUERY,
             description=(
