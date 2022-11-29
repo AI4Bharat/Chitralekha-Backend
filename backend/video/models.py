@@ -28,7 +28,7 @@ class Video(models.Model):
         choices=LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language"
     )
     description = models.TextField(
-        max_length=1000, null=True, blank=True, help_text=("Project Description")
+        max_length=400, null=True, blank=True, help_text=("Video Description")
     )
     duration = models.DurationField(verbose_name="Video Duration")
     subtitles = models.JSONField(verbose_name="Subtitles", null=True, blank=True)

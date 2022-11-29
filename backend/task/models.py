@@ -81,9 +81,7 @@ class Task(models.Model):
     description = models.TextField(
         max_length=400, null=True, blank=True, help_text=("Task Description")
     )
-    eta = models.DateTimeField(
-        verbose_name="ETA", default=timezone.now, blank=True, null=True
-    )
+    eta = models.DateTimeField(verbose_name="ETA", default=None, blank=True, null=True)
     priority = models.CharField(
         choices=PRIORITY, verbose_name="Priority", max_length=2, blank=True
     )

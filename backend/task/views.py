@@ -499,7 +499,7 @@ class TaskViewSet(ModelViewSet):
             description="Post request body for selecting source",
         ),
         responses={
-            200: "Sripts created for selected types.",
+            200: "Scripts created for selected types.",
         },
     )
     @action(
@@ -508,7 +508,7 @@ class TaskViewSet(ModelViewSet):
         name="Compare Sources",
         url_name="compare_sources",
     )
-    def compare(self, request, pk=None):
+    def compare_sources(self, request, pk=None):
         list_compare_sources = request.data.get("list_compare_sources")
 
         try:
@@ -572,25 +572,15 @@ class TaskViewSet(ModelViewSet):
 
             response["payloads"] = payloads
             response["task_id"] = task.id
-            if len(list(response["payloads"].keys())) == 1:
-                transcript_type = list(response["payloads"].keys())[0]
-                transcript = generate_transcription(
-                    task.video,
-                    task.video.language,
-                    request.user,
-                    transcript_type,
-                    task,
-                    response["payloads"][transcript_type],
-                )
-                return Response(
-                    transcript,
-                    status=status.HTTP_200_OK,
-                )
-            else:
-                return Response(
-                    response,
-                    status=status.HTTP_200_OK,
-                )
+            return Response(
+                response,
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {"message": "User is not authorized to modify this task."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
     @swagger_auto_schema(
         method="post",
