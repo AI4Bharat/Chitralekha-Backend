@@ -3,6 +3,8 @@ from datetime import timedelta
 import requests
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from task.models import Task
+from task.serializers import TaskSerializer
 from mutagen.mp3 import MP3
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -11,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from transcript.models import ORIGINAL_SOURCE, Transcript
 from translation.models import Translation
-from project.decorators  import is_project_owner
+from project.decorators import is_project_owner
 from .models import Video
 from .serializers import VideoSerializer
 from .utils import (
@@ -47,9 +49,7 @@ from project.models import Project
         openapi.Parameter(
             "project_id",
             openapi.IN_QUERY,
-            description=(
-                "Id of the project to which this video belongs"
-            ),
+            description=("Id of the project to which this video belongs"),
             type=openapi.TYPE_INTEGER,
             required=True,
         ),
@@ -125,8 +125,13 @@ def get_video(request):
         # Create a new DB entry if URL does not exist, else return the existing entry
         video, created = Video.objects.get_or_create(
             url=url,
-            defaults={"name": title, "duration": duration, "project_id": project,
-                      "audio_only": is_audio_only, "language": lang},
+            defaults={
+                "name": title,
+                "duration": duration,
+                "project_id": project,
+                "audio_only": is_audio_only,
+                "language": lang,
+            },
         )
         if created:
             video.save()
@@ -157,8 +162,13 @@ def get_video(request):
     # Create a new DB entry if URL does not exist, else return the existing entry
     video, created = Video.objects.get_or_create(
         url=normalized_url,
-        defaults={"name": title, "duration": duration, "project_id": project,
-                  "audio_only": is_audio_only, "language": lang},
+        defaults={
+            "name": title,
+            "duration": duration,
+            "project_id": project,
+            "audio_only": is_audio_only,
+            "language": lang,
+        },
     )
     if created:
         video.save()
@@ -286,6 +296,57 @@ def list_recent(request):
 
     # Fetch and return the videos
     serializer = VideoSerializer(videos, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# add endpoint to get all tasks for a video
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "video_id",
+            openapi.IN_QUERY,
+            description=("The ID of the video"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
+    responses={200: "Return the video subtitle payload"},
+)
+@api_view(["GET"])
+def list_tasks(request):
+    """
+    API Endpoint to list the tasks for a video
+    Endpoint: /video/list_tasks/
+    Method: GET
+    """
+    # Get the video ID from the request
+    video_id = request.query_params.get("video_id", None)
+
+    # Check if the video ID is valid
+    if not video_id:
+        return Response(
+            {"error": "You must provide a video ID."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Get the video object from the DB
+    video = Video.objects.filter(id=video_id).first()
+
+    # Check if the video exists
+    if not video:
+        return Response(
+            {"error": "No video found for the provided ID."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Get the tasks for the video
+    tasks = Task.objects.filter(video=video)
+
+    # Return the tasks
+    serializer = TaskSerializer(tasks, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
