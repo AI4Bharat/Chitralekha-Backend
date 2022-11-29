@@ -185,7 +185,11 @@ def generate_transcription(video, lang, user, transcript_type, task, payload):
         status=status,
     )
     transcript_obj.save()
-    return {"transcript_id": transcript_obj.id, "data": transcript_obj.payload}
+    return {
+        "transcript_id": transcript_obj.id,
+        "data": transcript_obj.payload,
+        "task_id": task.id,
+    }
 
 
 @swagger_auto_schema(
