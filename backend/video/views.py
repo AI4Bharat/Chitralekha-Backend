@@ -3,6 +3,8 @@ from datetime import timedelta
 import requests
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from task.models import Task
+from task.serializers import TaskSerializer
 from mutagen.mp3 import MP3
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -301,6 +303,53 @@ def list_recent(request):
 
     # Fetch and return the videos
     serializer = VideoSerializer(videos, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "video_id",
+            openapi.IN_QUERY,
+            description=("The ID of the video"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
+    responses={200: "Return the video subtitle payload"},
+)
+@api_view(["GET"])
+def list_tasks(request):
+    """
+    API Endpoint to list the tasks for a video
+    Endpoint: /video/list_tasks/
+    Method: GET
+    """
+    # Get the video ID from the request
+    if "video_id" in dict(request.query_params):
+        video_id = request.query_params["video_id"]
+    else:
+        return Response(
+            {"error": "Please provide a video ID"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Get the video object from the DB
+    video = Video.objects.filter(id=video_id).first()
+
+    # Check if the video exists
+    if not video:
+        return Response(
+            {"error": "No video found for the provided ID."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Get the tasks for the video
+    tasks = Task.objects.filter(video=video)
+
+    # Return the tasks
+    serializer = TaskSerializer(tasks, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
