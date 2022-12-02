@@ -330,6 +330,18 @@ class UserViewSet(viewsets.ViewSet):
             )
 
 
+class RoleViewSet(viewsets.ViewSet):
+    permission_classes = (AllowAny,)
+
+    @action(detail=False, methods=["get"], url_path="get_roles")
+    def get_roles(self, request):
+        """
+        Get all choices of role.
+        """
+        data = [{"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES]
+        return Response(data, status=status.HTTP_200_OK)
+
+
 class LanguageViewSet(viewsets.ViewSet):
     permission_classes = (AllowAny,)
 

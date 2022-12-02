@@ -31,7 +31,7 @@ from .models import (
     PRIORITY,
 )
 
-from .serializers import TaskSerializer, TaskTypeSerializer, PrioritySerializer
+from .serializers import TaskSerializer
 from users.models import User
 from rest_framework.response import Response
 from functools import wraps
@@ -742,31 +742,24 @@ class TaskViewSet(ModelViewSet):
                 video, user, task_type, request, eta, priority, description
             )
 
-    @swagger_auto_schema(responses={200: TaskTypeSerializer})
     @action(detail=False, methods=["get"], url_path="get_task_types")
     def get_task_types(self, request):
         """
         Fetches all task types.
         """
-        serialized = TaskTypeSerializer(
-            data={"task_type": [task_type[0] for task_type in TASK_TYPE]}
-        )
-        if serialized.is_valid():
-            return Response(serialized.data, status=status.HTTP_200_OK)
-        return Response(serialized.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response = [
+            {"value": "TRANSLATION", "label": "Translation"},
+            {"value": "TRANSCRIPTION", "label": "Transcription"},
+        ]
+        return Response(response, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(responses={200: PrioritySerializer})
     @action(detail=False, methods=["get"], url_path="get_priority_types")
     def get_priority_types(self, request):
         """
         Fetches all priority types.
         """
-        serialized = PrioritySerializer(
-            data={"priority": [priority[0] for priority in PRIORITY]}
-        )
-        if serialized.is_valid():
-            return Response(serialized.data, status=status.HTTP_200_OK)
-        return Response(serialized.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        data = [{"label": priority[1], "value": priority[0]} for priority in PRIORITY]
+        return Response(data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         method="get",
@@ -794,6 +787,10 @@ class TaskViewSet(ModelViewSet):
     def get_allowed_task(self, request):
         video_id = request.query_params.get("video_id")
         type = request.query_params.get("type")
+        if type == "TRANSLATION":
+            label = "Translation"
+        else:
+            label = "Transcription"
         try:
             video = Video.objects.get(pk=video_id)
         except Video.DoesNotExist:
@@ -803,11 +800,11 @@ class TaskViewSet(ModelViewSet):
 
         task = Task.objects.filter(video=video)
         if task.first() is None:
-            response = "EDIT"
+            response = [{"value": type + "EDIT", "label": label + " Edit"}]
         elif task.filter(task_type=type + "_EDIT").first() is None:
-            response = "EDIT"
+            response = [{"value": type + "EDIT", "label": label + " Edit"}]
         elif task.filter(task_type=type + "_EDIT").first() is not None:
-            response = "REVIEW"
+            response = [{"value": type + "_REVIEW", "label": label + " Review"}]
         else:
             return Response(
                 {"message": "Bad request."}, status=status.HTTP_400_BAD_REQUEST

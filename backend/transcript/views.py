@@ -28,7 +28,7 @@ from .models import (
 )
 
 from .decorators import is_transcript_editor
-from .serializers import TranscriptSerializer, TranscriptTypeSerializer
+from .serializers import TranscriptSerializer
 from .utils.asr import get_asr_supported_languages, make_asr_api_call
 from users.models import User
 from rest_framework.response import Response
@@ -488,22 +488,16 @@ def get_supported_languages(request):
         )
 
 
-@swagger_auto_schema(method="get", responses={200: TranscriptTypeSerializer})
 @api_view(["GET"])
 def get_transcript_types(request):
     """
     Fetches all transcript types.
     """
-    serialized = TranscriptTypeSerializer(
-        data={
-            "transcript_type": [
-                transcript_type[0] for transcript_type in TRANSCRIPT_TYPE
-            ]
-        }
-    )
-    if serialized.is_valid():
-        return Response(serialized.data, status=status.HTTP_200_OK)
-    return Response(serialized.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    data = [
+        {"label": transcript_type[1], "value": transcript_type[0]}
+        for transcript_type in TRANSCRIPT_TYPE
+    ]
+    return Response(data, status=status.HTTP_200_OK)
 
 
 ## Define the Transcript ViewSet
