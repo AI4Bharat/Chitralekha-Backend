@@ -202,28 +202,46 @@ def get_transcript_id(task):
             transcript_id = -1
         if task.status == "SELECTED_SOURCE":
             transcript_id = (
-                transcript.filter(status="TRANSCRIPTION_SELECT_SOURCE").first().id
+                transcript.filter(video=task.video)
+                .filter(status="TRANSCRIPTION_SELECT_SOURCE")
+                .first()
+                .id
             )
         if task.status == "INPROGRESS":
             transcript_id = (
-                transcript.filter(status="TRANSCRIPTION_EDIT_INPROGRESS").first().id
+                transcript.filter(video=task.video)
+                .filter(status="TRANSCRIPTION_EDIT_INPROGRESS")
+                .first()
+                .id
             )
         if task.status == "COMPLETE":
             transcript_id = (
-                transcript.filter(status="TRANSCRIPTION_EDIT_COMPLETE").first().id
+                transcript.filter(video=task.video)
+                .filter(status="TRANSCRIPTION_EDIT_COMPLETE")
+                .first()
+                .id
             )
     else:
         if task.status == "NEW":
             transcript_id = (
-                transcript.filter(status="TRANSCRIPTION_REVIEWER_ASSIGNED").first().id
+                transcript.filter(video=task.video)
+                .filter(status="TRANSCRIPTION_REVIEWER_ASSIGNED")
+                .first()
+                .id
             )
         if task.status == "INPROGRESS":
             transcript_id = (
-                transcript.filter(status="TRANSCRIPTION_REVIEW_INPROGRESS").first().id
+                transcript.filter(video=task.video)
+                .filter(status="TRANSCRIPTION_REVIEW_INPROGRESS")
+                .first()
+                .id
             )
         if task.status == "COMPLETE":
             transcript_id = (
-                transcript.filter(status="TRANSCRIPTION_REVIEW_COMPLETE").first().id
+                transcript.filter(video=task.video)
+                .filter(status="TRANSCRIPTION_REVIEW_COMPLETE")
+                .first()
+                .id
             )
     return transcript_id
 

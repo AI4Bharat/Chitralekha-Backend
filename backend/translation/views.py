@@ -149,28 +149,52 @@ def get_translation_id(task):
             translation_id = -1
         if task.status == "SELECTED_SOURCE":
             translation_id = (
-                translation.filter(status="TRANSLATION_SELECT_SOURCE").first().id
+                translation.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .filter(status="TRANSLATION_SELECT_SOURCE")
+                .first()
+                .id
             )
         if task.status == "INPROGRESS":
             translation_id = (
-                translation.filter(status="TRANSLATION_EDIT_INPROGRESS").first().id
+                translation.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .filter(status="TRANSLATION_EDIT_INPROGRESS")
+                .first()
+                .id
             )
         if task.status == "COMPLETE":
             translation_id = (
-                translation.filter(status="TRANSLATION_EDIT_COMPLETE").first().id
+                translation.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .filter(status="TRANSLATION_EDIT_COMPLETE")
+                .first()
+                .id
             )
     else:
         if task.status == "NEW":
             translation_id = (
-                translation.filter(status="TRANSLATION_REVIEWER_ASSIGNED").first().id
+                translation.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .filter(status="TRANSLATION_REVIEWER_ASSIGNED")
+                .first()
+                .id
             )
         if task.status == "INPROGRESS":
             translation_id = (
-                translation.filter(status="TRANSLATION_REVIEW_INPROGRESS").first().id
+                translation.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .filter(status="TRANSLATION_REVIEW_INPROGRESS")
+                .first()
+                .id
             )
         if task.status == "COMPLETE":
             translation_id = (
-                translation.filter(status="TRANSLATION_REVIEW_COMPLETE").first().id
+                translation.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .filter(status="TRANSLATION_REVIEW_COMPLETE")
+                .first()
+                .id
             )
     return translation_id
 
