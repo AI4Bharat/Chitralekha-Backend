@@ -12,4 +12,9 @@ urlpatterns = [
         name="supported_languages",
     ),
     path("generate", views.generate_translation, name="generate_translation"),
+    path(
+        "get_translation_types/",
+        views.get_translation_types,
+        name="get_translation_types",
+    ),
 ]
