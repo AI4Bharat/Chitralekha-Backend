@@ -1,14 +1,18 @@
 import uuid
-from django.contrib.auth import get_user_model
 from django.db import models
 from transcript.models import Transcript
 from task.models import Task
 from .metadata import LANGUAGE_CHOICES
 from video.models import Video
+from users.models import User
+
 
 UPDATED_MACHINE_GENERATED = "UPDATED_MACHINE_GENERATED"
 MACHINE_GENERATED = "MACHINE_GENERATED"
 MANUALLY_CREATED = "MANUALLY_CREATED"
+UPDATED_MANUALLY_CREATED = "UPDATED_MANUALLY_CREATED"
+ORIGINAL_SOURCE = "ORIGINAL_SOURCE"
+UPDATED_ORIGINAL_SOURCE = "UPDATED_ORIGINAL_SOURCE"
 TRANSLATION_EDITOR_ASSIGNED = "TRANSLATION_EDITOR_ASSIGNED"
 TRANSLATION_EDIT_INPROGRESS = "TRANSLATION_EDIT_INPROGRESS"
 TRANSLATION_EDIT_COMPLETE = "TRANSLATION_EDIT_COMPLETE"
@@ -19,7 +23,7 @@ TRANSLATION_SELECT_SOURCE = "TRANSLATION_SELECT_SOURCE"
 
 TRANSLATION_TYPE_CHOICES = (
     (MACHINE_GENERATED, "Machine Generated"),
-    (UPDATED_MACHINE_GENERATED, "Updated Machine Generated"),
+    (ORIGINAL_SOURCE, "Original Source"),
     (MANUALLY_CREATED, "Manually Created"),
 )
 
@@ -68,7 +72,7 @@ class Translation(models.Model):
         choices=LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language"
     )
     user = models.ForeignKey(
-        get_user_model(),
+        User,
         verbose_name="Translator",
         null=True,
         blank=True,

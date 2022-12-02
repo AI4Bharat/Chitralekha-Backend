@@ -1,9 +1,10 @@
 import uuid
-from django.contrib.auth import get_user_model
 from django.db import models
 from translation.metadata import LANGUAGE_CHOICES
 from video.models import Video
 from task.models import Task
+from users.models import User
+
 
 ORIGINAL_SOURCE = "ORIGINAL_SOURCE"
 UPDATED_ORIGINAL_SOURCE = "UPDATED_ORIGINAL_SOURCE"
@@ -74,7 +75,7 @@ class Transcript(models.Model):
         verbose_name="Transcript Language",
     )
     user = models.ForeignKey(
-        get_user_model(),
+        User,
         verbose_name="Transcriptor",
         null=True,
         blank=True,

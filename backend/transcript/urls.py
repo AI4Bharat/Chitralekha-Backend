@@ -18,4 +18,9 @@ urlpatterns = [
         views.get_supported_languages,
         name="get_supported_languages",
     ),
+    path(
+        "get_transcript_types/",
+        views.get_transcript_types,
+        name="get_transcript_types",
+    ),
 ]

@@ -6,9 +6,12 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
 from task.models import Task
+from rest_framework.decorators import action
+
 
 from .models import (
     Transcript,
+    TRANSCRIPT_TYPE,
     ORIGINAL_SOURCE,
     UPDATED_ORIGINAL_SOURCE,
     MACHINE_GENERATED,
@@ -25,7 +28,7 @@ from .models import (
 )
 
 from .decorators import is_transcript_editor
-from .serializers import TranscriptSerializer
+from .serializers import TranscriptSerializer, TranscriptTypeSerializer
 from .utils.asr import get_asr_supported_languages, make_asr_api_call
 from users.models import User
 from rest_framework.response import Response
@@ -192,6 +195,57 @@ def generate_transcription(video, lang, user, transcript_type, task, payload):
     }
 
 
+def get_transcript_id(task):
+    transcript = Transcript.objects.filter(task=task)
+    if "EDIT" in task.task_type:
+        if task.status == "NEW":
+            transcript_id = -1
+        if task.status == "SELECTED_SOURCE":
+            transcript_id = (
+                transcript.filter(video=task.video)
+                .filter(status="TRANSCRIPTION_SELECT_SOURCE")
+                .first()
+                .id
+            )
+        if task.status == "INPROGRESS":
+            transcript_id = (
+                transcript.filter(video=task.video)
+                .filter(status="TRANSCRIPTION_EDIT_INPROGRESS")
+                .first()
+                .id
+            )
+        if task.status == "COMPLETE":
+            transcript_id = (
+                transcript.filter(video=task.video)
+                .filter(status="TRANSCRIPTION_EDIT_COMPLETE")
+                .first()
+                .id
+            )
+    else:
+        if task.status == "NEW":
+            transcript_id = (
+                transcript.filter(video=task.video)
+                .filter(status="TRANSCRIPTION_REVIEWER_ASSIGNED")
+                .first()
+                .id
+            )
+        if task.status == "INPROGRESS":
+            transcript_id = (
+                transcript.filter(video=task.video)
+                .filter(status="TRANSCRIPTION_REVIEW_INPROGRESS")
+                .first()
+                .id
+            )
+        if task.status == "COMPLETE":
+            transcript_id = (
+                transcript.filter(video=task.video)
+                .filter(status="TRANSCRIPTION_REVIEW_COMPLETE")
+                .first()
+                .id
+            )
+    return transcript_id
+
+
 @swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
@@ -233,31 +287,18 @@ def save_transcription(request):
     {
         "transcript_id": "",
         "payload": "",
-        "video_id": "",
         "task_id" : ""
     }
     """
-
     # Collect the request parameters
     try:
-        transcript_id = request.data["transcript_id"]
+        transcript_id = request.data.get("transcript_id", None)
         task_id = request.data["task_id"]
-        video_id = request.data["video_id"]
         payload = request.data["payload"]
     except KeyError:
         return Response(
-            {
-                "message": "Missing required parameters - language or payload or task_id or transcript_id"
-            },
+            {"message": "Missing required parameters - language or payload or task_id"},
             status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    try:
-        video = Video.objects.get(pk=video_id)
-    except Video.DoesNotExist:
-        return Response(
-            {"message": "Video doesn't exist."},
-            status=status.HTTP_404_NOT_FOUND,
         )
 
     try:
@@ -268,9 +309,12 @@ def save_transcription(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    if transcript_id is None:
+        transcript_id = get_transcript_id(task)
+
     # Retrieve the transcript object
     try:
-        transcript = Transcript.objects.filter(pk=transcript_id).first()
+        transcript = Transcript.objects.get(pk=transcript_id)
 
         # Check if the transcript has a user
         if transcript.user != request.user:
@@ -296,46 +340,119 @@ def save_transcription(request):
 
             if "EDIT" in task.task_type:
                 if request.data.get("final"):
+                    if (
+                        Transcript.objects.filter(status=TRANSCRIPTION_EDIT_COMPLETE)
+                        .filter(video=task.video)
+                        .first()
+                        is not None
+                    ):
+                        return Response(
+                            {"error": "Final Edited Transcript already submitted."},
+                            status=status.HTTP_201_CREATED,
+                        )
                     tc_status = TRANSCRIPTION_EDIT_COMPLETE
+                    transcript_type = updated_transcript_type
+                    transcript_obj = Transcript.objects.create(
+                        transcript_type=transcript_type,
+                        parent_transcript=transcript,
+                        video=transcript.video,
+                        language=transcript.language,
+                        payload=payload,
+                        user=request.user,
+                        task=task,
+                        status=tc_status,
+                    )
                     task.status = "COMPLETE"
                     task.save()
-                    transcript_type = updated_transcript_type
                 else:
+                    transcript_obj = (
+                        Transcript.objects.filter(status=TRANSCRIPTION_EDIT_INPROGRESS)
+                        .filter(video=task.video)
+                        .first()
+                    )
                     tc_status = TRANSCRIPTION_EDIT_INPROGRESS
-                    transcript_type = transcript.transcript_type
-
-                transcript_obj = Transcript(
-                    transcript_type=transcript_type,
-                    parent_transcript=transcript,
-                    video=video,
-                    language=transcript.language,
-                    payload=payload,
-                    user=request.user,
-                    task=task,
-                    status=tc_status,
-                )
+                    if transcript_obj is not None:
+                        transcript_obj.payload = payload
+                        transcript_obj.transcript_type = transcript_obj.transcript_type
+                        transcript_obj.save()
+                    else:
+                        transcript_obj = (
+                            Transcript.objects.filter(
+                                status=TRANSCRIPTION_SELECT_SOURCE
+                            )
+                            .filter(video=task.video)
+                            .first()
+                        )
+                        if transcript_obj is None:
+                            return Response(
+                                {"error": "Transcript object does not exist."},
+                                status=status.HTTP_404_NOT_FOUND,
+                            )
+                        transcript_obj = Transcript.objects.create(
+                            transcript_type=transcript_obj.transcript_type,
+                            parent_transcript=transcript_obj,
+                            video=task.video,
+                            language=transcript_obj.language,
+                            payload=payload,
+                            user=request.user,
+                            task=task,
+                            status=tc_status,
+                        )
+                        task.status = "INPROGRESS"
+                        task.save()
             else:
                 if request.data.get("final"):
-                    tc_status = TRANSCRIPTION_REVIEW_COMPLETE
-                    task.status = "COMPLETE"
-                    task.save()
-                    transcript_type = updated_transcript_type
+                    if (
+                        Transcript.objects.filter(status=TRANSCRIPTION_REVIEW_COMPLETE)
+                        .filter(video=task.video)
+                        .first()
+                    ):
+                        return Response(
+                            {"error": "Reviewed Transcription already exists."},
+                            status=status.HTTP_201_CREATED,
+                        )
+                    else:
+                        tc_status = TRANSCRIPTION_REVIEW_COMPLETE
+                        transcript_type = updated_transcript_type
+                        transcript_obj = Transcript.objects.create(
+                            transcript_type=transcript_type,
+                            parent_transcript=transcript,
+                            video=transcript.video,
+                            language=transcript.language,
+                            payload=payload,
+                            user=request.user,
+                            task=task,
+                            status=tc_status,
+                        )
+                        task.status = "COMPLETE"
+                        task.save()
                 else:
                     tc_status = TRANSCRIPTION_REVIEW_INPROGRESS
                     transcript_type = transcript.transcript_type
-
-                transcript_obj = Transcript(
-                    transcript_type=transcript_type,
-                    parent_transcript=transcript,
-                    video=video,
-                    language=transcript.language,
-                    payload=payload,
-                    user=request.user,
-                    task=task,
-                    status=tc_status,
-                )
-            # Save the updated transcript object
-            transcript_obj.save()
+                    transcript_obj = (
+                        Transcript.objects.filter(
+                            status=TRANSCRIPTION_REVIEW_INPROGRESS
+                        )
+                        .filter(video=task.video)
+                        .first()
+                    )
+                    if transcript_obj is not None:
+                        transcript_obj.payload = payload
+                        transcript_obj.transcript_type = transcript_type
+                        transcript_obj.save()
+                    else:
+                        transcript_obj = Transcript.objects.create(
+                            transcript_type=transcript_type,
+                            parent_transcript=transcript,
+                            video=transcript.video,
+                            language=transcript.language,
+                            payload=payload,
+                            user=request.user,
+                            task=task,
+                            status=tc_status,
+                        )
+                        task.status = "INPROGRESS"
+                        task.save()
 
             return Response(
                 {
@@ -369,6 +486,24 @@ def get_supported_languages(request):
             {"message": "Error while calling ASR API"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@swagger_auto_schema(method="get", responses={200: TranscriptTypeSerializer})
+@api_view(["GET"])
+def get_transcript_types(request):
+    """
+    Fetches all transcript types.
+    """
+    serialized = TranscriptTypeSerializer(
+        data={
+            "transcript_type": [
+                transcript_type[0] for transcript_type in TRANSCRIPT_TYPE
+            ]
+        }
+    )
+    if serialized.is_valid():
+        return Response(serialized.data, status=status.HTTP_200_OK)
+    return Response(serialized.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 ## Define the Transcript ViewSet

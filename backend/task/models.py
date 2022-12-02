@@ -1,19 +1,18 @@
 import uuid
-from django.contrib.auth import get_user_model
 from django.db import models
 from translation.metadata import LANGUAGE_CHOICES
 from video.models import Video
 from django.conf import settings
 import datetime
 from django.utils import timezone
+from users.models import User
 
-TRANSCRIPTION_SELECT_SOURCE = "TRANSCRIPTION_SELECT_SOURCE"
 TRANSCRIPTION_EDIT = "TRANSCRIPTION_EDIT"
 TRANSCRIPTION_REVIEW = "TRANSCRIPTION_REVIEW"
-TRANSLATION_SELECT_SOURCE = "TRANSLATION_SELECT_SOURCE"
 TRANSLATION_EDIT = "TRANSLATION_EDIT"
 TRANSLATION_REVIEW = "TRANSLATION_REVIEW"
 NEW = "NEW"
+SELECTED_SOURCE = "SELECTED_SOURCE"
 INPROGRESS = "INPROGRESS"
 COMPLETE = "COMPLETE"
 P1 = "P1"
@@ -23,6 +22,7 @@ P4 = "P4"
 
 TASK_STATUS = (
     (NEW, "NEW"),
+    (SELECTED_SOURCE, "SELECTED_SOURCE"),
     (INPROGRESS, "INPROGRESS"),
     (COMPLETE, "COMPLETE"),
 )
@@ -32,8 +32,6 @@ TASK_TYPE = (
     (TRANSCRIPTION_REVIEW, "Transcription Review"),
     (TRANSLATION_EDIT, "Translation Edit"),
     (TRANSLATION_REVIEW, "Translation Review"),
-    (TRANSCRIPTION_SELECT_SOURCE, "Transcription Select Source"),
-    (TRANSLATION_SELECT_SOURCE, "Translation Select Source"),
 )
 
 PRIORITY = (
@@ -69,12 +67,13 @@ class Task(models.Model):
         verbose_name="Target Language",
         blank=True,
     )
+    verified_transcript = models.BooleanField(null=True, blank=True)
     status = models.CharField(
         choices=TASK_STATUS, verbose_name="Task Status", max_length=35, default=None
     )
 
     user = models.ForeignKey(
-        get_user_model(),
+        User,
         verbose_name="Task Assignee",
         on_delete=models.CASCADE,
     )

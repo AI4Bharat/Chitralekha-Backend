@@ -1,9 +1,12 @@
-from rest_framework.serializers import ModelSerializer
-
+from rest_framework import serializers
 from .models import Transcript
 
 
-class TranscriptSerializer(ModelSerializer):
+class TranscriptTypeSerializer(serializers.Serializer):
+    transcript_type = serializers.ListField(child=serializers.CharField())
+
+
+class TranscriptSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transcript
         fields = "__all__"

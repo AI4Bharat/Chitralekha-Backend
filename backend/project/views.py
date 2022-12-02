@@ -15,6 +15,7 @@ from task.models import Task
 from task.serializers import TaskSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from django.db.models import Q
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -394,6 +395,19 @@ class ProjectViewSet(viewsets.ModelViewSet):
         """
         return super().delete(request, *args, **kwargs)
 
+    @swagger_auto_schema(
+        method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "task_id",
+                openapi.IN_QUERY,
+                description=("An integer to identify the task"),
+                type=openapi.TYPE_INTEGER,
+                required=False,
+            ),
+        ],
+        responses={200: "Get members of a project"},
+    )
     @action(
         detail=True, methods=["GET"], name="Get Project members", url_name="members"
     )
@@ -406,4 +420,21 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
         users = project.members.all()
         serializer = UserFetchSerializer(users, many=True)
+
+        if "task_id" in request.query_params:
+            try:
+                task = Task.objects.get(pk=request.query_params["task_id"])
+                if "TRANSCRIPT" in task.task_type:
+                    users = project.members.all()
+                    user_by_roles = users.filter(
+                        Q(role__gte=5) | Q(role=1) | Q(role=2) | Q(is_superuser=True)
+                    )
+                else:
+                    users = project.members.all()
+                    user_by_roles = users.filter(Q(role__gte=3) | Q(is_superuser=True))
+                serializer = UserFetchSerializer(user_by_roles, many=True)
+            except Task.DoesNotExist:
+                return Response(
+                    {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
+                )
         return Response(serializer.data)
