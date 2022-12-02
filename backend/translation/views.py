@@ -33,7 +33,7 @@ from .models import (
 )
 
 from .decorators import is_translation_editor
-from .serializers import TranslationSerializer, TranslationTypeSerializer
+from .serializers import TranslationSerializer
 from .utils import get_batch_translations_using_indictrans_nmt_api
 
 
@@ -580,19 +580,13 @@ def generate_translation(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@swagger_auto_schema(method="get", responses={200: TranslationTypeSerializer})
 @api_view(["GET"])
 def get_translation_types(request):
     """
-    Fetches all transcript types.
+    Fetches all translation types.
     """
-    serialized = TranslationTypeSerializer(
-        data={
-            "translation_type": [
-                translation_type[0] for translation_type in TRANSLATION_TYPE_CHOICES
-            ]
-        }
-    )
-    if serialized.is_valid():
-        return Response(serialized.data, status=status.HTTP_200_OK)
-    return Response(serialized.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    data = [
+        {"label": translation_type[1], "value": translation_type[0]}
+        for translation_type in TRANSLATION_TYPE_CHOICES
+    ]
+    return Response(data, status=status.HTTP_200_OK)
