@@ -12,6 +12,7 @@ from users.models import User
 from transcript.utils.asr import get_asr_supported_languages, make_asr_api_call
 from transcript.models import Transcript
 from translation.models import Translation
+from translation.utils import get_batch_translations_using_indictrans_nmt_api
 from video.utils import get_subtitles_from_google_video
 from rest_framework.permissions import IsAuthenticated
 import webvtt
@@ -400,8 +401,8 @@ class TaskViewSet(ModelViewSet):
     def translation_mg(self, transcript, target_language, batch_size=75):
         sentence_list = []
         vtt_output = transcript.payload
-        for vtt_line in webvtt.read_buffer(StringIO(vtt_output)):
-            sentence_list.append(vtt_line.text)
+        for vtt_line in vtt_output["payload"]:
+            sentence_list.append(vtt_line["text"])
 
         all_translated_sentences = []  # List to store all the translated sentences
 
@@ -434,10 +435,16 @@ class TaskViewSet(ModelViewSet):
 
         # Update the translation payload with the generated translations
         payload = []
-        for (source, target) in zip(sentence_list, all_translated_sentences):
+        for (source, target) in zip(vtt_output["payload"], all_translated_sentences):
             payload.append(
-                {"source": source, "target": target if source.strip() else source}
+                {
+                    "start_time": source["start_time"],
+                    "end_time": source["end_time"],
+                    "text": source["text"],
+                    "target_text": target if source["text"].strip() else source["text"],
+                }
             )
+        return json.loads(json.dumps({"payload": payload}))
 
     @swagger_auto_schema(
         method="post",
@@ -464,7 +471,6 @@ class TaskViewSet(ModelViewSet):
     )
     def compare_sources(self, request, pk=None):
         list_compare_sources = request.data.get("list_compare_sources")
-        verified_transcript = request.data.get("verified_transcript", False)
 
         try:
             task = Task.objects.get(pk=pk)
@@ -513,6 +519,7 @@ class TaskViewSet(ModelViewSet):
                     )
             else:
                 target_language = task.target_language
+                verified_transcript = task.verified_transcript
                 if target_language is None:
                     return Response(
                         {
@@ -520,9 +527,11 @@ class TaskViewSet(ModelViewSet):
                         },
                         status=status.HTTP_400_BAD_REQUEST,
                     )
+
                 response_transcript = self.check_transcript_exists(
                     task.video, verified_transcript
                 )
+
                 if type(response_transcript) == dict:
                     return Response(
                         {"message": response_transcript["message"]},
@@ -530,6 +539,7 @@ class TaskViewSet(ModelViewSet):
                     )
                 else:
                     transcript = response_transcript
+
                 response["transcript_id"] = transcript.id
                 if "MACHINE_GENERATED" in list_compare_sources:
                     translation_machine_generated = self.translation_mg(
@@ -537,14 +547,6 @@ class TaskViewSet(ModelViewSet):
                     )
                     payloads["MACHINE_GENERATED"] = translation_machine_generated
 
-                if "ORIGINAL_SOURCE" in list_compare_sources:
-                    (
-                        subtitle_payload,
-                        is_machine_generated,
-                    ) = get_subtitles_from_google_video(task.video.url, target_language)
-
-                    if subtitle_payload is not None:
-                        payloads["ORIGINAL_SOURCE"] = subtitle_payload
                 if "MANUALLY_CREATED" in list_compare_sources:
                     payloads["MANUALLY_CREATED"] = request.data.get("payload", "")
 
@@ -676,7 +678,7 @@ class TaskViewSet(ModelViewSet):
             else:
                 return Response(
                     {
-                        "message": "Source has already been selected for this transcript."
+                        "message": "Source has already been selected for this translation."
                     },
                     status=status.HTTP_201_CREATED,
                 )
