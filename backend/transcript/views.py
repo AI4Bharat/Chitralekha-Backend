@@ -479,7 +479,11 @@ def get_supported_languages(request):
     # Make a call to the FASTAPI endpoint to get the list of supported languages
     try:
         return Response(
-            {"data": get_asr_supported_languages()}, status=status.HTTP_200_OK
+            [
+                {"label": label, "value": value}
+                for label, value in get_asr_supported_languages().items()
+            ],
+            status=status.HTTP_200_OK,
         )
     except Exception:
         return Response(
