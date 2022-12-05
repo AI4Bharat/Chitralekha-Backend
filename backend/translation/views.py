@@ -16,8 +16,6 @@ from rest_framework.decorators import action
 from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES
 from .models import (
     Translation,
-    ORIGINAL_SOURCE,
-    UPDATED_ORIGINAL_SOURCE,
     MACHINE_GENERATED,
     UPDATED_MACHINE_GENERATED,
     MANUALLY_CREATED,
@@ -276,9 +274,7 @@ def save_translation(request):
                     status=status.HTTP_201_CREATED,
                 )
 
-            if translation.translation_type == ORIGINAL_SOURCE:
-                updated_translation_type = UPDATED_ORIGINAL_SOURCE
-            elif translation.translation_type == MACHINE_GENERATED:
+            if translation.translation_type == MACHINE_GENERATED:
                 updated_translation_type = UPDATED_MACHINE_GENERATED
             else:
                 updated_translation_type = UPDATED_MANUALLY_CREATED

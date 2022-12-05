@@ -399,10 +399,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
         method="get",
         manual_parameters=[
             openapi.Parameter(
-                "task_id",
+                "task_type",
                 openapi.IN_QUERY,
                 description=("An integer to identify the task"),
-                type=openapi.TYPE_INTEGER,
+                type=openapi.TYPE_STRING,
                 required=False,
             ),
         ],
@@ -421,17 +421,22 @@ class ProjectViewSet(viewsets.ModelViewSet):
         users = project.members.all()
         serializer = UserFetchSerializer(users, many=True)
 
-        if "task_id" in request.query_params:
+        if "task_type" in request.query_params:
+            task_type = request.query_params["task_type"]
             try:
-                task = Task.objects.get(pk=request.query_params["task_id"])
-                if "TRANSCRIPT" in task.task_type:
-                    users = project.members.all()
+                users = project.members.all()
+                if task_type == "TRANSCRIPTION_EDIT":
                     user_by_roles = users.filter(
                         Q(role__gte=5) | Q(role=1) | Q(role=2) | Q(is_superuser=True)
                     )
-                else:
-                    users = project.members.all()
+                elif task_type == "TRANSCRIPTION_REVIEW":
+                    user_by_roles = users.filter(
+                        Q(role__gte=5) | Q(role=2) | Q(is_superuser=True)
+                    )
+                elif task_type == "TRANSLATION_EDIT":
                     user_by_roles = users.filter(Q(role__gte=3) | Q(is_superuser=True))
+                else:
+                    user_by_roles = users.filter(Q(role__gte=4) | Q(is_superuser=True))
                 serializer = UserFetchSerializer(user_by_roles, many=True)
             except Task.DoesNotExist:
                 return Response(

@@ -800,11 +800,11 @@ class TaskViewSet(ModelViewSet):
 
         task = Task.objects.filter(video=video)
         if task.first() is None:
-            response = [{"value": type + "EDIT", "label": label + " Edit"}]
+            response = [{"value": type + "_EDIT", "label": "Edit"}]
         elif task.filter(task_type=type + "_EDIT").first() is None:
-            response = [{"value": type + "EDIT", "label": label + " Edit"}]
+            response = [{"value": type + "_EDIT", "label": "Edit"}]
         elif task.filter(task_type=type + "_EDIT").first() is not None:
-            response = [{"value": type + "_REVIEW", "label": label + " Review"}]
+            response = [{"value": type + "_REVIEW", "label": "Review"}]
         else:
             return Response(
                 {"message": "Bad request."}, status=status.HTTP_400_BAD_REQUEST
