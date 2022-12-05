@@ -329,7 +329,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="List Project Videos",
         url_name="list_project_videos",
     )
-    @is_project_owner
     def list_project_videos(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
@@ -352,7 +351,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="List Project Task",
         url_name="list_project_Task",
     )
-    @is_project_owner
     def list_project_tasks(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)

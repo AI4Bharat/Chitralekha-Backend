@@ -2,6 +2,8 @@ from users.models import User
 from rest_framework.response import Response
 from .models import Organization
 from functools import wraps
+from rest_framework import status
+
 
 PERMISSION_ERROR = {
     "message": "You do not have enough permissions to access this view!"
@@ -17,6 +19,6 @@ def is_project_owner(f):
             or request.user.is_superuser
         ):
             return f(self, request, *args, **kwargs)
-        return Response(self, PERMISSION_ERROR, status=403)
+        return Response(PERMISSION_ERROR, status=status.HTTP_403_FORBIDDEN)
 
     return wrapper

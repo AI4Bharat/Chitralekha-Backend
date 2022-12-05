@@ -687,6 +687,7 @@ class TaskViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @is_project_owner
     def create(self, request, pk=None, *args, **kwargs):
         task_type = request.data.get("task_type")
         user_id = request.data.get("user_id")
