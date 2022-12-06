@@ -247,15 +247,59 @@ def get_transcript_id(task):
 
 
 @swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the task id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
+    responses={200: "Returns the initial transcription after source is selected."},
+)
+@api_view(["GET"])
+def get_payload(request):
+    try:
+        task_id = request.query_params["task_id"]
+    except KeyError:
+        return Response(
+            {"message": "Missing required parameters - task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    transcript_id = get_transcript_id(task)
+
+    # Retrieve the transcript object
+    try:
+        transcript = Transcript.objects.get(pk=transcript_id)
+    except Transcript.DoesNotExist:
+        return Response(
+            {"message": "Transcript doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    return Response(
+        {"payload": transcript.payload},
+        status=status.HTTP_200_OK,
+    )
+
+
+@swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        required=["payload", "task_id", "transcript_id", "video_id"],
+        required=["payload", "task_id"],
         properties={
-            "transcript_id": openapi.Schema(
-                type=openapi.TYPE_STRING,
-                description="A uuid string identifying the transcript instance",
-            ),
             "task_id": openapi.Schema(
                 type=openapi.TYPE_INTEGER,
                 description="An integer identifying the task instance",
@@ -263,10 +307,6 @@ def get_transcript_id(task):
             "payload": openapi.Schema(
                 type=openapi.TYPE_STRING,
                 description="A string to pass the transcript data",
-            ),
-            "video_id": openapi.Schema(
-                type=openapi.TYPE_INTEGER,
-                description="An integer to pass the video ID",
             ),
             "final": openapi.Schema(
                 type=openapi.TYPE_BOOLEAN,

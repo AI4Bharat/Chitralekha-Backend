@@ -201,23 +201,15 @@ def get_translation_id(task):
     method="post",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        required=["target_language", "payload"],
+        required=["task_id", "payload"],
         properties={
-            "translation_id": openapi.Schema(
+            "task_id": openapi.Schema(
                 type=openapi.TYPE_STRING,
                 description="An integer identifying the translation instance",
-            ),
-            "target_language": openapi.Schema(
-                type=openapi.TYPE_STRING,
-                description="A string to pass the target language of the translation",
             ),
             "payload": openapi.Schema(
                 type=openapi.TYPE_STRING,
                 description="A string to pass the translated subtitles and metadata",
-            ),
-            "transcript_id": openapi.Schema(
-                type=openapi.TYPE_STRING,
-                description="A string to pass the transcript uuid",
             ),
         },
         description="Post request body",
