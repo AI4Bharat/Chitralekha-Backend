@@ -87,7 +87,7 @@ def align_json(align_data: ExtendedAudioAlign) -> dict:
 
     aligned_json = {}
 
-    for idx, sub in tqdm(enumerate(srt_json), leave=False):
+    for idx, sub in tqdm(enumerate(srt_json), leave=False, total=len(srt_json)):
 
         text = sub["text"]
         alignment = {}

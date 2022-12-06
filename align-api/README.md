@@ -126,7 +126,7 @@ python srt_align.py
 ```
 uvicorn main:app --host=0.0.0.0 --port=8000
 python align_json.py https://www.youtube.com/watch\?v\=4DwfmwZe_jo data/tic_tac_learn.json en
-python align_json.py https://www.youtube.com/watch\?v\=N2PpRnFqnqY data/tic_tac_learn.json en
+python align_json.py https://www.youtube.com/watch\?v\=N2PpRnFqnqY data/khan_academy.json en
 ```
 If everything was up and running you should have received the response with word level alignment. 
 
