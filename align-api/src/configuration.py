@@ -5,7 +5,7 @@ from dataclasses import dataclass
 class ModelPath:
     wav2vec2_path: str = "models/wav2vec2/indic"
     language_codes = ["en"]  # add language codes which need to be loaded
-    device = "cuda"  # cuda or cpu
+    device = "cpu"  # cuda or cpu
 
 
 @dataclass(order=True)

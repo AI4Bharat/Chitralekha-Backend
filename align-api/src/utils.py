@@ -5,6 +5,8 @@ from pydub import AudioSegment
 from rich.console import Console
 from rich.traceback import install
 import srt
+import io
+import re
 
 install()
 console = Console()
@@ -73,7 +75,7 @@ class SubtitleTimestamps:
 def filter_text(text, language):
 
     factory = IndicNormalizerFactory()
-    cleaned_text = re.sub("[%s]" % re.escape(string.punctuation + "।"), "", text)
+    cleaned_text = re.sub("[%s]" % re.escape(string.punctuation + "।" + "-"), "", text)
 
     if language == "en":
         words = cleaned_text.split()
@@ -86,3 +88,47 @@ def filter_text(text, language):
     else:
         normalizer = factory.get_normalizer(language, remove_nuktas=False)
         return normalizer.normalize(cleaned_text)
+
+
+def wav_from_buffer(audio):
+    buffer = io.BytesIO()
+    audio.stream_to_buffer(buffer)
+    buffer.seek(0)
+    audio_data = buffer.read()
+    wav = (
+        AudioSegment.from_file(io.BytesIO(audio_data))
+        .set_channels(1)
+        .set_frame_rate(16000)
+    )
+    return wav
+
+
+class SubtitleJson:
+    def extract_time(start, end):
+        def convert_hhmmssms_to_s(time):
+            seconds = sum(
+                float(x) * 60**i for i, x in enumerate(reversed(time.split(":")))
+            )
+            return seconds
+
+        return convert_hhmmssms_to_s(start), convert_hhmmssms_to_s(end)
+
+    def clip_audio(wav, start, end):
+        return wav[start * 1000 : end * 1000]
+    
+    def adjust_alignment(data, language):
+
+        if language == "en":
+            for d, k in data.items():
+                words = k["text"].split()
+                for i in range(len(words)):
+                    if k["timestamps"] != None:
+                        old_key = list(k["timestamps"][i].keys())[0]
+
+                        if old_key != words[i]:
+                            k["timestamps"][i][words[i]] = k["timestamps"][i][old_key]
+                            del k["timestamps"][i][old_key]
+            return data
+
+        else:
+            return data

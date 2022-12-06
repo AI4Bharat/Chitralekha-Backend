@@ -3,6 +3,7 @@
 ```
 conda create -n alignment python=3.10
 conda activate alignment
+python -m pip install --upgrade pytube
 pip install torch torchvision torchaudio
 git clone https://github.com/agupta54/fairseq-align.git
 cd fairseq-align
@@ -111,7 +112,7 @@ python infer.py -w data/sample.wav -t "क्या सेंट मैरीस
   ]
 }
 ```
-API documentation can be accessed at http://0.0.0.0:8000/docs once the server has successfully started.
+API documentation can be accessed at http://0.0.0.0:8000/redoc once the server has successfully started.
 
 ## Align subtitle files
 
@@ -120,3 +121,12 @@ Modify `wav_path`, `srt_path` and `language` in `configuration.py`. Make sure yo
 ```{bash}
 python srt_align.py
 ```
+## Align with json files
+
+```
+uvicorn main:app --host=0.0.0.0 --port=8000
+python align_json.py https://www.youtube.com/watch\?v\=4DwfmwZe_jo data/tic_tac_learn.json en
+python align_json.py https://www.youtube.com/watch\?v\=N2PpRnFqnqY data/tic_tac_learn.json en
+```
+If everything was up and running you should have received the response with word level alignment. 
+

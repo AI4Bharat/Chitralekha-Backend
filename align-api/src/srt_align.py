@@ -26,7 +26,7 @@ def align_subtitle(subtitle_utils: SubtitleTimestamps) -> dict:
         if sub.content == "[Music]":
             alignment["text"] = sub.content
             alignment["timestamps"] = None
-            aligned_srt[sub.index] = alignment
+            aligned_srt[str(sub.index)] = alignment
             continue
 
         start, end = subtitle_utils.segment_start_end_times_seconds(sub)
