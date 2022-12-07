@@ -17,4 +17,9 @@ urlpatterns = [
         views.get_translation_types,
         name="get_translation_types",
     ),
+    path(
+        "get_payload/",
+        views.get_payload,
+        name="get_payload",
+    ),
 ]

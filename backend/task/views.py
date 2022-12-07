@@ -817,7 +817,7 @@ class TaskViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @action(detail=False, methods=["get"], url_path="get_allowed_task")
+    @action(detail=False, methods=["get"], url_path="get_task_status")
     def get_task_status(self, request, pk=None):
         try:
             task = Video.objects.get(pk=pk)
