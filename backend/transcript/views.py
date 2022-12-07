@@ -305,7 +305,7 @@ def get_payload(request):
                 description="An integer identifying the task instance",
             ),
             "payload": openapi.Schema(
-                type=openapi.TYPE_STRING,
+                type=openapi.TYPE_OBJECT,
                 description="A string to pass the transcript data",
             ),
             "final": openapi.Schema(
@@ -494,14 +494,25 @@ def save_transcription(request):
                         task.status = "INPROGRESS"
                         task.save()
 
-            return Response(
-                {
-                    "task_id": task_id,
-                    "transcript_id": transcript_obj.id,
-                    "data": transcript_obj.payload,
-                },
-                status=status.HTTP_200_OK,
-            )
+            if request.data.get("final"):
+                return Response(
+                    {
+                        "task_id": task_id,
+                        "transcript_id": transcript_obj.id,
+                        "data": transcript_obj.payload,
+                        "message": "Transcript is submitted.",
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            else:
+                return Response(
+                    {
+                        "task_id": task_id,
+                        "transcript_id": transcript_obj.id,
+                        "data": transcript_obj.payload,
+                    },
+                    status=status.HTTP_200_OK,
+                )
 
     except Transcript.DoesNotExist:
         return Response(

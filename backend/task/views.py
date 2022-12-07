@@ -156,28 +156,23 @@ class TaskViewSet(ModelViewSet):
                 }
         return {}
 
-    def check_transcript_exists(self, video, verified_transcript):
+    def check_transcript_exists(self, video):
         transcript = Transcript.objects.filter(video=video)
 
-        if not verified_transcript:
-            if transcript.filter(status="TRANSCRIPTION_EDIT_COMPLETE").first() is None:
-                return {
-                    "message": "Transcript doesn't exist for this video.",
-                    "status": status.HTTP_400_BAD_REQUEST,
-                }
-            else:
-                return transcript.filter(status="TRANSCRIPTION_EDIT_COMPLETE").first()
+        if (
+            transcript.filter(status="TRANSCRIPTION_REVIEW_COMPLETE").first()
+            is not None
+        ):
+            return True
+        elif (
+            transcript.filter(status="TRANSCRIPTION_EDIT_COMPLETE").first() is not None
+        ):
+            return False
         else:
-            if (
-                transcript.filter(status="TRANSCRIPTION_REVIEW_COMPLETE").first()
-                is None
-            ):
-                return {
-                    "message": "Reviewed Transcript doesn't exist for this video.",
-                    "status": status.HTTP_400_BAD_REQUEST,
-                }
-            else:
-                return transcript.filter(status="TRANSCRIPTION_REVIEW_COMPLETE").first()
+            return {
+                "message": "Transcript doesn't exist for this video.",
+                "status": status.HTTP_400_BAD_REQUEST,
+            }
 
     def create_translation_task(
         self,
@@ -197,14 +192,6 @@ class TaskViewSet(ModelViewSet):
         if len(response) > 0:
             return Response({"message": response["message"]}, status=response["status"])
 
-        response_transcript = self.check_transcript_exists(video, verified_transcript)
-        if type(response_transcript) == dict:
-            return Response(
-                {"message": response_transcript["message"]},
-                status=response_transcript["status"],
-            )
-        else:
-            transcript_obj = response_transcript
         if "EDIT" in task_type:
             permitted = self.has_translate_edit_permission(user, video)
         else:
@@ -218,6 +205,15 @@ class TaskViewSet(ModelViewSet):
                     .filter(status="TRANSLATION_SELECT_SOURCE")
                     .first()
                 )
+
+                response_transcript = self.check_transcript_exists(video)
+                if type(response_transcript) == dict:
+                    return Response(
+                        {"message": response_transcript["message"]},
+                        status=response_transcript["status"],
+                    )
+                else:
+                    verified_transcript = response_transcript
 
                 if translation is None:
                     new_task = Task(
@@ -260,14 +256,13 @@ class TaskViewSet(ModelViewSet):
                         eta=eta,
                         description=description,
                         priority=priority,
-                        # verified_transcript=verified_transcript,
                     )
                     new_task.save()
 
                     translate_obj = Translation(
                         video=video,
                         user=user,
-                        transcript=transcript_obj,
+                        transcript=translation.transcript,
                         parent=translation,
                         payload=translation.payload,
                         target_language=lang,
@@ -281,6 +276,7 @@ class TaskViewSet(ModelViewSet):
                         "translation_id": translate_obj.id,
                         "data": translate_obj.payload,
                     }
+            response["message"] = "Translation task is created"
             return Response(
                 response,
                 status=status.HTTP_200_OK,
@@ -371,6 +367,7 @@ class TaskViewSet(ModelViewSet):
                         "data": transcript_obj.payload,
                     }
 
+            response["message"] = "Transcript task is created"
             return Response(
                 response,
                 status=status.HTTP_200_OK,
@@ -397,6 +394,21 @@ class TaskViewSet(ModelViewSet):
             )
 
         return json.loads(json.dumps({"payload": sentences_list}))
+
+    def get_transcript(self, video, verified_transcript):
+        if verified_transcript:
+            transcript = (
+                Transcript.objects.filter(video=video)
+                .filter(status="TRANSCRIPTION_REVIEW_COMPLETE")
+                .first()
+            )
+        else:
+            transcript = (
+                Transcript.objects.filter(video=video)
+                .filter(status="TRANSCRIPTION_EDIT_COMPLETE")
+                .first()
+            )
+        return transcript
 
     def translation_mg(self, transcript, target_language, batch_size=75):
         sentence_list = []
@@ -528,17 +540,13 @@ class TaskViewSet(ModelViewSet):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-                response_transcript = self.check_transcript_exists(
-                    task.video, verified_transcript
-                )
+                transcript = self.get_transcript(task.video, task.verified_transcript)
 
-                if type(response_transcript) == dict:
+                if transcript is None:
                     return Response(
-                        {"message": response_transcript["message"]},
-                        status=response_transcript["status"],
+                        {"message": "Transcript doesn't exist for this video."},
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
-                else:
-                    transcript = response_transcript
 
                 response["transcript_id"] = transcript.id
                 if "MACHINE_GENERATED" in list_compare_sources:
@@ -552,6 +560,7 @@ class TaskViewSet(ModelViewSet):
 
             response["payloads"] = payloads
             response["task_id"] = task.id
+            response["message"] = "Payloads are generated for selected option."
             return Response(
                 response,
                 status=status.HTTP_200_OK,
@@ -573,7 +582,7 @@ class TaskViewSet(ModelViewSet):
                     description="Type of transcript/translation",
                 ),
                 "payload": openapi.Schema(
-                    type=openapi.TYPE_STRING,
+                    type=openapi.TYPE_OBJECT,
                     description="payload",
                 ),
             },
@@ -632,38 +641,13 @@ class TaskViewSet(ModelViewSet):
                 )
         else:
             target_language = task.target_language
-            if task.verified_transcript:
-                transcript_status = "TRANSCRIPTION_REVIEW_COMPLETE"
-            else:
-                transcript_status = "TRANSCRIPTION_EDIT_COMPLETE"
-
-            transcripts = Transcript.objects.all()
-
-            transcript = (
-                Transcript.objects.filter(video=task.video)
-                .filter(status=transcript_status)
-                .first()
-            )
-
-            if transcript is None:
-                return Response(
-                    {"message": "Transcript not found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            if target_language is None:
-                return Response(
-                    {
-                        "message": "missing param : target_language. While creating task please select target_language"
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
             if (
                 Translation.objects.filter(video=task.video)
                 .filter(target_language=target_language)
                 .filter(status="TRANSLATION_SELECT_SOURCE")
             ).first() is None:
+
+                transcript = self.get_transcript(task.video, task.verified_transcript)
                 response = self.generate_translation(
                     task.video,
                     target_language,
@@ -682,6 +666,7 @@ class TaskViewSet(ModelViewSet):
                     },
                     status=status.HTTP_201_CREATED,
                 )
+        response["message"] = "Selection of source is successful."
         return Response(
             response,
             status=status.HTTP_200_OK,

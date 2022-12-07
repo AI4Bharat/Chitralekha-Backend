@@ -252,11 +252,11 @@ def get_payload(request):
         required=["task_id", "payload"],
         properties={
             "task_id": openapi.Schema(
-                type=openapi.TYPE_STRING,
+                type=openapi.TYPE_INTEGER,
                 description="An integer identifying the translation instance",
             ),
             "payload": openapi.Schema(
-                type=openapi.TYPE_STRING,
+                type=openapi.TYPE_OBJECT,
                 description="A string to pass the translated subtitles and metadata",
             ),
         },
@@ -448,15 +448,25 @@ def save_translation(request):
                         task.status = "INPROGRESS"
                         task.save()
 
-            return Response(
-                {
-                    "message": "Translation updated successfully.",
-                    "task_id": task.id,
-                    "translation_id": translation_obj.id,
-                    "data": translation_obj.payload,
-                },
-                status=status.HTTP_200_OK,
-            )
+            if request.data.get("final"):
+                return Response(
+                    {
+                        "message": "Translation updated successfully.",
+                        "task_id": task.id,
+                        "translation_id": translation_obj.id,
+                        "data": translation_obj.payload,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            else:
+                return Response(
+                    {
+                        "task_id": task.id,
+                        "translation_id": translation_obj.id,
+                        "data": translation_obj.payload,
+                    },
+                    status=status.HTTP_200_OK,
+                )
     except Translation.DoesNotExist:
         return Response(
             {"message": "Translation doesn't exist."},
