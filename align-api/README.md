@@ -124,6 +124,7 @@ python srt_align.py
 ## Align with json files
 This format can be found in files `data/tic_tac_learn.json` and `data/khan_academy.json` and is specific to Chitralekha backend.
 The `align_json` endpoint excepts the following fields in the payload. 
+
 ```
 class ExtendedAudioAlign(BaseModel):
     srt: dict = None # subtitles in json format
@@ -131,8 +132,22 @@ class ExtendedAudioAlign(BaseModel):
     language: str = None # language code
 ```
 
-```
+```{bash}
 uvicorn main:app --host=0.0.0.0 --port=8000
+
+curl --location --request POST 'http://216.48.183.5:7000/align_json' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "srt": {"payload":[{"start_time":"00:00:00.111","end_time":"00:00:02.793","text":"- [Instructor] You are likely\nalready familiar with the idea"}]},
+    "url": "https://www.youtube.com/watch?v=N2PpRnFqnqY",
+    "language": "en"
+}'
+
+```
+This should give a response for alignment of a single chunk. 
+To align the whole youtube audio with subtitles the python client can be used. 
+
+```
 python align_json.py https://www.youtube.com/watch\?v\=4DwfmwZe_jo data/tic_tac_learn.json en
 python align_json.py https://www.youtube.com/watch\?v\=N2PpRnFqnqY data/khan_academy.json en
 ```
