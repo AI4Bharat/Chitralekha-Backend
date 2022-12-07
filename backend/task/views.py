@@ -265,12 +265,12 @@ class TaskViewSet(ModelViewSet):
                         transcript=translation.transcript,
                         parent=translation,
                         payload=translation.payload,
-                        target_language=lang,
+                        target_language=target_language,
                         task=new_task,
                         translation_type=translation.translation_type,
                         status="TRANSLATION_REVIEWER_ASSIGNED",
                     )
-                    translation_obj.save()
+                    translate_obj.save()
                     response = {
                         "task_id": new_task.id,
                         "translation_id": translate_obj.id,

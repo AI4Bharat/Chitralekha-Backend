@@ -315,9 +315,9 @@ def save_translation(request):
                 )
 
             if translation.translation_type == MACHINE_GENERATED:
-                updated_translation_type = UPDATED_MACHINE_GENERATED
+                translation_type = UPDATED_MACHINE_GENERATED
             else:
-                updated_translation_type = UPDATED_MANUALLY_CREATED
+                translation_type = UPDATED_MANUALLY_CREATED
 
             if "EDIT" in task.task_type:
                 if request.data.get("final"):
@@ -336,7 +336,7 @@ def save_translation(request):
                         ts_status = TRANSLATION_EDIT_COMPLETE
                         task.status = "COMPLETE"
                         task.save()
-                        translation_type = updated_translation_type
+                        translation_type = translation_type
                         translation_obj = Translation.objects.create(
                             translation_type=translation_type,
                             parent=translation,
@@ -401,13 +401,12 @@ def save_translation(request):
                             status=status.HTTP_201_CREATED,
                         )
                     ts_status = TRANSLATION_REVIEW_COMPLETE
-                    translation_type = updated_translation_type
                     translation_obj = Translation.objects.create(
-                        translation_type=translation_type,
-                        parent=translation_obj,
-                        transcript=translation_obj.transcript,
-                        video=translation_obj.video,
-                        target_language=translation_obj.target_language,
+                        translation_type=translation.translation_type,
+                        parent=translation,
+                        transcript=translation.transcript,
+                        video=translation.video,
+                        target_language=translation.target_language,
                         user=user,
                         payload=payload,
                         status=ts_status,
@@ -433,13 +432,12 @@ def save_translation(request):
                         task.save()
                     else:
                         ts_status = TRANSLATION_REVIEW_INPROGRESS
-                        translation_type = updated_translation_type
                         translation_obj = Translation.objects.create(
-                            translation_type=translation_type,
-                            parent=translation_obj,
-                            transcript=translation_obj.transcript,
-                            video=translation_obj.video,
-                            target_language=translations_obj.target_language,
+                            translation_type=translation.translation_type,
+                            parent=translation,
+                            transcript=translation.transcript,
+                            video=translation.video,
+                            target_language=translation.target_language,
                             user=user,
                             payload=payload,
                             status=ts_status,
