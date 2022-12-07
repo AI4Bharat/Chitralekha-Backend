@@ -69,7 +69,7 @@ def align_json(align_data: ExtendedAudioAlign) -> dict:
         raise HTTPException(status_code=status.HTTP_204_NO_CONTENT,
                             detail='the language code must be from specified language codes in documentation')
     try:
-        console.log(f"Fetching audio video from {align_data.url}")
+        console.log(f"Fetching audio from {align_data.url}")
         selected_video = YouTube(align_data.url)
         audio = selected_video.streams.filter(
             only_audio=True, file_extension="mp4"
@@ -116,7 +116,7 @@ def align_json(align_data: ExtendedAudioAlign) -> dict:
             )
         except:
             console.log(f"Text contains some unknown character: {filtered_text}")
-            alignment["text"] = "[Unkown]"
+            alignment["text"] = "[Unknown]"
             alignment["timestamps"] = None
             aligned_json[str(idx+1)] = alignment
             continue

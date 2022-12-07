@@ -122,6 +122,14 @@ Modify `wav_path`, `srt_path` and `language` in `configuration.py`. Make sure yo
 python srt_align.py
 ```
 ## Align with json files
+This format can be found in files `data/tic_tac_learn.json` and `data/khan_academy.json` and is specific to Chitralekha backend.
+The `align_json` endpoint excepts the following fields in the payload. 
+```
+class ExtendedAudioAlign(BaseModel):
+    srt: dict = None # subtitles in json format
+    url: str = None # youtube url 
+    language: str = None # language code
+```
 
 ```
 uvicorn main:app --host=0.0.0.0 --port=8000
