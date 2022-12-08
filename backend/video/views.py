@@ -2,6 +2,7 @@ import urllib
 from datetime import timedelta
 import requests
 from drf_yasg import openapi
+from rest_framework.decorators import action
 from drf_yasg.utils import swagger_auto_schema
 from task.models import Task
 from task.serializers import TaskSerializer
@@ -24,6 +25,43 @@ from .utils import (
 )
 from project.models import Project
 
+"""
+@swagger_auto_schema(
+    method="post",
+    manual_parameters=[
+        openapi.Parameter(
+            "video_id",
+            openapi.IN_QUERY,
+            description=("The ID of the video"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
+    responses={204: "Video is deleted."},
+)
+@is_project_owner
+@api_view(["POST"])
+def delete_video(request):
+
+    video_id = request.data.get("video_id")
+
+    if video_id is None:
+        return Response(
+            {"message": "missing param : video_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        video = Video.objects.get(pk=video_id)
+    except Video.DoesNotExist:
+        return Response(
+            {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    video.delete()
+    return Response({"message": "Video deleted successfully."},
+                     status=status.HTTP_204_NO_CONTENT)
+"""
 
 @swagger_auto_schema(
     method="get",
@@ -142,14 +180,22 @@ def get_video(request):
         )
         if created:
             video.save()
-
-        return Response(
-            {
-                "video": VideoSerializer(video).data,
-                "direct_audio_url": direct_audio_url,
-            },
-            status=status.HTTP_200_OK,
-        )
+            return Response(
+                {
+                    "video": VideoSerializer(video).data,
+                    "direct_audio_url": direct_audio_url,
+                    "message": "Video successfully created."
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {
+                    "video": VideoSerializer(video).data,
+                    "direct_audio_url": direct_audio_url,
+                },
+                status=status.HTTP_200_OK,
+            )
 
     try:
         # Get the video info from the YouTube API
@@ -351,41 +397,3 @@ def list_tasks(request):
     # Return the tasks
     serializer = TaskSerializer(tasks, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class VideoViewSet(ModelViewSet):
-    """
-    API ViewSet for the Video model.
-    Performs CRUD operations on the Video model.
-    Endpoint: /video/api/
-    Methods: GET, POST, PUT, DELETE
-    """
-
-    queryset = Video.objects.all()
-    serializer_class = VideoSerializer
-    permission_classes = (IsAuthenticatedOrReadOnly,)
-
-    @is_project_owner
-    def create(self, request, *args, **kwargs):
-        """
-        Creates a video
-        """
-        return super().create(request, *args, **kwargs)
-
-    @is_project_owner
-    def update(self, request, pk=None, *args, **kwargs):
-        """
-        Update video details
-        """
-        return super().update(request, *args, **kwargs)
-
-    @is_project_owner
-    def partial_update(self, request, pk=None, *args, **kwargs):
-        return super().partial_update(request, *args, **kwargs)
-
-    @is_project_owner
-    def destroy(self, request, pk=None, *args, **kwargs):
-        """
-        Delete a video
-        """
-        return super().delete(request, *args, **kwargs)

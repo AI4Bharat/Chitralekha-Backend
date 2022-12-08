@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework import status
+from organization.models import Organization
 from organization.decorators import is_organization_owner
 from video.models import Video
 from video.serializers import VideoSerializer
@@ -393,6 +394,55 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
+
+    def create(self, request, pk=None, *args, **kwargs):
+        """
+        Create a Project
+        """
+        title = request.data.get("title")
+        organization_id = request.data.get("organization_id")
+        managers_id = request.data.get("managers_id")
+        description = request.data.get("description")
+
+        if title is None or organization_id is None or len(managers_id) == 0:
+            return Response(
+                {"message": "missing param : title or organization_id or managers"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            organization = Organization.objects.get(pk=organization_id)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        project = Project(title=title,
+                          organization_id=organization,
+                          created_by=request.user
+                )
+        project.save()
+
+        for manager_id in managers_id:
+            managers = []
+            try:
+                user = User.objects.get(pk=manager_id)
+            except User.DoesNotExist:
+                return Response(
+                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+            project.managers.add(user)
+        response = {}
+        response = {
+            "project_id": project.id,
+            "message": "Project is successfully created."
+        }
+        return Response(
+            response,
+            status=status.HTTP_200_OK,
+        )
+
+
     @is_project_owner
     def update(self, request, pk=None, *args, **kwargs):
         """
@@ -402,14 +452,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     @is_project_owner
     def partial_update(self, request, pk=None, *args, **kwargs):
-        return super().partial_update(request, *args, **kwargs)
+        super().partial_update(request, *args, **kwargs)
+        return Response({"message": "Project updated successfully."}, status=status.HTTP_200_OK)
 
     @is_project_owner
-    def destroy(self, request, pk=None, *args, **kwargs):
+    def delete(self, request, pk=None, *args, **kwargs):
         """
         Delete a project
         """
-        return super().delete(request, *args, **kwargs)
+        super().delete(request, *args, **kwargs)
+        return Response({"message": "Project deleted successfully."},
+                        status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(
         method="get",

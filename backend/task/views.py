@@ -121,7 +121,7 @@ class TaskViewSet(ModelViewSet):
     def check_duplicate_task(self, task_type, task, user, video):
         if task.filter(task_type=task_type).first() is not None:
             return {
-                "message": "Task is already created.",
+                "message": "Task can't be created, as duplicate task already exists.",
                 "status": status.HTTP_400_BAD_REQUEST,
             }
 

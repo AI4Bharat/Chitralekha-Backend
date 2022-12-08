@@ -77,7 +77,9 @@ class InviteViewSet(viewsets.ViewSet):
                     valid_user_emails.append(email)
                     users.append(user)
                 except:
-                    pass
+                    Response(
+                        {"message": "User can't be added"}, status=status.HTTP_400_BAD_REQUEST
+                    )
             else:
                 invalid_emails.append(email)
         if len(valid_user_emails) <= 0:
