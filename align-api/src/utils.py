@@ -115,7 +115,7 @@ class SubtitleJson:
 
     def clip_audio(wav, start, end):
         return wav[start * 1000 : end * 1000]
-    
+
     def adjust_alignment(data, language):
 
         if language == "en":

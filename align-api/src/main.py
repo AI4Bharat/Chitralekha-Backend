@@ -66,8 +66,10 @@ def align(align_data: AlignData) -> dict:
 @app.post("/align_json")
 def align_json(align_data: ExtendedAudioAlign) -> dict:
     if align_data.language not in language_codes:
-        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT,
-                            detail='the language code must be from specified language codes in documentation')
+        raise HTTPException(
+            status_code=status.HTTP_204_NO_CONTENT,
+            detail="the language code must be from specified language codes in documentation",
+        )
     try:
         console.log(f"Fetching audio from {align_data.url}")
         selected_video = YouTube(align_data.url)
@@ -112,22 +114,22 @@ def align_json(align_data: ExtendedAudioAlign) -> dict:
         filtered_text = filter_text(clean_text, align_data.language)
         try:
             word_segments = aligner_models[align_data.language].merge_words(
-            wav_tensor, filtered_text, begin=start
+                wav_tensor, filtered_text, begin=start
             )
         except:
             console.log(f"Text contains some unknown character: {filtered_text}")
             alignment["text"] = "[Unknown]"
             alignment["timestamps"] = None
-            aligned_json[str(idx+1)] = alignment
+            aligned_json[str(idx + 1)] = alignment
             continue
-        
-        alignment['text'] = clean_text
-        alignment['timestamps'] = word_segments
-        aligned_json[str(idx+1)] = alignment
-        
+
+        alignment["text"] = clean_text
+        alignment["timestamps"] = word_segments
+        aligned_json[str(idx + 1)] = alignment
+
     console.log(f"Alignment complete")
-    
-    if align_data.language == 'en':
+
+    if align_data.language == "en":
         aligned_json = SubtitleJson.adjust_alignment(aligned_json, align_data.language)
-        
+
     return aligned_json
