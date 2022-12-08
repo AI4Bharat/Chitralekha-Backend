@@ -10,7 +10,7 @@ from users.models import User
 from .models import Project
 from .serializers import ProjectSerializer
 from .decorators import is_project_owner
-from users.serializers import UserFetchSerializer
+from users.serializers import UserFetchSerializer, UserProfileSerializer
 from task.models import Task
 from task.serializers import TaskSerializer
 from drf_yasg.utils import swagger_auto_schema
@@ -163,7 +163,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             required=["user_id"],
         ),
         responses={
-            200: "Project members added successfully",
+            200: "Project manager assigned successfully",
             400: "User doesnot exist",
             404: "Project does not exist",
             405: "Method is not allowed",
@@ -184,32 +184,28 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"message": "key doesnot match"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
         try:
             project = Project.objects.get(pk=pk)
             for prj_user in ids:
                 user = User.objects.get(id=prj_user)
-                if user.role == 6:
-                    if project.manager:
-                        return Response(
-                            {"error": "manager already assigned"},
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
-                        return Response(
-                            {"error": "manager already added"},
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
-                    else:
-                        project.manager = user
-                        project.save()
-                else:
+                if user.role != 6:
                     return Response(
-                        {"error": "user is not manager"},
+                        {"error": "User is not a manager"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
+                if user in project.managers.all():
+                    return Response(
+                        {"error": "member already added"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                project.managers.add(user)
+                project.save()
             return Response(
                 {"message": "Project manager assigned successfully"},
                 status=status.HTTP_200_OK,
             )
+
         except User.DoesNotExist:
             return Response(
                 {"error": "User doesnot exist"},
@@ -236,7 +232,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             required=["user_id"],
         ),
         responses={
-            200: "Project members added successfully",
+            200: "Project mangers unassigned successfully",
             400: "User doesnot exist",
             404: "Project does not exist",
             405: "Method is not allowed",
@@ -261,24 +257,23 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project = Project.objects.get(pk=pk)
             for prj_user in ids:
                 user = User.objects.get(id=prj_user)
-                if user.role == 6:
-                    if project.manager:
-                        project.manager = None
-                        project.save()
-                    else:
-                        return Response(
-                            {"error": "manager not assigned"},
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
-                else:
+                if user.role != 6:
                     return Response(
-                        {"error": "user is not manager"},
+                        {"error": "User is not a manager"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
+                if user not in project.managers.all():
+                    return Response(
+                        {"error": "member not added"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                project.managers.remove(user)
+                project.save()
             return Response(
                 {"message": "Project manager unassigned successfully"},
                 status=status.HTTP_200_OK,
             )
+
         except User.DoesNotExist:
             return Response(
                 {"error": "User doesnot exist"},
@@ -312,6 +307,29 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"message": "Project archived successfully"},
                 status=status.HTTP_200_OK,
             )
+        except Project.DoesNotExist:
+            return Response(
+                {"error": "Project does not exist"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(
+            {"error": "invalid method"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="List Project Managers",
+        url_name="list_project_managers",
+    )
+    @is_project_owner
+    def list_project_managers(self, request, pk=None, *args, **kwargs):
+        try:
+            project = Project.objects.get(pk=pk)
+            managers = User.objects.filter(role=6)
+            serializer = UserProfileSerializer(managers, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response(
                 {"error": "Project does not exist"},

@@ -30,12 +30,10 @@ class Project(models.Model):
         help_text=("Organization to which the Project belongs"),
     )
 
-    manager = models.ForeignKey(
+    managers = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
         related_name="projects_managed",
-        help_text=("Project Manager"),
+        help_text=("Project Managers"),
     )
 
     members = models.ManyToManyField(
