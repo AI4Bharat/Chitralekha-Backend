@@ -135,7 +135,7 @@ class ExtendedAudioAlign(BaseModel):
 ```{bash}
 uvicorn main:app --host=0.0.0.0 --port=8000
 
-curl --location --request POST 'http://216.48.183.5:7000/align_json' \
+curl --location --request POST 'http://0.0.0.0:8000/align_json' \
 --header 'Content-Type: application/json' \
 --data-raw '{
     "srt": {"payload":[{"start_time":"00:00:00.111","end_time":"00:00:02.793","text":"- [Instructor] You are likely\nalready familiar with the idea"}]},
