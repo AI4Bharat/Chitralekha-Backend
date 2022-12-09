@@ -394,7 +394,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
-
     def create(self, request, pk=None, *args, **kwargs):
         """
         Create a Project
@@ -417,10 +416,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        project = Project(title=title,
-                          organization_id=organization,
-                          created_by=request.user
-                )
+        project = Project(
+            title=title, organization_id=organization, created_by=request.user
+        )
         project.save()
 
         for manager_id in managers_id:
@@ -435,13 +433,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
         response = {}
         response = {
             "project_id": project.id,
-            "message": "Project is successfully created."
+            "message": "Project is successfully created.",
         }
         return Response(
             response,
             status=status.HTTP_200_OK,
         )
-
 
     @is_project_owner
     def update(self, request, pk=None, *args, **kwargs):
@@ -453,16 +450,20 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @is_project_owner
     def partial_update(self, request, pk=None, *args, **kwargs):
         super().partial_update(request, *args, **kwargs)
-        return Response({"message": "Project updated successfully."}, status=status.HTTP_200_OK)
+        return Response(
+            {"message": "Project updated successfully."}, status=status.HTTP_200_OK
+        )
 
     @is_project_owner
-    def delete(self, request, pk=None, *args, **kwargs):
+    def destroy(self, request, pk=None, *args, **kwargs):
         """
         Delete a project
         """
-        super().delete(request, *args, **kwargs)
-        return Response({"message": "Project deleted successfully."},
-                        status=status.HTTP_204_NO_CONTENT)
+        super().destroy(request, *args, **kwargs)
+        return Response(
+            {"message": "Project deleted successfully."},
+            status=status.HTTP_200_OK,
+        )
 
     @swagger_auto_schema(
         method="get",

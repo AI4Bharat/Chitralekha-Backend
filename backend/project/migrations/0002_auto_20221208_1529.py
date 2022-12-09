@@ -8,17 +8,21 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('project', '0001_initial'),
+        ("project", "0001_initial"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='project',
-            name='manager',
+            model_name="project",
+            name="manager",
         ),
         migrations.AddField(
-            model_name='project',
-            name='managers',
-            field=models.ManyToManyField(help_text='Project Manager', related_name='projects_managed', to=settings.AUTH_USER_MODEL),
+            model_name="project",
+            name="managers",
+            field=models.ManyToManyField(
+                help_text="Project Manager",
+                related_name="projects_managed",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
     ]

@@ -19,6 +19,7 @@ import webvtt
 from io import StringIO
 import json, sys
 
+
 from .models import (
     TASK_TYPE,
     Task,
@@ -669,6 +670,42 @@ class TaskViewSet(ModelViewSet):
         response["message"] = "Selection of source is successful."
         return Response(
             response,
+            status=status.HTTP_200_OK,
+        )
+
+    @is_project_owner
+    def destroy(self, request, pk=None, *args, **kwargs):
+        task = Task.objects.get(pk=pk)
+        translation_tasks = set()
+        if "TRANSCRIPT" in task.task_type:
+            for transcript in Transcript.objects.filter(task=task).all():
+                for translation in Translation.objects.filter(
+                    transcript=transcript
+                ).all():
+                    translation_tasks.add(translation.task)
+
+        if len(translation_tasks) > 0:
+            response = [
+                (
+                    translation_task.task_type,
+                    translation_task.target_language,
+                    translation_task.video.name,
+                )
+                for translation_task in translation_tasks
+            ]
+
+            return Response(
+                {
+                    "response": response,
+                    "message": "Transcription Task can't be deleted as there are associated Translation tasks. Please delete the translation tasks first.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        task.delete()
+        return Response(
+            {
+                "message": "Task is deleted , with all associated transcripts/translations"
+            },
             status=status.HTTP_200_OK,
         )
 
