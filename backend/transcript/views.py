@@ -387,7 +387,7 @@ def save_transcription(request):
                         is not None
                     ):
                         return Response(
-                            {"error": "Final Edited Transcript already submitted."},
+                            {"message": "Final Edited Transcript already submitted."},
                             status=status.HTTP_201_CREATED,
                         )
                     tc_status = TRANSCRIPTION_EDIT_COMPLETE
@@ -425,7 +425,7 @@ def save_transcription(request):
                         )
                         if transcript_obj is None:
                             return Response(
-                                {"error": "Transcript object does not exist."},
+                                {"message": "Transcript object does not exist."},
                                 status=status.HTTP_404_NOT_FOUND,
                             )
                         transcript_obj = Transcript.objects.create(
@@ -448,7 +448,7 @@ def save_transcription(request):
                         .first()
                     ):
                         return Response(
-                            {"error": "Reviewed Transcription already exists."},
+                            {"message": "Reviewed Transcription already exists."},
                             status=status.HTTP_201_CREATED,
                         )
                     else:

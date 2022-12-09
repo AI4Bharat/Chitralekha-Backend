@@ -55,7 +55,7 @@ class Translation(models.Model):
         null=True,
         blank=True,
         default=None,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         verbose_name="Parent Translation",
     )
     transcript = models.ForeignKey(
