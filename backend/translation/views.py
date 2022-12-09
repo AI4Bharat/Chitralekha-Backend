@@ -12,7 +12,9 @@ from transcript.models import Transcript
 from video.models import Video
 from task.models import Task
 from rest_framework.decorators import action
-
+from django.http import HttpResponse
+from django.core.files.base import ContentFile
+import requests
 from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES
 from .models import (
     Translation,
@@ -33,6 +35,94 @@ from .models import (
 from .decorators import is_translation_editor
 from .serializers import TranslationSerializer
 from .utils import get_batch_translations_using_indictrans_nmt_api
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the video id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+        openapi.Parameter(
+            "export_type",
+            openapi.IN_QUERY,
+            description=("export type parameter srt/vtt/txt"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+    ],
+    responses={200: "Translation has been exported."},
+)
+@api_view(["GET"])
+def export_translation(request):
+    task_id = request.query_params.get("task_id")
+    export_type = request.query_params.get("export_type")
+
+    if task_id is None or export_type is None:
+        return Response(
+            {"message": "missing param : task_id or export_type"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    translation = get_translation_id(task)
+    if translation is None:
+        return Response(
+            {"message": "Translation doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    payload = translation.payload["payload"]
+    lines = []
+
+    supported_types = ["srt", "vtt", "txt"]
+    if export_type not in supported_types:
+        return Response(
+            {"message": "exported type only supported formats are : {csv,tsv,json} "},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    if export_type == "srt":
+        for index, segment in enumerate(payload):
+            lines.append(str(index + 1))
+            lines.append(segment["start_time"] + " --> " + segment["start_time"])
+            lines.append(segment["target_text"])
+            filename = "translation.srt"
+        content = "\n".join(lines)
+    elif export_type == "vtt":
+        lines.append("WEBVTT\n")
+        for index, segment in enumerate(payload):
+            lines.append(str(index + 1))
+            lines.append(segment["start_time"] + " --> " + segment["start_time"])
+            lines.append(segment["target_text"] + "\n")
+            filename = "translation.vtt"
+        content = "\n".join(lines)
+    elif export_type == "txt":
+        for index, segment in enumerate(payload):
+            lines.append(segment["target_text"] + "\n")
+            filename = "translation.txt"
+        content = "\n".join(lines)
+    else:
+        return Response(
+            {"message": "This type is not supported."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    content_type = "application/json"
+    response = HttpResponse(content, content_type=content_type)
+    response["Content-Disposition"] = 'attachment; filename="%s"' % filename
+    response["filename"] = filename
+    return response
 
 
 @swagger_auto_schema(
@@ -144,14 +234,13 @@ def get_translation_id(task):
     translation = Translation.objects.filter(task=task)
     if "EDIT" in task.task_type:
         if task.status == "NEW":
-            translation_id = -1
+            translation_id = None
         if task.status == "SELECTED_SOURCE":
             translation_id = (
                 translation.filter(video=task.video)
                 .filter(target_language=task.target_language)
                 .filter(status="TRANSLATION_SELECT_SOURCE")
                 .first()
-                .id
             )
         if task.status == "INPROGRESS":
             translation_id = (
@@ -159,7 +248,6 @@ def get_translation_id(task):
                 .filter(target_language=task.target_language)
                 .filter(status="TRANSLATION_EDIT_INPROGRESS")
                 .first()
-                .id
             )
         if task.status == "COMPLETE":
             translation_id = (
@@ -167,7 +255,6 @@ def get_translation_id(task):
                 .filter(target_language=task.target_language)
                 .filter(status="TRANSLATION_EDIT_COMPLETE")
                 .first()
-                .id
             )
     else:
         if task.status == "NEW":
@@ -176,7 +263,6 @@ def get_translation_id(task):
                 .filter(target_language=task.target_language)
                 .filter(status="TRANSLATION_REVIEWER_ASSIGNED")
                 .first()
-                .id
             )
         if task.status == "INPROGRESS":
             translation_id = (
@@ -184,7 +270,6 @@ def get_translation_id(task):
                 .filter(target_language=task.target_language)
                 .filter(status="TRANSLATION_REVIEW_INPROGRESS")
                 .first()
-                .id
             )
         if task.status == "COMPLETE":
             translation_id = (
@@ -192,7 +277,6 @@ def get_translation_id(task):
                 .filter(target_language=task.target_language)
                 .filter(status="TRANSLATION_REVIEW_COMPLETE")
                 .first()
-                .id
             )
     return translation_id
 
@@ -228,7 +312,14 @@ def get_payload(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    translation_id = get_translation_id(task)
+    translation = get_translation_id(task)
+    if translation is not None:
+        translation_id = translation.id
+    else:
+        return Response(
+            {"message": "Translation doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Retrieve the transcript object
     try:
@@ -293,7 +384,14 @@ def save_translation(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    translation_id = get_translation_id(task)
+    translation = get_translation_id(task)
+    if translation is not None:
+        translation_id = translation.id
+    else:
+        return Response(
+            {"message": "Translation doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     try:
         translation = Translation.objects.get(pk=translation_id)
         target_language = translation.target_language

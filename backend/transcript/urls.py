@@ -28,4 +28,9 @@ urlpatterns = [
         views.get_payload,
         name="get_payload",
     ),
+    path(
+        "export_transcript/",
+        views.export_transcript,
+        name="export_transcript",
+    ),
 ]

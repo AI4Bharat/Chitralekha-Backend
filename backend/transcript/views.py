@@ -7,7 +7,10 @@ from rest_framework.viewsets import ModelViewSet
 from video.models import Video
 from task.models import Task
 from rest_framework.decorators import action
-
+from django.http import HttpResponse
+from django.core.files.base import ContentFile
+import requests
+from json_to_ytt import *
 
 from .models import (
     Transcript,
@@ -34,6 +37,120 @@ from users.models import User
 from rest_framework.response import Response
 from functools import wraps
 from rest_framework import status
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the video id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+        openapi.Parameter(
+            "export_type",
+            openapi.IN_QUERY,
+            description=("export type parameter srt/vtt/txt/ytt"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+    ],
+    responses={200: "Transcript is exported"},
+)
+@api_view(["GET"])
+def export_transcript(request):
+    task_id = request.query_params.get("task_id")
+    export_type = request.query_params.get("export_type")
+
+    if task_id is None or export_type is None:
+        return Response(
+            {"message": "missing param : task_id or export_type"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    supported_types = ["srt", "vtt", "txt", "ytt"]
+    if export_type not in supported_types:
+        return Response(
+            {"message": "exported type only supported formats are : {csv,tsv,json} "},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    transcript = get_transcript_id(task)
+    if transcript is None:
+        return Response(
+            {"message": "Transcript not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    payload = transcript.payload["payload"]
+    lines = []
+
+    if export_type == "srt":
+        for index, segment in enumerate(payload):
+            lines.append(str(index + 1))
+            lines.append(segment["start_time"] + " --> " + segment["start_time"])
+            lines.append(segment["text"])
+            filename = "transcript.srt"
+        content = "\n".join(lines)
+    elif export_type == "vtt":
+        lines.append("WEBVTT\n")
+        for index, segment in enumerate(payload):
+            lines.append(str(index + 1))
+            lines.append(segment["start_time"] + " --> " + segment["start_time"])
+            lines.append(segment["text"] + "\n")
+            filename = "transcript.vtt"
+        content = "\n".join(lines)
+    elif export_type == "txt":
+        for index, segment in enumerate(payload):
+            lines.append(segment["text"] + "\n")
+            filename = "transcript.txt"
+        content = "\n".join(lines)
+    elif export_type == "ytt":
+        try:
+            json_data = {
+                "srt": transcript.payload,
+                "url": task.video.url,
+                "language": task.video.language,
+            }
+            response = requests.post(
+                "http://216.48.183.5:7000/align_json",
+                json=json_data,
+            )
+            data = response.json()
+
+            ytt_genorator(data, "transcript_local.ytt", prev_line_in=0, mode="data")
+            file_location = "transcript_local.ytt"
+        except:
+            return Response(
+                {"message": "Error in exporting to ytt format."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        with open(file_location, "r") as f:
+            file_data = f.read()
+        response = HttpResponse(file_data, content_type="application/xml")
+        response["Content-Disposition"] = 'attachment; filename="transcript.ytt"'
+        return response
+
+    else:
+        return Response(
+            {"message": "This type is not supported."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    content_type = "application/json"
+    response = HttpResponse(content, content_type=content_type)
+    response["Content-Disposition"] = 'attachment; filename="%s"' % filename
+    response["filename"] = filename
+    return response
 
 
 @swagger_auto_schema(
@@ -199,27 +316,24 @@ def get_transcript_id(task):
     transcript = Transcript.objects.filter(task=task)
     if "EDIT" in task.task_type:
         if task.status == "NEW":
-            transcript_id = -1
+            transcript_id = None
         if task.status == "SELECTED_SOURCE":
             transcript_id = (
                 transcript.filter(video=task.video)
                 .filter(status="TRANSCRIPTION_SELECT_SOURCE")
                 .first()
-                .id
             )
         if task.status == "INPROGRESS":
             transcript_id = (
                 transcript.filter(video=task.video)
                 .filter(status="TRANSCRIPTION_EDIT_INPROGRESS")
                 .first()
-                .id
             )
         if task.status == "COMPLETE":
             transcript_id = (
                 transcript.filter(video=task.video)
                 .filter(status="TRANSCRIPTION_EDIT_COMPLETE")
                 .first()
-                .id
             )
     else:
         if task.status == "NEW":
@@ -227,21 +341,18 @@ def get_transcript_id(task):
                 transcript.filter(video=task.video)
                 .filter(status="TRANSCRIPTION_REVIEWER_ASSIGNED")
                 .first()
-                .id
             )
         if task.status == "INPROGRESS":
             transcript_id = (
                 transcript.filter(video=task.video)
                 .filter(status="TRANSCRIPTION_REVIEW_INPROGRESS")
                 .first()
-                .id
             )
         if task.status == "COMPLETE":
             transcript_id = (
                 transcript.filter(video=task.video)
                 .filter(status="TRANSCRIPTION_REVIEW_COMPLETE")
                 .first()
-                .id
             )
     return transcript_id
 
@@ -277,7 +388,14 @@ def get_payload(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    transcript_id = get_transcript_id(task)
+    transcript = get_transcript_id(task)
+    if transcript is None:
+        return Response(
+            {"message": "Transcript not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    else:
+        transcript_id = transcript.id
 
     # Retrieve the transcript object
     try:
@@ -349,8 +467,14 @@ def save_transcription(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    if transcript_id is None:
-        transcript_id = get_transcript_id(task)
+    transcript = get_transcript_id(task)
+    if transcript is None:
+        return Response(
+            {"message": "Transcript not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    else:
+        transcript_id = transcript.id
 
     # Retrieve the transcript object
     try:
