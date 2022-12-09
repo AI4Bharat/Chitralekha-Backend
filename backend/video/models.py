@@ -20,8 +20,7 @@ class Video(models.Model):
     url = models.URLField(unique=True, verbose_name="Video URL", db_index=True)
     project_id = models.ForeignKey(
         Project,
-        on_delete=models.SET_NULL,
-        null=True,
+        on_delete=models.CASCADE,
         help_text=("Organization to which the Project belongs"),
     )
     language = models.CharField(

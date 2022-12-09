@@ -25,24 +25,22 @@ from .utils import (
 )
 from project.models import Project
 
-"""
+
 @swagger_auto_schema(
     method="post",
-    manual_parameters=[
-        openapi.Parameter(
-            "video_id",
-            openapi.IN_QUERY,
-            description=("The ID of the video"),
-            type=openapi.TYPE_INTEGER,
-            required=True,
-        ),
-    ],
-    responses={204: "Video is deleted."},
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            "video_id": openapi.Schema(type=openapi.TYPE_OBJECT),
+        },
+        required=["video_id"],
+    ),
+    responses={
+        204: "Video deleted successfully.",
+    },
 )
-@is_project_owner
 @api_view(["POST"])
 def delete_video(request):
-
     video_id = request.data.get("video_id")
 
     if video_id is None:
@@ -59,9 +57,11 @@ def delete_video(request):
         )
 
     video.delete()
-    return Response({"message": "Video deleted successfully."},
-                     status=status.HTTP_204_NO_CONTENT)
-"""
+
+    return Response(
+        {"message": "Video deleted successfully."}, status=status.HTTP_200_OK
+    )
+
 
 @swagger_auto_schema(
     method="get",
@@ -184,7 +184,7 @@ def get_video(request):
                 {
                     "video": VideoSerializer(video).data,
                     "direct_audio_url": direct_audio_url,
-                    "message": "Video successfully created."
+                    "message": "Video successfully created.",
                 },
                 status=status.HTTP_200_OK,
             )
@@ -249,10 +249,17 @@ def get_video(request):
     else:
         response_data["direct_video_url"] = direct_video_url
 
-    return Response(
-        response_data,
-        status=status.HTTP_200_OK,
-    )
+    if created:
+        response_data["message"] = "Video created successfully."
+        return Response(
+            response_data,
+            status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(
+            response_data,
+            status=status.HTTP_200_OK,
+        )
 
 
 @swagger_auto_schema(
