@@ -394,6 +394,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
+    @is_organization_owner
     def create(self, request, pk=None, *args, **kwargs):
         """
         Create a Project
@@ -430,11 +431,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
                 )
             project.managers.add(user)
+            project.members.add(user)
         response = {}
         response = {
             "project_id": project.id,
             "message": "Project is successfully created.",
         }
+
         return Response(
             response,
             status=status.HTTP_200_OK,
