@@ -45,7 +45,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             openapi.Parameter(
                 "role",
                 openapi.IN_QUERY,
-                description=("A string to get the role type e.g. PROJECT_MANGAGER"),
+                description=("A string to get the role type e.g. PROJECT_MANAGER"),
                 type=openapi.TYPE_STRING,
                 required=False,
             ),
@@ -67,6 +67,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         if "role" in request.query_params:
             role = request.query_params["role"]
             if role == "PROJECT_MANAGER":
-                user_by_roles = users.filter(role=6)
+                user_by_roles = users.filter(role="PROJECT_MANAGER")
                 serializer = UserFetchSerializer(user_by_roles, many=True)
         return Response(serializer.data)

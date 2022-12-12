@@ -328,7 +328,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def list_project_managers(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
-            managers = User.objects.filter(role=6)
+            managers = User.objects.filter(role="PROJECT_MANAGER")
             serializer = UserProfileSerializer(managers, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
@@ -375,7 +375,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project = Project.objects.get(pk=pk)
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
             tasks = Task.objects.filter(video_id__in=videos)
-            serializer = TaskSerializer(tasks, many=True)
+            tasks_by_users = tasks.filter(user=request.user)
+            serializer = TaskSerializer(tasks_by_users, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Project.DoesNotExist:
@@ -500,16 +501,38 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 users = project.members.all()
                 if task_type == "TRANSCRIPTION_EDIT":
                     user_by_roles = users.filter(
-                        Q(role__gte=5) | Q(role=1) | Q(role=2) | Q(is_superuser=True)
+                        Q(role="PROJECT_MANAGER")
+                        | Q(role="ORG_OWNER")
+                        | Q(role="UNIVERSAL_EDITOR")
+                        | Q(role="TRANSCRIPT_EDITOR")
+                        | Q(role="TRANSCRIPT_REVIEWER")
+                        | Q(is_superuser=True)
                     )
                 elif task_type == "TRANSCRIPTION_REVIEW":
                     user_by_roles = users.filter(
-                        Q(role__gte=5) | Q(role=2) | Q(is_superuser=True)
+                        Q(role="PROJECT_MANAGER")
+                        | Q(role="ORG_OWNER")
+                        | Q(role="UNIVERSAL_EDITOR")
+                        | Q(role="TRANSCRIPT_REVIEWER")
+                        | Q(is_superuser=True)
                     )
                 elif task_type == "TRANSLATION_EDIT":
-                    user_by_roles = users.filter(Q(role__gte=3) | Q(is_superuser=True))
+                    user_by_roles = users.filter(
+                        Q(role="PROJECT_MANAGER")
+                        | Q(role="ORG_OWNER")
+                        | Q(role="UNIVERSAL_EDITOR")
+                        | Q(role="TRANSLATION_EDITOR")
+                        | Q(role="TRANSLATION_REVIEWER")
+                        | Q(is_superuser=True)
+                    )
                 else:
-                    user_by_roles = users.filter(Q(role__gte=4) | Q(is_superuser=True))
+                    user_by_roles = users.filter(
+                        Q(role="PROJECT_MANAGER")
+                        | Q(role="ORG_OWNER")
+                        | Q(role="UNIVERSAL_EDITOR")
+                        | Q(role="TRANSLATION_REVIEWER")
+                        | Q(is_superuser=True)
+                    )
                 serializer = UserFetchSerializer(user_by_roles, many=True)
             except Task.DoesNotExist:
                 return Response(

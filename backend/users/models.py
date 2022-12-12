@@ -45,13 +45,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     Email and Password are required other are optional.
     """
 
-    TRANSCRIPT_EDITOR = 1
-    TRANSCRIPT_REVIEWER = 2
-    TRANSLATION_EDITOR = 3
-    TRANSLATION_REVIEWER = 4
-    UNIVERSAL_EDITOR = 5
-    PROJECT_MANGAGER = 6
-    ORG_OWNER = 7
+    TRANSCRIPT_EDITOR = "TRANSCRIPT_EDITOR"
+    TRANSCRIPT_REVIEWER = "TRANSCRIPT_REVIEWER"
+    TRANSLATION_EDITOR = "TRANSLATION_EDITOR"
+    TRANSLATION_REVIEWER = "TRANSLATION_REVIEWER"
+    UNIVERSAL_EDITOR = "UNIVERSAL_EDITOR"
+    PROJECT_MANAGER = "PROJECT_MANAGER"
+    ORG_OWNER = "ORG_OWNER"
 
     ROLE_CHOICES = (
         (TRANSCRIPT_EDITOR, "Transcript editor"),
@@ -59,7 +59,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         (TRANSLATION_EDITOR, "Translation editor"),
         (TRANSLATION_REVIEWER, "Translation Reviewer"),
         (UNIVERSAL_EDITOR, "Universal Editor"),
-        (PROJECT_MANGAGER, "Project Manager"),
+        (PROJECT_MANAGER, "Project Manager"),
         (ORG_OWNER, "Organization Owner"),
     )
 
@@ -69,10 +69,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(verbose_name="first_name", max_length=265, blank=True)
     last_name = models.CharField(verbose_name="last_name", max_length=265, blank=True)
     phone = models.CharField(verbose_name="phone", max_length=256, blank=True)
-
-    role = models.PositiveSmallIntegerField(
-        choices=ROLE_CHOICES, blank=False, null=False, default=TRANSCRIPT_EDITOR
-    )
+    role = models.CharField(choices=ROLE_CHOICES, max_length=25)
 
     is_staff = models.BooleanField(
         verbose_name="staff status",

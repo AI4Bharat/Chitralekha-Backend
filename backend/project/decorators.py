@@ -14,7 +14,7 @@ def is_project_owner(f):
     @wraps(f)
     def wrapper(self, request, *args, **kwargs):
         if request.user.is_authenticated and (
-            request.user.role == User.PROJECT_MANGAGER
+            request.user.role == User.PROJECT_MANAGER
             or request.user.role == User.ORG_OWNER
             or request.user.is_superuser
         ):
