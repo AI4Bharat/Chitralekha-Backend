@@ -73,7 +73,9 @@ def export_transcript(request):
     supported_types = ["srt", "vtt", "txt", "ytt"]
     if export_type not in supported_types:
         return Response(
-            {"message": "exported type only supported formats are : {srt, vtt, txt, ytt} "},
+            {
+                "message": "exported type only supported formats are : {srt, vtt, txt, ytt} "
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
