@@ -10,6 +10,8 @@ from .serializers import OrganizationSerializer
 from .decorators import is_organization_owner, is_particular_organization_owner
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from project.serializers import ProjectSerializer
+from project.models import Project
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -70,3 +72,49 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 user_by_roles = users.filter(role="PROJECT_MANAGER")
                 serializer = UserFetchSerializer(user_by_roles, many=True)
         return Response(serializer.data)
+
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="List Projects in Organization",
+        url_name="list_projects",
+    )
+    def list_projects(self, request, pk=None, *args, **kwargs):
+        try:
+            organization = Organization.objects.get(pk=pk)
+            projects = Project.objects.filter(organization_id=organization)
+
+            user = request.user
+            if user.role == organization.organization_owner or user.is_superuser:
+                serializer = ProjectSerializer(projects, many=True)
+            else:
+                projects_by_roles = []
+                for project in projects:
+                    if request.user in project.members.all():
+                        projects_by_roles.append(project)
+                if len(projects_by_roles) > 0:
+                    serializer = ProjectSerializer(projects_by_roles, many=True)
+                else:
+                    return Response(
+                        {
+                            "message": "This user is not a member of any project in this organization."
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Project.DoesNotExist:
+            return Response(
+                {"error": "Project does not exist"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            print(e)
+            return Response(
+                {"error": e},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(
+            {"error": "invalid method"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
