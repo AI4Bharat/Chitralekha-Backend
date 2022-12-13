@@ -526,7 +526,7 @@ class TaskViewSet(ModelViewSet):
                         data = self.convert_payload_format(subtitles)
                         payloads["ORIGINAL_SOURCE"] = data
                     else:
-                        payloads["ORIGINAL_SOURCE"] = {}
+                        payloads["ORIGINAL_SOURCE"] = {"payload": []}
 
                 if "MANUALLY_CREATED" in list_compare_sources:
                     payloads["MANUALLY_CREATED"] = json.dump(
