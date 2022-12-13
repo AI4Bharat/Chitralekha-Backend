@@ -375,8 +375,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project = Project.objects.get(pk=pk)
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
             tasks = Task.objects.filter(video_id__in=videos)
-            tasks_by_users = tasks.filter(user=request.user)
-            serializer = TaskSerializer(tasks_by_users, many=True)
+            if request.user in project.managers.all() or request.user.is_superuser:
+                serializer = TaskSerializer(tasks, many=True)
+            else:
+                tasks_by_users = tasks.filter(user=request.user)
+                serializer = TaskSerializer(tasks_by_users, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Project.DoesNotExist:

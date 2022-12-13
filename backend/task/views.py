@@ -525,6 +525,8 @@ class TaskViewSet(ModelViewSet):
                     if subtitles is not None:
                         data = self.convert_payload_format(subtitles)
                         payloads["ORIGINAL_SOURCE"] = data
+                    else:
+                        payloads["ORIGINAL_SOURCE"] = {}
 
                 if "MANUALLY_CREATED" in list_compare_sources:
                     payloads["MANUALLY_CREATED"] = json.dump(
