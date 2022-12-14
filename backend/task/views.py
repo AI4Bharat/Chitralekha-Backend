@@ -835,7 +835,7 @@ class TaskViewSet(ModelViewSet):
 
         task = Task.objects.filter(video=video)
 
-        if target_language is not None:
+        if request.query_params.get("target_language") is not None:
             task = Task.objects.filter(video=video).filter(
                 target_language=target_language
             )
