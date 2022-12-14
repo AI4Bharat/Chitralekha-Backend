@@ -92,6 +92,8 @@ class Task(models.Model):
         verbose_name="created_by",
         help_text=("Task Created By"),
     )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Task Created At")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Task Updated At")
 
     def __str__(self):
         return str(self.id)

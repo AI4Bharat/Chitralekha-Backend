@@ -97,7 +97,7 @@ def export_translation(request):
             lines.append(str(index + 1))
             lines.append(segment["start_time"] + " --> " + segment["start_time"])
             lines.append(segment["target_text"])
-            filename = "translation.srt"
+        filename = "translation.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
         lines.append("WEBVTT\n")
@@ -105,12 +105,12 @@ def export_translation(request):
             lines.append(str(index + 1))
             lines.append(segment["start_time"] + " --> " + segment["start_time"])
             lines.append(segment["target_text"] + "\n")
-            filename = "translation.vtt"
+        filename = "translation.vtt"
         content = "\n".join(lines)
     elif export_type == "txt":
         for index, segment in enumerate(payload):
             lines.append(segment["target_text"] + "\n")
-            filename = "translation.txt"
+        filename = "translation.txt"
         content = "\n".join(lines)
     else:
         return Response(
@@ -119,6 +119,8 @@ def export_translation(request):
         )
 
     content_type = "application/json"
+    if len(content) == 0:
+        content = " "
     response = HttpResponse(content, content_type=content_type)
     response["Content-Disposition"] = 'attachment; filename="%s"' % filename
     response["filename"] = filename

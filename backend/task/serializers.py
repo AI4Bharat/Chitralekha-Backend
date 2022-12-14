@@ -25,4 +25,6 @@ class TaskSerializer(serializers.ModelSerializer):
             "eta",
             "priority",
             "description",
+            "created_at",
+            "updated_at",
         )

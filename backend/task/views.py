@@ -57,7 +57,7 @@ class TaskViewSet(ModelViewSet):
             user.role == User.TRANSCRIPT_EDITOR
             or user.role == User.UNIVERSAL_EDITOR
             or user.role == User.TRANSCRIPT_REVIEWER
-            or user.role == User.PROJECT_MANGAGER
+            or user.role == User.PROJECT_MANAGER
             or user.role == User.ORG_OWNER
             or user.is_superuser
         ):
@@ -68,7 +68,7 @@ class TaskViewSet(ModelViewSet):
         if user in video.project_id.members.all() and (
             user.role == User.UNIVERSAL_EDITOR
             or user.role == User.TRANSCRIPT_REVIEWER
-            or user.role == User.PROJECT_MANGAGER
+            or user.role == User.PROJECT_MANAGER
             or user.role == User.ORG_OWNER
             or user.is_superuser
         ):
@@ -80,7 +80,7 @@ class TaskViewSet(ModelViewSet):
             user.role == User.UNIVERSAL_EDITOR
             or user.role == User.TRANSLATION_EDITOR
             or user.role == User.TRANSLATION_REVIEWER
-            or user.role == User.PROJECT_MANGAGER
+            or user.role == User.PROJECT_MANAGER
             or user.role == User.ORG_OWNER
             or user.is_superuser
         ):
@@ -91,7 +91,7 @@ class TaskViewSet(ModelViewSet):
         if user in video.project_id.members.all() and (
             user.role == User.UNIVERSAL_EDITOR
             or user.role == User.TRANSLATION_REVIEWER
-            or user.role == User.PROJECT_MANGAGER
+            or user.role == User.PROJECT_MANAGER
             or user.role == User.ORG_OWNER
             or user.is_superuser
         ):
@@ -807,6 +807,13 @@ class TaskViewSet(ModelViewSet):
                 type=openapi.TYPE_STRING,
                 required=True,
             ),
+            openapi.Parameter(
+                "target_language",
+                openapi.IN_QUERY,
+                description=("A string to get the language of translation"),
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
         ],
         responses={200: "Get allowed tasks"},
     )
@@ -815,6 +822,7 @@ class TaskViewSet(ModelViewSet):
         video_id = request.query_params.get("video_id")
         type = request.query_params.get("type")
         if type == "TRANSLATION":
+            target_language = request.query_params.get("target_language")
             label = "Translation"
         else:
             label = "Transcription"
@@ -826,6 +834,12 @@ class TaskViewSet(ModelViewSet):
             )
 
         task = Task.objects.filter(video=video)
+
+        if target_language is not None:
+            task = Task.objects.filter(video=video).filter(
+                target_language=target_language
+            )
+
         if task.first() is None:
             response = [{"value": type + "_EDIT", "label": "Edit"}]
         elif task.filter(task_type=type + "_EDIT").first() is None:

@@ -101,7 +101,7 @@ def export_transcript(request):
             lines.append(str(index + 1))
             lines.append(segment["start_time"] + " --> " + segment["start_time"])
             lines.append(segment["text"])
-            filename = "transcript.srt"
+        filename = "transcript.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
         lines.append("WEBVTT\n")
@@ -109,12 +109,12 @@ def export_transcript(request):
             lines.append(str(index + 1))
             lines.append(segment["start_time"] + " --> " + segment["start_time"])
             lines.append(segment["text"] + "\n")
-            filename = "transcript.vtt"
+        filename = "transcript.vtt"
         content = "\n".join(lines)
     elif export_type == "txt":
         for index, segment in enumerate(payload):
             lines.append(segment["text"] + "\n")
-            filename = "transcript.txt"
+        filename = "transcript.txt"
         content = "\n".join(lines)
     elif export_type == "ytt":
         try:
@@ -147,7 +147,8 @@ def export_transcript(request):
             {"message": "This type is not supported."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
+    if len(content) == 0:
+        content = " "
     content_type = "application/json"
     response = HttpResponse(content, content_type=content_type)
     response["Content-Disposition"] = 'attachment; filename="%s"' % filename
