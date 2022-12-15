@@ -529,9 +529,7 @@ class TaskViewSet(ModelViewSet):
                         payloads["ORIGINAL_SOURCE"] = {"payload": []}
 
                 if "MANUALLY_CREATED" in list_compare_sources:
-                    payloads["MANUALLY_CREATED"] = json.dump(
-                        request.data.get("payload", "")
-                    )
+                    payloads["MANUALLY_CREATED"] = {"payload": []}
             else:
                 target_language = task.target_language
                 verified_transcript = task.verified_transcript
@@ -559,7 +557,7 @@ class TaskViewSet(ModelViewSet):
                     payloads["MACHINE_GENERATED"] = translation_machine_generated
 
                 if "MANUALLY_CREATED" in list_compare_sources:
-                    payloads["MANUALLY_CREATED"] = request.data.get("payload", "")
+                    payloads["MANUALLY_CREATED"] = {"payload": []}
 
             response["payloads"] = payloads
             response["task_id"] = task.id
