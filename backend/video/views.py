@@ -123,6 +123,7 @@ def get_video(request):
     url = request.query_params.get("multimedia_url")
     lang = request.query_params.get("lang", "en")
     project_id = request.query_params.get("project_id")
+    description = request.query_params.get("description", "")
     is_audio_only = request.query_params.get("is_audio_only", "false")
 
     # Convert audio only to boolean
@@ -176,6 +177,7 @@ def get_video(request):
                 "project_id": project,
                 "audio_only": is_audio_only,
                 "language": lang,
+                "description": description,
             },
         )
         if created:
@@ -221,6 +223,7 @@ def get_video(request):
             "project_id": project,
             "audio_only": is_audio_only,
             "language": lang,
+            "description": description,
         },
     )
     if created:
