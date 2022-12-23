@@ -778,6 +778,19 @@ class TaskViewSet(ModelViewSet):
         ]
         return Response(response, status=status.HTTP_200_OK)
 
+    @action(detail=False, methods=["get"], url_path="get_bulk_task_types")
+    def get_bulk_task_types(self, request):
+        """
+        Fetches all task types.
+        """
+        response = [
+            {"value": "TRANSCRIPTION_EDIT", "label": "Transcription Edit"},
+            {"value": "TRANSCRIPTION_REVIEW", "label": "Transcription Review"},
+            {"value": "TRANSLATION_EDIT", "label": "Translation Edit"},
+            {"value": "TRANSLATION_REVIEW", "label": "Translation Review"},
+        ]
+        return Response(response, status=status.HTTP_200_OK)
+
     @action(detail=False, methods=["get"], url_path="get_priority_types")
     def get_priority_types(self, request):
         """
