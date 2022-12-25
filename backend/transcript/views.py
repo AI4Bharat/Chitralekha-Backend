@@ -704,7 +704,7 @@ def get_word_aligned_json(request):
         # print(data)
 
         if len(data) == 0:
-            data = " "
+            data = {}
         data["message"] = "Transcript is word aligned."
         return Response(
             data,
