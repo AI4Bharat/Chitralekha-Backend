@@ -33,4 +33,9 @@ urlpatterns = [
         views.export_transcript,
         name="export_transcript",
     ),
+    path(
+        "get_word_aligned_json/",
+        views.get_word_aligned_json,
+        name="get_word_aligned_json",
+    ),
 ]

@@ -648,6 +648,75 @@ def save_transcription(request):
         )
 
 
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the video id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
+    responses={200: "Json is generated"},
+)
+@api_view(["GET"])
+def get_word_aligned_json(request):
+    task_id = request.query_params.get("task_id")
+
+    if task_id is None:
+        return Response(
+            {"message": "missing param : task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    transcript = get_transcript_id(task)
+    if transcript is None:
+        return Response(
+            {"message": "Transcript not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    try:
+        payload = transcript.payload
+        json_data = {
+            "srt": transcript.payload,
+            "url": task.video.url,
+            "language": task.video.language,
+        }
+        response = requests.post(
+            "http://216.48.183.5:7000/align_json",
+            json=json_data,
+        )
+        data = response.json()
+
+        for i in range(len(payload["payload"])):
+            data[str(i + 1)]["start_time"] = payload["payload"][i]["start_time"]
+            data[str(i + 1)]["end_time"] = payload["payload"][i]["end_time"]
+        # print(data)
+
+        if len(data) == 0:
+            data = " "
+        data["message"] = "Transcript is word aligned."
+        return Response(
+            data,
+            status=status.HTTP_200_OK,
+        )
+    except:
+        return Response(
+            {"message": "Error in getting json format."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
 @api_view(["GET"])
 def get_supported_languages(request):
     """
