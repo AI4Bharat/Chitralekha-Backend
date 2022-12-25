@@ -652,7 +652,7 @@ def save_transcription(request):
     method="get",
     manual_parameters=[
         openapi.Parameter(
-            "task_id",
+            "video_id",
             openapi.IN_QUERY,
             description=("An integer to pass the video id"),
             type=openapi.TYPE_INTEGER,
@@ -663,34 +663,59 @@ def save_transcription(request):
 )
 @api_view(["GET"])
 def get_word_aligned_json(request):
-    task_id = request.query_params.get("task_id")
+    video_id = request.query_params.get("video_id")
 
-    if task_id is None:
+    if video_id is None:
         return Response(
-            {"message": "missing param : task_id"},
+            {"message": "missing param : video_id"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     try:
-        task = Task.objects.get(pk=task_id)
-    except Task.DoesNotExist:
+        video = Video.objects.get(pk=video_id)
+    except Video.DoesNotExist:
         return Response(
-            {"message": "Task not found."},
+            {"message": "Video not found."},
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    transcript = get_transcript_id(task)
-    if transcript is None:
+    transcript = Transcript.objects.filter(video=video)
+    if transcript.filter(status="TRANSCRIPTION_REVIEW_COMPLETE").first() != None:
+        transcript_obj = transcript.filter(
+            status="TRANSCRIPTION_REVIEW_COMPLETE"
+        ).first()
+    elif transcript.filter(status="TRANSCRIPTION_REVIEW_INPROGRESS").first() != None:
+        transcript_obj = transcript.filter(
+            status="TRANSCRIPTION_REVIEW_INPROGRESS"
+        ).first()
+    elif transcript.filter(status="TRANSCRIPTION_REVIEWER_ASSIGNED").first() != None:
+        transcript_obj = transcript.filter(
+            status="TRANSCRIPTION_REVIEWER_ASSIGNED"
+        ).first()
+    elif transcript.filter(status="TRANSCRIPTION_EDIT_COMPLETE").first() != None:
+        transcript_obj = transcript.filter(status="TRANSCRIPTION_EDIT_COMPLETE").first()
+    elif transcript.filter(status="TRANSCRIPTION_EDIT_INPROGRESS").first() != None:
+        transcript_obj = transcript.filter(
+            status="TRANSCRIPTION_EDIT_INPROGRESS"
+        ).first()
+    elif transcript.filter(status="TRANSCRIPTION_EDITOR_ASSIGNED").first() != None:
+        transcript_obj = transcript.filter(
+            status="TRANSCRIPTION_EDITOR_ASSIGNED"
+        ).first()
+    elif transcript.filter(status="TRANSCRIPTION_SELECT_SOURCE").first() != None:
+        transcript_obj = transcript.filter(status="TRANSCRIPTION_SELECT_SOURCE").first()
+    else:
         return Response(
-            {"message": "Transcript not found."},
+            {"message": "Transcript not found for this video."},
             status=status.HTTP_404_NOT_FOUND,
         )
+
     try:
-        payload = transcript.payload
+        payload = transcript_obj.payload
         json_data = {
-            "srt": transcript.payload,
-            "url": task.video.url,
-            "language": task.video.language,
+            "srt": transcript_obj.payload,
+            "url": video.url,
+            "language": video.language,
         }
         response = requests.post(
             "http://216.48.183.5:7000/align_json",
@@ -701,11 +726,11 @@ def get_word_aligned_json(request):
         for i in range(len(payload["payload"])):
             data[str(i + 1)]["start_time"] = payload["payload"][i]["start_time"]
             data[str(i + 1)]["end_time"] = payload["payload"][i]["end_time"]
-        # print(data)
 
         if len(data) == 0:
             data = {}
         data["message"] = "Transcript is word aligned."
+
         return Response(
             data,
             status=status.HTTP_200_OK,
