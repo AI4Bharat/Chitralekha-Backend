@@ -63,6 +63,7 @@ class Translation(models.Model):
         on_delete=models.CASCADE,
         verbose_name="Translation Transcript",
         related_name="translations",
+        null=True,
     )
 
     target_language = models.CharField(
@@ -81,7 +82,7 @@ class Translation(models.Model):
         max_length=35,
         default=None,
     )
-    payload = models.JSONField(verbose_name="Translation Output")
+    payload = models.JSONField(verbose_name="Translation Output", null=True)
     video = models.ForeignKey(
         Video,
         on_delete=models.CASCADE,

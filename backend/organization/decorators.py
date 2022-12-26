@@ -10,12 +10,23 @@ NO_ORGANIZATION_FOUND = {"message": "No matching organization found."}
 NO_ORGANIZATION_OWNER_ERROR = {"message": "You do not belong to this organization!"}
 
 # Allow view only if is a organization owner.
-# Allow view only if is a organization owner.
 def is_organization_owner(f):
     @wraps(f)
     def wrapper(self, request, *args, **kwargs):
         if request.user.is_authenticated and (
             request.user.role == User.ORG_OWNER or request.user.is_superuser
+        ):
+            return f(self, request, *args, **kwargs)
+        return Response(PERMISSION_ERROR, status=403)
+
+    return wrapper
+
+
+def is_admin(f):
+    @wraps(f)
+    def wrapper(self, request, *args, **kwargs):
+        if request.user.is_authenticated and (
+            request.user.role == User.ADMIN or request.user.is_superuser
         ):
             return f(self, request, *args, **kwargs)
         return Response(PERMISSION_ERROR, status=403)

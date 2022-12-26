@@ -52,6 +52,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     UNIVERSAL_EDITOR = "UNIVERSAL_EDITOR"
     PROJECT_MANAGER = "PROJECT_MANAGER"
     ORG_OWNER = "ORG_OWNER"
+    ADMIN = "ADMIN"
 
     ROLE_CHOICES = (
         (TRANSCRIPT_EDITOR, "Transcript editor"),
@@ -61,6 +62,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         (UNIVERSAL_EDITOR, "Universal Editor"),
         (PROJECT_MANAGER, "Project Manager"),
         (ORG_OWNER, "Organization Owner"),
+        (ADMIN, "Admin"),
     )
 
     username = models.CharField(verbose_name="username", max_length=265)
@@ -165,6 +167,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         """Return the short name for the user."""
         return self.first_name
 
+    @property
+    def get_role_label(self):
+        for role in User.ROLE_CHOICES:
+            if self.role == role[0]:
+                return role[1]
+
     """
     Functions to check type of user.
     """
@@ -185,7 +193,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.role == User.UNIVERSAL_EDITOR
 
     def is_project_manager(self):
-        return self.role == User.ORG_OWNER
+        return self.role == User.PROJECT_MANAGER
 
     def is_org_owner(self):
         return self.role == User.ORG_OWNER
+
+    def is_admin(self):
+        return self.role == User.ADMIN

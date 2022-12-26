@@ -16,6 +16,7 @@ def is_project_owner(f):
         if request.user.is_authenticated and (
             request.user.role == User.PROJECT_MANAGER
             or request.user.role == User.ORG_OWNER
+            or request.user.role == User.ADMIN
             or request.user.is_superuser
         ):
             return f(self, request, *args, **kwargs)

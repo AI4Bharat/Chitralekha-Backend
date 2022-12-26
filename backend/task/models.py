@@ -82,7 +82,7 @@ class Task(models.Model):
     )
     eta = models.DateTimeField(verbose_name="ETA", default=None, blank=True, null=True)
     priority = models.CharField(
-        choices=PRIORITY, verbose_name="Priority", max_length=2, blank=True
+        choices=PRIORITY, verbose_name="Priority", max_length=2, blank=True, null=True
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -92,8 +92,32 @@ class Task(models.Model):
         verbose_name="created_by",
         help_text=("Task Created By"),
     )
+    is_active = models.BooleanField(
+        verbose_name="active",
+        default=False,
+        help_text=("Designates whether this task is accessible to the assignee."),
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Task Created At")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Task Updated At")
+
+    @property
+    def get_src_language_label(self):
+        for language in LANGUAGE_CHOICES:
+            if self.video.language == language[0]:
+                return language[1]
+
+    @property
+    def get_task_type_label(self):
+        for t_type in TASK_TYPE:
+            if self.task_type == t_type[0]:
+                return t_type[1]
+
+    @property
+    def get_target_language_label(self):
+        for language in LANGUAGE_CHOICES:
+            if self.target_language == language[0]:
+                return language[1]
+        return "-"
 
     def __str__(self):
         return str(self.id)

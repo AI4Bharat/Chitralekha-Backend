@@ -17,6 +17,7 @@ def is_transcript_editor(f):
             or request.user.role == User.TRANSCRIPT_REVIEWER
             or request.user.role == User.PROJECT_MANGAGER
             or request.user.role == User.ORG_OWNER
+            or user.role == User.ADMIN
             or request.user.is_superuser
         ):
             return f(request)

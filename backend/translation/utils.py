@@ -1,5 +1,7 @@
 import requests
 from uuid import UUID
+import json
+
 from .metadata import (
     LANG_TRANS_MODEL_CODES,
     DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID,
@@ -67,3 +69,63 @@ def get_batch_translations_using_indictrans_nmt_api(
 
     except Exception as e:
         return str(e)
+
+
+def generate_translation_payload(transcript, target_language, list_compare_sources):
+    payloads = {}
+    if "MACHINE_GENERATED" in list_compare_sources:
+        translation_machine_generated = translation_mg(transcript, target_language)
+        payloads["MACHINE_GENERATED"] = translation_machine_generated
+
+    if "MANUALLY_CREATED" in list_compare_sources:
+        payloads["MANUALLY_CREATED"] = {"payload": []}
+    return payloads
+
+
+def translation_mg(transcript, target_language, batch_size=75):
+    sentence_list = []
+    vtt_output = transcript.payload
+    for vtt_line in vtt_output["payload"]:
+        sentence_list.append(vtt_line["text"])
+
+    all_translated_sentences = []  # List to store all the translated sentences
+
+    # Iterate over the sentences in batch format and send them to the Translation API
+    for i in range(0, len(sentence_list), batch_size):
+        batch_of_input_sentences = sentence_list[i : i + batch_size]
+
+        # Get the translation using the Indictrans NMT API
+        translations_output = get_batch_translations_using_indictrans_nmt_api(
+            sentence_list=batch_of_input_sentences,
+            source_language=transcript.language,
+            target_language=target_language,
+        )
+
+        # Check if translations output doesn't return a string error
+        if isinstance(translations_output, str):
+            return Response(
+                {"error": translations_output}, status=status.HTTP_400_BAD_REQUEST
+            )
+        else:
+            # Add the translated sentences to the list
+            all_translated_sentences.extend(translations_output)
+
+    # Check if the length of the translated sentences is equal to the length of the input sentences
+    if len(all_translated_sentences) != len(sentence_list):
+        return Response(
+            {"error": "Error while generating translation."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Update the translation payload with the generated translations
+    payload = []
+    for (source, target) in zip(vtt_output["payload"], all_translated_sentences):
+        payload.append(
+            {
+                "start_time": source["start_time"],
+                "end_time": source["end_time"],
+                "text": source["text"],
+                "target_text": target if source["text"].strip() else source["text"],
+            }
+        )
+    return json.loads(json.dumps({"payload": payload}))

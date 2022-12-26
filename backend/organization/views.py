@@ -7,11 +7,16 @@ from users.serializers import UserFetchSerializer
 from users.models import User
 from .models import Organization
 from .serializers import OrganizationSerializer
-from .decorators import is_organization_owner, is_particular_organization_owner
+from .decorators import (
+    is_organization_owner,
+    is_particular_organization_owner,
+    is_admin,
+)
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from project.serializers import ProjectSerializer
 from project.models import Project
+from config import *
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -23,9 +28,115 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     serializer_class = OrganizationSerializer
     permission_classes = (IsAuthenticated,)
 
-    @is_organization_owner
+    @is_admin
     def create(self, request, pk=None, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
+        """
+        Create an Organization
+        """
+        title = request.data.get("title")
+        email_domain_name = request.data.get("email_domain_name")
+        organization_owner = request.data.get("organization_owner")
+        default_transcript_editor = request.data.get("default_transcript_editor")
+        default_transcript_reviewer = request.data.get("default_transcript_reviewer")
+        default_translation_editor = request.data.get("default_translation_editor")
+        default_translation_reviewer = request.data.get("default_translation_reviewer")
+        default_transcript_type = request.data.get("default_transcript_type")
+        default_translation_type = request.data.get("default_translation_type")
+
+        if title is None or email_domain_name is None or organization_owner is None:
+            return Response(
+                {
+                    "message": "missing param : title or email_domain_name or organization_owner"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            organization_owner = User.objects.get(pk=organization_owner)
+        except User.DoesNotExist:
+            return Response(
+                {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        if organization_owner.is_superuser == False and organization_owner.role != (
+            User.ADMIN or User.ORG_OWNER
+        ):
+            return Response(
+                {"message": "This user can't be the organization owner."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if default_transcript_editor:
+            try:
+                default_transcript_editor = User.objects.get(
+                    pk=default_transcript_editor
+                )
+            except User.DoesNotExist:
+                return Response(
+                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        if default_transcript_reviewer:
+            try:
+                default_transcript_reviewer = User.objects.get(
+                    pk=default_transcript_reviewer
+                )
+            except User.DoesNotExist:
+                return Response(
+                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        if default_translation_editor:
+            try:
+                default_translation_editor = User.objects.get(
+                    pk=default_translation_editor
+                )
+            except User.DoesNotExist:
+                return Response(
+                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        if default_translation_reviewer:
+            try:
+                default_translation_reviewer = User.objects.get(
+                    pk=default_translation_reviewer
+                )
+            except User.DoesNotExist:
+                return Response(
+                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        try:
+            organization = Organization(
+                title=title,
+                email_domain_name=email_domain_name,
+                organization_owner=organization_owner,
+                created_by=request.user,
+                default_transcript_editor=default_transcript_editor,
+                default_transcript_reviewer=default_transcript_reviewer,
+                default_translation_editor=default_translation_editor,
+                default_translation_reviewer=default_translation_reviewer,
+                default_transcript_type=default_transcript_type,
+                default_translation_type=default_translation_type,
+            )
+            organization.save()
+        except:
+            return Response(
+                {"message": "Organization can't be created"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        organization_owner.organization = organization
+        organization_owner.save()
+
+        response = {
+            "organization_id": organization.id,
+            "message": "Organization is successfully created.",
+        }
+
+        return Response(
+            response,
+            status=status.HTTP_200_OK,
+        )
 
     @is_particular_organization_owner
     def update(self, request, pk=None, *args, **kwargs):
