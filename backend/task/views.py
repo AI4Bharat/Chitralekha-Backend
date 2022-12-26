@@ -6,18 +6,25 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
 from project.decorators import is_project_owner
+from project.models import Project
+from organization.models import Organization
 from transcript.views import generate_transcription
 from rest_framework.decorators import action
 from users.models import User
 from transcript.utils.asr import get_asr_supported_languages, make_asr_api_call
 from transcript.models import Transcript
 from translation.models import Translation
-from translation.utils import get_batch_translations_using_indictrans_nmt_api
+from translation.utils import (
+    get_batch_translations_using_indictrans_nmt_api,
+    generate_translation_payload,
+    translation_mg,
+)
 from video.utils import get_subtitles_from_google_video
 from rest_framework.permissions import IsAuthenticated
 import webvtt
 from io import StringIO
 import json, sys
+from config import *
 
 
 from .models import (
@@ -52,47 +59,51 @@ class TaskViewSet(ModelViewSet):
     serializer_class = TaskSerializer
     permission_classes = (IsAuthenticated,)
 
-    def has_transcript_edit_permission(self, user, video):
-        if user in video.project_id.members.all() and (
+    def has_transcript_edit_permission(self, user, videos):
+        if user in videos[0].project_id.members.all() and (
             user.role == User.TRANSCRIPT_EDITOR
             or user.role == User.UNIVERSAL_EDITOR
             or user.role == User.TRANSCRIPT_REVIEWER
             or user.role == User.PROJECT_MANAGER
             or user.role == User.ORG_OWNER
+            or user.role == User.ADMIN
             or user.is_superuser
         ):
             return True
         return False
 
-    def has_transcript_review_permission(self, user, video):
-        if user in video.project_id.members.all() and (
+    def has_transcript_review_permission(self, user, videos):
+        if user in videos[0].project_id.members.all() and (
             user.role == User.UNIVERSAL_EDITOR
             or user.role == User.TRANSCRIPT_REVIEWER
             or user.role == User.PROJECT_MANAGER
             or user.role == User.ORG_OWNER
+            or user.role == User.ADMIN
             or user.is_superuser
         ):
             return True
         return False
 
-    def has_translate_edit_permission(self, user, video):
-        if user in video.project_id.members.all() and (
+    def has_translate_edit_permission(self, user, videos):
+        if user in videos[0].project_id.members.all() and (
             user.role == User.UNIVERSAL_EDITOR
             or user.role == User.TRANSLATION_EDITOR
             or user.role == User.TRANSLATION_REVIEWER
             or user.role == User.PROJECT_MANAGER
             or user.role == User.ORG_OWNER
+            or user.role == User.ADMIN
             or user.is_superuser
         ):
             return True
         return False
 
-    def has_translate_review_permission(self, user, video):
-        if user in video.project_id.members.all() and (
+    def has_translate_review_permission(self, user, videos):
+        if user in videos[0].project_id.members.all() and (
             user.role == User.UNIVERSAL_EDITOR
             or user.role == User.TRANSLATION_REVIEWER
             or user.role == User.PROJECT_MANAGER
             or user.role == User.ORG_OWNER
+            or user.role == User.ADMIN
             or user.is_superuser
         ):
             return True
@@ -119,43 +130,27 @@ class TaskViewSet(ModelViewSet):
             "task_id": task.id,
         }
 
-    def check_duplicate_task(self, task_type, task, user, video):
-        if task.filter(task_type=task_type).first() is not None:
-            return {
-                "message": "Task can't be created, as duplicate task already exists.",
-                "status": status.HTTP_400_BAD_REQUEST,
-            }
+    def check_duplicate_tasks(self, request, task_type, target_language, user, videos):
+        duplicate_tasks = []
+        duplicate_user_tasks = []
+        for video in videos:
+            task = Task.objects.filter(video=video)
+            if target_language is not None:
+                task = Task.objects.filter(video=video).filter(
+                    target_language=target_language
+                )
 
-        if "REVIEW" in task_type:
-            edit_task_type = task_type.split("_")[0] + "_" + "EDIT"
-            if (
-                task.filter(task_type=edit_task_type).filter(status="COMPLETE").first()
-                is None
-            ):
-                return {
-                    "message": "Creation of Review task is not permissible until Editing is not completed.",
-                    "status": status.HTTP_400_BAD_REQUEST,
-                }
+            if task.filter(task_type=task_type).first() is not None:
+                duplicate_tasks.append(task.filter(task_type=task_type).first())
+
+            """
             if task.filter(task_type=task_type).filter(user=user).first():
                 if not (request.user.role > 4 or request.user.is_superuser):
-                    return {
-                        "message": "Same user can't be Editor and Reviewer of a video.",
-                        "status": status.HTTP_400_BAD_REQUEST,
-                    }
-
-        if "TRANSLATION" in task_type:
-            if (
-                Task.objects.filter(video=video)
-                .filter(task_type="TRANSCRIPTION_EDIT")
-                .filter(status="COMPLETE")
-                .first()
-                is None
-            ):
-                return {
-                    "message": "Creation of Translation task is not permissible until Transcription is not done.",
-                    "status": status.HTTP_400_BAD_REQUEST,
-                }
-        return {}
+                    duplicate_user_tasks.append(
+                        task.filter(task_type=task_type).filter(user=user).first()
+                    )
+            """
+        return duplicate_tasks, duplicate_user_tasks
 
     def check_transcript_exists(self, video):
         transcript = Transcript.objects.filter(video=video)
@@ -164,11 +159,11 @@ class TaskViewSet(ModelViewSet):
             transcript.filter(status="TRANSCRIPTION_REVIEW_COMPLETE").first()
             is not None
         ):
-            return True
+            return transcript.filter(status="TRANSCRIPTION_REVIEW_COMPLETE").first()
         elif (
             transcript.filter(status="TRANSCRIPTION_EDIT_COMPLETE").first() is not None
         ):
-            return False
+            return transcript.filter(status="TRANSCRIPTION_EDIT_COMPLETE").first()
         else:
             return {
                 "message": "Transcript doesn't exist for this video.",
@@ -177,106 +172,145 @@ class TaskViewSet(ModelViewSet):
 
     def create_translation_task(
         self,
-        video,
+        videos,
         user,
         target_language,
         task_type,
+        source_type,
         request,
-        verified_transcript,
         eta,
         priority,
         description,
     ):
-        task = Task.objects.filter(video=video).filter(target_language=target_language)
+        duplicate_tasks, duplicate_user_tasks = self.check_duplicate_tasks(
+            request, task_type, target_language, user, videos
+        )
 
-        response = self.check_duplicate_task(task_type, task, user, video)
-        if len(response) > 0:
-            return Response({"message": response["message"]}, status=response["status"])
+        response = {}
+        if len(duplicate_tasks) > 0 or len(duplicate_user_tasks) > 0:
+            video_ids = [task.video for task in duplicate_tasks] + [
+                task.video for task in duplicate_user_tasks
+            ]
+            for video in video_ids:
+                videos.remove(video)
+            if len(videos) <= 0:
+                return Response(
+                    {"message": "This task is already created for selected videos."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         if "EDIT" in task_type:
-            permitted = self.has_translate_edit_permission(user, video)
+            permitted = self.has_translate_edit_permission(user, videos)
         else:
-            permitted = self.has_translate_review_permission(user, video)
+            permitted = self.has_translate_review_permission(user, videos)
 
         if permitted:
             if "EDIT" in task_type:
-                translation = (
-                    Translation.objects.filter(video=video)
-                    .filter(target_language=target_language)
-                    .filter(status="TRANSLATION_SELECT_SOURCE")
-                    .first()
-                )
+                new_tasks = []
+                for video in videos:
+                    transcript = self.check_transcript_exists(video)
 
-                response_transcript = self.check_transcript_exists(video)
-                if type(response_transcript) == dict:
-                    return Response(
-                        {"message": response_transcript["message"]},
-                        status=response_transcript["status"],
-                    )
-                else:
-                    verified_transcript = response_transcript
+                    if type(transcript) == dict:
+                        is_active = False
+                    else:
+                        is_active = True
 
-                if translation is None:
                     new_task = Task(
                         task_type=task_type,
                         video=video,
                         created_by=request.user,
                         user=user,
                         target_language=target_language,
-                        status="NEW",
+                        status="SELECTED_SOURCE",
                         eta=eta,
                         description=description,
                         priority=priority,
-                        verified_transcript=verified_transcript,
+                        is_active=is_active,
                     )
-                    new_task.save()
-                    response = {"task_id": new_task.id}
+                    new_tasks.append(new_task)
+                tasks = Task.objects.bulk_create(new_tasks)
+
+                new_translations = []
+                for task in tasks:
+                    if task.is_active:
+                        transcript = self.check_transcript_exists(task.video)
+                        payloads = generate_translation_payload(
+                            transcript, target_language, [source_type]
+                        )
+                    else:
+                        payloads = {source_type: ""}
+                        transcript = None
+                    translate_obj = Translation(
+                        video=task.video,
+                        user=user,
+                        transcript=transcript,
+                        payload=payloads[source_type],
+                        target_language=target_language,
+                        task=task,
+                        translation_type=source_type,
+                        status="TRANSLATION_SELECT_SOURCE",
+                    )
+                    new_translations.append(translate_obj)
+                translations = Translation.objects.bulk_create(new_translations)
             else:
-                edit_task_type = task_type.split("_")[0] + "_" + "EDIT"
-                translation = (
-                    Translation.objects.filter(video=video)
-                    .filter(target_language=target_language)
-                    .filter(status="TRANSLATION_EDIT_COMPLETE")
-                    .first()
-                )
-                if translation is None:
-                    return Response(
-                        {
-                            "message": "Translation review task can't be created, as editing is not done yet."
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
+
+                new_tasks = []
+                for video in videos:
+                    translation = (
+                        Translation.objects.filter(video=video)
+                        .filter(status="TRANSLATION_EDIT_COMPLETE")
+                        .filter(target_language=target_language)
+                        .first()
                     )
-                else:
+                    is_active = False
+                    if translation is not None:
+                        is_active = True
                     new_task = Task(
                         task_type=task_type,
                         video=video,
                         created_by=request.user,
                         user=user,
                         target_language=target_language,
-                        status="NEW",
+                        status="SELECTED_SOURCE",
                         eta=eta,
                         description=description,
                         priority=priority,
+                        is_active=is_active,
                     )
-                    new_task.save()
+                    new_tasks.append(new_task)
+                tasks = Task.objects.bulk_create(new_tasks)
 
+                new_translations = []
+                for task in tasks:
+                    translation = (
+                        Translation.objects.filter(video=video)
+                        .filter(status="TRANSLATION_EDIT_COMPLETE")
+                        .filter(target_language=target_language)
+                        .first()
+                    )
+
+                    if translation is not None:
+                        payload = translation.payload
+                        transcript = translation.transcript
+                        is_active = True
+                    else:
+                        payload = None
+                        transcript = None
+                        is_active = False
                     translate_obj = Translation(
                         video=video,
                         user=user,
-                        transcript=translation.transcript,
+                        transcript=transcript,
                         parent=translation,
-                        payload=translation.payload,
+                        payload=payload,
                         target_language=target_language,
                         task=new_task,
-                        translation_type=translation.translation_type,
+                        translation_type=source_type,
                         status="TRANSLATION_REVIEWER_ASSIGNED",
                     )
-                    translate_obj.save()
-                    response = {
-                        "task_id": new_task.id,
-                        "translation_id": translate_obj.id,
-                        "data": translate_obj.payload,
-                    }
+                    new_translations.append(translate_obj)
+                translations = Translation.objects.bulk_create(new_translations)
+
             response["message"] = "Translation task is created"
             return Response(
                 response,
@@ -291,86 +325,109 @@ class TaskViewSet(ModelViewSet):
             )
 
     def create_transcription_task(
-        self, video, user, task_type, request, eta, priority, description
+        self, videos, user, task_type, source_type, request, eta, priority, description
     ):
-        task = Task.objects.filter(video=video)
-        response = self.check_duplicate_task(task_type, task, user, video)
-        if len(response) > 0:
-            return Response({"message": response["message"]}, status=response["status"])
+        duplicate_tasks, duplicate_user_tasks = self.check_duplicate_tasks(
+            request, task_type, None, user, videos
+        )
+        response = {}
+        if len(duplicate_tasks) > 0 or len(duplicate_user_tasks) > 0:
+            video_ids = [task.video for task in duplicate_tasks] + [
+                task.video for task in duplicate_user_tasks
+            ]
+            for video in video_ids:
+                videos.remove(video)
+            if len(videos) <= 0:
+                return Response(
+                    {"message": "This task is already created for selected videos."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         if "EDIT" in task_type:
-            permitted = self.has_transcript_edit_permission(user, video)
+            permitted = self.has_transcript_edit_permission(user, videos)
         else:
-            permitted = self.has_transcript_review_permission(user, video)
+            permitted = self.has_transcript_review_permission(user, videos)
 
         if permitted:
-            transcript = Transcript.objects.filter(video=video).first()
-
             if "EDIT" in task_type:
-                transcript = (
-                    Transcript.objects.filter(video=video)
-                    .filter(status="TRANSCRIPTION_SELECT_SOURCE")
-                    .first()
-                )
-                if transcript is None:
+                new_tasks = []
+                for video in videos:
                     new_task = Task(
                         task_type=task_type,
                         video=video,
                         created_by=request.user,
                         user=user,
-                        status="NEW",
+                        status="SELECTED_SOURCE",
                         eta=eta,
                         description=description,
                         priority=priority,
+                        is_active=True,
                     )
-                    new_task.save()
-                    response = {"task_id": new_task.id}
-            else:
-                transcript = (
-                    Transcript.objects.filter(video=video)
-                    .filter(status="TRANSCRIPTION_EDIT_COMPLETE")
-                    .first()
-                )
-                if transcript is None:
-                    return Response(
-                        {
-                            "message": "Transcript review task can't be created, as editing is not done yet."
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                else:
-                    new_task = Task(
-                        task_type=task_type,
-                        video=video,
-                        created_by=request.user,
-                        user=user,
-                        status="NEW",
-                        eta=eta,
-                        description=description,
-                        priority=priority,
-                    )
-                    new_task.save()
+                    new_tasks.append(new_task)
+                tasks = Task.objects.bulk_create(new_tasks)
 
+                new_transcripts = []
+                for task in tasks:
+                    payloads = self.generate_transcript_payload(task, [source_type])
                     transcript_obj = Transcript(
+                        video=task.video,
+                        user=user,
+                        payload=payloads[source_type],
+                        language=video.language,
+                        task=task,
+                        transcript_type=source_type,
+                        status="TRANSCRIPTION_SELECT_SOURCE",
+                    )
+                    new_transcripts.append(transcript_obj)
+                transcripts = Transcript.objects.bulk_create(new_transcripts)
+            else:
+                new_tasks = []
+                for video in videos:
+                    transcript = (
+                        Transcript.objects.filter(video=video)
+                        .filter(status="TRANSCRIPTION_EDIT_COMPLETE")
+                        .first()
+                    )
+                    is_active = False
+                    if transcript is not None:
+                        is_active = True
+                    new_task = Task(
+                        task_type=task_type,
                         video=video,
+                        created_by=request.user,
+                        user=user,
+                        status="NEW",
+                        eta=eta,
+                        description=description,
+                        priority=priority,
+                        is_active=is_active,
+                    )
+                    new_tasks.append(new_task)
+                tasks = Task.objects.bulk_create(new_tasks)
+
+                new_transcripts = []
+                for task in tasks:
+                    if task.is_active:
+                        payload = transcript.payload
+                        transcript_type = transcript.transcript_type
+                    else:
+                        payload = None
+                        transcript_type = None
+                    transcript_obj = Transcript(
+                        video=task.video,
                         user=user,
                         parent_transcript=transcript,
-                        payload=transcript.payload,
-                        language=video.language,
-                        task=new_task,
-                        transcript_type=transcript.transcript_type,
+                        payload=payload,
+                        language=task.video.language,
+                        task=task,
+                        transcript_type=source_type,
                         status="TRANSCRIPTION_REVIEWER_ASSIGNED",
                     )
-                    transcript_obj.save()
-                    response = {
-                        "task_id": new_task.id,
-                        "transcript_id": transcript_obj.id,
-                        "data": transcript_obj.payload,
-                    }
+                    new_transcripts.append(transcript_obj)
+                transcripts = Transcript.objects.bulk_create(new_transcripts)
 
-            response["message"] = "Transcript task is created"
             return Response(
-                response,
+                {"message": "Transcript task is created"},
                 status=status.HTTP_200_OK,
             )
         else:
@@ -396,68 +453,29 @@ class TaskViewSet(ModelViewSet):
 
         return json.loads(json.dumps({"payload": sentences_list}))
 
-    def get_transcript(self, video, verified_transcript):
-        if verified_transcript:
-            transcript = (
-                Transcript.objects.filter(video=video)
-                .filter(status="TRANSCRIPTION_REVIEW_COMPLETE")
-                .first()
-            )
-        else:
-            transcript = (
-                Transcript.objects.filter(video=video)
-                .filter(status="TRANSCRIPTION_EDIT_COMPLETE")
-                .first()
-            )
-        return transcript
-
-    def translation_mg(self, transcript, target_language, batch_size=75):
-        sentence_list = []
-        vtt_output = transcript.payload
-        for vtt_line in vtt_output["payload"]:
-            sentence_list.append(vtt_line["text"])
-
-        all_translated_sentences = []  # List to store all the translated sentences
-
-        # Iterate over the sentences in batch format and send them to the Translation API
-        for i in range(0, len(sentence_list), batch_size):
-            batch_of_input_sentences = sentence_list[i : i + batch_size]
-
-            # Get the translation using the Indictrans NMT API
-            translations_output = get_batch_translations_using_indictrans_nmt_api(
-                sentence_list=batch_of_input_sentences,
-                source_language=transcript.language,
-                target_language=target_language,
-            )
-
-            # Check if translations output doesn't return a string error
-            if isinstance(translations_output, str):
-                return Response(
-                    {"error": translations_output}, status=status.HTTP_400_BAD_REQUEST
-                )
+    def generate_transcript_payload(self, task, list_compare_sources):
+        payloads = {}
+        if "MACHINE_GENERATED" in list_compare_sources:
+            transcribed_data = make_asr_api_call(task.video.url, task.video.language)
+            if transcribed_data is not None:
+                data = self.convert_payload_format(transcribed_data)
+                payloads["MACHINE_GENERATED"] = data
             else:
-                # Add the translated sentences to the list
-                all_translated_sentences.extend(translations_output)
+                return Response(
+                    {"message": "Error while calling ASR API"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+        if "ORIGINAL_SOURCE" in list_compare_sources:
+            subtitles = task.video.subtitles
+            if subtitles is not None:
+                data = self.convert_payload_format(subtitles)
+                payloads["ORIGINAL_SOURCE"] = data
+            else:
+                payloads["ORIGINAL_SOURCE"] = {"payload": []}
 
-        # Check if the length of the translated sentences is equal to the length of the input sentences
-        if len(all_translated_sentences) != len(sentence_list):
-            return Response(
-                {"error": "Error while generating translation."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Update the translation payload with the generated translations
-        payload = []
-        for (source, target) in zip(vtt_output["payload"], all_translated_sentences):
-            payload.append(
-                {
-                    "start_time": source["start_time"],
-                    "end_time": source["end_time"],
-                    "text": source["text"],
-                    "target_text": target if source["text"].strip() else source["text"],
-                }
-            )
-        return json.loads(json.dumps({"payload": payload}))
+        if "MANUALLY_CREATED" in list_compare_sources:
+            payloads["MANUALLY_CREATED"] = {"payload": []}
+        return payloads
 
     @swagger_auto_schema(
         method="post",
@@ -508,31 +526,9 @@ class TaskViewSet(ModelViewSet):
         payloads = {}
         if len(list_compare_sources) > 0 and request.user == task.user:
             if "TRANSCRIPT" in task.task_type:
-                if "MACHINE_GENERATED" in list_compare_sources:
-                    transcribed_data = make_asr_api_call(
-                        task.video.url, task.video.language
-                    )
-                    if transcribed_data is not None:
-                        data = self.convert_payload_format(transcribed_data)
-                        payloads["MACHINE_GENERATED"] = data
-                    else:
-                        return Response(
-                            {"message": "Error while calling ASR API"},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        )
-                if "ORIGINAL_SOURCE" in list_compare_sources:
-                    subtitles = task.video.subtitles
-                    if subtitles is not None:
-                        data = self.convert_payload_format(subtitles)
-                        payloads["ORIGINAL_SOURCE"] = data
-                    else:
-                        payloads["ORIGINAL_SOURCE"] = {"payload": []}
-
-                if "MANUALLY_CREATED" in list_compare_sources:
-                    payloads["MANUALLY_CREATED"] = {"payload": []}
+                payloads = self.generate_transcript_payload(task, list_compare_sources)
             else:
                 target_language = task.target_language
-                verified_transcript = task.verified_transcript
                 if target_language is None:
                     return Response(
                         {
@@ -541,23 +537,17 @@ class TaskViewSet(ModelViewSet):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-                transcript = self.get_transcript(task.video, task.verified_transcript)
+                transcript = self.check_transcript_exists(task.video)
 
-                if transcript is None:
+                if type(transcript) == dict:
                     return Response(
                         {"message": "Transcript doesn't exist for this video."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-                response["transcript_id"] = transcript.id
-                if "MACHINE_GENERATED" in list_compare_sources:
-                    translation_machine_generated = self.translation_mg(
-                        transcript, target_language
-                    )
-                    payloads["MACHINE_GENERATED"] = translation_machine_generated
-
-                if "MANUALLY_CREATED" in list_compare_sources:
-                    payloads["MANUALLY_CREATED"] = {"payload": []}
+                payloads = generate_translation_payload(
+                    transcript, target_language, list_compare_sources
+                )
 
             response["payloads"] = payloads
             response["task_id"] = task.id
@@ -601,7 +591,7 @@ class TaskViewSet(ModelViewSet):
     )
     def select_source(self, request, pk=None):
         payload = request.data.get("payload")
-        type = request.data.get("type")
+        source_type = request.data.get("type")
 
         try:
             task = Task.objects.get(pk=pk)
@@ -616,57 +606,78 @@ class TaskViewSet(ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if payload is None or type is None:
+        if payload is None or source_type is None:
             return Response(
                 {"message": "missing param : payload or source_type"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if "TRANSCRIPTION" in task.task_type:
-            if (
+            transcription = (
                 Transcript.objects.filter(video=task.video)
                 .filter(status="TRANSCRIPTION_SELECT_SOURCE")
                 .first()
-            ) is None:
-                response = generate_transcription(
-                    task.video, task.video.language, request.user, type, task, payload
-                )
-                task.status = "SELECTED_SOURCE"
-                task.save()
-            else:
-                return Response(
-                    {
-                        "message": "Source has already been selected for this transcript."
-                    },
-                    status=status.HTTP_201_CREATED,
-                )
+            )
+            if transcription is not None:
+                if source_type != transcription.transcript_type:
+                    transcription.delete()
+                else:
+                    response = {}
+                    response["transcript_id"] = transcription.id
+                    response["message"] = "Source is selected successfully."
+                    return Response(
+                        response,
+                        status=status.HTTP_200_OK,
+                    )
+            response = generate_transcription(
+                task.video,
+                task.video.language,
+                request.user,
+                source_type,
+                task,
+                payload,
+            )
+            task.status = "SELECTED_SOURCE"
+            task.save()
+
         else:
             target_language = task.target_language
-            if (
+            translation = (
                 Translation.objects.filter(video=task.video)
                 .filter(target_language=target_language)
                 .filter(status="TRANSLATION_SELECT_SOURCE")
-            ).first() is None:
+                .first()
+            )
+            if translation is not None:
+                if source_type != translation.translation_type:
+                    translation.delete()
+                else:
+                    response = {}
+                    response["translation_id"] = translation.id
+                    response["message"] = "Source is selected successfully."
+                    return Response(
+                        response,
+                        status=status.HTTP_200_OK,
+                    )
 
-                transcript = self.get_transcript(task.video, task.verified_transcript)
-                response = self.generate_translation(
-                    task.video,
-                    target_language,
-                    transcript,
-                    request.user,
-                    type,
-                    task,
-                    payload,
-                )
-                task.status = "SELECTED_SOURCE"
-                task.save()
-            else:
+            transcript = self.check_transcript_exists(task.video)
+            if type(transcript) == dict:
                 return Response(
-                    {
-                        "message": "Source has already been selected for this translation."
-                    },
-                    status=status.HTTP_201_CREATED,
+                    {"message": transcript["message"]},
+                    status=transcript["status"],
                 )
+
+            response = self.generate_translation(
+                task.video,
+                target_language,
+                transcript,
+                request.user,
+                source_type,
+                task,
+                payload,
+            )
+            task.status = "SELECTED_SOURCE"
+            task.save()
         response["message"] = "Selection of source is successful."
         return Response(
             response,
@@ -713,18 +724,17 @@ class TaskViewSet(ModelViewSet):
     def create(self, request, pk=None, *args, **kwargs):
         task_type = request.data.get("task_type")
         user_id = request.data.get("user_id")
-        video_id = request.data.get("video_id")
+        video_ids = request.data.get("video_ids")
         eta = request.data.get("eta")
         description = request.data.get("description")
         priority = request.data.get("priority")
 
-        if task_type is None or user_id is None or video_id is None:
+        if task_type is None or video_ids is None or len(video_ids) == 0:
             return Response(
-                {"message": "missing param : task_type or user_id or video_id"},
+                {"message": "missing param : task_type or user_id or video_ids"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        verified_transcript = False
         if "TRANSLATION" in task_type:
             target_language = request.data.get("target_language")
             if target_language is None:
@@ -734,16 +744,50 @@ class TaskViewSet(ModelViewSet):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            verified_transcript = request.data.get("verified_transcript", False)
+
+        videos = []
+        for video_id in video_ids:
+            try:
+                video = Video.objects.get(pk=video_id)
+            except Video.DoesNotExist:
+                return Response(
+                    {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+            videos.append(video)
+
+        if user_id is None:
+            if len(videos) > 0:
+                project = videos[0].project_id
+                user_obj = None
+                organization = project.organization_id
+                if task_type == "TRANSCRIPTION_EDIT":
+                    user_obj = (
+                        project.default_transcript_editor
+                        or organization.default_transcript_editor
+                    )
+                elif task_type == "TRANSCRIPTION_REVIEW":
+                    user_obj = (
+                        project.default_transcript_reviewer
+                        or organization.default_transcript_reviewer
+                    )
+                elif task_type == "TRANSLATION_EDIT":
+                    user_obj = (
+                        project.default_translation_editor
+                        or organization.default_translation_editor
+                    )
+                elif task_type == "TRANSLATION_REVIEWER":
+                    user_obj = (
+                        project.default_translation_reviewer
+                        or organization.default_translation_editor
+                    )
+                else:
+                    print("Not a valid task_type")
+                if user_obj is not None:
+                    user_id = user_obj.id
 
         try:
-            video = Video.objects.get(pk=video_id)
-        except Video.DoesNotExist:
-            return Response(
-                {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
-            )
-
-        try:
+            if user_id is None:
+                user_id = request.user.id
             user = User.objects.get(pk=user_id)
         except User.DoesNotExist:
             return Response(
@@ -751,20 +795,42 @@ class TaskViewSet(ModelViewSet):
             )
 
         if "TRANSLATION" in task_type:
+            project = Project.objects.get(id=videos[0].project_id.id)
+            organization = project.organization_id
+            source_type = (
+                project.default_translation_type
+                or organization.default_translation_type
+            )
+            if source_type == None:
+                source_type = backend_default_translation_type
             return self.create_translation_task(
-                video,
+                videos,
                 user,
                 target_language,
                 task_type,
+                source_type,
                 request,
-                verified_transcript,
                 eta,
                 priority,
                 description,
             )
         else:
+            project = Project.objects.get(id=videos[0].project_id.id)
+            organization = project.organization_id
+            source_type = (
+                project.default_transcript_type or organization.default_transcript_type
+            )
+            if source_type == None:
+                source_type = backend_default_transcript_type
             return self.create_transcription_task(
-                video, user, task_type, request, eta, priority, description
+                videos,
+                user,
+                task_type,
+                source_type,
+                request,
+                eta,
+                priority,
+                description,
             )
 
     @action(detail=False, methods=["get"], url_path="get_task_types")

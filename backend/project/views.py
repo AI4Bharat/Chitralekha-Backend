@@ -17,6 +17,7 @@ from task.serializers import TaskSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.db.models import Q
+from config import *
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -190,7 +191,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project = Project.objects.get(pk=pk)
             for prj_user in ids:
                 user = User.objects.get(id=prj_user)
-                if user.role != 6:
+                if user.role != (
+                    User.PROJECT_MANAGER
+                    or User.ADMIN
+                    or User.ORG_OWNER
+                    or User.is_superuser
+                ):
                     return Response(
                         {"error": "User is not a manager"},
                         status=status.HTTP_400_BAD_REQUEST,
@@ -258,11 +264,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project = Project.objects.get(pk=pk)
             for prj_user in ids:
                 user = User.objects.get(id=prj_user)
-                if user.role != 6:
-                    return Response(
-                        {"error": "User is not a manager"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
                 if user not in project.managers.all():
                     return Response(
                         {"error": "member not added"},
@@ -407,6 +408,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
         organization_id = request.data.get("organization_id")
         managers_id = request.data.get("managers_id")
         description = request.data.get("description")
+        default_transcript_editor = request.data.get("default_transcript_editor")
+        default_transcript_reviewer = request.data.get("default_transcript_reviewer")
+        default_translation_editor = request.data.get("default_translation_editor")
+        default_translation_reviewer = request.data.get("default_translation_reviewer")
+        default_transcript_type = request.data.get("default_transcript_type")
+        default_translation_type = request.data.get("default_translation_type")
 
         if title is None or organization_id is None or len(managers_id) == 0:
             return Response(
@@ -421,8 +428,56 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
+        if default_transcript_editor:
+            try:
+                default_transcript_editor = User.objects.get(
+                    pk=default_transcript_editor
+                )
+            except User.DoesNotExist:
+                return Response(
+                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        if default_transcript_reviewer:
+            try:
+                default_transcript_reviewer = User.objects.get(
+                    pk=default_transcript_reviewer
+                )
+            except User.DoesNotExist:
+                return Response(
+                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        if default_translation_editor:
+            try:
+                default_translation_editor = User.objects.get(
+                    pk=default_translation_editor
+                )
+            except User.DoesNotExist:
+                return Response(
+                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        if default_translation_reviewer:
+            try:
+                default_translation_reviewer = User.objects.get(
+                    pk=default_translation_reviewer
+                )
+            except User.DoesNotExist:
+                return Response(
+                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
         project = Project(
-            title=title, organization_id=organization, created_by=request.user
+            title=title,
+            organization_id=organization,
+            created_by=request.user,
+            default_transcript_editor=default_transcript_editor,
+            default_transcript_reviewer=default_transcript_reviewer,
+            default_translation_editor=default_translation_editor,
+            default_translation_reviewer=default_translation_reviewer,
+            default_transcript_type=default_transcript_type,
+            default_translation_type=default_translation_type,
         )
         project.save()
 
@@ -436,6 +491,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 )
             project.managers.add(user)
             project.members.add(user)
+            if project.default_transcript_editor:
+                project.members.add(default_transcript_editor)
+            if project.default_transcript_reviewer:
+                project.members.add(default_transcript_reviewer)
+            if project.default_translation_editor:
+                project.members.add(default_translation_editor)
+            if project.default_translation_reviewer:
+                project.members.add(default_translation_reviewer)
         response = {}
         response = {
             "project_id": project.id,

@@ -11,6 +11,15 @@ from django.http import HttpResponse
 from django.core.files.base import ContentFile
 import requests
 from json_to_ytt import *
+from translation.models import Translation
+from project.models import Project
+from organization.models import Organization
+from translation.utils import (
+    get_batch_translations_using_indictrans_nmt_api,
+    generate_translation_payload,
+    translation_mg,
+)
+
 
 from .models import (
     Transcript,
@@ -415,6 +424,43 @@ def get_payload(request):
     )
 
 
+def change_active_status_of_next_tasks(task, transcript_obj):
+    tasks = Task.objects.filter(video=task.video)
+    if tasks.filter(task_type="TRANSCRIPTION_REVIEW").first():
+        tasks.filter(task_type="TRANSCRIPTION_REVIEW").update(is_active=True)
+        transcript = (
+            Transcript.objects.filter(video=task.video)
+            .filter(status="TRANSCRIPTION_REVIEWER_ASSIGNED")
+            .first()
+        )
+        if transcript is not None:
+            transcript.parent_transcript = transcript_obj
+            transcript.payload = transcript_obj.payload
+            transcript.save()
+    if tasks.filter(task_type="TRANSLATION_EDIT").first():
+        tasks.filter(task_type="TRANSLATION_EDIT").update(is_active=True)
+        translations = Translation.objects.filter(video=task.video).filter(
+            status="TRANSLATION_SELECT_SOURCE"
+        )
+        if translations.first() is not None:
+            for translation in translations:
+                project = Project.objects.get(id=task.video.project_id.id)
+                organization = project.organization_id
+                source_type = (
+                    project.default_translation_type
+                    or organization.default_translation_type
+                )
+                if source_type == None:
+                    source_type = "MACHINE_GENERATED"
+                payloads = generate_translation_payload(
+                    transcript_obj, translation.target_language, [source_type]
+                )
+                translation.payload = payloads[source_type]
+                translation.save()
+    else:
+        print("No change in status")
+
+
 @swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
@@ -458,7 +504,7 @@ def save_transcription(request):
         payload = request.data["payload"]
     except KeyError:
         return Response(
-            {"message": "Missing required parameters - language or payload or task_id"},
+            {"message": "Missing required parameters - payload or task_id"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -470,7 +516,14 @@ def save_transcription(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not ative yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     transcript = get_transcript_id(task)
+
     if transcript is None:
         return Response(
             {"message": "Transcript not found."},
@@ -498,13 +551,6 @@ def save_transcription(request):
                     status=status.HTTP_201_CREATED,
                 )
 
-            if transcript.transcript_type == ORIGINAL_SOURCE:
-                updated_transcript_type = UPDATED_ORIGINAL_SOURCE
-            elif transcript.transcript_type == MACHINE_GENERATED:
-                updated_transcript_type = UPDATED_MACHINE_GENERATED
-            else:
-                updated_transcript_type = UPDATED_MANUALLY_CREATED
-
             if "EDIT" in task.task_type:
                 if request.data.get("final"):
                     if (
@@ -518,7 +564,7 @@ def save_transcription(request):
                             status=status.HTTP_201_CREATED,
                         )
                     tc_status = TRANSCRIPTION_EDIT_COMPLETE
-                    transcript_type = updated_transcript_type
+                    transcript_type = transcript.transcript_type
                     transcript_obj = Transcript.objects.create(
                         transcript_type=transcript_type,
                         parent_transcript=transcript,
@@ -531,6 +577,7 @@ def save_transcription(request):
                     )
                     task.status = "COMPLETE"
                     task.save()
+                    change_active_status_of_next_tasks(task, transcript_obj)
                 else:
                     transcript_obj = (
                         Transcript.objects.filter(status=TRANSCRIPTION_EDIT_INPROGRESS)
@@ -580,9 +627,8 @@ def save_transcription(request):
                         )
                     else:
                         tc_status = TRANSCRIPTION_REVIEW_COMPLETE
-                        transcript_type = updated_transcript_type
                         transcript_obj = Transcript.objects.create(
-                            transcript_type=transcript_type,
+                            transcript_type=transcript.transcript_type,
                             parent_transcript=transcript,
                             video=transcript.video,
                             language=transcript.language,
@@ -593,6 +639,7 @@ def save_transcription(request):
                         )
                         task.status = "COMPLETE"
                         task.save()
+                        change_active_status_of_next_tasks(task)
                 else:
                     tc_status = TRANSCRIPTION_REVIEW_INPROGRESS
                     transcript_type = transcript.transcript_type

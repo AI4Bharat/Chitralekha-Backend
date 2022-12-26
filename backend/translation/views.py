@@ -338,6 +338,30 @@ def get_payload(request):
     )
 
 
+def change_active_status_of_next_tasks(task, translation_obj):
+    task = (
+        Task.objects.filter(video=task.video)
+        .filter(target_language=translation_obj.target_language)
+        .filter(task_type="TRANSLATION_REVIEW")
+        .first()
+    )
+    if task:
+        translation = (
+            Translation.objects.filter(target_language=translation_obj.target_language)
+            .filter(video=task.video)
+            .filter(status="TRANSLATION_REVIEWER_ASSIGNED")
+            .first()
+        )
+        if translation is not None:
+            task.is_active = True
+            translation.transcript = translation_obj.transcript
+            translation.payload = translation_obj.payload
+            translation.save()
+            task.save()
+    else:
+        print("No change in status")
+
+
 @swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
@@ -386,6 +410,12 @@ def save_translation(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not ative yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     translation = get_translation_id(task)
     if translation is not None:
         translation_id = translation.id
@@ -414,11 +444,6 @@ def save_translation(request):
                     status=status.HTTP_201_CREATED,
                 )
 
-            if translation.translation_type == MACHINE_GENERATED:
-                translation_type = UPDATED_MACHINE_GENERATED
-            else:
-                translation_type = UPDATED_MANUALLY_CREATED
-
             if "EDIT" in task.task_type:
                 if request.data.get("final"):
                     if (
@@ -436,7 +461,7 @@ def save_translation(request):
                         ts_status = TRANSLATION_EDIT_COMPLETE
                         task.status = "COMPLETE"
                         task.save()
-                        translation_type = translation_type
+                        translation_type = translation.translation_type
                         translation_obj = Translation.objects.create(
                             translation_type=translation_type,
                             parent=translation,
@@ -448,7 +473,7 @@ def save_translation(request):
                             status=ts_status,
                             task=task,
                         )
-
+                        change_active_status_of_next_tasks(task, translation_obj)
                 else:
                     translation_obj = (
                         Translation.objects.filter(status=TRANSLATION_EDIT_INPROGRESS)

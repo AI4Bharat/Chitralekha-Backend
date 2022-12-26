@@ -33,6 +33,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     organization = OrganizationSerializer(read_only=True)
+    role_label = serializers.CharField(source="get_role_label")
 
     class Meta:
         model = User
@@ -46,6 +47,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "last_name",
             "phone",
             "role",
+            "role_label",
             "organization",
             "unverified_email",
             "date_joined",
@@ -54,6 +56,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "id",
             "email",
             "role",
+            "role_label",
             "organization",
             "unverified_email",
             "date_joined",

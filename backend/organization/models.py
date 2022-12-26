@@ -6,6 +6,18 @@ import secrets
 import string
 
 
+TRANSCRIPT_TYPE = (
+    ("ORIGINAL_SOURCE", "Original Source"),
+    ("MACHINE_GENERATED", "Machine Generated"),
+    ("MANUALLY_CREATED", "Manually Created"),
+)
+
+TRANSLATION_TYPE_CHOICES = (
+    ("MACHINE_GENERATED", "Machine Generated"),
+    ("MANUALLY_CREATED", "Manually Created"),
+)
+
+
 class Organization(models.Model):
     """
     Model for organizations
@@ -25,7 +37,7 @@ class Organization(models.Model):
         help_text=("Designates whether an organization is active or not."),
     )
 
-    created_by = models.OneToOneField(
+    created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
@@ -39,6 +51,60 @@ class Organization(models.Model):
         null=True,
         related_name="organization_owned",
         verbose_name="organization_owner",
+    )
+
+    default_transcript_editor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="transcript editor",
+        related_name="transcript_editor",
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+    )
+
+    default_transcript_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="transcript reviewer",
+        related_name="transcript_reviewer",
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+    )
+
+    default_translation_editor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="translation editor",
+        related_name="translation_editor",
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+    )
+
+    default_translation_reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="translation reviewer",
+        related_name="translation_reviewer",
+        on_delete=models.SET_NULL,
+        default=None,
+        null=True,
+    )
+
+    default_transcript_type = models.CharField(
+        choices=TRANSCRIPT_TYPE,
+        max_length=35,
+        default=None,
+        verbose_name="default transcript type",
+        null=True,
+        blank=True,
+    )
+
+    default_translation_type = models.CharField(
+        choices=TRANSLATION_TYPE_CHOICES,
+        max_length=35,
+        verbose_name="Default Translation Type",
+        default=None,
+        null=True,
+        blank=True,
     )
 
     created_at = models.DateTimeField(verbose_name="created_at", auto_now_add=True)

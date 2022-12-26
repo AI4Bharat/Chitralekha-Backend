@@ -93,7 +93,7 @@ class Transcript(models.Model):
         max_length=35,
         default=None,
     )
-    payload = models.JSONField(verbose_name="Transcription Output")
+    payload = models.JSONField(verbose_name="Transcription Output", null=True)
 
     created_at = models.DateTimeField(
         auto_now_add=True, verbose_name="Transcript Created At"
