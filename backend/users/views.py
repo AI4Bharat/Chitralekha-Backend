@@ -352,8 +352,12 @@ class UserViewSet(viewsets.ViewSet):
         if "role" in request.query_params:
             role = request.query_params["role"]
             if role == "ORG_OWNER":
-                organization_owners = Organization.objects.all().values_list(
-                    "organization_owner", flat=True
+                organization_owners = users.filter(
+                    pk__in=list(
+                        Organization.objects.all().values_list(
+                            "organization_owner", flat=True
+                        )
+                    )
                 )
                 user_by_roles = users.filter(role__in=["ORG_OWNER", "ADMIN"])
                 if len(user_by_roles) == 0:
