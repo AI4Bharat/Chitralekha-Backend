@@ -18,6 +18,7 @@ from .serializers import (
 )
 from organization.models import Invite, Organization
 from organization.serializers import InviteGenerationSerializer
+from organization.decorators import is_admin
 from users.models import LANG_CHOICES, User
 from rest_framework.decorators import action
 from django.db.models import Q
@@ -49,20 +50,21 @@ class InviteViewSet(viewsets.ViewSet):
         emails = request.data.get("emails")
         organization_id = request.data.get("organization_id")
         users = []
-        try:
-            org = Organization.objects.get(id=organization_id)
-        except Organization.DoesNotExist:
-            return Response(
-                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+
+        if organization_id is not None:
+            try:
+                org = Organization.objects.get(id=organization_id)
+                org_id = org.id
+            except Organization.DoesNotExist:
+                return Response(
+                    {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+        else:
+            org_id = None
+            org = None
         valid_user_emails = []
         invalid_emails = []
-        try:
-            org = Organization.objects.get(id=organization_id)
-        except Organization.DoesNotExist:
-            return Response(
-                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+
         for email in emails:
             # Checking if the email is in valid format.
             if re.fullmatch(regex, email):
@@ -70,7 +72,7 @@ class InviteViewSet(viewsets.ViewSet):
                     user = User(
                         username=generate_random_string(12),
                         email=email,
-                        organization_id=org.id,
+                        organization_id=org_id,
                         role=request.data.get("role"),
                     )
                     user.set_password(generate_random_string(10))
@@ -331,6 +333,40 @@ class UserViewSet(viewsets.ViewSet):
             return Response(
                 {"message": "Not Authorized"}, status=status.HTTP_403_FORBIDDEN
             )
+
+    @swagger_auto_schema(
+        method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "role",
+                openapi.IN_QUERY,
+                description=("A string to get the role type e.g. ORG_OWNER"),
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+        ],
+        responses={200: "Get all members of Chitralekha"},
+    )
+    @action(
+        detail=False, methods=["GET"], name="Get all members", url_name="all_users"
+    )
+    @is_admin
+    def get_all_users(self, request):
+        users = User.objects.all()
+        serializer = UserProfileSerializer(users, many=True)
+        if "role" in request.query_params:
+            role = request.query_params["role"]
+            if role == "ORG_OWNER":
+                organization_owners = Organization.objects.all().values_list('organization_owner', flat=True)
+                user_by_roles = users.filter(role__in=["ORG_OWNER", "ADMIN"])
+                if len(user_by_roles) == 0:
+                    Response(
+                        {"message": "There is no user available with ORG_OWNER role."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                users = set(list(user_by_roles)) - set(list(organization_owners))
+                serializer = UserProfileSerializer(list(users), many=True)
+        return Response(serializer.data)
 
 
 class RoleViewSet(viewsets.ViewSet):
