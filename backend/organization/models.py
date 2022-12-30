@@ -139,12 +139,7 @@ class Invite(models.Model):
     )
 
     def __str__(self):
-        return (
-            str(self.user.email)
-            + " for "
-            + str(self.organization.title)
-            + " organization"
-        )
+        return str(self.user.email)
 
     @classmethod
     def create_invite(cls, organization=None, users=None):
@@ -156,9 +151,13 @@ class Invite(models.Model):
                     invite = Invite.objects.create(organization=organization, user=user)
                     invite.invite_code = cls.generate_invite_code()
                     invite.save()
+                if organization is not None:
+                    organization_name = organization.title
+                else:
+                    organization_name = "be the Org Owner."
                 send_mail(
                     "Invitation to join Organization",
-                    f"Hello! You are invited to {organization.title}. Your Invite link is: https://chitralekha.ai4bharat.org/#/invite/{invite.invite_code}",
+                    f"Hello! You are invited to {organization_name}. Your Invite link is: https://chitralekha.ai4bharat.org/#/invite/{invite.invite_code}",
                     settings.DEFAULT_FROM_EMAIL,
                     [user.email],
                 )
