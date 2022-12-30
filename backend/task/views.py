@@ -843,8 +843,7 @@ class TaskViewSet(ModelViewSet):
                 return Response(
                     {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
                 )
-            user_ids = [user_id for i in range(len(videos))]
-
+            user_ids = [user for i in range(len(videos))]
         if "TRANSLATION" in task_type:
             source_type = (
                 project.default_translation_type
