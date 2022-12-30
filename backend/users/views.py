@@ -57,7 +57,8 @@ class InviteViewSet(viewsets.ViewSet):
                 org_id = org.id
             except Organization.DoesNotExist:
                 return Response(
-                    {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+                    {"message": "Organization not found"},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
         else:
             org_id = None
@@ -347,9 +348,7 @@ class UserViewSet(viewsets.ViewSet):
         ],
         responses={200: "Get all members of Chitralekha"},
     )
-    @action(
-        detail=False, methods=["GET"], name="Get all members", url_name="all_users"
-    )
+    @action(detail=False, methods=["GET"], name="Get all members", url_name="all_users")
     @is_admin
     def get_all_users(self, request):
         users = User.objects.all()
@@ -357,7 +356,9 @@ class UserViewSet(viewsets.ViewSet):
         if "role" in request.query_params:
             role = request.query_params["role"]
             if role == "ORG_OWNER":
-                organization_owners = Organization.objects.all().values_list('organization_owner', flat=True)
+                organization_owners = Organization.objects.all().values_list(
+                    "organization_owner", flat=True
+                )
                 user_by_roles = users.filter(role__in=["ORG_OWNER", "ADMIN"])
                 if len(user_by_roles) == 0:
                     Response(

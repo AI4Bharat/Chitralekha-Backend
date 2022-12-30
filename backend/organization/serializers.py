@@ -4,7 +4,10 @@ from .models import Organization
 
 class OrganizationSerializer(serializers.ModelSerializer):
     created_by_email = serializers.CharField(source="created_by.email", read_only=True)
-    organization_owner_email = serializers.CharField(source="organization_owner.email", read_only=True)
+    organization_owner_email = serializers.CharField(
+        source="organization_owner.email", read_only=True
+    )
+
     class Meta:
         model = Organization
         fields = [
