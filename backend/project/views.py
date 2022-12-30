@@ -62,35 +62,39 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     {"message": "key doesnot match"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
             user = User.objects.filter(id__in=ids)
-            if not user:
+            if user and user.count() == len(ids):
+                if project.members:
+                    for member in project.members.all():
+                        if member.id in ids:
+                            ids.remove(member.id)
+                    if ids:
+                        project.members.add(*ids)
+                        return Response(
+                            {"message": "Project members added successfully"},
+                            status=status.HTTP_200_OK,
+                        )
+                    else:
+                        return Response(
+                            {"message": "Project members already exists"},
+                            status=status.HTTP_200_OK,
+                        )
+                else:
+                    project.members.add(*ids)
+                    return Response(
+                        {"message": "Project members added successfully"},
+                        status=status.HTTP_200_OK,
+                    )
+            else:
                 return Response(
                     {"message": "User doesnot exist"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            for prj_user in user:
-                if prj_user in project.members.all():
-                    return Response(
-                        {"error": "member already added"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                project.members.add(prj_user)
-                project.save()
-            return Response(
-                {"message": "Project members added successfully"},
-                status=status.HTTP_200_OK,
-            )
         except Project.DoesNotExist:
             return Response(
                 {"error": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        return Response(
-            {"error": "Method is not allowed"},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED,
-        )
 
     @swagger_auto_schema(
         method="post",
@@ -604,4 +608,23 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 return Response(
                     {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
                 )
+        return Response(serializer.data)
+
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="Display non members of a project",
+        url_name="get_non_members",
+    )
+    def get_non_members(self, request, pk=None, *args, **kwargs):
+        try:
+            project = Project.objects.get(pk=pk)
+        except Project.DoesNotExist:
+            return Response(
+                {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        users = User.objects.filter(organization_id=project.organization_id).exclude(
+            pk__in=project.members.all()
+        )
+        serializer = UserFetchSerializer(users, many=True)
         return Response(serializer.data)
