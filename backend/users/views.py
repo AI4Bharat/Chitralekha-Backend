@@ -174,10 +174,6 @@ class UserViewSet(viewsets.ViewSet):
             return Response(
                 {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        if user.organization_id is not request.user.organization_id:
-            return Response(
-                {"message": "Not Authorized"}, status=status.HTTP_403_FORBIDDEN
-            )
         serialized = UserProfileSerializer(user)
         return Response(serialized.data, status=status.HTTP_200_OK)
 
