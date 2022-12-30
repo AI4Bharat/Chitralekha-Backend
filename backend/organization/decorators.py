@@ -14,7 +14,7 @@ def is_organization_owner(f):
     @wraps(f)
     def wrapper(self, request, *args, **kwargs):
         if request.user.is_authenticated and (
-            request.user.role == User.ORG_OWNER or request.user.is_superuser
+            request.user.role == User.ORG_OWNER or User.ADMIN or request.user.is_superuser
         ):
             return f(self, request, *args, **kwargs)
         return Response(PERMISSION_ERROR, status=403)
@@ -38,7 +38,7 @@ def is_admin(f):
 def is_particular_organization_owner(f):
     @wraps(f)
     def wrapper(self, request, pk=None, *args, **kwargs):
-        if request.user.role == User.ORG_OWNER or request.user.is_superuser:
+        if request.user.role == User.ORG_OWNER or User.ADMIN or request.user.is_superuser:
             if "organization" in request.data:
                 organization = Organization.objects.filter(
                     pk=request.data["organization"]
@@ -52,5 +52,4 @@ def is_particular_organization_owner(f):
             return f(self, request, pk, *args, **kwargs)
         else:
             return Response(PERMISSION_ERROR, status=403)
-
     return wrapper

@@ -57,8 +57,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
             )
+
         if organization_owner.is_superuser == False and organization_owner.role != (
-            User.ADMIN or User.ORG_OWNER
+            User.ADMIN and User.ORG_OWNER
         ):
             return Response(
                 {"message": "This user can't be the organization owner."},
@@ -146,7 +147,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     def partial_update(self, request, pk=None, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request, pk=None, *args, **kwargs):
         return Response(
             {"message": "Deleting of Organizations is not supported!"},
             status=status.HTTP_403_FORBIDDEN,
