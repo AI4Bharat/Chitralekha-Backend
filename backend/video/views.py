@@ -4,6 +4,7 @@ import requests
 from drf_yasg import openapi
 from rest_framework.decorators import action
 from drf_yasg.utils import swagger_auto_schema
+from django.http import HttpRequest
 from task.models import Task
 from task.serializers import TaskSerializer
 from mutagen.mp3 import MP3
@@ -16,6 +17,7 @@ from transcript.models import ORIGINAL_SOURCE, Transcript
 from translation.models import Translation
 from project.decorators import is_project_owner
 from .models import Video
+from task.views import TaskViewSet
 from .serializers import VideoSerializer
 from .utils import (
     get_data_from_google_video,
@@ -141,6 +143,7 @@ def get_video(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    organization = project.organization_id
     ## PATCH: Handle audio_only files separately for google drive links
     ## TODO: Move it to an util function
     if "drive.google.com" in url and is_audio_only:
@@ -182,6 +185,23 @@ def get_video(request):
         )
         if created:
             video.save()
+            default_task_types = (
+                project.default_task_types or organization.default_task_types
+            )
+            default_target_languages = (
+                project.default_target_languages
+                or organization.default_target_languages
+            )
+
+            if default_task_types is not None:
+                for task_type in default_task_types:
+                    if default_target_languages is not None:
+                        for target_language in default_target_languages:
+                            create_tasks(
+                                video.id, task_type, request.user, target_language
+                            )
+                    else:
+                        create_tasks(video.id, task_type, request.user)
             return Response(
                 {
                     "video": VideoSerializer(video).data,
@@ -253,6 +273,20 @@ def get_video(request):
         response_data["direct_video_url"] = direct_video_url
 
     if created:
+        default_task_types = (
+            project.default_task_types or organization.default_task_types
+        )
+        default_target_languages = (
+            project.default_target_languages or organization.default_target_languages
+        )
+
+        if default_task_types is not None:
+            for task_type in default_task_types:
+                if default_target_languages is not None:
+                    for target_language in default_target_languages:
+                        create_tasks(video.id, task_type, request.user, target_language)
+                else:
+                    create_tasks(video.id, task_type, request.user)
         response_data["message"] = "Video created successfully."
         return Response(
             response_data,
@@ -263,6 +297,20 @@ def get_video(request):
             response_data,
             status=status.HTTP_200_OK,
         )
+
+
+def create_tasks(video_id, task_type, user, target_language=None):
+    data = TaskViewSet(detail=True)
+    new_request = HttpRequest()
+    new_request.user = user
+    new_request.data = {
+        "task_type": task_type,
+        "video_ids": [video_id],
+        "target_language": target_language,
+    }
+
+    ret = data.create(new_request)
+    return ret
 
 
 @swagger_auto_schema(

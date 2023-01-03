@@ -4,7 +4,8 @@ from django.db import models, transaction
 from django.core.mail import send_mail
 import secrets
 import string
-
+from translation.metadata import LANGUAGE_CHOICES
+from django.contrib.postgres.fields import ArrayField
 
 TRANSCRIPT_TYPE = (
     ("ORIGINAL_SOURCE", "Original Source"),
@@ -15,6 +16,13 @@ TRANSCRIPT_TYPE = (
 TRANSLATION_TYPE_CHOICES = (
     ("MACHINE_GENERATED", "Machine Generated"),
     ("MANUALLY_CREATED", "Manually Created"),
+)
+
+TASK_TYPE = (
+    ("TRANSCRIPTION_EDIT", "Transcription Edit"),
+    ("TRANSCRIPTION_REVIEW", "Transcription Review"),
+    ("TRANSLATION_EDIT", "Translation Edit"),
+    ("TRANSLATION_REVIEW", "Translation Review"),
 )
 
 
@@ -110,6 +118,34 @@ class Organization(models.Model):
     created_at = models.DateTimeField(verbose_name="created_at", auto_now_add=True)
     updated_at = models.DateTimeField(verbose_name="updated_at", auto_now=True)
 
+    default_task_types = ArrayField(
+        models.CharField(
+            choices=TASK_TYPE,
+            blank=True,
+            default=None,
+            null=True,
+            max_length=50,
+        ),
+        blank=True,
+        default=None,
+        null=True,
+        verbose_name="Project Default Task Types",
+    )
+
+    default_target_languages = ArrayField(
+        models.CharField(
+            choices=LANGUAGE_CHOICES,
+            blank=True,
+            default=None,
+            null=True,
+            max_length=50,
+        ),
+        blank=True,
+        default=None,
+        null=True,
+        verbose_name="Project Default Target Languages",
+    )
+
     def __str__(self):
         return self.title + ", id=" + str(self.pk)
 
@@ -139,12 +175,7 @@ class Invite(models.Model):
     )
 
     def __str__(self):
-        return (
-            str(self.user.email)
-            + " for "
-            + str(self.organization.title)
-            + " organization"
-        )
+        return str(self.user.email)
 
     @classmethod
     def create_invite(cls, organization=None, users=None):
@@ -156,9 +187,13 @@ class Invite(models.Model):
                     invite = Invite.objects.create(organization=organization, user=user)
                     invite.invite_code = cls.generate_invite_code()
                     invite.save()
+                if organization is not None:
+                    organization_name = organization.title
+                else:
+                    organization_name = "be the Org Owner."
                 send_mail(
                     "Invitation to join Organization",
-                    f"Hello! You are invited to {organization.title}. Your Invite link is: https://chitralekha.ai4bharat.org/#/invite/{invite.invite_code}",
+                    f"Hello! You are invited to {organization_name}. Your Invite link is: https://chitralekha.ai4bharat.org/#/invite/{invite.invite_code}",
                     settings.DEFAULT_FROM_EMAIL,
                     [user.email],
                 )

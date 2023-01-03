@@ -14,7 +14,9 @@ def is_organization_owner(f):
     @wraps(f)
     def wrapper(self, request, *args, **kwargs):
         if request.user.is_authenticated and (
-            request.user.role == User.ORG_OWNER or request.user.is_superuser
+            request.user.role == User.ORG_OWNER
+            or User.ADMIN
+            or request.user.is_superuser
         ):
             return f(self, request, *args, **kwargs)
         return Response(PERMISSION_ERROR, status=403)
@@ -38,7 +40,11 @@ def is_admin(f):
 def is_particular_organization_owner(f):
     @wraps(f)
     def wrapper(self, request, pk=None, *args, **kwargs):
-        if request.user.role == User.ORG_OWNER or request.user.is_superuser:
+        if (
+            request.user.role == User.ORG_OWNER
+            or User.ADMIN
+            or request.user.is_superuser
+        ):
             if "organization" in request.data:
                 organization = Organization.objects.filter(
                     pk=request.data["organization"]
@@ -47,7 +53,11 @@ def is_particular_organization_owner(f):
                 organization = Organization.objects.filter(pk=pk).first()
             if not organization:
                 return Response(NO_ORGANIZATION_FOUND, status=404)
-            elif request.user.email != organization.organization_owner.email:
+            elif (
+                request.user.email != organization.organization_owner.email
+                or request.user.is_superuser
+                or request.user.role == User.ADMIN
+            ):
                 return Response(NO_ORGANIZATION_OWNER_ERROR, status=403)
             return f(self, request, pk, *args, **kwargs)
         else:

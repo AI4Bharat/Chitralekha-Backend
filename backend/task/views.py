@@ -14,6 +14,7 @@ from users.models import User
 from transcript.utils.asr import get_asr_supported_languages, make_asr_api_call
 from transcript.models import Transcript
 from translation.models import Translation
+from django.db.models import Count
 from translation.utils import (
     get_batch_translations_using_indictrans_nmt_api,
     generate_translation_payload,
@@ -173,7 +174,7 @@ class TaskViewSet(ModelViewSet):
     def create_translation_task(
         self,
         videos,
-        user,
+        user_ids,
         target_language,
         task_type,
         source_type,
@@ -183,9 +184,8 @@ class TaskViewSet(ModelViewSet):
         description,
     ):
         duplicate_tasks, duplicate_user_tasks = self.check_duplicate_tasks(
-            request, task_type, target_language, user, videos
+            request, task_type, target_language, user_ids, videos
         )
-
         response = {}
         if len(duplicate_tasks) > 0 or len(duplicate_user_tasks) > 0:
             video_ids = [task.video for task in duplicate_tasks] + [
@@ -193,21 +193,35 @@ class TaskViewSet(ModelViewSet):
             ]
             for video in video_ids:
                 videos.remove(video)
+                if len(user_ids) > 0:
+                    del user_ids[-1]
+
             if len(videos) <= 0:
                 return Response(
                     {"message": "This task is already created for selected videos."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        if "EDIT" in task_type:
-            permitted = self.has_translate_edit_permission(user, videos)
+        if len(user_ids) > 0:
+            if "EDIT" in task_type:
+                permitted = self.has_translate_edit_permission(user_ids[0], videos)
+            else:
+                permitted = self.has_translate_review_permission(user_ids[0], videos)
         else:
-            permitted = self.has_translate_review_permission(user, videos)
+            permitted = True
 
         if permitted:
             if "EDIT" in task_type:
-                new_tasks = []
+                tasks = []
                 for video in videos:
+                    if len(user_ids) == 0:
+                        user_id = self.assign_users(task_type, video.project_id)
+                        if user_id is None:
+                            user = request.user
+                        else:
+                            user = User.objects.get(pk=user_id)
+                    else:
+                        user = user_ids[0]
                     transcript = self.check_transcript_exists(video)
 
                     if type(transcript) == dict:
@@ -227,8 +241,8 @@ class TaskViewSet(ModelViewSet):
                         priority=priority,
                         is_active=is_active,
                     )
-                    new_tasks.append(new_task)
-                tasks = Task.objects.bulk_create(new_tasks)
+                    new_task.save()
+                    tasks.append(new_task)
 
                 new_translations = []
                 for task in tasks:
@@ -242,7 +256,7 @@ class TaskViewSet(ModelViewSet):
                         transcript = None
                     translate_obj = Translation(
                         video=task.video,
-                        user=user,
+                        user=task.user,
                         transcript=transcript,
                         payload=payloads[source_type],
                         target_language=target_language,
@@ -253,9 +267,17 @@ class TaskViewSet(ModelViewSet):
                     new_translations.append(translate_obj)
                 translations = Translation.objects.bulk_create(new_translations)
             else:
-
-                new_tasks = []
+                tasks = []
                 for video in videos:
+                    if len(user_ids) == 0:
+                        user_id = self.assign_users(task_type, video.project_id)
+                        if user_id is None:
+                            user = request.user
+                        else:
+                            user = User.objects.get(pk=user_id)
+                    else:
+                        user = user_ids[0]
+
                     translation = (
                         Translation.objects.filter(video=video)
                         .filter(status="TRANSLATION_EDIT_COMPLETE")
@@ -277,13 +299,13 @@ class TaskViewSet(ModelViewSet):
                         priority=priority,
                         is_active=is_active,
                     )
-                    new_tasks.append(new_task)
-                tasks = Task.objects.bulk_create(new_tasks)
+                    new_task.save()
+                    tasks.append(new_task)
 
                 new_translations = []
                 for task in tasks:
                     translation = (
-                        Translation.objects.filter(video=video)
+                        Translation.objects.filter(video=task.video)
                         .filter(status="TRANSLATION_EDIT_COMPLETE")
                         .filter(target_language=target_language)
                         .first()
@@ -298,8 +320,8 @@ class TaskViewSet(ModelViewSet):
                         transcript = None
                         is_active = False
                     translate_obj = Translation(
-                        video=video,
-                        user=user,
+                        video=task.video,
+                        user=task.user,
                         transcript=transcript,
                         parent=translation,
                         payload=payload,
@@ -325,10 +347,18 @@ class TaskViewSet(ModelViewSet):
             )
 
     def create_transcription_task(
-        self, videos, user, task_type, source_type, request, eta, priority, description
+        self,
+        videos,
+        user_ids,
+        task_type,
+        source_type,
+        request,
+        eta,
+        priority,
+        description,
     ):
         duplicate_tasks, duplicate_user_tasks = self.check_duplicate_tasks(
-            request, task_type, None, user, videos
+            request, task_type, None, user_ids, videos
         )
         response = {}
         if len(duplicate_tasks) > 0 or len(duplicate_user_tasks) > 0:
@@ -337,21 +367,35 @@ class TaskViewSet(ModelViewSet):
             ]
             for video in video_ids:
                 videos.remove(video)
+                if len(user_ids) > 0:
+                    del user_ids[-1]
+
             if len(videos) <= 0:
                 return Response(
                     {"message": "This task is already created for selected videos."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        if "EDIT" in task_type:
-            permitted = self.has_transcript_edit_permission(user, videos)
+        if len(user_ids) > 0:
+            if "EDIT" in task_type:
+                permitted = self.has_transcript_edit_permission(user_ids[0], videos)
+            else:
+                permitted = self.has_transcript_review_permission(user_ids[0], videos)
         else:
-            permitted = self.has_transcript_review_permission(user, videos)
+            permitted = True
 
         if permitted:
             if "EDIT" in task_type:
-                new_tasks = []
+                tasks = []
                 for video in videos:
+                    if len(user_ids) == 0:
+                        user_id = self.assign_users(task_type, video.project_id)
+                        if user_id is None:
+                            user = request.user
+                        else:
+                            user = User.objects.get(pk=user_id)
+                    else:
+                        user = user_ids[0]
                     new_task = Task(
                         task_type=task_type,
                         video=video,
@@ -363,17 +407,17 @@ class TaskViewSet(ModelViewSet):
                         priority=priority,
                         is_active=True,
                     )
-                    new_tasks.append(new_task)
-                tasks = Task.objects.bulk_create(new_tasks)
+                    new_task.save()
+                    tasks.append(new_task)
 
                 new_transcripts = []
                 for task in tasks:
                     payloads = self.generate_transcript_payload(task, [source_type])
                     transcript_obj = Transcript(
                         video=task.video,
-                        user=user,
+                        user=task.user,
                         payload=payloads[source_type],
-                        language=video.language,
+                        language=task.video.language,
                         task=task,
                         transcript_type=source_type,
                         status="TRANSCRIPTION_SELECT_SOURCE",
@@ -381,7 +425,7 @@ class TaskViewSet(ModelViewSet):
                     new_transcripts.append(transcript_obj)
                 transcripts = Transcript.objects.bulk_create(new_transcripts)
             else:
-                new_tasks = []
+                tasks = []
                 for video in videos:
                     transcript = (
                         Transcript.objects.filter(video=video)
@@ -391,6 +435,16 @@ class TaskViewSet(ModelViewSet):
                     is_active = False
                     if transcript is not None:
                         is_active = True
+
+                    if len(user_ids) == 0:
+                        user_id = self.assign_users(task_type, video.project_id)
+                        if user_id is None:
+                            user = request.user
+                        else:
+                            user = User.objects.get(pk=user_id)
+                    else:
+                        user = user_ids[0]
+
                     new_task = Task(
                         task_type=task_type,
                         video=video,
@@ -402,8 +456,8 @@ class TaskViewSet(ModelViewSet):
                         priority=priority,
                         is_active=is_active,
                     )
-                    new_tasks.append(new_task)
-                tasks = Task.objects.bulk_create(new_tasks)
+                    new_task.save()
+                    tasks.append(new_task)
 
                 new_transcripts = []
                 for task in tasks:
@@ -415,7 +469,7 @@ class TaskViewSet(ModelViewSet):
                         transcript_type = None
                     transcript_obj = Transcript(
                         video=task.video,
-                        user=user,
+                        user=task.user,
                         parent_transcript=transcript,
                         payload=payload,
                         language=task.video.language,
@@ -720,6 +774,29 @@ class TaskViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    def assign_users(self, task_type, project):
+        videos = Video.objects.filter(project_id=project)
+        roles = allowed_roles[task_type]
+        users = (
+            User.objects.filter(id__in=project.members.all())
+            .filter(role__in=roles)
+            .values_list("id", flat=True)
+        )
+        sorted_users = (
+            Task.objects.filter(video_id__in=videos)
+            .filter(user_id__in=users)
+            .values_list("user", flat=True)
+            .annotate(count=Count("user"))
+            .order_by("count", "user__email")
+        )
+        user_with_zero_tasks = set(list(users)) - set(list(sorted_users))
+
+        if len(user_with_zero_tasks) > 0:
+            return list(user_with_zero_tasks)[0]
+        if len(sorted_users) > 0:
+            return sorted_users[0]
+        return None
+
     @is_project_owner
     def create(self, request, pk=None, *args, **kwargs):
         task_type = request.data.get("task_type")
@@ -755,48 +832,19 @@ class TaskViewSet(ModelViewSet):
                 )
             videos.append(video)
 
-        if user_id is None:
-            if len(videos) > 0:
-                project = videos[0].project_id
-                user_obj = None
-                organization = project.organization_id
-                if task_type == "TRANSCRIPTION_EDIT":
-                    user_obj = (
-                        project.default_transcript_editor
-                        or organization.default_transcript_editor
-                    )
-                elif task_type == "TRANSCRIPTION_REVIEW":
-                    user_obj = (
-                        project.default_transcript_reviewer
-                        or organization.default_transcript_reviewer
-                    )
-                elif task_type == "TRANSLATION_EDIT":
-                    user_obj = (
-                        project.default_translation_editor
-                        or organization.default_translation_editor
-                    )
-                elif task_type == "TRANSLATION_REVIEWER":
-                    user_obj = (
-                        project.default_translation_reviewer
-                        or organization.default_translation_editor
-                    )
-                else:
-                    print("Not a valid task_type")
-                if user_obj is not None:
-                    user_id = user_obj.id
+        project = videos[0].project_id
+        organization = project.organization_id
 
-        try:
-            if user_id is None:
-                user_id = request.user.id
-            user = User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            return Response(
-                {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
-            )
-
+        user_ids = []
+        if user_id is not None:
+            try:
+                user = User.objects.get(pk=user_id)
+            except User.DoesNotExist:
+                return Response(
+                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+            user_ids = [user for i in range(len(videos))]
         if "TRANSLATION" in task_type:
-            project = Project.objects.get(id=videos[0].project_id.id)
-            organization = project.organization_id
             source_type = (
                 project.default_translation_type
                 or organization.default_translation_type
@@ -805,7 +853,7 @@ class TaskViewSet(ModelViewSet):
                 source_type = backend_default_translation_type
             return self.create_translation_task(
                 videos,
-                user,
+                user_ids,
                 target_language,
                 task_type,
                 source_type,
@@ -815,8 +863,6 @@ class TaskViewSet(ModelViewSet):
                 description,
             )
         else:
-            project = Project.objects.get(id=videos[0].project_id.id)
-            organization = project.organization_id
             source_type = (
                 project.default_transcript_type or organization.default_transcript_type
             )
@@ -824,7 +870,7 @@ class TaskViewSet(ModelViewSet):
                 source_type = backend_default_transcript_type
             return self.create_transcription_task(
                 videos,
-                user,
+                user_ids,
                 task_type,
                 source_type,
                 request,
@@ -926,35 +972,6 @@ class TaskViewSet(ModelViewSet):
         else:
             return Response(
                 {"message": "Bad request."}, status=status.HTTP_400_BAD_REQUEST
-            )
-        return Response(
-            response,
-            status=status.HTTP_200_OK,
-        )
-
-    @action(detail=False, methods=["get"], url_path="get_task_status")
-    def get_task_status(self, request, pk=None):
-        try:
-            task = Video.objects.get(pk=pk)
-        except Task.DoesNotExist:
-            return Response(
-                {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
-            )
-
-        if (
-            task.task_type == "TRANSCRIPTION_EDIT"
-            or task.task_type == "TRANSLATION_EDIT"
-        ):
-            response = task.status
-        elif (
-            task.task_type == "TRANSCRIPTION_REVIEW"
-            or task.task_type == "TRANSLATION_REVIEW"
-        ):
-            response = "EDITED"
-        else:
-            return Response(
-                {"message": "Given task_type does not match any allowed types"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         return Response(
             response,

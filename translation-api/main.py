@@ -149,8 +149,10 @@ class VTTTranslationRequest(BaseModel):
 @app.post("/translate_vtt")
 def infer_vtt_indic_en(translation_request: VTTTranslationRequest):
     start_time = time.time()
+    source_language = "en"
+    target_language = "hi"
     model, source_lang, target_lang = get_inference_params(
-        translation_request.source_language, translation_request.target_language
+        source_language, target_language
     )
     source_text = translation_request.webvtt
     # vad_segments = request.form['vad_nochunk'] # Assuming it is an array of start & end timestamps
@@ -166,84 +168,3 @@ def infer_vtt_indic_en(translation_request: VTTTranslationRequest):
         vad[i].text = target_lines[i]
 
     return {"text": vad.content, "duration": round(end_time - start_time, 2)}
-
-
-# @app.post("/translate_vtt")
-# def infer_vtt_indic_en(translation_request: VTTTranslationRequest):
-#     start_time = time.time()
-#     model, source_lang, target_lang = get_inference_params(
-#         translation_request.source_language,
-#         translation_request.target_language
-#     )
-#     source_text = translation_request.webvtt
-#     # vad_segments = request.form['vad_nochunk'] # Assuming it is an array of start & end timestamps
-
-#     vad = webvtt.read_buffer(StringIO(source_text))
-#     source_sentences = [v.text.replace('\r', '').replace('\n', ' ') for v in vad]
-
-#     ## SUMANTH LOGIC HERE ##
-
-#     # for each vad timestamp, do:
-#     large_sentence = ' '.join(source_sentences) # only sentences in that time range
-#     # Only for english
-#     # large_sentence = large_sentence.lower()
-#     # large_sentence = re.sub(r'[^\w\s]', '', large_sentence)
-#     # split_sents = sentence_split(large_sentence, 'en')
-#     # print(split_sents)
-
-#     print("Large sentence", large_sentence)
-#     punctuated = rpunct.punctuate(large_sentence, batch_size=32)
-#     end_time = time.time()
-#     print("Time Taken for punctuation: {} s".format(end_time - start_time))
-#     start_time = time.time()
-#     # split_sents = splitter([punctuated]) ### Please uncomment
-#     print("Punctuated", punctuated)
-#     split_sents = split_sentences(punctuated, source_lang)
-#     print("split_sents", split_sents)
-
-
-#     # print(split_sents)
-#     # output_sentence_punctuated = model.translate_paragraph(punctuated, source_lang, target_lang)
-#     output_sents = model.batch_translate(split_sents, source_lang, target_lang)
-#     print("output_sents", output_sents)
-#     # print(output_sents)
-#     # output_sents = split_sents
-#     # print(output_sents)
-#     # align this to those range of source_sentences in `captions`
-
-#     map_ = {split_sents[i] : output_sents[i] for i in range(len(split_sents))}
-#     # print(map_)
-#     punct_para = ' '.join(list(map_.keys()))
-#     nmt_para = ' '.join(list(map_.values()))
-#     nmt_words = nmt_para.split(' ')
-
-#     len_punct = len(punct_para.split(' '))
-#     len_nmt = len(nmt_para.split(' '))
-
-#     start = 0
-#     for i in range(len(vad)):
-#         if vad[i].text == '':
-#             continue
-
-#         len_caption = len(vad[i].text.split(' '))
-#         frac = (len_caption / len_punct)
-#         # frac = round(frac, 2)
-
-#         req_nmt_size = floor(frac * len_nmt)
-#         # print(frac, req_nmt_size)
-
-#         vad[i].text = ' '.join(nmt_words[start:start+req_nmt_size])
-#         # print(vad[i].text)
-#         # print(start, req_nmt_size)
-#         start += req_nmt_size
-
-#     end_time = time.time()
-
-#     print("Time Taken for translation: {} s".format(end_time - start_time))
-
-#     # vad.save('aligned.vtt')
-
-#     return {
-#         'text': vad.content,
-#         'duration': round(end_time-start_time, 2)
-#     }

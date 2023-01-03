@@ -445,12 +445,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
         organization_id = request.data.get("organization_id")
         managers_id = request.data.get("managers_id")
         description = request.data.get("description")
-        default_transcript_editor = request.data.get("default_transcript_editor")
-        default_transcript_reviewer = request.data.get("default_transcript_reviewer")
-        default_translation_editor = request.data.get("default_translation_editor")
-        default_translation_reviewer = request.data.get("default_translation_reviewer")
         default_transcript_type = request.data.get("default_transcript_type")
         default_translation_type = request.data.get("default_translation_type")
+        default_task_types = request.data.get("default_task_types")
+        default_target_languages = None
 
         if title is None or organization_id is None or len(managers_id) == 0:
             return Response(
@@ -465,56 +463,26 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        if default_transcript_editor:
-            try:
-                default_transcript_editor = User.objects.get(
-                    pk=default_transcript_editor
-                )
-            except User.DoesNotExist:
+        if default_task_types is not None and (
+            "TRANSLATION_EDIT" or "TRANSLATION_REVIEW" in default_task_types
+        ):
+            default_target_languages = request.data.get("default_target_languages")
+            if default_target_languages is None:
                 return Response(
-                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
-                )
-
-        if default_transcript_reviewer:
-            try:
-                default_transcript_reviewer = User.objects.get(
-                    pk=default_transcript_reviewer
-                )
-            except User.DoesNotExist:
-                return Response(
-                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
-                )
-
-        if default_translation_editor:
-            try:
-                default_translation_editor = User.objects.get(
-                    pk=default_translation_editor
-                )
-            except User.DoesNotExist:
-                return Response(
-                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
-                )
-
-        if default_translation_reviewer:
-            try:
-                default_translation_reviewer = User.objects.get(
-                    pk=default_translation_reviewer
-                )
-            except User.DoesNotExist:
-                return Response(
-                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                    {
+                        "message": "missing param : Target Language can't be None of Translation task is selected."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
         project = Project(
             title=title,
             organization_id=organization,
             created_by=request.user,
-            default_transcript_editor=default_transcript_editor,
-            default_transcript_reviewer=default_transcript_reviewer,
-            default_translation_editor=default_translation_editor,
-            default_translation_reviewer=default_translation_reviewer,
             default_transcript_type=default_transcript_type,
             default_translation_type=default_translation_type,
+            default_task_types=default_task_types,
+            default_target_languages=default_target_languages,
         )
         project.save()
 
@@ -528,15 +496,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 )
             project.managers.add(user)
             project.members.add(user)
-            if project.default_transcript_editor:
-                project.members.add(default_transcript_editor)
-            if project.default_transcript_reviewer:
-                project.members.add(default_transcript_reviewer)
-            if project.default_translation_editor:
-                project.members.add(default_translation_editor)
-            if project.default_translation_reviewer:
-                project.members.add(default_translation_reviewer)
-        response = {}
+
         response = {
             "project_id": project.id,
             "message": "Project is successfully created.",
@@ -552,7 +512,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
         """
         Update project details
         """
-        return super().update(request, *args, **kwargs)
+        title = request.data.get("title")
+        managers_id = request.data.get("managers_id")
+        description = request.data.get("description")
+        default_transcript_type = request.data.get("default_transcript_type")
+        default_translation_type = request.data.get("default_translation_type")
+        default_task_types = request.data.get("default_task_types")
+        default_task_eta = request.data.get("default_task_eta")
+        default_task_priority = request.data.get("default_task_priority")
+        default_task_description = request.data.get("default_task_description")
 
     @is_project_owner
     def partial_update(self, request, pk=None, *args, **kwargs):

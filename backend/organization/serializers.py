@@ -1,8 +1,32 @@
 from rest_framework import serializers
 from .models import Organization
+from users.models import User
+
+
+class OrgUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "role",
+            "has_accepted_invite",
+        ]
+        read_only_fields = [
+            "id",
+            "email",
+            "role",
+            "has_accepted_invite",
+        ]
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
+    created_by = OrgUserSerializer(read_only=True)
+    organization_owner = OrgUserSerializer(read_only=True)
+
     class Meta:
         model = Organization
         fields = [

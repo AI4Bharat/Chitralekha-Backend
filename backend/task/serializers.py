@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Task, TASK_TYPE
 from video.models import Video
 from translation.metadata import LANGUAGE_CHOICES
+from users.serializers import UserFetchSerializer
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -9,10 +10,10 @@ class TaskSerializer(serializers.ModelSerializer):
     src_language = serializers.CharField(source="video.language", read_only=True)
     video_url = serializers.CharField(source="video.url", read_only=True)
     project = serializers.CharField(source="video.project_id.id", read_only=True)
-    user_email = serializers.CharField(source="user.email", read_only=True)
     src_language_label = serializers.CharField(source="get_src_language_label")
     target_language_label = serializers.CharField(source="get_target_language_label")
     task_type_label = serializers.CharField(source="get_task_type_label")
+    user = UserFetchSerializer(read_only=True)
 
     class Meta:
         model = Task
@@ -30,7 +31,6 @@ class TaskSerializer(serializers.ModelSerializer):
             "target_language_label",
             "status",
             "user",
-            "user_email",
             "eta",
             "priority",
             "description",

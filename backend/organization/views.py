@@ -36,12 +36,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         title = request.data.get("title")
         email_domain_name = request.data.get("email_domain_name")
         organization_owner = request.data.get("organization_owner")
-        default_transcript_editor = request.data.get("default_transcript_editor")
-        default_transcript_reviewer = request.data.get("default_transcript_reviewer")
-        default_translation_editor = request.data.get("default_translation_editor")
-        default_translation_reviewer = request.data.get("default_translation_reviewer")
         default_transcript_type = request.data.get("default_transcript_type")
         default_translation_type = request.data.get("default_translation_type")
+        default_task_types = request.data.get("default_task_types")
+        default_target_languages = None
 
         if title is None or email_domain_name is None or organization_owner is None:
             return Response(
@@ -57,52 +55,25 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
             )
+
         if organization_owner.is_superuser == False and organization_owner.role != (
-            User.ADMIN or User.ORG_OWNER
+            User.ADMIN and User.ORG_OWNER
         ):
             return Response(
                 {"message": "This user can't be the organization owner."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if default_transcript_editor:
-            try:
-                default_transcript_editor = User.objects.get(
-                    pk=default_transcript_editor
-                )
-            except User.DoesNotExist:
+        if default_task_types is not None and (
+            "TRANSLATION_EDIT" or "TRANSLATION_REVIEW" in default_task_types
+        ):
+            default_target_languages = request.data.get("default_target_languages")
+            if default_target_languages is None:
                 return Response(
-                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
-                )
-
-        if default_transcript_reviewer:
-            try:
-                default_transcript_reviewer = User.objects.get(
-                    pk=default_transcript_reviewer
-                )
-            except User.DoesNotExist:
-                return Response(
-                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
-                )
-
-        if default_translation_editor:
-            try:
-                default_translation_editor = User.objects.get(
-                    pk=default_translation_editor
-                )
-            except User.DoesNotExist:
-                return Response(
-                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
-                )
-
-        if default_translation_reviewer:
-            try:
-                default_translation_reviewer = User.objects.get(
-                    pk=default_translation_reviewer
-                )
-            except User.DoesNotExist:
-                return Response(
-                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                    {
+                        "message": "missing param : Target Language can't be None of Translation task is selected."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
         try:
@@ -111,12 +82,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 email_domain_name=email_domain_name,
                 organization_owner=organization_owner,
                 created_by=request.user,
-                default_transcript_editor=default_transcript_editor,
-                default_transcript_reviewer=default_transcript_reviewer,
-                default_translation_editor=default_translation_editor,
-                default_translation_reviewer=default_translation_reviewer,
                 default_transcript_type=default_transcript_type,
                 default_translation_type=default_translation_type,
+                default_task_types=default_task_types,
+                default_target_languages=default_target_languages,
             )
             organization.save()
         except:
@@ -146,7 +115,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     def partial_update(self, request, pk=None, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request, pk=None, *args, **kwargs):
         return Response(
             {"message": "Deleting of Organizations is not supported!"},
             status=status.HTTP_403_FORBIDDEN,
