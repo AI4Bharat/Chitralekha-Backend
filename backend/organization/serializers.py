@@ -1,12 +1,30 @@
 from rest_framework import serializers
 from .models import Organization
+from users.models import User
 
+
+class OrgUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "role",
+            "has_accepted_invite",
+        ]
+        read_only_fields = [
+            "id",
+            "email",
+            "role",
+            "has_accepted_invite",
+        ]
 
 class OrganizationSerializer(serializers.ModelSerializer):
-    created_by_email = serializers.CharField(source="created_by.email", read_only=True)
-    organization_owner_email = serializers.CharField(
-        source="organization_owner.email", read_only=True
-    )
+    created_by = OrgUserSerializer(read_only=True)
+    organization_owner = OrgUserSerializer(read_only=True)
 
     class Meta:
         model = Organization
@@ -15,10 +33,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "title",
             "email_domain_name",
             "created_by",
-            "created_by_email",
             "created_at",
             "organization_owner",
-            "organization_owner_email",
         ]
         read_only_fields = ["id", "created_by", "created_at"]
 

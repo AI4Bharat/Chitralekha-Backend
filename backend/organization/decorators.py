@@ -53,7 +53,7 @@ def is_particular_organization_owner(f):
                 organization = Organization.objects.filter(pk=pk).first()
             if not organization:
                 return Response(NO_ORGANIZATION_FOUND, status=404)
-            elif request.user.email != organization.organization_owner.email:
+            elif request.user.email != organization.organization_owner.email or request.user.is_superuser or request.user.role == User.ADMIN:
                 return Response(NO_ORGANIZATION_OWNER_ERROR, status=403)
             return f(self, request, pk, *args, **kwargs)
         else:

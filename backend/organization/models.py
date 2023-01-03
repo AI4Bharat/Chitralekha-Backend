@@ -4,7 +4,8 @@ from django.db import models, transaction
 from django.core.mail import send_mail
 import secrets
 import string
-
+from translation.metadata import LANGUAGE_CHOICES
+from django.contrib.postgres.fields import ArrayField
 
 TRANSCRIPT_TYPE = (
     ("ORIGINAL_SOURCE", "Original Source"),
@@ -17,6 +18,12 @@ TRANSLATION_TYPE_CHOICES = (
     ("MANUALLY_CREATED", "Manually Created"),
 )
 
+TASK_TYPE = (
+    ("TRANSCRIPTION_EDIT", "Transcription Edit"),
+    ("TRANSCRIPTION_REVIEW", "Transcription Review"),
+    ("TRANSLATION_EDIT", "Translation Edit"),
+    ("TRANSLATION_REVIEW", "Translation Review"),
+)
 
 class Organization(models.Model):
     """
@@ -109,6 +116,34 @@ class Organization(models.Model):
 
     created_at = models.DateTimeField(verbose_name="created_at", auto_now_add=True)
     updated_at = models.DateTimeField(verbose_name="updated_at", auto_now=True)
+
+    default_task_types = ArrayField(
+        models.CharField(
+            choices=TASK_TYPE,
+            blank=True,
+            default=None,
+            null=True,
+            max_length=50,
+        ),
+        blank=True,
+        default=None,
+        null=True,
+        verbose_name="Project Default Task Types",
+    )
+
+    default_target_languages = ArrayField(
+        models.CharField(
+            choices=LANGUAGE_CHOICES,
+            blank=True,
+            default=None,
+            null=True,
+            max_length=50,
+        ),
+        blank=True,
+        default=None,
+        null=True,
+        verbose_name="Project Default Target Languages",
+    )
 
     def __str__(self):
         return self.title + ", id=" + str(self.pk)
