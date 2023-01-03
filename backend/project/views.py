@@ -53,6 +53,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     )
     @is_project_owner
     def add_project_members(self, request, pk=None, *args, **kwargs):
+
         try:
             project = Project.objects.get(pk=pk)
             if "user_id" in dict(request.data):
@@ -74,6 +75,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             {"message": "Project members added successfully"},
                             status=status.HTTP_200_OK,
                         )
+
                     else:
                         return Response(
                             {"message": "Project members already exists"},
@@ -95,6 +97,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"error": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        return Response(
+            {"error": "Method is not allowed"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
 
     @swagger_auto_schema(
         method="post",
@@ -130,34 +137,32 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             user = User.objects.filter(id__in=ids)
-            if not user:
+            if user and user.count() == len(ids):
+                if project.members and len(project.members.all()) > 0:
+                    for member in project.members.all():
+                        if member.id in ids:
+                            ids.append(member.id)
+                    if ids and len(ids) != len(project.members.all()):
+                        project.members.remove(*ids)
+                        return Response(
+                            {"message": "Project members removed successfully"},
+                            status=status.HTTP_200_OK,
+                        )
+                else:
+                    return Response(
+                        {"message": "Project has no members"},
+                        status=status.HTTP_200_OK,
+                    )
+            else:
                 return Response(
                     {"message": "User doesnot exist"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            for prj_user in user:
-                if prj_user not in project.members.all():
-                    return Response(
-                        {"error": "member not added"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                project.members.remove(prj_user)
-                project.save()
-            return Response(
-                {"message": "Project members removed successfully"},
-                status=status.HTTP_200_OK,
-            )
-
         except Project.DoesNotExist:
             return Response(
                 {"error": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        return Response(
-            {"error": "invalid method"},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED,
-        )
 
     @swagger_auto_schema(
         method="post",
@@ -205,17 +210,27 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         {"error": "User is not a manager"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
-                if user in project.managers.all():
+                if project.managers:
+                    for manager in project.managers.all():
+                        if manager.id in ids:
+                            ids.remove(manager.id)
+                    if ids:
+                        project.managers.add(*ids)
+                        return Response(
+                            {"message": "Project managers added successfully"},
+                            status=status.HTTP_200_OK,
+                        )
+                    else:
+                        return Response(
+                            {"message": "Project managers already exists"},
+                            status=status.HTTP_200_OK,
+                        )
+                else:
+                    project.managers.add(*ids)
                     return Response(
-                        {"error": "member already added"},
-                        status=status.HTTP_400_BAD_REQUEST,
+                        {"message": "Project managers added successfully"},
+                        status=status.HTTP_200_OK,
                     )
-                project.managers.add(user)
-                project.save()
-            return Response(
-                {"message": "Project manager assigned successfully"},
-                status=status.HTTP_200_OK,
-            )
 
         except User.DoesNotExist:
             return Response(
@@ -227,11 +242,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"error": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        return Response(
-            {"error": "invalid method"},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED,
-        )
 
     @swagger_auto_schema(
         method="post",
@@ -268,18 +278,47 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project = Project.objects.get(pk=pk)
             for prj_user in ids:
                 user = User.objects.get(id=prj_user)
-                if user not in project.managers.all():
+                if user.role != (
+                    User.PROJECT_MANAGER
+                    or User.ADMIN
+                    or User.ORG_OWNER
+                    or User.is_superuser
+                ):
                     return Response(
-                        {"error": "member not added"},
+                        {"error": "User is not a manager"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
-                project.managers.remove(user)
-                project.save()
-            return Response(
-                {"message": "Project manager unassigned successfully"},
-                status=status.HTTP_200_OK,
-            )
 
+                if project.managers and len(project.managers.all()) > 0:
+                    for manager in project.managers.all():
+                        if manager.id in ids:
+                            ids.append(manager.id)
+                    if (
+                        ids
+                        and len(ids) != len(project.managers.all())
+                        and user.role
+                        == (
+                            User.PROJECT_MANAGER
+                            or User.ADMIN
+                            or User.ORG_OWNER
+                            or User.is_superuser
+                        )
+                    ):
+                        project.managers.remove(*ids)
+                        return Response(
+                            {"message": "Project managers removed successfully"},
+                            status=status.HTTP_200_OK,
+                        )
+                    else:
+                        return Response(
+                            {"message": "Project managers doesnot exists"},
+                            status=status.HTTP_200_OK,
+                        )
+                else:
+                    return Response(
+                        {"message": "Project managers not assigned"},
+                        status=status.HTTP_200_OK,
+                    )
         except User.DoesNotExist:
             return Response(
                 {"error": "User doesnot exist"},
@@ -290,11 +329,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"error": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        return Response(
-            {"error": "invalid method"},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED,
-        )
 
     # Add endpoint for archiving a project
     @action(
@@ -393,7 +427,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as e:
-            print(e)
             return Response(
                 {"error": e},
                 status=status.HTTP_404_NOT_FOUND,
