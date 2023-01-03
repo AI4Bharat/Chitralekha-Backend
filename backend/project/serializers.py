@@ -1,13 +1,12 @@
 from rest_framework import serializers
 from .models import Project
-from users.serializers import UserProfileSerializer
+from users.serializers import UserFetchSerializer
 
 
 class ProjectSerializer(serializers.ModelSerializer):
-
-    created_by = UserProfileSerializer(read_only=True)
-    managers = UserProfileSerializer(read_only=True, many=True)
-    members = UserProfileSerializer(read_only=True, many=True)
+    created_by = UserFetchSerializer(read_only=True)
+    managers = UserFetchSerializer(read_only=True, many=True)
+    members = UserFetchSerializer(read_only=True, many=True)
 
     class Meta:
         model = Project

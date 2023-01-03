@@ -1,7 +1,8 @@
 from django.db import models
 from django.conf import settings
 from organization.models import Organization
-
+from translation.metadata import LANGUAGE_CHOICES
+from django.contrib.postgres.fields import ArrayField
 
 TRANSCRIPT_TYPE = (
     ("ORIGINAL_SOURCE", "Original Source"),
@@ -12,6 +13,20 @@ TRANSCRIPT_TYPE = (
 TRANSLATION_TYPE_CHOICES = (
     ("MACHINE_GENERATED", "Machine Generated"),
     ("MANUALLY_CREATED", "Manually Created"),
+)
+
+TASK_TYPE = (
+    ("TRANSCRIPTION_EDIT", "Transcription Edit"),
+    ("TRANSCRIPTION_REVIEW", "Transcription Review"),
+    ("TRANSLATION_EDIT", "Translation Edit"),
+    ("TRANSLATION_REVIEW", "Translation Review"),
+)
+
+PRIORITY = (
+    ("P1", "Priority No 1"),
+    ("P2", "Priority No 2"),
+    ("P3", "Priority No 3"),
+    ("P4", "Priority No 4"),
 )
 
 
@@ -116,6 +131,49 @@ class Project(models.Model):
         default=None,
         null=True,
         blank=True,
+    )
+
+    default_task_types = ArrayField(
+        models.CharField(
+            choices=TASK_TYPE,
+            blank=True,
+            default=None,
+            null=True,
+            max_length=50,
+        ),
+        blank=True,
+        default=None,
+        null=True,
+    )
+
+    default_target_languages = ArrayField(
+        models.CharField(
+            choices=LANGUAGE_CHOICES,
+            blank=True,
+            default=None,
+            null=True,
+            max_length=50,
+        ),
+        blank=True,
+        default=None,
+        null=True,
+    )
+
+    default_description = models.TextField(
+        max_length=400,
+        null=True,
+        blank=True,
+        help_text=("Default Task Description in this Project"),
+    )
+    default_eta = models.DateTimeField(
+        verbose_name="Default_ETA", default=None, blank=True, null=True
+    )
+    default_priority = models.CharField(
+        choices=PRIORITY,
+        verbose_name="Default_Priority",
+        max_length=2,
+        blank=True,
+        null=True,
     )
 
     def __str__(self):
