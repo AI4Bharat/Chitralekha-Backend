@@ -7,18 +7,72 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('organization', '0003_auto_20221228_0519'),
+        ("organization", "0003_auto_20221228_0519"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='organization',
-            name='default_target_languages',
-            field=django.contrib.postgres.fields.ArrayField(base_field=models.CharField(blank=True, choices=[('en', 'English'), ('hi', 'Hindi'), ('as', 'Assamese'), ('bn', 'Bengali'), ('brx', 'Bodo'), ('gu', 'Gujarati'), ('kn', 'Kannada'), ('ks', 'Kashmiri'), ('gom', 'Konkani'), ('mai', 'Maithili'), ('ml', 'Malayalam'), ('mr', 'Marathi'), ('mni', 'Manipuri'), ('ne', 'Nepali'), ('or', 'Oriya'), ('pa', 'Punjabi'), ('sa', 'Sanskrit'), ('sd', 'Sindhi'), ('si', 'Sinhala'), ('ta', 'Tamil'), ('te', 'Telugu'), ('ur', 'Urdu')], default=None, max_length=50, null=True), blank=True, default=None, null=True, size=None, verbose_name='Project Default Target Languages'),
+            model_name="organization",
+            name="default_target_languages",
+            field=django.contrib.postgres.fields.ArrayField(
+                base_field=models.CharField(
+                    blank=True,
+                    choices=[
+                        ("en", "English"),
+                        ("hi", "Hindi"),
+                        ("as", "Assamese"),
+                        ("bn", "Bengali"),
+                        ("brx", "Bodo"),
+                        ("gu", "Gujarati"),
+                        ("kn", "Kannada"),
+                        ("ks", "Kashmiri"),
+                        ("gom", "Konkani"),
+                        ("mai", "Maithili"),
+                        ("ml", "Malayalam"),
+                        ("mr", "Marathi"),
+                        ("mni", "Manipuri"),
+                        ("ne", "Nepali"),
+                        ("or", "Oriya"),
+                        ("pa", "Punjabi"),
+                        ("sa", "Sanskrit"),
+                        ("sd", "Sindhi"),
+                        ("si", "Sinhala"),
+                        ("ta", "Tamil"),
+                        ("te", "Telugu"),
+                        ("ur", "Urdu"),
+                    ],
+                    default=None,
+                    max_length=50,
+                    null=True,
+                ),
+                blank=True,
+                default=None,
+                null=True,
+                size=None,
+                verbose_name="Project Default Target Languages",
+            ),
         ),
         migrations.AddField(
-            model_name='organization',
-            name='default_task_types',
-            field=django.contrib.postgres.fields.ArrayField(base_field=models.CharField(blank=True, choices=[('TRANSCRIPTION_EDIT', 'Transcription Edit'), ('TRANSCRIPTION_REVIEW', 'Transcription Review'), ('TRANSLATION_EDIT', 'Translation Edit'), ('TRANSLATION_REVIEW', 'Translation Review')], default=None, max_length=50, null=True), blank=True, default=None, null=True, size=None, verbose_name='Project Default Task Types'),
+            model_name="organization",
+            name="default_task_types",
+            field=django.contrib.postgres.fields.ArrayField(
+                base_field=models.CharField(
+                    blank=True,
+                    choices=[
+                        ("TRANSCRIPTION_EDIT", "Transcription Edit"),
+                        ("TRANSCRIPTION_REVIEW", "Transcription Review"),
+                        ("TRANSLATION_EDIT", "Translation Edit"),
+                        ("TRANSLATION_REVIEW", "Translation Review"),
+                    ],
+                    default=None,
+                    max_length=50,
+                    null=True,
+                ),
+                blank=True,
+                default=None,
+                null=True,
+                size=None,
+                verbose_name="Project Default Task Types",
+            ),
         ),
     ]

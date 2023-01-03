@@ -22,6 +22,7 @@ class OrgUserSerializer(serializers.ModelSerializer):
             "has_accepted_invite",
         ]
 
+
 class OrganizationSerializer(serializers.ModelSerializer):
     created_by = OrgUserSerializer(read_only=True)
     organization_owner = OrgUserSerializer(read_only=True)

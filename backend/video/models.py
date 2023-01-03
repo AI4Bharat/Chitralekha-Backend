@@ -3,6 +3,15 @@ import uuid
 from project.models import Project
 from translation.metadata import LANGUAGE_CHOICES
 
+VIDEO_STATUS = (
+    ("NEW", "NEW"),
+    ("TRANSCRIPTION_EDIT", "Transcription Edit"),
+    ("TRANSCRIPTION_REVIEW", "Transcription Review"),
+    ("TRANSLATION_EDIT", "Translation Edit"),
+    ("TRANSLATION_REVIEW", "Translation Review"),
+    ("COMPLETED", "COMPLETED"),
+)
+
 
 class Video(models.Model):
     """

@@ -64,11 +64,15 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if default_task_types is not None and ("TRANSLATION_EDIT" or "TRANSLATION_REVIEW" in default_task_types):
+        if default_task_types is not None and (
+            "TRANSLATION_EDIT" or "TRANSLATION_REVIEW" in default_task_types
+        ):
             default_target_languages = request.data.get("default_target_languages")
             if default_target_languages is None:
                 return Response(
-                    {"message": "missing param : Target Language can't be None of Translation task is selected."},
+                    {
+                        "message": "missing param : Target Language can't be None of Translation task is selected."
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 

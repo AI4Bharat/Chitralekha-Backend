@@ -25,6 +25,7 @@ TASK_TYPE = (
     ("TRANSLATION_REVIEW", "Translation Review"),
 )
 
+
 class Organization(models.Model):
     """
     Model for organizations
