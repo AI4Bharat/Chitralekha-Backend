@@ -5,6 +5,16 @@ from translation.metadata import LANGUAGE_CHOICES
 from users.serializers import UserFetchSerializer
 
 
+class TaskStatusSerializer(serializers.ModelSerializer):
+    language_pair = serializers.CharField(source="get_language_pair_label")
+    task_status = serializers.CharField(source="get_task_status")
+    user = UserFetchSerializer(read_only=True)
+
+    class Meta:
+        model = Task
+        fields = ("language_pair", "task_status", "user", "created_at")
+
+
 class TaskSerializer(serializers.ModelSerializer):
     video_name = serializers.CharField(source="video.name", read_only=True)
     src_language = serializers.CharField(source="video.language", read_only=True)

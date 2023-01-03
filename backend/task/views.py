@@ -293,7 +293,7 @@ class TaskViewSet(ModelViewSet):
                         created_by=request.user,
                         user=user,
                         target_language=target_language,
-                        status="SELECTED_SOURCE",
+                        status="NEW",
                         eta=eta,
                         description=description,
                         priority=priority,

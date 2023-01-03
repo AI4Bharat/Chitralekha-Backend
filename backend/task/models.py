@@ -119,5 +119,18 @@ class Task(models.Model):
                 return language[1]
         return "-"
 
+    @property
+    def get_language_pair_label(self):
+        src_language = self.get_src_language_label
+        target_language = self.get_target_language_label
+        if target_language == "-":
+            return src_language
+        else:
+            return src_language + "-" + target_language
+
+    @property
+    def get_task_status(self):
+        return self.get_task_type_label + " : " + self.status
+
     def __str__(self):
         return str(self.id)

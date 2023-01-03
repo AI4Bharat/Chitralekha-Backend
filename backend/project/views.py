@@ -13,7 +13,7 @@ from .serializers import ProjectSerializer
 from .decorators import is_project_owner
 from users.serializers import UserFetchSerializer, UserProfileSerializer
 from task.models import Task
-from task.serializers import TaskSerializer
+from task.serializers import TaskSerializer, TaskStatusSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.db.models import Q
@@ -354,7 +354,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project = Project.objects.get(pk=pk)
             videos = Video.objects.filter(project_id=pk)
             serializer = VideoSerializer(videos, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            video_data = []
+            for video in videos:
+                tasks = Task.objects.filter(video=video)
+                video_serializer = VideoSerializer(video).data
+                task_serializer = TaskStatusSerializer(tasks, many=True)
+                video_serializer["status"] = task_serializer.data
+                video_data.append(video_serializer)
+            return Response(video_data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response(
                 {"error": "Project does not exist"},
