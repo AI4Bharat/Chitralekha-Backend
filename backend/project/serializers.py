@@ -20,4 +20,6 @@ class ProjectSerializer(serializers.ModelSerializer):
             "members",
             "created_by",
             "created_at",
+            "default_task_types",
+            "default_target_languages",
         ]
