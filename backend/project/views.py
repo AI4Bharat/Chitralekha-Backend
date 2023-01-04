@@ -18,6 +18,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.db.models import Q
 from config import *
+from users.serializers import UserFetchSerializer
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -342,6 +343,49 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
+    def video_status(self, tasks):
+        task_table = {}
+        for task in tasks:
+            if "TRANSCRIPTION" in task.task_type:
+                if task.status in ["INPROGRESS", "COMPLETE"]:
+                    if "transcription" not in task_table.keys():
+                        task_table["transcription"] = task
+                    else:
+                        if "EDIT" in task_table["transcription"]:
+                            task_table["transcription"] = task
+                else:
+                    task_table["transcription"] = ("NEW", task)
+
+        for task in tasks:
+            if "TRANSCRIPTION" in task.task_type:
+                continue
+            if "TRANSLATION" in task.task_type:
+                if task.status in ["INPROGRESS", "COMPLETE"]:
+                    if task.target_language not in task_table:
+                        task_table[task.target_language] = task
+                        print("task.target_language", task.target_language)
+                    else:
+                        if "EDIT" in task_table[task.target_language].task_type:
+                            task_table[task.target_language] = task
+                else:
+                    if task.target_language in task_table:
+                        if (
+                            type(task_table[task.target_language]) != tuple
+                            and "REVIEW" in task_table[task.target_language].task_type
+                        ):
+                            task_table[task.target_language] = task
+                    elif "transcription" in task_table:
+                        if type(task_table["transcription"]) == tuple:
+                            task_table[task.target_language] = ("NEW", task)
+                        else:
+                            task_table[task.target_language] = (
+                                task_table["transcription"].get_task_status,
+                                task,
+                            )
+                    else:
+                        task_table[task.target_language] = ("NEW", task)
+        return task_table
+
     # Add endpoint to list all related videos of a project (project_id)
     @action(
         detail=True,
@@ -358,8 +402,64 @@ class ProjectViewSet(viewsets.ModelViewSet):
             for video in videos:
                 tasks = Task.objects.filter(video=video)
                 video_serializer = VideoSerializer(video).data
-                task_serializer = TaskStatusSerializer(tasks, many=True)
-                video_serializer["status"] = task_serializer.data
+                task_table = self.video_status(tasks)
+                tasks_to_send = []
+                if len(task_table) == 1:
+                    if "transcription" in task_table.keys():
+                        task_obj = table_keys["transcription"]
+                        if type(task_obj) != tuple:
+                            tasks_to_send.append(
+                                {
+                                    "language_pair": task_obj.get_language_pair_label,
+                                    "task_status": task_obj.get_task_status,
+                                    "user": UserFetchSerializer(task_obj.user).data,
+                                    "created_at": task_obj.created_at,
+                                }
+                            )
+                        else:
+                            tasks_to_send.append(
+                                {
+                                    "language_pair": task_obj[
+                                        1
+                                    ].get_language_pair_label,
+                                    "task_status": task_obj[0],
+                                    "user": UserFetchSerializer(task_obj[1].user).data,
+                                    "created_at": task_obj[1].created_at,
+                                }
+                            )
+                if len(task_table) > 1:
+                    if "transcription" in task_table.keys():
+                        del task_table["transcription"]
+                    all_statuses = set()
+                    for target_language, task_obj in task_table.items():
+                        if type(task_obj) != tuple:
+                            all_statuses.add(task_obj.status)
+                            tasks_to_send.append(
+                                {
+                                    "language_pair": task_obj.get_language_pair_label,
+                                    "task_status": task_obj.get_task_status,
+                                    "user": UserFetchSerializer(task_obj.user).data,
+                                    "created_at": task_obj.created_at,
+                                }
+                            )
+                        else:
+                            all_statuses.add(task_obj[1].status)
+                            tasks_to_send.append(
+                                {
+                                    "language_pair": task_obj[
+                                        1
+                                    ].get_language_pair_label,
+                                    "task_status": task_obj[0],
+                                    "user": UserFetchSerializer(task_obj[1].user).data,
+                                    "created_at": task_obj[1].created_at,
+                                }
+                            )
+
+                    if len(all_statuses) == 1 and "COMPLETE" in all_statuses:
+                        for task in tasks_to_send:
+                            task["task_status"] = "COMPLETE"
+
+                video_serializer["status"] = tasks_to_send
                 video_data.append(video_serializer)
             return Response(video_data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
@@ -478,7 +578,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
 
     @is_project_owner
-    def update(self, request, pk=None, *args, **kwargs):
+    def partial_update(self, request, pk=None, *args, **kwargs):
         """
         Update project details
         """
@@ -487,13 +587,57 @@ class ProjectViewSet(viewsets.ModelViewSet):
         description = request.data.get("description")
         default_transcript_type = request.data.get("default_transcript_type")
         default_translation_type = request.data.get("default_translation_type")
+        default_target_languages = request.data.get("default_target_languages")
         default_task_types = request.data.get("default_task_types")
         default_task_eta = request.data.get("default_task_eta")
         default_task_priority = request.data.get("default_task_priority")
         default_task_description = request.data.get("default_task_description")
 
+        try:
+            project = Project.objects.get(pk=pk)
+        except Project.DoesNotExist:
+            return Response(
+                {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if title is not None:
+            project.title = title
+
+        if managers_id is not None and len(managers_id) > 0:
+            project.managers.set([])
+            for manager_id in managers_id:
+                try:
+                    user = User.objects.get(pk=manager_id)
+                except User.DoesNotExist:
+                    return Response(
+                        {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                    )
+                project.managers.add(user)
+
+        if default_task_types is not None and len(default_task_types) > 0:
+            project.default_task_types = None
+            project.default_task_types = default_task_types
+
+        if project.default_task_types is not None and (
+            "TRANSLATION_EDIT" or "TRANSLATION_REVIEW" in project.default_task_types
+        ):
+            default_target_languages = request.data.get("default_target_languages")
+            if default_target_languages is None:
+                return Response(
+                    {
+                        "message": "missing param : Target Language can't be None of Translation task is selected."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            project.default_target_languages = default_target_languages
+
+        project.save()
+        return Response(
+            {"message": "Project updated successfully."}, status=status.HTTP_200_OK
+        )
+
     @is_project_owner
-    def partial_update(self, request, pk=None, *args, **kwargs):
+    def update(self, request, pk=None, *args, **kwargs):
         super().partial_update(request, *args, **kwargs)
         return Response(
             {"message": "Project updated successfully."}, status=status.HTTP_200_OK
