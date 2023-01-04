@@ -406,7 +406,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 tasks_to_send = []
                 if len(task_table) == 1:
                     if "transcription" in task_table.keys():
-                        task_obj = table_keys["transcription"]
+                        task_obj = task_table["transcription"]
                         if type(task_obj) != tuple:
                             tasks_to_send.append(
                                 {
