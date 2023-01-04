@@ -363,7 +363,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 if task.status in ["INPROGRESS", "COMPLETE"]:
                     if task.target_language not in task_table:
                         task_table[task.target_language] = task
-                        print("task.target_language", task.target_language)
                     else:
                         if "EDIT" in task_table[task.target_language].task_type:
                             task_table[task.target_language] = task
@@ -385,6 +384,52 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     else:
                         task_table[task.target_language] = ("NEW", task)
         return task_table
+
+    def check_if_last_task_in_workflow(self, task_obj):
+        task = task_obj["task"]
+        if task.task_type == "TRANSLATION_REVIEW":
+            return True
+        elif task.task_type == "TRANSLATION_EDIT":
+            if (
+                Task.objects.filter(task_type="TRANSLATION_REVIEW")
+                .filter(video=task.video)
+                .first()
+                is None
+            ):
+                return True
+            else:
+                return False
+        elif task.task_type == "TRANSCRIPTION_REVIEW":
+            if (
+                Task.objects.filter(
+                    task_type__in=["TRANSLATION_REVIEW", "TRANSLATION_EDIT"]
+                )
+                .filter(video=task.video)
+                .first()
+                is None
+            ):
+                return True
+            else:
+                return False
+        elif task.task_type == "TRANSCRIPTION_EDIT":
+            if (
+                Task.objects.filter(
+                    task_type__in=[
+                        "TRANSLATION_REVIEW",
+                        "TRANSLATION_EDIT",
+                        "TRANSCRIPTION_REVIEW",
+                    ]
+                )
+                .filter(video=task.video)
+                .first()
+                is None
+            ):
+                return True
+            else:
+                return False
+        else:
+            print("Not a valid type")
+            return False
 
     # Add endpoint to list all related videos of a project (project_id)
     @action(
@@ -410,6 +455,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         if type(task_obj) != tuple:
                             tasks_to_send.append(
                                 {
+                                    "task": task_obj,
                                     "language_pair": task_obj.get_language_pair_label,
                                     "task_status": task_obj.get_task_status,
                                     "user": UserFetchSerializer(task_obj.user).data,
@@ -419,6 +465,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         else:
                             tasks_to_send.append(
                                 {
+                                    "task": task_obj[1],
                                     "language_pair": task_obj[
                                         1
                                     ].get_language_pair_label,
@@ -436,6 +483,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             all_statuses.add(task_obj.status)
                             tasks_to_send.append(
                                 {
+                                    "task": task_obj,
                                     "language_pair": task_obj.get_language_pair_label,
                                     "task_status": task_obj.get_task_status,
                                     "user": UserFetchSerializer(task_obj.user).data,
@@ -446,6 +494,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             all_statuses.add(task_obj[1].status)
                             tasks_to_send.append(
                                 {
+                                    "task": task_obj[1],
                                     "language_pair": task_obj[
                                         1
                                     ].get_language_pair_label,
@@ -455,9 +504,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
                                 }
                             )
 
-                    if len(all_statuses) == 1 and "COMPLETE" in all_statuses:
-                        for task in tasks_to_send:
+                    for task in tasks_to_send:
+                        if (
+                            self.check_if_last_task_in_workflow(task)
+                            and "COMPLETE" in task["task_status"]
+                            and task["task"].get_task_type_label in task["task_status"]
+                        ):
                             task["task_status"] = "COMPLETE"
+                        del task["task"]
 
                 video_serializer["status"] = tasks_to_send
                 video_data.append(video_serializer)
@@ -571,7 +625,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
             "project_id": project.id,
             "message": "Project is successfully created.",
         }
-
         return Response(
             response,
             status=status.HTTP_200_OK,
