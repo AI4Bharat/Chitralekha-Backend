@@ -36,6 +36,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "created_by",
             "created_at",
             "organization_owner",
+            "default_task_types",
+            "default_target_languages",
         ]
         read_only_fields = ["id", "created_by", "created_at"]
 
