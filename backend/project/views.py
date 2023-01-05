@@ -504,17 +504,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
                                 }
                             )
 
-                    for task in tasks_to_send:
-                        if (
-                            self.check_if_last_task_in_workflow(task)
-                            and "COMPLETE" in task["task_status"]
-                            and task["task"].get_task_type_label in task["task_status"]
-                        ):
-                            task["task_status"] = "COMPLETE"
-                        del task["task"]
+                for task in tasks_to_send:
+                    if (
+                        self.check_if_last_task_in_workflow(task)
+                        and "COMPLETE" in task["task_status"]
+                        and task["task"].get_task_type_label in task["task_status"]
+                    ):
+                        task["task_status"] = "COMPLETE"
+                    del task["task"]
 
-                    video_serializer["status"] = tasks_to_send
-                    video_data.append(video_serializer)
+                video_serializer["status"] = tasks_to_send
+                video_data.append(video_serializer)
             return Response(video_data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response(
