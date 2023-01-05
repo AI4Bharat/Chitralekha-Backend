@@ -122,11 +122,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=["POST"],
-        name="Remove Project members",
-        url_name="remove_project_members",
+        name="Remove Project members and managers from project",
+        url_name="remove_project_members_and_managers",
     )
     @is_project_owner
-    def remove_project_members(self, request, pk=None, *args, **kwargs):
+    def remove_project_members_and_managers(self, request, pk=None, *args, **kwargs):
+
         try:
             project = Project.objects.get(pk=pk)
             if "user_id" in dict(request.data):
@@ -141,16 +142,37 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 if project.members and len(project.members.all()) > 0:
                     for member in project.members.all():
                         if member.id in ids:
-                            ids.append(member.id)
-                    if ids and len(ids) != len(project.members.all()):
+                            if member.id in project.managers.all().values_list(
+                                "id", flat=True
+                            ):
+                                if project.managers.all().count() > 1:
+                                    project.managers.remove(member.id)
+                                    ids.append(member.id)
+                                else:
+                                    project.members.remove(*ids)
+                                    return Response(
+                                        {
+                                            "message": "Project must have atleast one manager"
+                                        },
+                                        status=status.HTTP_400_BAD_REQUEST,
+                                    )
+                            else:
+                                ids.append(member.id)
+                    if ids and project.members.all().count() > len(ids):
                         project.members.remove(*ids)
                         return Response(
                             {"message": "Project members removed successfully"},
                             status=status.HTTP_200_OK,
                         )
+
+                    else:
+                        return Response(
+                            {"message": "Project has no members to remove"},
+                            status=status.HTTP_200_OK,
+                        )
                 else:
                     return Response(
-                        {"message": "Project has no members"},
+                        {"message": "Project members already removed"},
                         status=status.HTTP_200_OK,
                     )
             else:
