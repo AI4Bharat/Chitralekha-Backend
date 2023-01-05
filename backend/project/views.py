@@ -513,8 +513,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             task["task_status"] = "COMPLETE"
                         del task["task"]
 
-                video_serializer["status"] = tasks_to_send
-                video_data.append(video_serializer)
+                    video_serializer["status"] = tasks_to_send
+                    video_data.append(video_serializer)
             return Response(video_data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response(
