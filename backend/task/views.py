@@ -884,14 +884,14 @@ class TaskViewSet(ModelViewSet):
             )
 
     @is_project_owner
-    def update(self, request, pk=None, *args, **kwargs):
+    def partial_update(self, request, pk=None, *args, **kwargs):
         user = request.data.get("user")
         description = request.data.get("description")
         eta = request.data.get("eta")
         priority = request.data.get("priority")
 
         try:
-            task_obj = Task.objects.get(pk=pk)
+            task = Task.objects.get(pk=pk)
         except Task.DoesNotExist:
             return Response(
                 {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
@@ -906,13 +906,13 @@ class TaskViewSet(ModelViewSet):
                 )
 
         if task.task_type == "TRANSCRIPTION_EDIT":
-            permission = has_transcript_edit_permission(user_obj, [task.video])
+            permission = self.has_transcript_edit_permission(user_obj, [task.video])
         elif task.task_type == "TRANSCRIPTION_REVIEW":
-            permission = has_transcript_review_permission(user_obj, [task.video])
+            permission = self.has_transcript_review_permission(user_obj, [task.video])
         elif task.task_type == "TRANSLATION_EDIT":
-            permission = has_translate_edit_permission(user_obj, [task.video])
+            permission = self.has_translate_edit_permission(user_obj, [task.video])
         elif task.task_type == "TRANSLATION_REVIEW":
-            permission = has_translate_review_permission(user_obj, [task.video])
+            permission = self.has_translate_review_permission(user_obj, [task.video])
         else:
             print("Not a Valid Type")
 
