@@ -666,6 +666,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
                     )
                 project.managers.add(user)
+                if user not in project.members.all():
+                    project.members.add(user)
 
         if default_task_types is not None and len(default_task_types) > 0:
             project.default_task_types = None
@@ -698,6 +700,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         if default_task_description is not None:
             project.default_description = default_task_description
+
+        if description is not None:
+            project.description = description
 
         project.save()
 

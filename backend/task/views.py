@@ -967,26 +967,30 @@ class TaskViewSet(ModelViewSet):
                         {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
                     )
 
-            if task.task_type == "TRANSCRIPTION_EDIT":
-                permission = self.has_transcript_edit_permission(user_obj, [task.video])
-            elif task.task_type == "TRANSCRIPTION_REVIEW":
-                permission = self.has_transcript_review_permission(
-                    user_obj, [task.video]
-                )
-            elif task.task_type == "TRANSLATION_EDIT":
-                permission = self.has_translate_edit_permission(user_obj, [task.video])
-            elif task.task_type == "TRANSLATION_REVIEW":
-                permission = self.has_translate_review_permission(
-                    user_obj, [task.video]
-                )
-            else:
-                print("Not a Valid Type")
+                if task.task_type == "TRANSCRIPTION_EDIT":
+                    permission = self.has_transcript_edit_permission(
+                        user_obj, [task.video]
+                    )
+                elif task.task_type == "TRANSCRIPTION_REVIEW":
+                    permission = self.has_transcript_review_permission(
+                        user_obj, [task.video]
+                    )
+                elif task.task_type == "TRANSLATION_EDIT":
+                    permission = self.has_translate_edit_permission(
+                        user_obj, [task.video]
+                    )
+                elif task.task_type == "TRANSLATION_REVIEW":
+                    permission = self.has_translate_review_permission(
+                        user_obj, [task.video]
+                    )
+                else:
+                    print("Not a Valid Type")
 
-            if permission:
-                task.user = user_obj
-            else:
-                not_permitted_users.append(task_id)
-                continue
+                if permission:
+                    task.user = user_obj
+                else:
+                    not_permitted_users.append(task_id)
+                    continue
 
             if priority is not None:
                 task.priority = priority
