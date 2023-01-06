@@ -133,7 +133,7 @@ class Organization(models.Model):
         blank=True,
         default=None,
         null=True,
-        verbose_name="Project Default Task Types",
+        verbose_name="Organization Default Task Types",
     )
 
     default_target_languages = ArrayField(
@@ -147,7 +147,10 @@ class Organization(models.Model):
         blank=True,
         default=None,
         null=True,
-        verbose_name="Project Default Target Languages",
+        verbose_name="Organization Default Target Languages",
+    )
+    description = models.TextField(
+        max_length=1000, null=True, blank=True, help_text=("Organization Description")
     )
 
     def __str__(self):

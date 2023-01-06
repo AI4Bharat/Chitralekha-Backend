@@ -113,7 +113,67 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
     @is_particular_organization_owner
     def partial_update(self, request, pk=None, *args, **kwargs):
-        return super().partial_update(request, *args, **kwargs)
+        title = request.data.get("title")
+        email_domain_name = request.data.get("email_domain_name")
+        description = request.data.get("description")
+        default_transcript_type = request.data.get("default_transcript_type")
+        default_translation_type = request.data.get("default_translation_type")
+        default_target_languages = request.data.get("default_target_languages")
+        default_task_types = request.data.get("default_task_types")
+        org_owner = request.data.get("organization_owner")
+
+        try:
+            organization = Organization.objects.get(pk=pk)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if title is not None:
+            organization.title = title
+
+        if email_domain_name is not None:
+            organization.email_domain_name = email_domain_name
+
+        if org_owner is not None:
+            try:
+                user = User.objects.get(pk=org_owner)
+            except User.DoesNotExist:
+                return Response(
+                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+            organization.organization_owner = user
+            user.organization = organization
+
+        if default_task_types is not None and len(default_task_types) > 0:
+            organization.default_task_types = None
+            organization.default_task_types = default_task_types
+
+        if organization.default_task_types is not None and (
+            "TRANSLATION_EDIT"
+            or "TRANSLATION_REVIEW" in organization.default_task_types
+        ):
+            default_target_languages = request.data.get("default_target_languages")
+            if default_target_languages is None:
+                return Response(
+                    {
+                        "message": "missing param : Target Language can't be None if Translation task is selected."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            organization.default_target_languages = default_target_languages
+
+        if default_transcript_type is not None:
+            organization.default_transcript_type = default_transcript_type
+
+        if default_translation_type is not None:
+            organization.default_translation_type = default_translation_type
+
+        organization.save()
+
+        return Response(
+            {"message": "Organization updated successfully."}, status=status.HTTP_200_OK
+        )
 
     @is_admin
     def destroy(self, request, pk=None, *args, **kwargs):

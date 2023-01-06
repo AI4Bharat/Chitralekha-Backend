@@ -678,7 +678,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             if default_target_languages is None:
                 return Response(
                     {
-                        "message": "missing param : Target Language can't be None of Translation task is selected."
+                        "message": "missing param : Target Language can't be None if Translation task is selected."
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
@@ -686,6 +686,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         if default_task_eta is not None:
             project.default_eta = default_task_eta
+
+        if default_transcript_type is not None:
+            project.default_transcript_type = default_transcript_type
+
+        if default_translation_type is not None:
+            project.default_translation_type = default_translation_type
 
         if default_task_priority is not None:
             project.default_priority = default_task_priority

@@ -894,7 +894,7 @@ class TaskViewSet(ModelViewSet):
             task_obj = Task.objects.get(pk=pk)
         except Task.DoesNotExist:
             return Response(
-                {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
+                {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
         if user is not None:
