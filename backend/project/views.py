@@ -122,11 +122,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=["POST"],
-        name="Remove Project members and managers from project",
-        url_name="remove_project_members_and_managers",
+        name="Remove Project members",
+        url_name="remove_project_members",
     )
     @is_project_owner
-    def remove_project_members_and_managers(self, request, pk=None, *args, **kwargs):
+    def remove_project_members(self, request, pk=None, *args, **kwargs):
 
         try:
             project = Project.objects.get(pk=pk)
@@ -147,9 +147,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             ):
                                 if project.managers.all().count() > 1:
                                     project.managers.remove(member.id)
+                                    project.members.remove(member.id)
                                     ids.append(member.id)
                                 else:
-                                    project.members.remove(*ids)
                                     return Response(
                                         {
                                             "message": "Project must have atleast one manager"
@@ -158,13 +158,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                                     )
                             else:
                                 ids.append(member.id)
-                    if ids and project.members.all().count() > len(ids):
+                    if ids and len(ids) != project.members.all().count():
                         project.members.remove(*ids)
                         return Response(
                             {"message": "Project members removed successfully"},
                             status=status.HTTP_200_OK,
                         )
-
                     else:
                         return Response(
                             {"message": "Project has no members to remove"},
