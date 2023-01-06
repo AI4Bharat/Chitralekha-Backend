@@ -883,7 +883,7 @@ class TaskViewSet(ModelViewSet):
                 description,
             )
 
-    @is_particular_project_owner
+    @is_project_owner
     def update(self, request, pk=None, *args, **kwargs):
         user = request.data.get("user")
         description = request.data.get("description")
