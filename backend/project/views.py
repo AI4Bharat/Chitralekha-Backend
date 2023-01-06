@@ -684,19 +684,29 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 )
             project.default_target_languages = default_target_languages
 
+        if default_task_eta is not None:
+            project.default_eta = default_task_eta
+
+        if default_task_priority is not None:
+            project.default_priority = default_task_priority
+
+        if default_task_description is not None:
+            project.default_description = default_task_description
+
         project.save()
+
         return Response(
             {"message": "Project updated successfully."}, status=status.HTTP_200_OK
         )
 
     @is_project_owner
     def update(self, request, pk=None, *args, **kwargs):
-        super().partial_update(request, *args, **kwargs)
+        super().update(request, *args, **kwargs)
         return Response(
             {"message": "Project updated successfully."}, status=status.HTTP_200_OK
         )
 
-    @is_project_owner
+    @is_org_owner
     def destroy(self, request, pk=None, *args, **kwargs):
         """
         Delete a project

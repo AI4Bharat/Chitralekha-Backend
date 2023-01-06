@@ -107,18 +107,20 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @is_particular_organization_owner
+    @is_org_owner
     def update(self, request, pk=None, *args, **kwargs):
         return super().update(request, *args, **kwargs)
 
-    @is_particular_organization_owner
+    @is_org_owners
     def partial_update(self, request, pk=None, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
 
+    @is_admin
     def destroy(self, request, pk=None, *args, **kwargs):
+        super().destroy(request, *args, **kwargs)
         return Response(
-            {"message": "Deleting of Organizations is not supported!"},
-            status=status.HTTP_403_FORBIDDEN,
+            {"message": "Organization deleted successfully."},
+            status=status.HTTP_200_OK,
         )
 
     @swagger_auto_schema(

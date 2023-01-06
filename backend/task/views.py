@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
-from project.decorators import is_project_owner
+from project.decorators import is_project_owner, is_particular_project_owner
 from project.models import Project
 from organization.models import Organization
 from transcript.views import generate_transcription
@@ -26,7 +26,6 @@ import webvtt
 from io import StringIO
 import json, sys
 from config import *
-
 
 from .models import (
     TASK_TYPE,
@@ -191,6 +190,7 @@ class TaskViewSet(ModelViewSet):
             video_ids = [task.video for task in duplicate_tasks] + [
                 task.video for task in duplicate_user_tasks
             ]
+
             for video in video_ids:
                 videos.remove(video)
                 if len(user_ids) > 0:
@@ -201,6 +201,11 @@ class TaskViewSet(ModelViewSet):
                     {"message": "This task is already created for selected videos."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            else:
+                response[
+                    "message"
+                ] = "Following tasks can't be created as they are duplicate or user is same for Edit and Review task."
+                # response["error"] =
 
         if len(user_ids) > 0:
             if "EDIT" in task_type:
@@ -693,7 +698,6 @@ class TaskViewSet(ModelViewSet):
             )
             task.status = "SELECTED_SOURCE"
             task.save()
-
         else:
             target_language = task.target_language
             translation = (
@@ -878,6 +882,137 @@ class TaskViewSet(ModelViewSet):
                 priority,
                 description,
             )
+
+    @is_particular_project_owner
+    def update(self, request, pk=None, *args, **kwargs):
+        user = request.data.get("user")
+        description = request.data.get("description")
+        eta = request.data.get("eta")
+        priority = request.data.get("priority")
+
+        try:
+            task_obj = Task.objects.get(pk=pk)
+        except Task.DoesNotExist:
+            return Response(
+                {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if user is not None:
+            try:
+                user_obj = User.objects.get(pk=user)
+            except User.DoesNotExist:
+                return Response(
+                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        if task.task_type == "TRANSCRIPTION_EDIT":
+            permission = has_transcript_edit_permission(user_obj, [task.video])
+        elif task.task_type == "TRANSCRIPTION_REVIEW":
+            permission = has_transcript_review_permission(user_obj, [task.video])
+        elif task.task_type == "TRANSLATION_EDIT":
+            permission = has_translate_edit_permission(user_obj, [task.video])
+        elif task.task_type == "TRANSLATION_REVIEW":
+            permission = has_translate_review_permission(user_obj, [task.video])
+        else:
+            print("Not a Valid Type")
+
+        if permission:
+            task.user = user_obj
+        else:
+            return Response(
+                {
+                    "message": "The assigned user is not allowed to perform this task in this project."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if priority is not None:
+            task.priority = priority
+
+        if eta is not None:
+            task.eta = eta
+
+        if description is not None:
+            task.description = description
+
+        task.save()
+        return Response(
+            {"message": "Task is successfully updated."},
+            status=status.HTTP_200_OK,
+        )
+
+    @is_project_owner
+    @action(detail=False, methods=["patch"], url_path="update_multiple_tasks")
+    def put(self, request, *args, **kwargs):
+        task_ids = request.data.get("task_ids")
+        user = request.data.get("user")
+        description = request.data.get("description")
+        eta = request.data.get("eta")
+        priority = request.data.get("priority")
+        not_permitted_users = []
+
+        for task_id in task_ids:
+            try:
+                task = Task.objects.get(pk=task_id)
+            except Task.DoesNotExist:
+                return Response(
+                    {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+            if user is not None:
+                try:
+                    user_obj = User.objects.get(pk=user)
+                except User.DoesNotExist:
+                    return Response(
+                        {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                    )
+
+            if task.task_type == "TRANSCRIPTION_EDIT":
+                permission = self.has_transcript_edit_permission(user_obj, [task.video])
+            elif task.task_type == "TRANSCRIPTION_REVIEW":
+                permission = self.has_transcript_review_permission(
+                    user_obj, [task.video]
+                )
+            elif task.task_type == "TRANSLATION_EDIT":
+                permission = self.has_translate_edit_permission(user_obj, [task.video])
+            elif task.task_type == "TRANSLATION_REVIEW":
+                permission = self.has_translate_review_permission(
+                    user_obj, [task.video]
+                )
+            else:
+                print("Not a Valid Type")
+
+            if permission:
+                task.user = user_obj
+            else:
+                not_permitted_users.append(task_id)
+                continue
+
+            if priority is not None:
+                task.priority = priority
+
+            if eta is not None:
+                task.eta = eta
+
+            if description is not None:
+                task.description = description
+
+            task.save()
+        if len(not_permitted_users) > 0:
+            return Response(
+                {
+                    "message": "The assigned user is not allowed to perform these tasks.{0}".format(
+                        not_permitted_users
+                    )
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return Response(
+            {
+                "message": "Task updated successfully.",
+            },
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=False, methods=["get"], url_path="get_task_types")
     def get_task_types(self, request):

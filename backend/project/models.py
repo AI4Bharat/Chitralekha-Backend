@@ -86,6 +86,7 @@ class Project(models.Model):
         on_delete=models.SET_NULL,
         default=None,
         null=True,
+        blank=True,
     )
 
     default_transcript_reviewer = models.ForeignKey(
@@ -95,6 +96,7 @@ class Project(models.Model):
         on_delete=models.SET_NULL,
         default=None,
         null=True,
+        blank=True,
     )
 
     default_translation_editor = models.ForeignKey(
@@ -104,6 +106,7 @@ class Project(models.Model):
         on_delete=models.SET_NULL,
         default=None,
         null=True,
+        blank=True,
     )
 
     default_translation_reviewer = models.ForeignKey(
@@ -113,6 +116,7 @@ class Project(models.Model):
         on_delete=models.SET_NULL,
         default=None,
         null=True,
+        blank=True,
     )
 
     default_transcript_type = models.CharField(

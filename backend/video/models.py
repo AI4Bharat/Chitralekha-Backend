@@ -2,6 +2,7 @@ from django.db import models
 import uuid
 from project.models import Project
 from translation.metadata import LANGUAGE_CHOICES
+from django.contrib.postgres.fields import ArrayField
 
 VIDEO_STATUS = (
     ("NEW", "NEW"),

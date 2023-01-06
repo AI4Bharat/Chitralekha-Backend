@@ -18,6 +18,7 @@ from translation.models import Translation
 from project.decorators import is_project_owner
 from .models import Video
 from task.views import TaskViewSet
+from task.serializers import TaskStatusSerializer
 from .serializers import VideoSerializer
 from .utils import (
     get_data_from_google_video,
@@ -144,6 +145,11 @@ def get_video(request):
         )
 
     organization = project.organization_id
+
+    default_task_eta = project.default_eta
+    default_task_priority = project.default_priority
+    default_task_description = project.default_description
+
     ## PATCH: Handle audio_only files separately for google drive links
     ## TODO: Move it to an util function
     if "drive.google.com" in url and is_audio_only:
@@ -198,10 +204,23 @@ def get_video(request):
                     if default_target_languages is not None:
                         for target_language in default_target_languages:
                             create_tasks(
-                                video.id, task_type, request.user, target_language
+                                video.id,
+                                task_type,
+                                request.user,
+                                default_task_eta,
+                                default_task_priority,
+                                default_task_description,
+                                target_language,
                             )
                     else:
-                        create_tasks(video.id, task_type, request.user)
+                        create_tasks(
+                            video.id,
+                            task_type,
+                            request.user,
+                            default_task_eta,
+                            default_task_priority,
+                            default_task_description,
+                        )
             return Response(
                 {
                     "video": VideoSerializer(video).data,
@@ -284,9 +303,24 @@ def get_video(request):
             for task_type in default_task_types:
                 if default_target_languages is not None:
                     for target_language in default_target_languages:
-                        create_tasks(video.id, task_type, request.user, target_language)
+                        create_tasks(
+                            video.id,
+                            task_type,
+                            request.user,
+                            default_task_eta,
+                            default_task_priority,
+                            default_task_description,
+                            target_language,
+                        )
                 else:
-                    create_tasks(video.id, task_type, request.user)
+                    create_tasks(
+                        video.id,
+                        task_type,
+                        request.user,
+                        default_task_eta,
+                        default_task_priority,
+                        default_task_description,
+                    )
         response_data["message"] = "Video created successfully."
         return Response(
             response_data,
@@ -299,7 +333,9 @@ def get_video(request):
         )
 
 
-def create_tasks(video_id, task_type, user, target_language=None):
+def create_tasks(
+    video_id, task_type, user, eta, priority, description, target_language=None
+):
     data = TaskViewSet(detail=True)
     new_request = HttpRequest()
     new_request.user = user
@@ -307,6 +343,9 @@ def create_tasks(video_id, task_type, user, target_language=None):
         "task_type": task_type,
         "video_ids": [video_id],
         "target_language": target_language,
+        "eta": eta,
+        "priority": priority,
+        "description": description,
     }
 
     ret = data.create(new_request)
