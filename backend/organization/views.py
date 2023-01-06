@@ -107,11 +107,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @is_org_owner
+    @is_particular_organization_owner
     def update(self, request, pk=None, *args, **kwargs):
         return super().update(request, *args, **kwargs)
 
-    @is_org_owners
+    @is_particular_organization_owner
     def partial_update(self, request, pk=None, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
 

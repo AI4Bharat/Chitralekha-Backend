@@ -706,7 +706,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             {"message": "Project updated successfully."}, status=status.HTTP_200_OK
         )
 
-    @is_org_owner
+    @is_organization_owner
     def destroy(self, request, pk=None, *args, **kwargs):
         """
         Delete a project
