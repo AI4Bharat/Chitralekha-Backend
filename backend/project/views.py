@@ -166,7 +166,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         )
                     else:
                         return Response(
-                            {"message": "Project has no members to remove"},
+                            {"message": "Project has no members"},
                             status=status.HTTP_200_OK,
                         )
                 else:
