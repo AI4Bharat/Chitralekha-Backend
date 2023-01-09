@@ -139,26 +139,33 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 )
             user = User.objects.filter(id__in=ids)
             if user and user.count() == len(ids):
-                if project.members and len(project.members.all()) > 0:
+                if project.members and len(project.members.all()) > 0 and len(ids) > 0:
                     for member in project.members.all():
                         if member.id in ids:
                             if member.id in project.managers.all().values_list(
                                 "id", flat=True
                             ):
-                                if project.managers.all().count() > 1:
+
+                                if (
+                                    len(project.managers.all()) > 1
+                                    and len(project.members.all()) > 1
+                                ):
                                     project.managers.remove(member.id)
                                     project.members.remove(member.id)
                                     ids.append(member.id)
                                 else:
+
                                     return Response(
                                         {
-                                            "message": "Project must have atleast one manager"
+                                            "message": "Project must have atleast one manager and one member"
                                         },
                                         status=status.HTTP_400_BAD_REQUEST,
                                     )
                             else:
+                                project.members.remove(member.id)
                                 ids.append(member.id)
-                    if ids and len(ids) != project.members.all().count():
+
+                    if ids and len(ids) != len(project.members.all()):
                         project.members.remove(*ids)
                         return Response(
                             {"message": "Project members removed successfully"},
