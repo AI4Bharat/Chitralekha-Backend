@@ -133,24 +133,41 @@ class TaskViewSet(ModelViewSet):
     def check_duplicate_tasks(self, request, task_type, target_language, user, videos):
         duplicate_tasks = []
         duplicate_user_tasks = []
+        delete_video = []
+        same_language = []
+
         for video in videos:
             task = Task.objects.filter(video=video)
             if target_language is not None:
                 task = Task.objects.filter(video=video).filter(
                     target_language=target_language
                 )
+                if target_language == video.language:
+                    same_language.append(video)
 
             if task.filter(task_type=task_type).first() is not None:
                 duplicate_tasks.append(task.filter(task_type=task_type).first())
 
-            """
-            if task.filter(task_type=task_type).filter(user=user).first():
-                if not (request.user.role > 4 or request.user.is_superuser):
+            if (
+                task_type == "TRANSCRIPTION_REVIEW"
+                and task.filter(task_type="TRANSLATION_EDIT").first() is not None
+            ):
+                delete_video.append(video)
+
+            if (
+                len(user) > 0
+                and task.filter(task_type=task_type).filter(user=user[0]).first()
+            ):
+                if not (
+                    request.user.role
+                    in ["UNIVERSAL_EDITOR", "PROJECT_MANAGER", "ORG_OWNER", "ADMIN"]
+                    or request.user.is_superuser
+                ):
                     duplicate_user_tasks.append(
                         task.filter(task_type=task_type).filter(user=user).first()
                     )
-            """
-        return duplicate_tasks, duplicate_user_tasks
+
+        return duplicate_tasks, duplicate_user_tasks, delete_video, same_language
 
     def check_transcript_exists(self, video):
         transcript = Transcript.objects.filter(video=video)
@@ -182,30 +199,115 @@ class TaskViewSet(ModelViewSet):
         priority,
         description,
     ):
-        duplicate_tasks, duplicate_user_tasks = self.check_duplicate_tasks(
+        (
+            duplicate_tasks,
+            duplicate_user_tasks,
+            delete_video,
+            same_language,
+        ) = self.check_duplicate_tasks(
             request, task_type, target_language, user_ids, videos
         )
         response = {}
-        if len(duplicate_tasks) > 0 or len(duplicate_user_tasks) > 0:
-            video_ids = [task.video for task in duplicate_tasks] + [
-                task.video for task in duplicate_user_tasks
-            ]
+        video_ids = []
+        response_tasks = []
+        consolidated_error = []
+        detailed_error = []
+        error_duplicate_tasks = []
+        error_user_tasks = []
+        error_same_language_tasks = []
 
-            for video in video_ids:
-                videos.remove(video)
-                if len(user_ids) > 0:
-                    del user_ids[-1]
-
-            if len(videos) <= 0:
-                return Response(
-                    {"message": "This task is already created for selected videos."},
-                    status=status.HTTP_400_BAD_REQUEST,
+        if len(duplicate_tasks) > 0:
+            for task in duplicate_tasks:
+                video_ids.append(task.video)
+                error_duplicate_tasks.append(
+                    {"video": task.video, "task_type": task.task_type}
                 )
-            else:
-                response[
-                    "message"
-                ] = "Following tasks can't be created as they are duplicate or user is same for Edit and Review task."
-                # response["error"] =
+
+        if len(duplicate_user_tasks) > 0:
+            for task in duplicate_user_tasks:
+                video_ids.append(task.video)
+                error_user_tasks.append({"video": task.video, "task_type": task_type})
+
+        if len(same_language) > 0:
+            for video in same_language:
+                video_ids.append(video)
+                error_same_language_tasks.append(
+                    {"video": video, "task_type": task_type}
+                )
+
+        for video in video_ids:
+            videos.remove(video)
+            if len(user_ids) > 0:
+                del user_ids[-1]
+
+        if len(duplicate_user_tasks):
+            consolidated_error.append(
+                {
+                    "message": "Tasks creation failed as same user can't be Editor and Reviewer.",
+                    "count": len(error_user_tasks),
+                }
+            )
+            for task in error_user_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": task["task_type"],
+                        "target_language": target_language,
+                        "status": "Fail",
+                        "message": "This task creation failed since Editor and Reviewer can't be same.",
+                    }
+                )
+
+        if len(error_same_language_tasks):
+            consolidated_error.append(
+                {
+                    "message": "Task creation failed as target language is same as source language.",
+                    "count": len(error_same_language_tasks),
+                }
+            )
+            for task in error_same_language_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": task["task_type"],
+                        "target_language": target_language,
+                        "status": "Fail",
+                        "message": "Task creation failed as target language is same as source language.",
+                    }
+                )
+
+        if len(duplicate_tasks):
+            consolidated_error.append(
+                {
+                    "message": "Task creation failed as tasks already exists for the selected videos.",
+                    "count": len(error_duplicate_tasks),
+                }
+            )
+            for task in error_duplicate_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": task["task_type"],
+                        "target_language": target_language,
+                        "status": "Fail",
+                        "message": "Task creation failed as selected task already exist.",
+                    }
+                )
+
+        if len(videos) <= 0:
+            return Response(
+                {
+                    "message": "{0} Tasks creation failed.".format(len(video_ids)),
+                    "response": {
+                        "consolidated_report": consolidated_error,
+                        "detailed_report": detailed_error,
+                    },
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if len(user_ids) > 0:
             if "EDIT" in task_type:
@@ -251,6 +353,16 @@ class TaskViewSet(ModelViewSet):
 
                 new_translations = []
                 for task in tasks:
+                    detailed_error.append(
+                        {
+                            "video_name": task.video.name,
+                            "video_url": task.video.url,
+                            "task_type": task.task_type,
+                            "target_language": target_language,
+                            "status": "Successful",
+                            "message": "Task is successfully created.",
+                        }
+                    )
                     if task.is_active:
                         transcript = self.check_transcript_exists(task.video)
                         payloads = generate_translation_payload(
@@ -309,6 +421,16 @@ class TaskViewSet(ModelViewSet):
 
                 new_translations = []
                 for task in tasks:
+                    detailed_error.append(
+                        {
+                            "video_name": task.video.name,
+                            "video_url": task.video.url,
+                            "task_type": task.task_type,
+                            "target_language": target_language,
+                            "status": "Successful",
+                            "message": "Task is successfully created.",
+                        }
+                    )
                     translation = (
                         Translation.objects.filter(video=task.video)
                         .filter(status="TRANSLATION_EDIT_COMPLETE")
@@ -338,9 +460,22 @@ class TaskViewSet(ModelViewSet):
                     new_translations.append(translate_obj)
                 translations = Translation.objects.bulk_create(new_translations)
 
-            response["message"] = "Translation task is created"
+            if len(tasks) > 0:
+                consolidated_error.append(
+                    {"message": "Tasks created successfully.", "count": len(tasks)}
+                )
+
+            message = ""
+            if len(video_ids) > 0:
+                message = "{0} Tasks creation failed.".format(len(video_ids))
+            else:
+                message = "{0} Tasks created successfully.".format(len(tasks)) + message
+            response = {
+                "consolidated_report": consolidated_error,
+                "detailed_report": detailed_error,
+            }
             return Response(
-                response,
+                {"message": message, "response": response},
                 status=status.HTTP_200_OK,
             )
         else:
@@ -362,24 +497,110 @@ class TaskViewSet(ModelViewSet):
         priority,
         description,
     ):
-        duplicate_tasks, duplicate_user_tasks = self.check_duplicate_tasks(
-            request, task_type, None, user_ids, videos
-        )
-        response = {}
-        if len(duplicate_tasks) > 0 or len(duplicate_user_tasks) > 0:
-            video_ids = [task.video for task in duplicate_tasks] + [
-                task.video for task in duplicate_user_tasks
-            ]
-            for video in video_ids:
-                videos.remove(video)
-                if len(user_ids) > 0:
-                    del user_ids[-1]
+        (
+            duplicate_tasks,
+            duplicate_user_tasks,
+            delete_video,
+            same_language,
+        ) = self.check_duplicate_tasks(request, task_type, None, user_ids, videos)
 
-            if len(videos) <= 0:
-                return Response(
-                    {"message": "This task is already created for selected videos."},
-                    status=status.HTTP_400_BAD_REQUEST,
+        response = {}
+        video_ids = []
+        response_tasks = []
+        consolidated_error = []
+        detailed_error = []
+        error_duplicate_tasks = []
+        error_user_tasks = []
+        error_review_tasks = []
+
+        if len(duplicate_tasks) > 0:
+            for task in duplicate_tasks:
+                video_ids.append(task.video)
+                error_duplicate_tasks.append(
+                    {"video": task.video, "task_type": task.task_type}
                 )
+
+        if len(duplicate_user_tasks) > 0:
+            for task in duplicate_user_tasks:
+                video_ids.append(task.video)
+                error_user_tasks.append({"video": task.video, "task_type": task_type})
+
+        if len(delete_video) > 0:
+            for video in delete_video:
+                video_ids.append(video)
+                error_review_tasks.append({"video": video, "task_type": task_type})
+
+        for video in video_ids:
+            videos.remove(video)
+            if len(user_ids) > 0:
+                del user_ids[-1]
+
+        if len(duplicate_user_tasks):
+            consolidated_error.append(
+                {
+                    "message": "Tasks creation failed as same user can't be editor and reviewer.",
+                    "count": len(error_user_tasks),
+                }
+            )
+            detailed_response = []
+            for task in error_user_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": task["task_type"],
+                        "status": "Fail",
+                        "message": "This task creation failed since Editor and Reviewer can't be same.",
+                    }
+                )
+
+        if len(duplicate_tasks):
+            consolidated_error.append(
+                {
+                    "message": "Task creation failed as this task already exists for selected videos.",
+                    "count": len(error_duplicate_tasks),
+                }
+            )
+            for task in error_duplicate_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": task["task_type"],
+                        "status": "Fail",
+                        "message": "Task creation failed as selected task already exist.",
+                    }
+                )
+
+        if len(error_review_tasks) > 0:
+            consolidated_error.append(
+                {
+                    "message": "Task creation for Transcription Review failed as Translation tasks already exists.",
+                    "count": len(error_review_tasks),
+                }
+            )
+            for task in error_review_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": task["task_type"],
+                        "status": "Fail",
+                        "message": "Task creation for Transcription Review failed as Translation tasks already exists.",
+                    }
+                )
+
+        if len(videos) <= 0:
+            return Response(
+                {
+                    "message": "{0} Task creation failed.".format(len(video_ids)),
+                    "response": {
+                        "consolidated_report": consolidated_error,
+                        "detailed_report": detailed_error,
+                    },
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if len(user_ids) > 0:
             if "EDIT" in task_type:
@@ -417,6 +638,15 @@ class TaskViewSet(ModelViewSet):
 
                 new_transcripts = []
                 for task in tasks:
+                    detailed_error.append(
+                        {
+                            "video_name": task.video.name,
+                            "video_url": task.video.url,
+                            "task_type": task.task_type,
+                            "status": "Successful",
+                            "message": "Task is successfully created.",
+                        }
+                    )
                     payloads = self.generate_transcript_payload(task, [source_type])
                     transcript_obj = Transcript(
                         video=task.video,
@@ -466,6 +696,15 @@ class TaskViewSet(ModelViewSet):
 
                 new_transcripts = []
                 for task in tasks:
+                    detailed_error.append(
+                        {
+                            "video_name": task.video.name,
+                            "video_url": task.video.url,
+                            "task_type": task.task_type,
+                            "status": "Successful",
+                            "message": "Task is successfully created.",
+                        }
+                    )
                     if task.is_active:
                         payload = transcript.payload
                         transcript_type = transcript.transcript_type
@@ -485,8 +724,22 @@ class TaskViewSet(ModelViewSet):
                     new_transcripts.append(transcript_obj)
                 transcripts = Transcript.objects.bulk_create(new_transcripts)
 
+            if len(tasks) > 0:
+                consolidated_error.append(
+                    {"message": "Tasks created successfully.", "count": len(tasks)}
+                )
+
+            message = ""
+            if len(video_ids) > 0:
+                message = "{0} Tasks creation failed.".format(len(video_ids))
+            else:
+                message = "{0} Tasks created successfully.".format(len(tasks)) + message
+            response = {
+                "consolidated_report": consolidated_error,
+                "detailed_report": detailed_error,
+            }
             return Response(
-                {"message": "Transcript task is created"},
+                {"message": message, "response": response},
                 status=status.HTTP_200_OK,
             )
         else:
@@ -581,7 +834,6 @@ class TaskViewSet(ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        response = {}
         payloads = {}
         if len(list_compare_sources) > 0 and request.user == task.user:
             if "TRANSCRIPT" in task.task_type:
@@ -773,7 +1025,7 @@ class TaskViewSet(ModelViewSet):
         task.delete()
         return Response(
             {
-                "message": "Task is deleted , with all associated transcripts/translations"
+                "message": "Task is deleted, with all associated transcripts/translations"
             },
             status=status.HTTP_200_OK,
         )
