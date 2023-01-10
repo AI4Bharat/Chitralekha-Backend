@@ -149,7 +149,11 @@ def get_video(request):
     default_task_eta = project.default_eta
     default_task_priority = project.default_priority
     default_task_description = project.default_description
-
+    consolidated_report = []
+    detailed_report = []
+    message = ""
+    fail_count = 0
+    success_count = 0
     ## PATCH: Handle audio_only files separately for google drive links
     ## TODO: Move it to an util function
     if "drive.google.com" in url and is_audio_only:
@@ -201,9 +205,12 @@ def get_video(request):
 
             if default_task_types is not None:
                 for task_type in default_task_types:
-                    if default_target_languages is not None:
+                    if (
+                        default_target_languages is not None
+                        and "TRANSCRIPTION" not in task_type
+                    ):
                         for target_language in default_target_languages:
-                            create_tasks(
+                            task_response = create_tasks(
                                 video.id,
                                 task_type,
                                 request.user,
@@ -212,8 +219,14 @@ def get_video(request):
                                 default_task_description,
                                 target_language,
                             )
+                            consolidated_report.extend(
+                                task_response["response"]["consolidated_report"]
+                            )
+                            detailed_report.extend(
+                                task_response["response"]["detailed_report"]
+                            )
                     else:
-                        create_tasks(
+                        task_response = create_tasks(
                             video.id,
                             task_type,
                             request.user,
@@ -221,6 +234,20 @@ def get_video(request):
                             default_task_priority,
                             default_task_description,
                         )
+                        consolidated_report.extend(
+                            task_response["response"]["consolidated_report"]
+                        )
+                        detailed_report.extend(
+                            task_response["response"]["detailed_report"]
+                        )
+                if fail_count > 0:
+                    message = "{0} Tasks creation failed.".format(fail_count)
+                if success_count > 0:
+                    message = (
+                        "{0} Tasks created successfully.".format(success_count)
+                        + message
+                    )
+            response_data["message"] = "Video created successfully." + message
             return Response(
                 {
                     "video": VideoSerializer(video).data,
@@ -301,9 +328,12 @@ def get_video(request):
 
         if default_task_types is not None:
             for task_type in default_task_types:
-                if default_target_languages is not None:
+                if (
+                    default_target_languages is not None
+                    and "TRANSCRIPTION" not in task_type
+                ):
                     for target_language in default_target_languages:
-                        create_tasks(
+                        task_response = create_tasks(
                             video.id,
                             task_type,
                             request.user,
@@ -312,8 +342,18 @@ def get_video(request):
                             default_task_description,
                             target_language,
                         )
+                        detailed_report.extend(
+                            task_response["response"]["detailed_report"]
+                        )
+                        if (
+                            task_response["response"]["detailed_report"][0]["status"]
+                            == "Fail"
+                        ):
+                            fail_count += 1
+                        else:
+                            success_count += 1
                 else:
-                    create_tasks(
+                    task_response = create_tasks(
                         video.id,
                         task_type,
                         request.user,
@@ -321,7 +361,32 @@ def get_video(request):
                         default_task_priority,
                         default_task_description,
                     )
-        response_data["message"] = "Video created successfully."
+                    detailed_report.extend(task_response["response"]["detailed_report"])
+
+                    if (
+                        task_response["response"]["detailed_report"][0]["status"]
+                        == "Fail"
+                    ):
+                        fail_count += 1
+                    else:
+                        success_count += 1
+
+            if fail_count > 0:
+                message = "{0} Tasks creation failed.".format(fail_count)
+                consolidated_report.append(
+                    {"message": "Tasks creation failed.", "count": fail_count}
+                )
+            if success_count > 0:
+                message = (
+                    "{0} Tasks created successfully.".format(success_count) + message
+                )
+                consolidated_report.append(
+                    {"message": "Tasks created successfully.", "count": success_count}
+                )
+            response_data["consolidated_report"] = consolidated_report
+            response_data["detailed_report"] = detailed_report
+
+        response_data["message"] = "Video created successfully." + message
         return Response(
             response_data,
             status=status.HTTP_200_OK,
@@ -347,9 +412,8 @@ def create_tasks(
         "priority": priority,
         "description": description,
     }
-
     ret = data.create(new_request)
-    return ret
+    return ret.data
 
 
 @swagger_auto_schema(

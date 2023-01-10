@@ -1,8 +1,21 @@
-from rest_framework.serializers import ModelSerializer
+from rest_framework import serializers
 from .models import Video
 
 
-class VideoSerializer(ModelSerializer):
+class VideoSerializer(serializers.ModelSerializer):
+    language_label = serializers.CharField(source="get_language_label")
+
     class Meta:
         model = Video
-        fields = "__all__"
+        fields = (
+            "video_uuid",
+            "name",
+            "url",
+            "language",
+            "description",
+            "duration",
+            "subtitles",
+            "audio_only",
+            "project_id",
+            "language_label",
+        )
