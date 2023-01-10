@@ -49,3 +49,9 @@ class Video(models.Model):
 
     def __str__(self):
         return str(self.video_uuid) + " : " + self.name
+
+    @property
+    def get_language_label(self):
+        for language in LANGUAGE_CHOICES:
+            if self.language == language[0]:
+                return language[1]
