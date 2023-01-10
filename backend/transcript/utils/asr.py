@@ -3,7 +3,7 @@
 import requests
 
 
-def make_asr_api_call(url, lang, vad_level=2, chunk_size=10):
+def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
     try:
         json_data = {
             "url": url,

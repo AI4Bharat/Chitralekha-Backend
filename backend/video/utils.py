@@ -102,6 +102,13 @@ def get_subtitles_from_google_video(url: str, lang: str = "en") -> str:
 
 
 def clean_youtube_asr_captions(subtitle_payload: str) -> str:
+    '''
+    YouTube auto-generated VTT has 2 lines per caption:
+    1. Normalized previous caption
+    2. Current caption with <c> tags for word-level timestamps
+
+    Retain only the 2nd line after normalizing
+    '''
     parsed_vtt = webvtt.read_buffer(StringIO(subtitle_payload))
     clean_captions = []
     for caption in parsed_vtt:
