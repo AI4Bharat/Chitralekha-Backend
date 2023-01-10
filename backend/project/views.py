@@ -123,11 +123,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=["POST"],
-        name="Remove Project members and managers",
-        url_name="remove_project_members_managers",
+        name="Remove Project members",
+        url_name="remove_project_members",
     )
     @is_project_owner
-    def remove_project_members_managers(self, request, pk=None, *args, **kwargs):
+    def remove_project_members(self, request, pk=None, *args, **kwargs):
 
         try:
             project = Project.objects.get(pk=pk)
