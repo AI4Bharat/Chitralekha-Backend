@@ -123,11 +123,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=["POST"],
-        name="Remove Project members",
-        url_name="remove_project_members",
+        name="Remove Project members and managers",
+        url_name="remove_project_members_managers",
     )
     @is_project_owner
-    def remove_project_members(self, request, pk=None, *args, **kwargs):
+    def remove_project_members_managers(self, request, pk=None, *args, **kwargs):
 
         try:
             project = Project.objects.get(pk=pk)
@@ -138,48 +138,33 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     {"message": "key doesnot match"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+
             user = User.objects.filter(id__in=ids)
             if user and user.count() == len(ids):
-                if project.members and len(project.members.all()) > 0 and len(ids) > 0:
-                    for member in project.members.all():
-                        if member.id in ids:
-                            if member.id in project.managers.all().values_list(
-                                "id", flat=True
-                            ):
-
-                                if (
-                                    len(project.managers.all()) > 1
-                                    and len(project.members.all()) > 1
-                                ):
-                                    project.managers.remove(member.id)
-                                    project.members.remove(member.id)
-                                    ids.append(member.id)
-                                else:
-
-                                    return Response(
-                                        {
-                                            "message": "Project must have atleast one manager and one member"
-                                        },
-                                        status=status.HTTP_400_BAD_REQUEST,
-                                    )
+                if project.members and project.managers:
+                    for manager in project.managers.all():
+                        if manager.id in ids:
+                            if project.managers.count() == 1:
+                                ids.remove(manager.id)
+                                project.members.remove(*ids)
+                                return Response(
+                                    {"message": "Atleast one manager is required"},
+                                    status=status.HTTP_400_BAD_REQUEST,
+                                )
                             else:
-                                project.members.remove(member.id)
-                                ids.append(member.id)
+                                ids.append(manager.id)
+                                project.managers.remove(manager.id)
+                                project.members.remove(manager.id)
 
-                    if ids and len(ids) != len(project.members.all()):
-                        project.members.remove(*ids)
-                        return Response(
-                            {"message": "Project members removed successfully"},
-                            status=status.HTTP_200_OK,
-                        )
-                    else:
-                        return Response(
-                            {"message": "Project has no members"},
-                            status=status.HTTP_200_OK,
-                        )
+                if ids:
+                    project.members.remove(*ids)
+                    return Response(
+                        {"message": "Project members removed successfully"},
+                        status=status.HTTP_200_OK,
+                    )
                 else:
                     return Response(
-                        {"message": "Project members are already removed"},
+                        {"message": "Project has no members to remove"},
                         status=status.HTTP_200_OK,
                     )
             else:
