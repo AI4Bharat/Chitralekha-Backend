@@ -131,105 +131,72 @@ def export_translation(request):
     method="get",
     manual_parameters=[
         openapi.Parameter(
-            "transcript_id",
+            "video_id",
             openapi.IN_QUERY,
-            description=("A string to pass the transcript uuid"),
-            type=openapi.TYPE_STRING,
+            description=("An integer to pass the video id"),
+            type=openapi.TYPE_INTEGER,
             required=True,
         ),
         openapi.Parameter(
             "target_language",
             openapi.IN_QUERY,
-            description=("A string to pass the target language of the translation"),
+            description=("An integer to pass the video id"),
             type=openapi.TYPE_STRING,
             required=True,
-        ),
-        openapi.Parameter(
-            "translation_type",
-            openapi.IN_QUERY,
-            description=("A string to pass the target language of the translation"),
-            type=openapi.TYPE_STRING,
-            required=True,
-        ),
-        openapi.Parameter(
-            "load_latest_translation",
-            openapi.IN_QUERY,
-            description=(
-                "A string to pass whether to get the latest translation or not"
-            ),
-            type=openapi.TYPE_STRING,
-            required=False,
         ),
     ],
-    responses={
-        200: "Generates the translation for the given transcript_id and target_language"
-    },
+    responses={200: "Returns the translation for a particular video and language"},
 )
 @api_view(["GET"])
-@is_translation_editor
 def retrieve_translation(request):
     """
-    Endpoint to retrive a translation for a given transcript and language
+    Endpoint to retrive a transcription for a transcription entry
     """
 
-    # Get the query params
-    transcript_id = request.query_params.get("transcript_id")
-    target_language = request.query_params.get("target_language")
-    load_latest_translation = request.query_params.get(
-        "load_latest_translation", "false"
-    )
-    translation_type = request.query_params.get("translation_type")
-
-    # Convert load_latest_translation to boolean
-    load_latest_translation = load_latest_translation == "true"
-
-    # Ensure that required params are present
-    if not (transcript_id and target_language and translation_type):
+    # Check if video_id and language and transcript_type has been passed
+    if "video_id" not in dict(request.query_params) or "target_language" not in dict(
+        request.query_params
+    ):
         return Response(
-            {
-                "error": "Missing required query params [transcript_id, target_language, translation_type]."
-            },
+            {"message": "missing param : video_id or target_language"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Get the translation for the given transcript_id, target_language and user_id
-    queryset = (
-        Translation.objects.filter(
-            transcript_id=transcript_id,
-            target_language=target_language,
-            user=request.user.id,
-            translation_type=translation_type,
-        )
-        .order_by("-updated_at")
-        .first()
-    )
-    # If no translation exists for this user, check if the latest translation can be fetched
-    if queryset is None:
-        if load_latest_translation:
-            queryset = (
-                Translation.objects.filter(
-                    transcript_id=transcript_id,
-                    target_language=target_language,
-                    translation_type=translation_type,
-                )
-                .order_by("-updated_at")
-                .first()
-            )
-        else:
-            queryset = None
+    video_id = request.query_params["video_id"]
+    target_language = request.query_params["target_language"]
+    user_id = request.user.id
 
-    # If queryset is empty, return appropriate error
-    if not queryset:
+    try:
+        video = Video.objects.get(pk=video_id)
+    except Video.DoesNotExist:
         return Response(
-            {
-                "error": "No translation found for the given transcript_id, target_language and transcript_type."
-            },
+            {"message": "Video not found."},
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    # Serialize and return the data
-    serializer = TranslationSerializer(queryset)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    # Get the latest transcript
+    translation = Translation.objects.filter(video=video).filter(
+        target_language=target_language
+    )
+
+    if translation.filter(status="TRANSLATION_REVIEW_COMPLETE").first() is not None:
+        translation_obj = translation.filter(
+            status="TRANSLATION_REVIEW_COMPLETE"
+        ).first()
+        return Response(
+            {"id": translation_obj.id, "data": translation_obj.payload},
+            status=status.HTTP_200_OK,
+        )
+    elif translation.filter(status="TRANSLATION_EDIT_COMPLETE").first() is not None:
+        translation_obj = translation.filter(status="TRANSLATION_EDIT_COMPLETE").first()
+        return Response(
+            {"id": translation_obj.id, "data": translation_obj.payload},
+            status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(
+            {"message": "No translation found"}, status=status.HTTP_404_NOT_FOUND
+        )
 
 
 def get_translation_id(task):
@@ -459,8 +426,6 @@ def save_translation(request):
                         )
                     else:
                         ts_status = TRANSLATION_EDIT_COMPLETE
-                        task.status = "COMPLETE"
-                        task.save()
                         translation_type = translation.translation_type
                         translation_obj = Translation.objects.create(
                             translation_type=translation_type,
@@ -473,6 +438,8 @@ def save_translation(request):
                             status=ts_status,
                             task=task,
                         )
+                        task.status = "COMPLETE"
+                        task.save()
                         change_active_status_of_next_tasks(task, translation_obj)
                 else:
                     translation_obj = (
@@ -539,7 +506,6 @@ def save_translation(request):
                     )
                     task.status = "COMPLETE"
                     task.save()
-
                 else:
                     translation_obj = (
                         Translation.objects.filter(status=TRANSLATION_REVIEW_INPROGRESS)
@@ -570,7 +536,6 @@ def save_translation(request):
                         )
                         task.status = "INPROGRESS"
                         task.save()
-
             if request.data.get("final"):
                 return Response(
                     {

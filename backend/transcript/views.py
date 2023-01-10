@@ -254,17 +254,8 @@ def create_original_source_transcript(request):
             type=openapi.TYPE_INTEGER,
             required=True,
         ),
-        openapi.Parameter(
-            "load_latest_transcript",
-            openapi.IN_QUERY,
-            description=(
-                "A boolean to pass check whether to allow user to load latest transcript"
-            ),
-            type=openapi.TYPE_BOOLEAN,
-            required=False,
-        ),
     ],
-    responses={200: "Returns the transcription for a particular video and language"},
+    responses={200: "Returns the transcription for a particular video."},
 )
 @api_view(["GET"])
 def retrieve_transcription(request):
@@ -281,6 +272,14 @@ def retrieve_transcription(request):
 
     video_id = request.query_params["video_id"]
     user_id = request.user.id
+
+    try:
+        video = Video.objects.get(pk=video_id)
+    except Video.DoesNotExist:
+        return Response(
+            {"message": "Video not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
     # Get the latest transcript
     transcript = Transcript.objects.filter(video_id__exact=video_id)
@@ -612,7 +611,6 @@ def save_transcription(request):
                             task=task,
                             status=tc_status,
                         )
-                        task.status = "INPROGRESS"
                         task.save()
             else:
                 if request.data.get("final"):

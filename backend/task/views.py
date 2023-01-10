@@ -859,7 +859,7 @@ class TaskViewSet(ModelViewSet):
                 payloads = generate_translation_payload(
                     transcript, target_language, list_compare_sources
                 )
-
+            response = {}
             response["payloads"] = payloads
             response["task_id"] = task.id
             response["message"] = "Payloads are generated for selected option."
