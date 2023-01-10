@@ -18,4 +18,24 @@ urlpatterns = [
         views.get_supported_languages,
         name="get_supported_languages",
     ),
+    path(
+        "get_transcript_types/",
+        views.get_transcript_types,
+        name="get_transcript_types",
+    ),
+    path(
+        "get_payload/",
+        views.get_payload,
+        name="get_payload",
+    ),
+    path(
+        "export_transcript/",
+        views.export_transcript,
+        name="export_transcript",
+    ),
+    path(
+        "get_word_aligned_json/",
+        views.get_word_aligned_json,
+        name="get_word_aligned_json",
+    ),
 ]

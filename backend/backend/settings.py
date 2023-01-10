@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from distutils.util import strtobool
+from datetime import timedelta
 
 load_dotenv()
 
@@ -38,6 +39,11 @@ ALLOWED_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"]
 if DEBUG:
     ALLOWED_HOSTS.append("*")
 
+if os.getenv("ALLOWED_HOSTS", ""):
+    additional_hosts = os.getenv("ALLOWED_HOSTS")
+    for additional_host in additional_hosts.split(","):
+        ALLOWED_HOSTS.append(additional_host)
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -47,17 +53,22 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "djoser",
+    "import_export",
     "rest_framework",
-    "knox",
     "drf_yasg",
-    "users.apps.UsersConfig",
+    "organization",
+    "project",
     "video",
+    "task",
     "transcript",
     "translation",
+    "users",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -66,7 +77,38 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+if not DEBUG:
+    STATIC_ROOT = BASE_DIR / "static"
+
+# Email Settings
+EMAIL_BACKEND = "django_smtp_ssl.SSLEmailBackend"
+EMAIL_HOST = os.getenv("EMAIL_HOST")
+EMAIL_PORT = 465
+EMAIL_HOST_USER = os.getenv("SMTP_USERNAME")
+EMAIL_HOST_PASSWORD = os.getenv("SMTP_PASSWORD")
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
+
+DOMAIN = "chitralekha.ai4bharat.org"
+SITE_NAME = "chitralekha.ai4bharat.org"
+
+DJOSER = {
+    "PASSWORD_RESET_CONFIRM_URL": "forget-password/confirm/{uid}/{token}",
+    "USERNAME_RESET_CONFIRM_URL": "users/auth/users/username/reset/confirm/{uid}/{token}",
+    "ACTIVATION_URL": "users/auth/users/activation/{uid}/{token}",
+    "SEND_ACTIVATION_EMAIL": True,
+    "SERIALIZERS": {},
+}
+
+SIMPLE_JWT = {
+    "AUTH_HEADER_TYPES": ("JWT",),
+    "BLACKLIST_AFTER_ROTATION": False,
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=20),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=100),
+}
+
 ENABLE_CORS = bool(strtobool(os.getenv("ENABLE_CORS", "False")))
+CSRF_COOKIE_SECURE = False
 
 if ENABLE_CORS:
     INSTALLED_APPS.append("corsheaders")
@@ -84,6 +126,7 @@ if ENABLE_CORS:
     if CUSTOM_CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.extend(CUSTOM_CSRF_TRUSTED_ORIGINS.split(","))
 
+AUTHENTICATION_BACKENDS = ("django.contrib.auth.backends.ModelBackend",)
 
 ROOT_URLCONF = "backend.urls"
 
@@ -106,37 +149,28 @@ TEMPLATES = [
 WSGI_APPLICATION = "backend.wsgi.application"
 
 REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
-    ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.BasicAuthentication",
-        "knox.auth.TokenAuthentication",
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
     ],
 }
 
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
-if os.getenv("POSTGRES_DB_NAME", None):
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql_psycopg2",
-            "NAME": os.getenv("POSTGRES_DB_NAME"),
-            "USER": os.getenv("POSTGRES_DB_USERNAME"),
-            "PASSWORD": os.getenv("POSTGRES_DB_PASSWORD"),
-            "HOST": os.getenv("POSTGRES_DB_HOST"),
-            "PORT": os.getenv("POSTGRES_DB_PORT"),
-        }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "NAME": os.getenv("POSTGRES_DB_NAME"),
+        "USER": os.getenv("POSTGRES_DB_USERNAME"),
+        "PASSWORD": os.getenv("POSTGRES_DB_PASSWORD"),
+        "HOST": os.getenv("POSTGRES_DB_HOST"),
+        "PORT": os.getenv("POSTGRES_DB_PORT"),
     }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
-
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
@@ -155,11 +189,6 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
-
-# Add Knox settings to Django settings
-REST_KNOX = {
-    "TOKEN_TTL": None,  # None means no expiration
-}
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/
@@ -182,3 +211,4 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+AUTH_USER_MODEL = "users.User"

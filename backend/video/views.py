@@ -2,7 +2,11 @@ import urllib
 from datetime import timedelta
 import requests
 from drf_yasg import openapi
+from rest_framework.decorators import action
 from drf_yasg.utils import swagger_auto_schema
+from django.http import HttpRequest
+from task.models import Task
+from task.serializers import TaskSerializer
 from mutagen.mp3 import MP3
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -11,10 +15,56 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from transcript.models import ORIGINAL_SOURCE, Transcript
 from translation.models import Translation
-
+from project.decorators import is_project_owner
 from .models import Video
+from task.views import TaskViewSet
+from task.serializers import TaskStatusSerializer
 from .serializers import VideoSerializer
-from .utils import get_data_from_google_video, get_subtitles_from_google_video, drive_info_extractor, DownloadError
+from .utils import (
+    get_data_from_google_video,
+    get_subtitles_from_google_video,
+    drive_info_extractor,
+    DownloadError,
+)
+from project.models import Project
+
+
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            "video_id": openapi.Schema(type=openapi.TYPE_OBJECT),
+        },
+        required=["video_id"],
+    ),
+    responses={
+        204: "Video deleted successfully.",
+    },
+)
+@api_view(["POST"])
+def delete_video(request):
+    video_id = request.data.get("video_id")
+
+    if video_id is None:
+        return Response(
+            {"message": "missing param : video_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        video = Video.objects.get(pk=video_id)
+    except Video.DoesNotExist:
+        return Response(
+            {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    video.delete()
+
+    return Response(
+        {"message": "Video deleted successfully."}, status=status.HTTP_200_OK
+    )
+
 
 @swagger_auto_schema(
     method="get",
@@ -22,7 +72,9 @@ from .utils import get_data_from_google_video, get_subtitles_from_google_video, 
         openapi.Parameter(
             "multimedia_url",
             openapi.IN_QUERY,
-            description=("A string to pass the url of the video/audio file to be transcribed"),
+            description=(
+                "A string to pass the url of the video/audio file to be transcribed"
+            ),
             type=openapi.TYPE_STRING,
             required=True,
         ),
@@ -36,12 +88,17 @@ from .utils import get_data_from_google_video, get_subtitles_from_google_video, 
             required=True,
         ),
         openapi.Parameter(
-            "save_original_transcript",
+            "project_id",
             openapi.IN_QUERY,
-            description=(
-                "A boolean to pass whether or not to create a YouTube transcript"
-            ),
-            type=openapi.TYPE_BOOLEAN,
+            description=("Id of the project to which this video belongs"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+        openapi.Parameter(
+            "description",
+            openapi.IN_QUERY,
+            description=("A string to give description about video"),
+            type=openapi.TYPE_STRING,
             required=False,
         ),
         openapi.Parameter(
@@ -68,6 +125,8 @@ def get_video(request):
     # Get the video URL from the query params
     url = request.query_params.get("multimedia_url")
     lang = request.query_params.get("lang", "en")
+    project_id = request.query_params.get("project_id")
+    description = request.query_params.get("description", "")
     is_audio_only = request.query_params.get("is_audio_only", "false")
 
     # Convert audio only to boolean
@@ -77,6 +136,19 @@ def get_video(request):
             {"error": "Video URL not provided in query params."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    project = Project.objects.filter(pk=project_id).first()
+    if project is None:
+        return Response(
+            {"error": "Project is not found. "},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    organization = project.organization_id
+
+    default_task_eta = project.default_eta
+    default_task_priority = project.default_priority
+    default_task_description = project.default_description
 
     ## PATCH: Handle audio_only files separately for google drive links
     ## TODO: Move it to an util function
@@ -108,22 +180,73 @@ def get_video(request):
         # Create a new DB entry if URL does not exist, else return the existing entry
         video, created = Video.objects.get_or_create(
             url=url,
-            defaults={"name": title, "duration": duration, "audio_only": is_audio_only},
+            defaults={
+                "name": title,
+                "duration": duration,
+                "project_id": project,
+                "audio_only": is_audio_only,
+                "language": lang,
+                "description": description,
+            },
         )
         if created:
             video.save()
+            default_task_types = (
+                project.default_task_types or organization.default_task_types
+            )
+            default_target_languages = (
+                project.default_target_languages
+                or organization.default_target_languages
+            )
 
-        return Response(
-            {
-                "video": VideoSerializer(video).data,
-                "direct_audio_url": direct_audio_url,
-            },
-            status=status.HTTP_200_OK,
-        )
+            if default_task_types is not None:
+                for task_type in default_task_types:
+                    if default_target_languages is not None:
+                        for target_language in default_target_languages:
+                            create_tasks(
+                                video.id,
+                                task_type,
+                                request.user,
+                                default_task_eta,
+                                default_task_priority,
+                                default_task_description,
+                                target_language,
+                            )
+                    else:
+                        create_tasks(
+                            video.id,
+                            task_type,
+                            request.user,
+                            default_task_eta,
+                            default_task_priority,
+                            default_task_description,
+                        )
+            return Response(
+                {
+                    "video": VideoSerializer(video).data,
+                    "direct_audio_url": direct_audio_url,
+                    "message": "Video successfully created.",
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {
+                    "video": VideoSerializer(video).data,
+                    "direct_audio_url": direct_audio_url,
+                },
+                status=status.HTTP_200_OK,
+            )
 
     try:
         # Get the video info from the YouTube API
-        direct_video_url, normalized_url, title, duration, direct_audio_url = get_data_from_google_video(url)
+        (
+            direct_video_url,
+            normalized_url,
+            title,
+            duration,
+            direct_audio_url,
+        ) = get_data_from_google_video(url)
     except DownloadError:
         return Response(
             {"error": f"{url} is an invalid video URL."},
@@ -133,11 +256,20 @@ def get_video(request):
     # Create a new DB entry if URL does not exist, else return the existing entry
     video, created = Video.objects.get_or_create(
         url=normalized_url,
-        defaults={"name": title, "duration": duration, "audio_only": is_audio_only},
+        defaults={
+            "name": title,
+            "duration": duration,
+            "project_id": project,
+            "audio_only": is_audio_only,
+            "language": lang,
+            "description": description,
+        },
     )
     if created:
         video.save()
-        subtitle_payload, is_machine_generated = get_subtitles_from_google_video(url, lang)
+        subtitle_payload, is_machine_generated = get_subtitles_from_google_video(
+            url, lang
+        )
         if subtitle_payload:
             # Save the subtitles to the video object
             video.subtitles = {
@@ -153,48 +285,71 @@ def get_video(request):
         "video": serializer.data,
     }
 
-    # Check if the user passed a boolean to auto-create the transcript
-    save_original_transcript = request.query_params.get(
-        "save_original_transcript", "false"
-    )
-
-    # Convert to boolean
-    save_original_transcript = save_original_transcript.lower() == "true"
-
-    if save_original_transcript and video.subtitles:
-
-        # Check if the transcription for the video already exists
-        transcript = (
-            Transcript.objects.filter(video=video)
-            .filter(language=lang)
-            .filter(transcript_type=ORIGINAL_SOURCE)
-            .first()
-        )
-
-        if not transcript:
-
-            # Save a transcript object
-            transcript = Transcript(
-                transcript_type=ORIGINAL_SOURCE,
-                video=video,
-                language=lang,
-                payload=video.subtitles,
-            )
-            transcript.save()
-
-        # Add the transcript to the response data
-        response_data["transcript_id"] = transcript.id
-
     # Check if it's audio only
     if is_audio_only:
         response_data["direct_audio_url"] = direct_audio_url
     else:
         response_data["direct_video_url"] = direct_video_url
 
-    return Response(
-        response_data,
-        status=status.HTTP_200_OK,
-    )
+    if created:
+        default_task_types = (
+            project.default_task_types or organization.default_task_types
+        )
+        default_target_languages = (
+            project.default_target_languages or organization.default_target_languages
+        )
+
+        if default_task_types is not None:
+            for task_type in default_task_types:
+                if default_target_languages is not None:
+                    for target_language in default_target_languages:
+                        create_tasks(
+                            video.id,
+                            task_type,
+                            request.user,
+                            default_task_eta,
+                            default_task_priority,
+                            default_task_description,
+                            target_language,
+                        )
+                else:
+                    create_tasks(
+                        video.id,
+                        task_type,
+                        request.user,
+                        default_task_eta,
+                        default_task_priority,
+                        default_task_description,
+                    )
+        response_data["message"] = "Video created successfully."
+        return Response(
+            response_data,
+            status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(
+            response_data,
+            status=status.HTTP_200_OK,
+        )
+
+
+def create_tasks(
+    video_id, task_type, user, eta, priority, description, target_language=None
+):
+    data = TaskViewSet(detail=True)
+    new_request = HttpRequest()
+    new_request.user = user
+    new_request.data = {
+        "task_type": task_type,
+        "video_ids": [video_id],
+        "target_language": target_language,
+        "eta": eta,
+        "priority": priority,
+        "description": description,
+    }
+
+    ret = data.create(new_request)
+    return ret
 
 
 @swagger_auto_schema(
@@ -294,14 +449,48 @@ def list_recent(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class VideoViewSet(ModelViewSet):
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "video_id",
+            openapi.IN_QUERY,
+            description=("The ID of the video"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
+    responses={200: "Return the video subtitle payload"},
+)
+@api_view(["GET"])
+def list_tasks(request):
     """
-    API ViewSet for the Video model.
-    Performs CRUD operations on the Video model.
-    Endpoint: /video/api/
-    Methods: GET, POST, PUT, DELETE
+    API Endpoint to list the tasks for a video
+    Endpoint: /video/list_tasks/
+    Method: GET
     """
+    # Get the video ID from the request
+    if "video_id" in dict(request.query_params):
+        video_id = request.query_params["video_id"]
+    else:
+        return Response(
+            {"error": "Please provide a video ID"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
-    queryset = Video.objects.all()
-    serializer_class = VideoSerializer
-    permission_classes = (IsAuthenticatedOrReadOnly,)
+    # Get the video object from the DB
+    video = Video.objects.filter(id=video_id).first()
+
+    # Check if the video exists
+    if not video:
+        return Response(
+            {"error": "No video found for the provided ID."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Get the tasks for the video
+    tasks = Task.objects.filter(video=video)
+
+    # Return the tasks
+    serializer = TaskSerializer(tasks, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
