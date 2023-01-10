@@ -1,0 +1,367 @@
+1
+00:00:10,636 --> 00:00:14,000
+ What are the examples of CERATION?
+
+2
+00:00:14,016 --> 00:00:19,567
+So children, in the previous video you have learnt 
+
+3
+00:00:19,567 --> 00:00:22,510
+what is the order of objects?
+
+4
+00:00:25,000 --> 00:00:28,280
+ Based on the characteristics of the objects, 
+
+5
+00:00:28,294 --> 00:00:30,994
+how they are arranged in large to small
+
+6
+00:00:31,000 --> 00:00:33,551
+or small to large order.
+
+7
+00:00:33,553 --> 00:00:38,091
+ And this process of arranging things 
+
+8
+00:00:38,098 --> 00:00:42,349
+in order is called SERIATION.
+
+9
+00:00:43,606 --> 00:00:47,362
+ In this video we will see some examples
+
+10
+00:00:47,368 --> 00:00:52,299
+of SERIATION in which we will arrange different
+
+11
+00:00:52,308 --> 00:00:59,000
+ people and objects in order based on their characteristics.
+
+12
+00:00:59,000 --> 00:01:03,712
+ Today Chotu's class is going for a picnic.
+
+13
+00:01:03,722 --> 00:01:07,535
+ And Chotu's teacher asks all the children
+
+14
+00:01:07,532 --> 00:01:10,656
+to stand in groups of four.
+
+15
+00:01:10,887 --> 00:01:14,776
+ Then she asks the four children to stand
+
+16
+00:01:14,773 --> 00:01:18,295
+in a line in the small to large order
+
+17
+00:01:18,304 --> 00:01:24,000
+based on their height.
+
+18
+00:01:24,000 --> 00:01:30,494
+ Chotu and his three other friends, Arthi, Neha and Sonu
+
+19
+00:01:30,552 --> 00:01:33,962
+begin to stand in a line.
+
+20
+00:01:34,000 --> 00:01:39,155
+ First of all, being the shortest among all the four children,
+
+21
+00:01:39,199 --> 00:01:43,837
+Chotu stands in front.
+
+22
+00:01:43,947 --> 00:01:47,077
+ Neha, who is taller than him
+
+23
+00:01:47,175 --> 00:01:51,754
+but shorter than the rest, stands behind him.
+
+24
+00:01:53,000 --> 00:01:56,000
+ Sonu stands behind Neha.
+
+25
+00:01:56,000 --> 00:02:01,000
+ Then finally, Arthi stands behind Sonu.
+
+26
+00:02:01,000 --> 00:02:06,133
+ But Sonu just notices that he is taller than Neha 
+
+27
+00:02:06,134 --> 00:02:09,503
+but falls to notice that Arthi is 
+
+28
+00:02:09,506 --> 00:02:13,751
+shorter than him.
+
+29
+00:02:13,772 --> 00:02:16,851
+ So children are Chotu and his friends
+
+30
+00:02:16,849 --> 00:02:20,982
+standing in the correct order of height.
+
+31
+00:02:21,000 --> 00:02:25,915
+ Chotu and Neha are standing in the right order
+
+32
+00:02:25,988 --> 00:02:29,813
+but Sonu and Arthi are not.
+
+33
+00:02:30,000 --> 00:02:34,759
+ Arthi realizes this as she is not able to
+
+34
+00:02:34,750 --> 00:02:38,096
+see anything by standing behind Sonu.
+
+35
+00:02:38,106 --> 00:02:42,589
+ Therefore, Arthi should have stood in front of Sonu
+
+36
+00:02:42,591 --> 00:02:45,997
+as she is shorter than Sonu in height
+
+37
+00:02:46,000 --> 00:02:51,000
+ but makes Sonu realize his mistake.
+
+38
+00:02:51,000 --> 00:02:56,770
+ Sonu, just now you saw that you are taller
+
+39
+00:02:56,788 --> 00:03:00,226
+than Neha but you did not see that
+
+40
+00:03:00,234 --> 00:03:02,488
+I am also shorter than you.
+
+41
+00:03:02,504 --> 00:03:06,303
+ I am taller than Neha and shorter than you.
+
+42
+00:03:06,324 --> 00:03:09,753
+ So I should stand behind Neha
+
+43
+00:03:09,822 --> 00:03:12,516
+whereas I should stand in front of you.
+
+44
+00:03:12,537 --> 00:03:17,000
+ Oh yes Arthi, you are absolutely right.
+
+45
+00:03:17,000 --> 00:03:20,717
+ So children while making the order
+
+46
+00:03:20,718 --> 00:03:25,037
+Sonu saw that he was taller than the children standing
+
+47
+00:03:25,063 --> 00:03:27,408
+ in front but he did not see
+
+48
+00:03:27,419 --> 00:03:30,915
+whether the children who were not standing in the line 
+
+49
+00:03:30,937 --> 00:03:34,000
+are shorter in height than Sonu and hence
+
+50
+00:03:34,000 --> 00:03:38,000
+ he made this mistake.
+
+51
+00:03:38,000 --> 00:03:42,211
+ Finally, Chotu and three of his friends
+
+52
+00:03:42,281 --> 00:03:45,028
+stood in the correct increasing order 
+
+53
+00:03:45,037 --> 00:03:51,000
+ of their height that is from short to tall.
+
+54
+00:03:51,000 --> 00:03:54,000
+ Children raised the bar for picnic.
+
+55
+00:03:54,000 --> 00:04:00,000
+ There Chotu and his friends decide to play seven stones.
+
+56
+00:04:00,000 --> 00:04:05,829
+ First of all, Arthi and Chotu start making a pile of stones 
+
+57
+00:04:05,839 --> 00:04:12,000
+based on their size from big to small.
+
+58
+00:04:12,000 --> 00:04:17,000
+ For this, Arthi gathers four stones from the surrounding.
+
+59
+00:04:17,000 --> 00:04:21,000
+ Then she puts the biggest stone at the bottom.
+
+60
+00:04:21,000 --> 00:04:23,844
+ To keep the rest of the stones, 
+
+61
+00:04:23,859 --> 00:04:26,903
+she asks for Chotu's help.
+
+62
+00:04:27,000 --> 00:04:30,846
+ Chotu now out of the remaining three stones 
+
+63
+00:04:30,861 --> 00:04:34,899
+put the largest stone on this stone.
+
+64
+00:04:35,000 --> 00:04:39,800
+ But Arthi, why are we placing these stones 
+
+65
+00:04:39,832 --> 00:04:42,175
+in the big to small order?
+
+66
+00:04:42,186 --> 00:04:46,175
+ If he plays a large size stone 
+
+67
+00:04:46,203 --> 00:04:49,986
+on a small size stone, then it will fall down 
+
+68
+00:04:50,000 --> 00:04:52,914
+ because its balance will be disturbed.
+
+69
+00:04:52,946 --> 00:04:55,425
+ Look Chotu just like this.
+
+70
+00:04:55,452 --> 00:04:59,322
+ Therefore, we will place a big stone at the bottom 
+
+71
+00:04:59,362 --> 00:05:02,571
+and then smaller than that so that 
+
+72
+00:05:02,589 --> 00:05:06,989
+the balance of the stones is maintained.
+
+73
+00:05:07,000 --> 00:05:10,000
+ Oh, okay.
+
+74
+00:05:10,000 --> 00:05:12,639
+ Now out of the remaining two stones 
+
+75
+00:05:12,647 --> 00:05:16,647
+put the big stone on top of these two stones.
+
+76
+00:05:17,000 --> 00:05:19,000
+ Alright Arthi.
+
+77
+00:05:19,000 --> 00:05:22,000
+ And now let's also put the large stone.
+
+78
+00:05:22,000 --> 00:05:25,000
+ Very good Chotu.
+
+79
+00:05:25,000 --> 00:05:27,000
+ Now our stone pile is ready.
+
+80
+00:05:27,000 --> 00:05:28,000
+ Come on.
+
+81
+00:05:28,000 --> 00:05:30,586
+ Let's place seven stones now.
+
+82
+00:05:30,602 --> 00:05:34,828
+ Children, in this example you saw how Chotu 
+
+83
+00:05:34,911 --> 00:05:39,145
+and Arthi made a pile of stones by keeping them
+
+84
+00:05:39,179 --> 00:05:42,428
+ in the decreasing order of their size 
+
+85
+00:05:42,541 --> 00:05:47,253
+one by one that is from large to small size.
+
+86
+00:05:48,623 --> 00:05:55,000
+So children tell me, did you enjoy seeing examples of seriation?
+
+87
+00:05:55,000 --> 00:05:59,000
+ Okay, so that's all for today.
+
+88
+00:05:59,000 --> 00:06:02,022
+ In this video we have learned 
+
+89
+00:06:02,061 --> 00:06:05,361
+how to organize different people or objects 
+
+90
+00:06:05,374 --> 00:06:12,000
+ in order from small to large or from large to small.
+
+91
+00:06:12,000 --> 00:06:17,000
+ I hope you have understood this topic properly.
+
+92
+00:06:17,000 --> 00:06:20,000
+ Bye friends.
