@@ -108,7 +108,7 @@ def export_transcript(request):
     if export_type == "srt":
         for index, segment in enumerate(payload):
             lines.append(str(index + 1))
-            lines.append(segment["start_time"] + " --> " + segment["start_time"])
+            lines.append(segment["start_time"] + " --> " + segment["end_time"])
             lines.append(segment["text"])
         filename = "transcript.srt"
         content = "\n".join(lines)
@@ -116,7 +116,7 @@ def export_transcript(request):
         lines.append("WEBVTT\n")
         for index, segment in enumerate(payload):
             lines.append(str(index + 1))
-            lines.append(segment["start_time"] + " --> " + segment["start_time"])
+            lines.append(segment["start_time"] + " --> " + segment["end_time"])
             lines.append(segment["text"] + "\n")
         filename = "transcript.vtt"
         content = "\n".join(lines)
