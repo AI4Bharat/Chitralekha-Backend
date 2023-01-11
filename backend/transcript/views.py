@@ -536,7 +536,7 @@ def save_transcription(request):
         transcript = Transcript.objects.get(pk=transcript_id)
 
         # Check if the transcript has a user
-        if transcript.user != request.user:
+        if task.user != request.user:
             return Response(
                 {"message": "You are not allowed to update this transcript."},
                 status=status.HTTP_400_BAD_REQUEST,

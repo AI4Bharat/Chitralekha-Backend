@@ -397,7 +397,7 @@ def save_translation(request):
         transcript = translation.transcript
 
         # Check if the transcript has a user
-        if translation.user != request.user:
+        if task.user != request.user:
             return Response(
                 {"message": "You are not allowed to update this translation."},
                 status=status.HTTP_400_BAD_REQUEST,
