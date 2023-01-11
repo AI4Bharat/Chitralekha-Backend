@@ -8,6 +8,7 @@ class VideoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
         fields = (
+            "id",
             "video_uuid",
             "name",
             "url",
