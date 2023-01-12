@@ -449,7 +449,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     if "transcription" not in task_table.keys():
                         task_table["transcription"] = task
                     else:
-                        if "EDIT" in task_table["transcription"]:
+                        if "EDIT" in task_table["transcription"].task_type:
                             task_table["transcription"] = task
                 else:
                     task_table["transcription"] = ("NEW", task)
@@ -462,8 +462,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     if task.target_language not in task_table:
                         task_table[task.target_language] = task
                     else:
-                        if "EDIT" in task_table[task.target_language].task_type:
-                            task_table[task.target_language] = task
+                        if type(task_table[task.target_language]) != tuple:
+                            if "EDIT" in task_table[task.target_language].task_type:
+                                task_table[task.target_language] = task
+                        else:
+                            if "EDIT" in task.task_type:
+                                task_table[task.target_language] = task
                 else:
                     if task.target_language in task_table:
                         if (

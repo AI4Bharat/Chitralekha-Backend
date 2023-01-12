@@ -425,18 +425,26 @@ def get_payload(request):
 
 def change_active_status_of_next_tasks(task, transcript_obj):
     tasks = Task.objects.filter(video=task.video)
-    if tasks.filter(task_type="TRANSCRIPTION_REVIEW").first():
+    activate_translations = True
+
+    if (
+        "EDIT" in task.task_type
+        and tasks.filter(task_type="TRANSCRIPTION_REVIEW").first()
+    ):
+        activate_translations = False
         tasks.filter(task_type="TRANSCRIPTION_REVIEW").update(is_active=True)
         transcript = (
             Transcript.objects.filter(video=task.video)
             .filter(status="TRANSCRIPTION_REVIEWER_ASSIGNED")
             .first()
         )
+
         if transcript is not None:
             transcript.parent_transcript = transcript_obj
             transcript.payload = transcript_obj.payload
             transcript.save()
-    if tasks.filter(task_type="TRANSLATION_EDIT").first():
+
+    if activate_translations and tasks.filter(task_type="TRANSLATION_EDIT").first():
         tasks.filter(task_type="TRANSLATION_EDIT").update(is_active=True)
         translations = Translation.objects.filter(video=task.video).filter(
             status="TRANSLATION_SELECT_SOURCE"
@@ -638,7 +646,7 @@ def save_transcription(request):
                         )
                         task.status = "COMPLETE"
                         task.save()
-                        change_active_status_of_next_tasks(task)
+                        change_active_status_of_next_tasks(task, transcript_obj)
                 else:
                     tc_status = TRANSCRIPTION_REVIEW_INPROGRESS
                     transcript_type = transcript.transcript_type
