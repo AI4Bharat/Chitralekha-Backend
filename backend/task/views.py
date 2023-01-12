@@ -1015,35 +1015,87 @@ class TaskViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @is_project_owner
-    def destroy(self, request, pk=None, *args, **kwargs):
-        task = Task.objects.get(pk=pk)
+    @swagger_auto_schema(
+        method="DELETE",
+        manual_parameters=[
+            openapi.Parameter(
+                "flag",
+                openapi.IN_QUERY,
+                description=("A boolean to force delete the translation tasks."),
+                type=openapi.TYPE_BOOLEAN,
+                required=False,
+            ),
+        ],
+        responses={409: "There are conflicts with this task."},
+    )
+    @action(detail=True, methods=["delete"], url_path="delete_task")
+    def delete_task(self, request, pk=None, *args, **kwargs):
+        try:
+            task = Task.objects.get(pk=pk)
+        except Task.DoesNotExist:
+            return Response(
+                {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
         translation_tasks = set()
-        if "TRANSCRIPT" in task.task_type:
-            for transcript in Transcript.objects.filter(task=task).all():
-                for translation in Translation.objects.filter(
-                    transcript=transcript
-                ).all():
+        flag = request.query_params.get("flag")
+
+        if task.task_type in ["TRANSCRIPTION_EDIT", "TRANSCRIPTION_REVIEW"]:
+            transcripts = Transcript.objects.filter(video=task.video)
+
+            if "REVIEW" in task.task_type:
+                tasks_to_delete = [
+                    transcript.task
+                    for transcript in transcripts.filter(task=task).all()
+                ]
+            else:
+                tasks_to_delete = [transcript.task for transcript in transcripts]
+
+            for transcript in transcripts.all():
+                for translation in Translation.objects.filter(video=task.video).all():
                     translation_tasks.add(translation.task)
 
-        if len(translation_tasks) > 0:
-            response = [
-                (
-                    translation_task.task_type,
-                    translation_task.target_language,
-                    translation_task.video.name,
-                )
-                for translation_task in translation_tasks
-            ]
+            if len(translation_tasks) > 0:
+                response = [
+                    {
+                        "task_type": translation_task.get_task_type_label,
+                        "target_language": translation_task.get_target_language_label,
+                        "video_name": translation_task.video.name,
+                        "id": translation_task.id,
+                    }
+                    for translation_task in translation_tasks
+                ]
 
-            return Response(
-                {
-                    "response": response,
-                    "message": "Transcription Task can't be deleted as there are associated Translation tasks. Please delete the translation tasks first.",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+                if flag == "true":
+                    for task in translation_tasks:
+                        task.delete()
+                    for task in tasks_to_delete:
+                        task.delete()
+                else:
+                    return Response(
+                        {
+                            "response": response,
+                            "message": "The Transcription task has dependent translation tasks. Do you still want to delete all related translations as well?.",
+                        },
+                        status=status.HTTP_409_CONFLICT,
+                    )
+            else:
+                for task in tasks_to_delete:
+                    task.delete()
+
+        if task.task_type == "TRANSLATION_EDIT":
+            translations = (
+                Translation.objects.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .all()
             )
-        task.delete()
+            tasks_to_delete = [translation.task for translation in translations]
+            for task in list(set(tasks_to_delete)):
+                task.delete()
+
+        if task.task_type == "TRANSLATION_REVIEW":
+            task.delete()
+
         return Response(
             {
                 "message": "Task is deleted, with all associated transcripts/translations"
