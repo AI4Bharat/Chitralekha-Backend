@@ -104,6 +104,24 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
+    def get_tasks_assigned_to_member(self, project, user):
+        videos = Video.objects.filter(project_id=project)
+        tasks = (
+            Task.objects.filter(video_id__in=videos)
+            .filter(user=user)
+            .exclude(status="COMPLETE")
+        )
+        response = [
+            {
+                "task_type": task.get_task_type_label,
+                "target_language": task.get_target_language_label,
+                "video_name": task.video.name,
+                "id": task.id,
+            }
+            for task in tasks
+        ]
+        return response
+
     @swagger_auto_schema(
         method="post",
         request_body=openapi.Schema(
@@ -128,55 +146,84 @@ class ProjectViewSet(viewsets.ModelViewSet):
     )
     @is_project_owner
     def remove_project_members(self, request, pk=None, *args, **kwargs):
-
         try:
             project = Project.objects.get(pk=pk)
-            if "user_id" in dict(request.data):
-                ids = request.data.get("user_id", "")
-            else:
-                return Response(
-                    {"message": "key doesnot match"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            user = User.objects.filter(id__in=ids)
-            if user and user.count() == len(ids):
-                if project.members and project.managers:
-                    for manager in project.managers.all():
-                        if manager.id in ids:
-                            if project.managers.count() == 1:
-                                ids.remove(manager.id)
-                                project.members.remove(*ids)
-                                return Response(
-                                    {"message": "Atleast one manager is required"},
-                                    status=status.HTTP_400_BAD_REQUEST,
-                                )
-                            else:
-                                ids.append(manager.id)
-                                project.managers.remove(manager.id)
-                                project.members.remove(manager.id)
-
-                if ids:
-                    project.members.remove(*ids)
-                    return Response(
-                        {"message": "Project members removed successfully"},
-                        status=status.HTTP_200_OK,
-                    )
-                else:
-                    return Response(
-                        {"message": "Project has no members to remove"},
-                        status=status.HTTP_200_OK,
-                    )
-            else:
-                return Response(
-                    {"message": "User doesnot exist"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
         except Project.DoesNotExist:
             return Response(
                 {"error": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        if "user_id" not in request.data:
+            return Response(
+                {"message": "missing param : user_ids"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        ids = request.data.get("user_id")
+        invalid_users = []
+        valid_users = []
+        list_tasks = []
+
+        for id in ids:
+            try:
+                user = User.objects.get(pk=id)
+                valid_users.append(user)
+            except User.DoesNotExist:
+                invalid_users.append(id)
+                ids.remove(id)
+
+        if len(invalid_users) > 0:
+            return Response(
+                {"message": "Users doesnot exist."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        for user in valid_users:
+            if project.managers and user in project.managers.all():
+                response = self.get_tasks_assigned_to_member(project, user)
+                if len(response) > 0:
+                    return Response(
+                        {
+                            "message": "Can't delete member as tasks are assigned to this member.",
+                            "response": response,
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if len(project.managers.all()) > 1:
+                    project.managers.remove(user.id)
+                    project.members.remove(user.id)
+                else:
+                    invalid_users.append(user)
+            elif project.members and user in project.members.all():
+                response = self.get_tasks_assigned_to_member(project, user)
+                if len(response) > 0:
+                    return Response(
+                        {
+                            "message": "Can't delete member as tasks are assigned to this member.",
+                            "response": response,
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                project.members.remove(user.id)
+            else:
+                return Response(
+                    {"message": "User is not a member or manager of the project."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if len(invalid_users) > 0:
+            return Response(
+                {
+                    "message": "Can't delete this user, {0} as atleast one manager is required in the project.".format(
+                        invalid_users[0].username
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {"message": "Project members removed successfully"},
+            status=status.HTTP_200_OK,
+        )
 
     @swagger_auto_schema(
         method="post",

@@ -96,7 +96,7 @@ def export_translation(request):
         for index, segment in enumerate(payload):
             lines.append(str(index + 1))
             lines.append(segment["start_time"] + " --> " + segment["end_time"])
-            lines.append(segment["target_text"])
+            lines.append(segment["target_text"] + "\n")
         filename = "translation.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":

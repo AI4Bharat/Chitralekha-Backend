@@ -78,7 +78,11 @@ def generate_translation_payload(transcript, target_language, list_compare_sourc
         payloads["MACHINE_GENERATED"] = translation_machine_generated
 
     if "MANUALLY_CREATED" in list_compare_sources:
-        payloads["MANUALLY_CREATED"] = {"payload": []}
+        payload = []
+        for txt in transcript.payload["payload"]:
+            txt["target_text"] = ""
+            payload.append(txt)
+        payloads["MANUALLY_CREATED"] = {"payload": payload}
     return payloads
 
 

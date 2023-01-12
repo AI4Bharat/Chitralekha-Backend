@@ -109,7 +109,7 @@ def export_transcript(request):
         for index, segment in enumerate(payload):
             lines.append(str(index + 1))
             lines.append(segment["start_time"] + " --> " + segment["end_time"])
-            lines.append(segment["text"])
+            lines.append(segment["text"] + "\n")
         filename = "transcript.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
@@ -455,6 +455,7 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                     transcript_obj, translation.target_language, [source_type]
                 )
                 translation.payload = payloads[source_type]
+                translation.transcript = transcript_obj
                 translation.save()
     else:
         print("No change in status")
