@@ -24,6 +24,7 @@ class TaskSerializer(serializers.ModelSerializer):
     target_language_label = serializers.CharField(source="get_target_language_label")
     task_type_label = serializers.CharField(source="get_task_type_label")
     user = UserFetchSerializer(read_only=True)
+    created_by = UserFetchSerializer(read_only=True)
 
     class Meta:
         model = Task
@@ -46,5 +47,6 @@ class TaskSerializer(serializers.ModelSerializer):
             "description",
             "created_at",
             "updated_at",
+            "created_by",
             "is_active",
         )
