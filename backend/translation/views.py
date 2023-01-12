@@ -300,7 +300,7 @@ def get_payload(request):
         )
 
     return Response(
-        {"payload": translation.payload},
+        {"payload": translation.payload, "source_type": translation.translation_type},
         status=status.HTTP_200_OK,
     )
 

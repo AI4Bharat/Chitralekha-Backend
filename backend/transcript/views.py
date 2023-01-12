@@ -418,7 +418,7 @@ def get_payload(request):
         )
 
     return Response(
-        {"payload": transcript.payload},
+        {"payload": transcript.payload, "source_type": transcript.transcript_type},
         status=status.HTTP_200_OK,
     )
 
