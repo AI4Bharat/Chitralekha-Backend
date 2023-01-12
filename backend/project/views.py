@@ -16,9 +16,13 @@ from task.models import Task
 from task.serializers import TaskSerializer, TaskStatusSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django.db.models import Q
+from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
+from django.db.models.functions import Cast
 from config import *
 from users.serializers import UserFetchSerializer
+from datetime import timedelta
+from transcript.models import Transcript
+from translation.models import Translation
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -915,3 +919,33 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
         serializer = UserFetchSerializer(users, many=True)
         return Response(serializer.data)
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(detail=True, methods=["GET"], name="Get Report Users", url_name="get_report_users")
+    def get_report_users(self, request, pk=None, *args, **kwargs):
+        try:
+            prj = Project.objects.get(pk=pk)
+        except Project.DoesNotExist:
+            return Response(
+                {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        project_members = User.objects.filter(projects__pk=pk).values("username", "email")
+        user_statistics = project_members.annotate(tasks_assigned_count=Count("task")).annotate(tasks_completed_count=Count("task", filter=Q(task__status="COMPLETE"))).annotate(task_completion_percentage=Cast(F('tasks_completed_count'), FloatField()) / Cast(F('tasks_assigned_count'), FloatField())*100).annotate(average_completion_time=Avg(F('task__updated_at') - F('task__created_at'), filter=Q(task__status="COMPLETE"))).exclude(tasks_assigned_count=0)
+        return Response(list(user_statistics), status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(detail=True, methods=["GET"], name="Get Report Languages", url_name="get_report_langs")
+    def get_report_languages(self, request, pk=None, *args, **kwargs):
+        try:
+            prj = Project.objects.get(pk=pk)
+        except Project.DoesNotExist:
+            return Response(
+                {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        prj_videos = Video.objects.filter(project_id=pk)
+        prj_transcriptions = Transcript.objects.filter(video__in=prj_videos).filter(status="TRANSCRIPTION_EDIT_COMPLETE").values("language")
+        transcript_statistics = prj_transcriptions.annotate(total_duration=Sum(F("video__duration")))
+        prj_translations = Translation.objects.filter(video__in=prj_videos).filter(status="TRANSLATION_EDIT_COMPLETE").values(src_language=F("video__language"),tgt_language=F("target_language"))
+        translation_statistics = prj_translations.annotate(transcripts_translated=Count("id"))
+        res = {"transcript_stats": list(transcript_statistics), "translation_stats": list(translation_statistics)}
+        return Response(res, status=status.HTTP_200_OK)

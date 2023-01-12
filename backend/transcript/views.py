@@ -1,7 +1,7 @@
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
@@ -46,6 +46,8 @@ from users.models import User
 from rest_framework.response import Response
 from functools import wraps
 from rest_framework import status
+from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
+from django.db.models.functions import Cast
 
 
 @swagger_auto_schema(
@@ -821,6 +823,14 @@ def get_transcript_types(request):
     ]
     return Response(data, status=status.HTTP_200_OK)
 
+
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([])
+def get_transcription_report(request):
+    transcripts = Transcript.objects.filter(status="TRANSCRIPTION_EDIT_COMPLETE").values("language")
+    transcription_statistics = transcripts.annotate(total_duration=Sum(F("video__duration")))
+    return Response(list(transcription_statistics), status=status.HTTP_200_OK)
 
 ## Define the Transcript ViewSet
 class TranscriptViewSet(ModelViewSet):
