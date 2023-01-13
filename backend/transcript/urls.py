@@ -41,6 +41,6 @@ urlpatterns = [
     path(
         "get_report_transcript/",
         views.get_transcription_report,
-        name='get_transcription_report',
+        name="get_transcription_report",
     ),
 ]

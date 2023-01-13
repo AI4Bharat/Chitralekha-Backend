@@ -5,7 +5,11 @@ from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.decorators import (
+    api_view,
+    permission_classes,
+    authentication_classes,
+)
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from transcript.models import Transcript
@@ -730,10 +734,13 @@ def get_translation_types(request):
     ]
     return Response(data, status=status.HTTP_200_OK)
 
+
 @api_view(["GET"])
 @authentication_classes([])
 @permission_classes([])
 def get_translation_report(request):
-    translations = Translation.objects.filter(status="TRANSLATION_EDIT_COMPLETE").values(src_language=F("video__language"),tgt_language=F("target_language"))
+    translations = Translation.objects.filter(
+        status="TRANSLATION_EDIT_COMPLETE"
+    ).values(src_language=F("video__language"), tgt_language=F("target_language"))
     translation_statistics = translations.annotate(transcripts_translated=Count("id"))
     return Response(list(translation_statistics), status=status.HTTP_200_OK)
