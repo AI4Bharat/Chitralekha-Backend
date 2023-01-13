@@ -12,6 +12,8 @@ from .decorators import (
     is_particular_organization_owner,
     is_admin,
 )
+from task.models import Task
+from task.serializers import TaskSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from project.serializers import ProjectSerializer
@@ -266,6 +268,47 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             {"error": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
+
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="List Projects in Organization",
+        url_name="list_projects",
+    )
+    def list_org_tasks(self, request, pk=None, *args, **kwargs):
+        try:
+            organization = Organization.objects.get(pk=pk)
+        except Organization.DoesNotExist:
+            return Response(
+                {"error": "Project does not exist"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        user = request.user
+        if (
+            organization.organization_owner == user
+            or user.role == "ADMIN"
+            or user.is_superuser
+        ):
+            projects = Project.objects.filter(organization_id=organization)
+            videos = Video.objects.filter(project_id__in=projects)
+            tasks = Task.objects.filter(video__in=videos)
+        else:
+            projects = Project.objects.filter(organization_id=organization).filter(
+                managers__in=[user.id]
+            )
+            if len(projects) > 0:
+                projects = Project.objects.filter(organization_id=organization).filter(
+                    managers__in=[user.id]
+                )
+                videos = Video.objects.filter(project_id__in=projects)
+                tasks_in_projects = Task.objects.filter(video__in=videos)
+                assigned_tasks = Task.objects.filter(user=user)
+                tasks = list(set(list(tasks_in_projects) + list(assigned_tasks)))
+            else:
+                tasks = Task.objects.filter(user=user)
+
+        serializer = TaskSerializer(tasks, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(detail=True, methods=["GET"], name="Get Report Users", url_name="get_report_users")

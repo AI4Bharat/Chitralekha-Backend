@@ -14,11 +14,12 @@ from .serializers import (
     UserProfileSerializer,
     UserSignUpSerializer,
     UserUpdateSerializer,
+    UserUpdateSerializerOrgOwner,
     LanguageSerializer,
 )
 from organization.models import Invite, Organization
 from organization.serializers import InviteGenerationSerializer
-from organization.decorators import is_admin
+from organization.decorators import is_admin, is_organization_owner
 from users.models import LANG_CHOICES, User
 from rest_framework.decorators import action
 from django.db.models import Q
@@ -139,7 +140,6 @@ class InviteViewSet(viewsets.ViewSet):
 class UserViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthenticated,)
 
-    @swagger_auto_schema(request_body=UserUpdateSerializer)
     @action(detail=False, methods=["patch"], url_path="update", url_name="edit_profile")
     def edit_profile(self, request):
         """
@@ -147,6 +147,26 @@ class UserViewSet(viewsets.ViewSet):
         """
         user = request.user
         serialized = UserUpdateSerializer(user, request.data, partial=True)
+
+        if serialized.is_valid():
+            serialized.save()
+            return Response(
+                {"message": "User profile edited"}, status=status.HTTP_200_OK
+            )
+
+    @is_organization_owner
+    @swagger_auto_schema(request_body=UserUpdateSerializerOrgOwner)
+    @action(
+        detail=True, methods=["patch"], url_path="update", url_name="edit_user_profile"
+    )
+    def edit_user_profile(self, request, pk=None):
+        """
+        Updating user profile.
+        """
+        user_obj = User.objects.get(pk=pk)
+        user = request.user
+        serialized = UserUpdateSerializerOrgOwner(user_obj, request.data, partial=True)
+
         if serialized.is_valid():
             serialized.save()
             return Response(
@@ -368,7 +388,7 @@ class UserViewSet(viewsets.ViewSet):
                 )
                 user_by_roles = users.filter(role__in=["ORG_OWNER", "ADMIN"])
                 if len(user_by_roles) == 0:
-                    Response(
+                    return Response(
                         {"message": "There is no user available with ORG_OWNER role."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )

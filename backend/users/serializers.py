@@ -31,6 +31,24 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         read_only_fields = ["email"]
 
 
+class UserUpdateSerializerOrgOwner(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "availability_status",
+            "phone",
+            "enable_mail",
+            "role",
+            "organization",
+            "languages",
+        ]
+        read_only_fields = ["email"]
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     organization = OrganizationSerializer(read_only=True)
     role_label = serializers.CharField(source="get_role_label")
