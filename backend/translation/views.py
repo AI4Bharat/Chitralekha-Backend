@@ -5,7 +5,11 @@ from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import (
+    api_view,
+    permission_classes,
+    authentication_classes,
+)
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from transcript.models import Transcript
@@ -35,6 +39,8 @@ from .models import (
 from .decorators import is_translation_editor
 from .serializers import TranslationSerializer
 from .utils import get_batch_translations_using_indictrans_nmt_api
+from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
+from django.db.models.functions import Cast
 
 
 @swagger_auto_schema(
@@ -96,7 +102,7 @@ def export_translation(request):
         for index, segment in enumerate(payload):
             lines.append(str(index + 1))
             lines.append(segment["start_time"] + " --> " + segment["end_time"])
-            lines.append(segment["target_text"])
+            lines.append(segment["target_text"] + "\n")
         filename = "translation.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
@@ -300,7 +306,7 @@ def get_payload(request):
         )
 
     return Response(
-        {"payload": translation.payload},
+        {"payload": translation.payload, "source_type": translation.translation_type},
         status=status.HTTP_200_OK,
     )
 
@@ -397,7 +403,7 @@ def save_translation(request):
         transcript = translation.transcript
 
         # Check if the transcript has a user
-        if translation.user != request.user:
+        if task.user != request.user:
             return Response(
                 {"message": "You are not allowed to update this translation."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -727,3 +733,14 @@ def get_translation_types(request):
         for translation_type in TRANSLATION_TYPE_CHOICES
     ]
     return Response(data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([])
+def get_translation_report(request):
+    translations = Translation.objects.filter(
+        status="TRANSLATION_EDIT_COMPLETE"
+    ).values(src_language=F("video__language"), tgt_language=F("target_language"))
+    translation_statistics = translations.annotate(transcripts_translated=Count("id"))
+    return Response(list(translation_statistics), status=status.HTTP_200_OK)

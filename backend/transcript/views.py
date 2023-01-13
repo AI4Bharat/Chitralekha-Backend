@@ -1,7 +1,11 @@
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
@@ -46,6 +50,8 @@ from users.models import User
 from rest_framework.response import Response
 from functools import wraps
 from rest_framework import status
+from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
+from django.db.models.functions import Cast
 
 
 @swagger_auto_schema(
@@ -109,7 +115,7 @@ def export_transcript(request):
         for index, segment in enumerate(payload):
             lines.append(str(index + 1))
             lines.append(segment["start_time"] + " --> " + segment["end_time"])
-            lines.append(segment["text"])
+            lines.append(segment["text"] + "\n")
         filename = "transcript.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
@@ -418,25 +424,33 @@ def get_payload(request):
         )
 
     return Response(
-        {"payload": transcript.payload},
+        {"payload": transcript.payload, "source_type": transcript.transcript_type},
         status=status.HTTP_200_OK,
     )
 
 
 def change_active_status_of_next_tasks(task, transcript_obj):
     tasks = Task.objects.filter(video=task.video)
-    if tasks.filter(task_type="TRANSCRIPTION_REVIEW").first():
+    activate_translations = True
+
+    if (
+        "EDIT" in task.task_type
+        and tasks.filter(task_type="TRANSCRIPTION_REVIEW").first()
+    ):
+        activate_translations = False
         tasks.filter(task_type="TRANSCRIPTION_REVIEW").update(is_active=True)
         transcript = (
             Transcript.objects.filter(video=task.video)
             .filter(status="TRANSCRIPTION_REVIEWER_ASSIGNED")
             .first()
         )
+
         if transcript is not None:
             transcript.parent_transcript = transcript_obj
             transcript.payload = transcript_obj.payload
             transcript.save()
-    if tasks.filter(task_type="TRANSLATION_EDIT").first():
+
+    if activate_translations and tasks.filter(task_type="TRANSLATION_EDIT").first():
         tasks.filter(task_type="TRANSLATION_EDIT").update(is_active=True)
         translations = Translation.objects.filter(video=task.video).filter(
             status="TRANSLATION_SELECT_SOURCE"
@@ -455,6 +469,7 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                     transcript_obj, translation.target_language, [source_type]
                 )
                 translation.payload = payloads[source_type]
+                translation.transcript = transcript_obj
                 translation.save()
     else:
         print("No change in status")
@@ -536,7 +551,7 @@ def save_transcription(request):
         transcript = Transcript.objects.get(pk=transcript_id)
 
         # Check if the transcript has a user
-        if transcript.user != request.user:
+        if task.user != request.user:
             return Response(
                 {"message": "You are not allowed to update this transcript."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -637,7 +652,7 @@ def save_transcription(request):
                         )
                         task.status = "COMPLETE"
                         task.save()
-                        change_active_status_of_next_tasks(task)
+                        change_active_status_of_next_tasks(task, transcript_obj)
                 else:
                     tc_status = TRANSCRIPTION_REVIEW_INPROGRESS
                     transcript_type = transcript.transcript_type
@@ -819,6 +834,19 @@ def get_transcript_types(request):
         for transcript_type in TRANSCRIPT_TYPE
     ]
     return Response(data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([])
+def get_transcription_report(request):
+    transcripts = Transcript.objects.filter(
+        status="TRANSCRIPTION_EDIT_COMPLETE"
+    ).values("language")
+    transcription_statistics = transcripts.annotate(
+        total_duration=Sum(F("video__duration"))
+    )
+    return Response(list(transcription_statistics), status=status.HTTP_200_OK)
 
 
 ## Define the Transcript ViewSet
