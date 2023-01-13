@@ -17,6 +17,12 @@ from drf_yasg import openapi
 from project.serializers import ProjectSerializer
 from project.models import Project
 from config import *
+from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
+from django.db.models.functions import Cast
+from datetime import timedelta
+from video.models import Video
+from transcript.models import Transcript
+from translation.models import Translation
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -260,3 +266,53 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             {"error": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(detail=True, methods=["GET"], name="Get Report Users", url_name="get_report_users")
+    def get_report_users(self, request, pk=None, *args, **kwargs):
+        try:
+            org = Organization.objects.get(pk=pk)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        org_members = User.objects.filter(organization=pk).values("username", "email")
+        user_statistics = org_members.annotate(tasks_assigned_count=Count("task")).annotate(tasks_completed_count=Count("task", filter=Q(task__status="COMPLETE"))).annotate(task_completion_percentage=Cast(F('tasks_completed_count'), FloatField()) / Cast(F('tasks_assigned_count'), FloatField())*100).annotate(average_completion_time=Avg(F('task__updated_at') - F('task__created_at'), filter=Q(task__status="COMPLETE"))).exclude(tasks_assigned_count=0)
+        return Response(list(user_statistics), status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(detail=True, methods=["GET"], name="Get Report Languages", url_name="get_report_langs")
+    def get_report_languages(self, request, pk=None, *args, **kwargs):
+        try:
+            org = Organization.objects.get(pk=pk)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        org_videos = Video.objects.filter(project_id__organization_id=pk)
+        org_transcriptions = Transcript.objects.filter(video__in=org_videos).filter(status="TRANSCRIPTION_EDIT_COMPLETE").values("language")
+        transcript_statistics = org_transcriptions.annotate(total_duration=Sum(F("video__duration")))
+        org_translations = Translation.objects.filter(video__in=org_videos).filter(status="TRANSLATION_EDIT_COMPLETE").values(src_language=F("video__language"),tgt_language=F("target_language"))
+        translation_statistics = org_translations.annotate(transcripts_translated=Count("id"))
+        res = {"transcript_stats": list(transcript_statistics), "translation_stats": list(translation_statistics)}
+        return Response(res, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(detail=True, methods=["GET"], name="Get Report Projects", url_name="get_report_projects")
+    def get_report_projects(self, request, pk=None, *args, **kwargs):
+        try:
+            org = Organization.objects.get(pk=pk)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        org_projects = Project.objects.filter(organization_id=pk).values("title", "managers__username")
+        project_stats = org_projects.annotate(num_videos=Count("video")).annotate(total_transcriptions=Sum("video__duration", filter=Q(video__transcripts__status="TRANSCRIPTION_EDIT_COMPLETE"))).annotate(transcripts_translated=Count("video__translation_video", filter=Q(video__translation_video__status="TRANSLATION_EDIT_COMPLETE")))
+        return Response(list(project_stats), status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(detail=False, methods=["GET"], name="Get Report Organizations", url_name="get_report_orgs")
+    def get_report_orgs(self, request, *args, **kwargs):
+        org_stats = Organization.objects.all().values("title")
+        org_stats = org_stats.annotate(num_projects=Count("project", distinct=True)).annotate(num_videos=Count("project__video", distinct=True)).annotate(num_transcription_tasks=Count("project__video__tasks", filter=Q(project__video__tasks__task_type="TRANSCRIPTION_EDIT"))).annotate(num_transcription_tasks_completed=Count("project__video__tasks", filter=Q(project__video__tasks__task_type="TRANSCRIPTION_EDIT") & Q(project__video__tasks__status="COMPLETE"))).annotate(num_translation_tasks=Count("project__video__tasks", filter=Q(project__video__tasks__task_type="TRANSLATION_EDIT"))).annotate(num_translation_tasks_completed=Count("project__video__tasks", filter=Q(project__video__tasks__task_type="TRANSLATION_EDIT") & Q(project__video__tasks__status="COMPLETE")))
+        return Response(list(org_stats), status=status.HTTP_200_OK)

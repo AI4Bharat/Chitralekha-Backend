@@ -27,4 +27,9 @@ urlpatterns = [
         views.export_translation,
         name="export_translation",
     ),
+    path(
+        "get_report_translation/",
+        views.get_translation_report,
+        name="get_translation_report",
+    ),
 ]

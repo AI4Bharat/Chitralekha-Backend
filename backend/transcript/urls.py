@@ -38,4 +38,9 @@ urlpatterns = [
         views.get_word_aligned_json,
         name="get_word_aligned_json",
     ),
+    path(
+        "get_report_transcript/",
+        views.get_transcription_report,
+        name='get_transcription_report',
+    ),
 ]
