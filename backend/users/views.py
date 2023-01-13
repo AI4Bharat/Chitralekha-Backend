@@ -140,6 +140,7 @@ class InviteViewSet(viewsets.ViewSet):
 class UserViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthenticated,)
 
+    @swagger_auto_schema(request_body=UserUpdateSerializer)
     @action(detail=False, methods=["patch"], url_path="update", url_name="edit_profile")
     def edit_profile(self, request):
         """
