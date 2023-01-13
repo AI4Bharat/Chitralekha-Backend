@@ -1028,6 +1028,7 @@ class TaskViewSet(ModelViewSet):
         ],
         responses={409: "There are conflicts with this task."},
     )
+    @is_project_owner
     @action(detail=True, methods=["delete"], url_path="delete_task")
     def delete_task(self, request, pk=None, *args, **kwargs):
         try:
