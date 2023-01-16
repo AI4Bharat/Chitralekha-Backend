@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
 from project.decorators import is_project_owner, is_particular_project_owner
+from task.decorators import has_task_edit_permission, has_task_create_permission
 from project.models import Project
 from organization.models import Organization
 from transcript.views import generate_transcription
@@ -39,7 +40,6 @@ from .models import (
     COMPLETE,
     PRIORITY,
 )
-
 from .serializers import TaskSerializer
 from users.models import User
 from rest_framework.response import Response
@@ -1028,7 +1028,7 @@ class TaskViewSet(ModelViewSet):
         ],
         responses={409: "There are conflicts with this task."},
     )
-    @is_project_owner
+    @has_task_edit_permission
     @action(detail=True, methods=["delete"], url_path="delete_task")
     def delete_task(self, request, pk=None, *args, **kwargs):
         try:
@@ -1037,7 +1037,6 @@ class TaskViewSet(ModelViewSet):
             return Response(
                 {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
             )
-
         translation_tasks = set()
         flag = request.query_params.get("flag")
 
@@ -1162,6 +1161,11 @@ class TaskViewSet(ModelViewSet):
                 )
             videos.append(video)
 
+        permission = has_task_create_permission(videos[0], request.user)
+
+        if type(permission) != bool:
+            return permission
+
         project = videos[0].project_id
         organization = project.organization_id
 
@@ -1209,7 +1213,7 @@ class TaskViewSet(ModelViewSet):
                 description,
             )
 
-    @is_project_owner
+    @has_task_edit_permission
     def partial_update(self, request, pk=None, *args, **kwargs):
         user = request.data.get("user")
         description = request.data.get("description")
@@ -1231,26 +1235,30 @@ class TaskViewSet(ModelViewSet):
                     {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
                 )
 
-        if task.task_type == "TRANSCRIPTION_EDIT":
-            permission = self.has_transcript_edit_permission(user_obj, [task.video])
-        elif task.task_type == "TRANSCRIPTION_REVIEW":
-            permission = self.has_transcript_review_permission(user_obj, [task.video])
-        elif task.task_type == "TRANSLATION_EDIT":
-            permission = self.has_translate_edit_permission(user_obj, [task.video])
-        elif task.task_type == "TRANSLATION_REVIEW":
-            permission = self.has_translate_review_permission(user_obj, [task.video])
-        else:
-            print("Not a Valid Type")
+            if task.task_type == "TRANSCRIPTION_EDIT":
+                permission = self.has_transcript_edit_permission(user_obj, [task.video])
+            elif task.task_type == "TRANSCRIPTION_REVIEW":
+                permission = self.has_transcript_review_permission(
+                    user_obj, [task.video]
+                )
+            elif task.task_type == "TRANSLATION_EDIT":
+                permission = self.has_translate_edit_permission(user_obj, [task.video])
+            elif task.task_type == "TRANSLATION_REVIEW":
+                permission = self.has_translate_review_permission(
+                    user_obj, [task.video]
+                )
+            else:
+                print("Not a Valid Type")
 
-        if permission:
-            task.user = user_obj
-        else:
-            return Response(
-                {
-                    "message": "The assigned user is not allowed to perform this task in this project."
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            if permission:
+                task.user = user_obj
+            else:
+                return Response(
+                    {
+                        "message": "The assigned user is not allowed to perform this task in this project."
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         if priority is not None:
             task.priority = priority
@@ -1267,7 +1275,7 @@ class TaskViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @is_project_owner
+    @has_task_edit_permission
     @action(detail=False, methods=["patch"], url_path="update_multiple_tasks")
     def put(self, request, *args, **kwargs):
         task_ids = request.data.get("task_ids")

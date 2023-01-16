@@ -10,7 +10,7 @@ from video.serializers import VideoSerializer
 from users.models import User
 from .models import Project
 from .serializers import ProjectSerializer
-from .decorators import is_project_owner
+from .decorators import is_project_owner, is_particular_project_owner
 from users.serializers import UserFetchSerializer, UserProfileSerializer
 from task.models import Task
 from task.serializers import TaskSerializer, TaskStatusSerializer
@@ -56,7 +56,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Add Project members",
         url_name="add_project_members",
     )
-    @is_project_owner
+    @is_particular_project_owner
     def add_project_members(self, request, pk=None, *args, **kwargs):
 
         try:
@@ -148,7 +148,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Remove Project members",
         url_name="remove_project_members",
     )
-    @is_project_owner
+    @is_particular_project_owner
     def remove_project_members(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
@@ -402,7 +402,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Archive Project",
         url_name="archive_project",
     )
-    @is_project_owner
+    @is_particular_project_owner
     def archive_project(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
@@ -428,7 +428,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="List Project Managers",
         url_name="list_project_managers",
     )
-    @is_project_owner
+    @is_particular_project_owner
     def list_project_managers(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
@@ -736,7 +736,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @is_project_owner
+    @is_particular_project_owner
     def partial_update(self, request, pk=None, *args, **kwargs):
         """
         Update project details
@@ -816,7 +816,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             {"message": "Project updated successfully."}, status=status.HTTP_200_OK
         )
 
-    @is_project_owner
+    @is_particular_project_owner
     def update(self, request, pk=None, *args, **kwargs):
         super().update(request, *args, **kwargs)
         return Response(
