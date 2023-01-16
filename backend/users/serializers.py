@@ -69,6 +69,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "organization",
             "unverified_email",
             "date_joined",
+            "languages",
         ]
         read_only_fields = [
             "id",
