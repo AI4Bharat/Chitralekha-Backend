@@ -119,6 +119,7 @@ class InviteViewSet(viewsets.ViewSet):
             return Response(
                 {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
             )
+
         if user.has_accepted_invite:
             return Response(
                 {"message": "User has already accepted invite"},
@@ -131,10 +132,18 @@ class InviteViewSet(viewsets.ViewSet):
                 {"message": "Invite not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        serialized = UserSignUpSerializer(user, request.data, partial=True)
+        serialized = UserSignUpSerializer(user, request.data)
         if serialized.is_valid():
+            user.first_name = request.data.get("first_name", "")
+            user.last_name = request.data.get("last_name", "")
+            user.languages = request.data.get("languages")
             serialized.save()
             return Response({"message": "User signed up"}, status=status.HTTP_200_OK)
+        else:
+            return Response(
+                {"message": "Input values are incorrect."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class UserViewSet(viewsets.ViewSet):
