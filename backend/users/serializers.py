@@ -6,7 +6,14 @@ from .models import User
 class UserSignUpSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["username", "password", "email"]
+        fields = [
+            "username",
+            "password",
+            "email",
+            "first_name",
+            "last_name",
+            "languages",
+        ]
 
     def update(self, instance, validated_data):
         instance.username = validated_data.get("username")
