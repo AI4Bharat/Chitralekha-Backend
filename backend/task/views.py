@@ -209,6 +209,7 @@ class TaskViewSet(ModelViewSet):
         eta,
         priority,
         description,
+        is_single_task,
     ):
         (
             duplicate_tasks,
@@ -264,9 +265,7 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "target_language": self.get_target_language_label(
-                            target_language
-                        ),
+                        "language_pair": task.get_language_pair_label,
                         "status": "Fail",
                         "message": "This task creation failed since Editor and Reviewer can't be same.",
                     }
@@ -285,9 +284,7 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "target_language": self.get_target_language_label(
-                            target_language
-                        ),
+                        "language_pair": task.get_language_pair_label,
                         "status": "Fail",
                         "message": "Task creation failed as target language is same as source language.",
                     }
@@ -306,25 +303,11 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "target_language": self.get_target_language_label(
-                            target_language
-                        ),
+                        "language_pair": task.get_language_pair_label,
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
                 )
-
-        if len(videos) <= 0:
-            return Response(
-                {
-                    "message": "{0} Task(s) creation failed.".format(len(video_ids)),
-                    "response": {
-                        "consolidated_report": consolidated_error,
-                        "detailed_report": detailed_error,
-                    },
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
         if len(user_ids) > 0:
             if "EDIT" in task_type:
@@ -375,9 +358,7 @@ class TaskViewSet(ModelViewSet):
                             "video_name": task.video.name,
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
-                            "target_language": self.get_target_language_label(
-                                target_language
-                            ),
+                            "language_pair": task.get_language_pair_label,
                             "status": "Successful",
                             "message": "Task is successfully created.",
                         }
@@ -445,9 +426,7 @@ class TaskViewSet(ModelViewSet):
                             "video_name": task.video.name,
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
-                            "target_language": self.get_target_language_label(
-                                target_language
-                            ),
+                            "language_pair": task.get_language_pair_label,
                             "status": "Successful",
                             "message": "Task is successfully created.",
                         }
@@ -489,12 +468,24 @@ class TaskViewSet(ModelViewSet):
             message = ""
             if len(video_ids) > 0:
                 message = "{0} Task(s) creation failed.".format(len(video_ids))
-            else:
-                message = "{0} Task(s) created successfully.".format(len(tasks)) + message
+            if len(tasks) > 0:
+                message = (
+                    "{0} Task(s) created successfully.".format(len(tasks)) + message
+                )
             response = {
                 "consolidated_report": consolidated_error,
                 "detailed_report": detailed_error,
             }
+
+            if is_single_task:
+                if detailed_error[0]["status"] == "Fail":
+                    status_code = status.HTTP_400_BAD_REQUEST
+                else:
+                    status_code = status.HTTP_200_OK
+                return Response(
+                    {"message": detailed_error[0]["message"]},
+                    status=status_code,
+                )
             return Response(
                 {"message": message, "response": response},
                 status=status.HTTP_200_OK,
@@ -517,6 +508,7 @@ class TaskViewSet(ModelViewSet):
         eta,
         priority,
         description,
+        is_single_task,
     ):
         (
             duplicate_tasks,
@@ -570,6 +562,7 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
+                        "language_pair": task.get_language_pair_label,
                         "status": "Fail",
                         "message": "This task creation failed since Editor and Reviewer can't be same.",
                     }
@@ -588,6 +581,7 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
+                        "language_pair": task.get_language_pair_label,
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
@@ -606,22 +600,11 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
+                        "language_pair": task.get_language_pair_label,
                         "status": "Fail",
                         "message": "Task creation for Transcription Review failed as Translation tasks already exists.",
                     }
                 )
-
-        if len(videos) <= 0:
-            return Response(
-                {
-                    "message": "{0} Task creation failed.".format(len(video_ids)),
-                    "response": {
-                        "consolidated_report": consolidated_error,
-                        "detailed_report": detailed_error,
-                    },
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
         if len(user_ids) > 0:
             if "EDIT" in task_type:
@@ -669,6 +652,7 @@ class TaskViewSet(ModelViewSet):
                                 "video_name": task.video.name,
                                 "video_url": task.video.url,
                                 "task_type": self.get_task_type_label(task.task_type),
+                                "language_pair": task.get_language_pair_label,
                                 "status": "Fail",
                                 "message": "Error while calling ASR API.",
                             }
@@ -688,6 +672,7 @@ class TaskViewSet(ModelViewSet):
                             "video_name": task.video.name,
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
+                            "language_pair": task.get_language_pair_label,
                             "status": "Successful",
                             "message": "Task created successfully.",
                         }
@@ -746,6 +731,7 @@ class TaskViewSet(ModelViewSet):
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
                             "status": "Successful",
+                            "language_pair": task.get_language_pair_label,
                             "message": "Task is successfully created.",
                         }
                     )
@@ -780,11 +766,22 @@ class TaskViewSet(ModelViewSet):
             if len(video_ids) > 0:
                 message = "{0} Task(s) creation failed.".format(len(video_ids))
             if len(tasks) > 0:
-                message = "{0} Task(s) created successfully.".format(len(tasks)) + message
+                message = (
+                    "{0} Task(s) created successfully.".format(len(tasks)) + message
+                )
             response = {
                 "consolidated_report": consolidated_error,
                 "detailed_report": detailed_error,
             }
+            if is_single_task:
+                if detailed_error[0]["status"] == "Fail":
+                    status_code = status.HTTP_400_BAD_REQUEST
+                else:
+                    status_code = status.HTTP_200_OK
+                return Response(
+                    {"message": detailed_error[0]["message"]},
+                    status=status_code,
+                )
             return Response(
                 {"message": message, "response": response},
                 status=status.HTTP_200_OK,
@@ -1166,6 +1163,11 @@ class TaskViewSet(ModelViewSet):
         description = request.data.get("description")
         priority = request.data.get("priority")
 
+        if "is_single_task" in request.data.keys():
+            is_single_task = request.data.get("is_single_task")
+        else:
+            is_single_task = False
+
         if task_type is None or video_ids is None or len(video_ids) == 0:
             return Response(
                 {"message": "missing param : task_type or user_id or video_ids"},
@@ -1226,6 +1228,7 @@ class TaskViewSet(ModelViewSet):
                 eta,
                 priority,
                 description,
+                is_single_task,
             )
         else:
             source_type = (
@@ -1242,6 +1245,7 @@ class TaskViewSet(ModelViewSet):
                 eta,
                 priority,
                 description,
+                is_single_task,
             )
 
     @has_task_edit_permission
