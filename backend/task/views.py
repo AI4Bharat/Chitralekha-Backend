@@ -120,6 +120,14 @@ class TaskViewSet(ModelViewSet):
             if task_type == t_type[0]:
                 return t_type[1]
 
+    def get_language_pair_label(self, video, target_language):
+        src_language = self.get_target_language_label(video.language)
+        target_language = self.get_target_language_label(target_language)
+        if target_language == "-":
+            return src_language
+        else:
+            return src_language + "-" + target_language
+
     def generate_translation(
         self, video, lang, transcript, user, translation_type, task, payload
     ):
@@ -265,7 +273,9 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": task.get_language_pair_label,
+                        "language_pair": self.get_language_pair_label(
+                            task["video"], target_language
+                        ),
                         "status": "Fail",
                         "message": "This task creation failed since Editor and Reviewer can't be same.",
                     }
@@ -284,7 +294,9 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": task.get_language_pair_label,
+                        "language_pair": self.get_language_pair_label(
+                            task["video"], target_language
+                        ),
                         "status": "Fail",
                         "message": "Task creation failed as target language is same as source language.",
                     }
@@ -303,7 +315,9 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": task.get_language_pair_label,
+                        "language_pair": self.get_language_pair_label(
+                            task["video"], target_language
+                        ),
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
@@ -358,7 +372,9 @@ class TaskViewSet(ModelViewSet):
                             "video_name": task.video.name,
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
-                            "language_pair": task.get_language_pair_label,
+                            "language_pair": self.get_language_pair_label(
+                                task["video"], target_language
+                            ),
                             "status": "Successful",
                             "message": "Task is successfully created.",
                         }
@@ -488,7 +504,7 @@ class TaskViewSet(ModelViewSet):
                 )
             return Response(
                 {"message": message, "response": response},
-                status=status.HTTP_200_OK,
+                status=status.HTTP_207_MULTI_STATUS,
             )
         else:
             return Response(
@@ -562,7 +578,9 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": task.get_language_pair_label,
+                        "language_pair": self.get_language_pair_label(
+                            task["video"], ""
+                        ),
                         "status": "Fail",
                         "message": "This task creation failed since Editor and Reviewer can't be same.",
                     }
@@ -581,7 +599,9 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": task.get_language_pair_label,
+                        "language_pair": self.get_language_pair_label(
+                            task["video"], ""
+                        ),
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
@@ -600,7 +620,9 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": task.get_language_pair_label,
+                        "language_pair": self.get_language_pair_label(
+                            task["video"], ""
+                        ),
                         "status": "Fail",
                         "message": "Task creation for Transcription Review failed as Translation tasks already exists.",
                     }
@@ -784,7 +806,7 @@ class TaskViewSet(ModelViewSet):
                 )
             return Response(
                 {"message": message, "response": response},
-                status=status.HTTP_200_OK,
+                status=status.HTTP_207_MULTI_STATUS,
             )
         else:
             return Response(
