@@ -658,17 +658,40 @@ class TaskViewSet(ModelViewSet):
                     tasks.append(new_task)
 
                 new_transcripts = []
+                delete_tasks = []
+                asr_errors = 0
                 for task in tasks:
+                    payloads = self.generate_transcript_payload(task, [source_type])
+                    if type(payloads) != dict:
+                        asr_errors += 1
+                        detailed_error.append(
+                            {
+                                "video_name": task.video.name,
+                                "video_url": task.video.url,
+                                "task_type": self.get_task_type_label(task.task_type),
+                                "status": "Fail",
+                                "message": "Error while calling ASR API.",
+                            }
+                        )
+                        videos.remove(task.video)
+                        video_ids.append(task.video)
+                        delete_tasks.append(task)
+                        consolidated_error.append(
+                            {
+                                "message": "Error while calling ASR API.",
+                                "count": asr_errors,
+                            }
+                        )
+                        continue
                     detailed_error.append(
                         {
                             "video_name": task.video.name,
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
                             "status": "Successful",
-                            "message": "Task is successfully created.",
+                            "message": "Task created successfully.",
                         }
                     )
-                    payloads = self.generate_transcript_payload(task, [source_type])
                     transcript_obj = Transcript(
                         video=task.video,
                         user=task.user,
@@ -745,16 +768,19 @@ class TaskViewSet(ModelViewSet):
                     new_transcripts.append(transcript_obj)
                 transcripts = Transcript.objects.bulk_create(new_transcripts)
 
+            for task in delete_tasks:
+                task.delete()
+                tasks.remove(task)
+
             if len(tasks) > 0:
                 consolidated_error.append(
                     {"message": "Tasks created successfully.", "count": len(tasks)}
                 )
-
             message = ""
             if len(video_ids) > 0:
                 message = "{0} Tasks creation failed.".format(len(video_ids))
-            else:
-                message = "{0} Tasks created successfully.".format(len(tasks)) + message
+
+            message = "{0} Tasks created successfully.".format(len(tasks)) + message
             response = {
                 "consolidated_report": consolidated_error,
                 "detailed_report": detailed_error,
@@ -859,6 +885,11 @@ class TaskViewSet(ModelViewSet):
         if len(list_compare_sources) > 0 and request.user == task.user:
             if "TRANSCRIPT" in task.task_type:
                 payloads = self.generate_transcript_payload(task, list_compare_sources)
+                if type(payloads) != dict:
+                    return Response(
+                        {"message": "Error while calling ASR API"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
             else:
                 target_language = task.target_language
                 if target_language is None:

@@ -1,5 +1,6 @@
 # Automatic Speech Recognition
 ## Utility Functions
+import traceback
 import requests
 
 
