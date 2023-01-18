@@ -133,19 +133,18 @@ def get_video(request):
     is_audio_only = is_audio_only.lower() == "true"
     if not url:
         return Response(
-            {"error": "Video URL not provided in query params."},
+            {"message": "Video URL not provided in query params."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     project = Project.objects.filter(pk=project_id).first()
     if project is None:
         return Response(
-            {"error": "Project is not found. "},
+            {"message": "Project is not found. "},
             status=status.HTTP_404_NOT_FOUND,
         )
 
     organization = project.organization_id
-
     default_task_eta = project.default_eta
     default_task_priority = project.default_priority
     default_task_description = project.default_description
@@ -164,7 +163,7 @@ def get_video(request):
             file_id = drive_info_extractor._match_id(url)
         except Exception:
             return Response(
-                {"error": "Invalid Google Drive URL."},
+                {"message": "Invalid Google Drive URL."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -301,7 +300,7 @@ def get_video(request):
         ) = get_data_from_google_video(url)
     except DownloadError:
         return Response(
-            {"error": "This is an invalid video URL."},
+            {"message": "This is an invalid video URL."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -563,7 +562,7 @@ def list_tasks(request):
         video_id = request.query_params["video_id"]
     else:
         return Response(
-            {"error": "Please provide a video ID"},
+            {"message": "Please provide a video ID"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -573,7 +572,7 @@ def list_tasks(request):
     # Check if the video exists
     if not video:
         return Response(
-            {"error": "No video found for the provided ID."},
+            {"message": "No video found for the provided ID."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

@@ -491,7 +491,7 @@ def change_active_status_of_next_tasks(task, transcript_obj):
             ),
             "final": openapi.Schema(
                 type=openapi.TYPE_BOOLEAN,
-                description="A boolean to pass check whether to allow user to load latest transcript",
+                description="A boolean to complete the task",
             ),
         },
         description="Post request body for projects which have save_type == new_record",
