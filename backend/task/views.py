@@ -317,7 +317,7 @@ class TaskViewSet(ModelViewSet):
         if len(videos) <= 0:
             return Response(
                 {
-                    "message": "{0} Tasks creation failed.".format(len(video_ids)),
+                    "message": "{0} Task(s) creation failed.".format(len(video_ids)),
                     "response": {
                         "consolidated_report": consolidated_error,
                         "detailed_report": detailed_error,
@@ -488,9 +488,9 @@ class TaskViewSet(ModelViewSet):
 
             message = ""
             if len(video_ids) > 0:
-                message = "{0} Tasks creation failed.".format(len(video_ids))
+                message = "{0} Task(s) creation failed.".format(len(video_ids))
             else:
-                message = "{0} Tasks created successfully.".format(len(tasks)) + message
+                message = "{0} Task(s) created successfully.".format(len(tasks)) + message
             response = {
                 "consolidated_report": consolidated_error,
                 "detailed_report": detailed_error,
@@ -778,9 +778,9 @@ class TaskViewSet(ModelViewSet):
                 )
             message = ""
             if len(video_ids) > 0:
-                message = "{0} Tasks creation failed.".format(len(video_ids))
+                message = "{0} Task(s) creation failed.".format(len(video_ids))
 
-            message = "{0} Tasks created successfully.".format(len(tasks)) + message
+            message = "{0} Task(s) created successfully.".format(len(tasks)) + message
             response = {
                 "consolidated_report": consolidated_error,
                 "detailed_report": detailed_error,
