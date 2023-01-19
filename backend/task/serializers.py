@@ -20,11 +20,13 @@ class TaskSerializer(serializers.ModelSerializer):
     video_name = serializers.CharField(source="video.name", read_only=True)
     src_language = serializers.CharField(source="video.language", read_only=True)
     video_url = serializers.CharField(source="video.url", read_only=True)
+    is_audio_only = serializers.BooleanField(source="video.audio_only", read_only=True)
     project = serializers.CharField(source="video.project_id.id", read_only=True)
     project_name = serializers.CharField(source="video.project_id", read_only=True)
     src_language_label = serializers.CharField(source="get_src_language_label")
     target_language_label = serializers.CharField(source="get_target_language_label")
     task_type_label = serializers.CharField(source="get_task_type_label")
+    status_label = serializers.CharField(source="get_task_status_label")
     user = UserFetchSerializer(read_only=True)
     created_by = UserFetchSerializer(read_only=True)
 
@@ -36,6 +38,7 @@ class TaskSerializer(serializers.ModelSerializer):
             "task_type_label",
             "video",
             "video_name",
+            "is_audio_only",
             "src_language",
             "src_language_label",
             "video_url",
@@ -44,6 +47,7 @@ class TaskSerializer(serializers.ModelSerializer):
             "target_language",
             "target_language_label",
             "status",
+            "status_label",
             "user",
             "eta",
             "priority",
