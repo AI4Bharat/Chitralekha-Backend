@@ -427,7 +427,7 @@ def save_translation(request):
                         is not None
                     ):
                         return Response(
-                            {"error": "Edit Translation already exists."},
+                            {"message": "Edit Translation already exists."},
                             status=status.HTTP_201_CREATED,
                         )
                     else:
@@ -469,7 +469,7 @@ def save_translation(request):
                         )
                         if translation_obj is None:
                             return Response(
-                                {"error": "Translation object does not exist."},
+                                {"message": "Translation object does not exist."},
                                 status=status.HTTP_404_NOT_FOUND,
                             )
                         translation_obj = Translation.objects.create(
@@ -495,7 +495,7 @@ def save_translation(request):
                         is not None
                     ):
                         return Response(
-                            {"error": "Reviewed Translation already exists."},
+                            {"message": "Reviewed Translation already exists."},
                             status=status.HTTP_201_CREATED,
                         )
                     ts_status = TRANSLATION_REVIEW_COMPLETE
@@ -636,7 +636,7 @@ def generate_translation(request):
     if not (transcript_id and target_language):
         return Response(
             {
-                "error": "Missing required query params [transcript_id, target_language]."
+                "message": "Missing required query params [transcript_id, target_language]."
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -696,7 +696,7 @@ def generate_translation(request):
         # Check if translations output doesn't return a string error
         if isinstance(translations_output, str):
             return Response(
-                {"error": translations_output}, status=status.HTTP_400_BAD_REQUEST
+                {"message": translations_output}, status=status.HTTP_400_BAD_REQUEST
             )
         else:
             # Add the translated sentences to the list
@@ -705,7 +705,7 @@ def generate_translation(request):
     # Check if the length of the translated sentences is equal to the length of the input sentences
     if len(all_translated_sentences) != len(sentence_list):
         return Response(
-            {"error": "Error while generating translation."},
+            {"message": "Error while generating translation."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

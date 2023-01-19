@@ -255,17 +255,17 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as e:
             print(e)
             return Response(
-                {"error": e},
+                {"message": e},
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(
-            {"error": "invalid method"},
+            {"message": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
@@ -280,7 +280,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             organization = Organization.objects.get(pk=pk)
         except Organization.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         user = request.user

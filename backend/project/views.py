@@ -99,12 +99,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 )
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         return Response(
-            {"error": "Method is not allowed"},
+            {"message": "Method is not allowed"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
@@ -154,7 +154,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project = Project.objects.get(pk=pk)
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -272,7 +272,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     or User.is_superuser
                 ):
                     return Response(
-                        {"error": "User is not a manager"},
+                        {"message": "User is not a manager"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
                 if project.managers:
@@ -299,12 +299,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         except User.DoesNotExist:
             return Response(
-                {"error": "User doesnot exist"},
+                {"message": "User doesnot exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -350,7 +350,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     or User.is_superuser
                 ):
                     return Response(
-                        {"error": "User is not a manager"},
+                        {"message": "User is not a manager"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
@@ -386,12 +386,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     )
         except User.DoesNotExist:
             return Response(
-                {"error": "User doesnot exist"},
+                {"message": "User doesnot exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -414,11 +414,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(
-            {"error": "invalid method"},
+            {"message": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
@@ -437,11 +437,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(
-            {"error": "invalid method"},
+            {"message": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
@@ -624,11 +624,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response(video_data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(
-            {"error": "invalid method"},
+            {"message": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
@@ -652,17 +652,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as e:
             print(e)
             return Response(
-                {"error": e},
+                {"message": e},
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(
-            {"error": "invalid method"},
+            {"message": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
