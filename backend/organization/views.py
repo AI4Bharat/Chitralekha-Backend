@@ -19,12 +19,13 @@ from drf_yasg import openapi
 from project.serializers import ProjectSerializer
 from project.models import Project
 from config import *
-from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
-from django.db.models.functions import Cast
+from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum, Value
+from django.db.models.functions import Cast, Concat
 from datetime import timedelta
 from video.models import Video
 from transcript.models import Transcript
 from translation.models import Translation
+from translation.metadata import LANGUAGE_CHOICES
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -317,6 +318,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         name="Get Report Users",
         url_name="get_report_users",
     )
+    @is_particular_organization_owner
     def get_report_users(self, request, pk=None, *args, **kwargs):
         try:
             org = Organization.objects.get(pk=pk)
@@ -324,7 +326,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        org_members = User.objects.filter(organization=pk).values("username", "email")
+        org_members = User.objects.filter(organization=pk).values(name=Concat("first_name", Value(' '), "last_name"),mail=F("email")).order_by('mail')
         user_statistics = (
             org_members.annotate(tasks_assigned_count=Count("task"))
             .annotate(
@@ -345,7 +347,14 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             )
             .exclude(tasks_assigned_count=0)
         )
-        return Response(list(user_statistics), status=status.HTTP_200_OK)
+        user_data = []
+        for elem in user_statistics:
+            user_dict = {"Name":elem['name'], "Email":elem['mail'], "Assigned Tasks":elem['tasks_assigned_count'],
+                         "Completed Tasks":elem['tasks_completed_count'],
+                         "Task Completion Index(%)":round(elem['task_completion_percentage'], 2),
+                         "Avg. Completion Time":round(elem['average_completion_time'].total_seconds()/3600, 3)}
+            user_data.append(user_dict)
+        return Response(user_data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
@@ -354,6 +363,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         name="Get Report Languages",
         url_name="get_report_langs",
     )
+    @is_particular_organization_owner
     def get_report_languages(self, request, pk=None, *args, **kwargs):
         try:
             org = Organization.objects.get(pk=pk)
@@ -369,7 +379,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         )
         transcript_statistics = org_transcriptions.annotate(
             total_duration=Sum(F("video__duration"))
-        )
+        ).order_by('-total_duration')
         org_translations = (
             Translation.objects.filter(video__in=org_videos)
             .filter(status="TRANSLATION_EDIT_COMPLETE")
@@ -379,10 +389,24 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         )
         translation_statistics = org_translations.annotate(
             transcripts_translated=Count("id")
-        )
+        ).annotate(translation_duration=Sum(F("video__duration"))).order_by('-translation_duration')
+
+        transcript_data=[]
+        for elem in transcript_statistics:
+            transcript_dict = {"Media Language":dict(LANGUAGE_CHOICES)[elem['language']], 
+                               "Transcripted Duration (Hours)":round(elem['total_duration'].total_seconds()/3600, 3)}
+            transcript_data.append(transcript_dict)
+
+        translation_data=[]
+        for elem in translation_statistics:
+            translation_dict = {"Src Language":dict(LANGUAGE_CHOICES)[elem['src_language']], 
+                                "Tgt Language":dict(LANGUAGE_CHOICES)[elem['tgt_language']], 
+                                "Translated Duration (Hours)":round(elem['translation_duration'].total_seconds()/3600, 3), 
+                                "Translation Tasks Count":elem['transcripts_translated']}
+            translation_data.append(translation_dict)
         res = {
-            "transcript_stats": list(transcript_statistics),
-            "translation_stats": list(translation_statistics),
+            "transcript_stats": transcript_data,
+            "translation_stats": translation_data,
         }
         return Response(res, status=status.HTTP_200_OK)
 
@@ -393,6 +417,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         name="Get Report Projects",
         url_name="get_report_projects",
     )
+    @is_particular_organization_owner
     def get_report_projects(self, request, pk=None, *args, **kwargs):
         try:
             org = Organization.objects.get(pk=pk)
@@ -401,8 +426,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
         org_projects = Project.objects.filter(organization_id=pk).values(
-            "title", "managers__username"
-        )
+            "title", "id"
+        ).order_by('id')
+
         project_stats = (
             org_projects.annotate(num_videos=Count("video"))
             .annotate(
@@ -412,15 +438,29 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
             )
             .annotate(
-                transcripts_translated=Count(
-                    "video__translation_video",
+                total_translations=Sum(
+                    "video__duration",
                     filter=Q(
                         video__translation_video__status="TRANSLATION_EDIT_COMPLETE"
                     ),
                 )
             )
         )
-        return Response(list(project_stats), status=status.HTTP_200_OK)
+
+        project_data = []
+        for elem in project_stats:
+            manager_names = Project.objects.get(pk=elem['id']).managers.all()
+            manager_list = []
+            for manager_name in manager_names:
+                manager_list.append(manager_name.first_name + ' ' + manager_name.last_name)
+            transcript_duration = None if elem['total_transcriptions'] is None else round(elem['total_transcriptions'].total_seconds()/3600, 3)
+            translation_duration = None if elem['total_translations'] is None else round(elem['total_translations'].total_seconds()/3600, 3)
+            project_dict = {"Title": elem['title'], "Managers": manager_list, "Video Count": elem['num_videos'],
+                            "Transcripted Duration (Hours)": transcript_duration,
+                            "Translated Duration (Hours)": translation_duration}
+            project_data.append(project_dict)
+
+        return Response(project_data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
@@ -429,6 +469,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         name="Get Report Organizations",
         url_name="get_report_orgs",
     )
+    @is_admin
     def get_report_orgs(self, request, *args, **kwargs):
         org_stats = Organization.objects.all().values("title")
         org_stats = (
@@ -461,4 +502,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
             )
         )
-        return Response(list(org_stats), status=status.HTTP_200_OK)
+        org_data = []
+        for elem in org_stats:
+            org_dict = {"Title": elem['title'],"Project count": elem['num_projects'],"Video count": elem['num_videos'],
+                        "Assigned Transcription Tasks": elem['num_transcription_tasks'],
+                        "Completed Transcription Tasks": elem['num_transcription_tasks_completed'],
+                        "Assigned Translation tasks": elem['num_translation_tasks'],
+                        "Completed Translation tasks": elem['num_translation_tasks_completed']}
+            org_data.append(org_dict)
+        return Response(org_data, status=status.HTTP_200_OK)

@@ -19,7 +19,7 @@ from rest_framework.decorators import action
 from django.http import HttpResponse
 from django.core.files.base import ContentFile
 import requests
-from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES
+from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES, LANGUAGE_CHOICES
 from .models import (
     Translation,
     MACHINE_GENERATED,
@@ -742,5 +742,13 @@ def get_translation_report(request):
     translations = Translation.objects.filter(
         status="TRANSLATION_EDIT_COMPLETE"
     ).values(src_language=F("video__language"), tgt_language=F("target_language"))
-    translation_statistics = translations.annotate(transcripts_translated=Count("id"))
-    return Response(list(translation_statistics), status=status.HTTP_200_OK)
+    translation_statistics = translations.annotate(transcripts_translated=Count("id")
+                            ).annotate(translation_duration=Sum(F("video__duration"))).order_by('-translation_duration')
+    translation_data=[]
+    for elem in translation_statistics:
+        translation_dict = {"Src Language":dict(LANGUAGE_CHOICES)[elem['src_language']],
+                            "Tgt Language":dict(LANGUAGE_CHOICES)[elem['tgt_language']],
+                            "Translated Duration (Hours)":round(elem['translation_duration'].total_seconds()/3600, 3),
+                            "Translation Tasks Count":elem['transcripts_translated']}
+        translation_data.append(translation_dict)
+    return Response(translation_data, status=status.HTTP_200_OK)
