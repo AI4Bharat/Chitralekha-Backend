@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
+import logging
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -209,3 +210,83 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.User"
+
+# set LOG LEVEL as INFO
+LOGLEVEL = "INFO"
+
+# Make a new directory for logs
+Path(BASE_DIR / "logs").mkdir(exist_ok=True)
+
+# Define the list of formatters
+formatters = {
+    "console": {
+        "()": "backend.logger.ConsoleFormatter",
+        "format": "({server_time}) {console_msg}",
+        "style": "{",
+    },
+    "file": {
+        "format": "{levelname} ({asctime}) [{module}:{process}|{thread}] {message}",
+        "style": "{",
+    },
+    "csvfile": {
+        "format": "{levelname},{asctime},{module},{process},{thread},{message}",
+        "style": "{",
+    },
+}
+
+# Define the list of handlers
+handlers = {
+    "console": {
+        "level": LOGLEVEL,
+        "class": "logging.StreamHandler",
+        "formatter": "console",
+    }
+}
+
+# enable LOGGING
+LOGGING = "true"
+# If logging is enabled, add file handlers
+if LOGGING == "true":
+    handlers["file"] = {
+        "level": "WARNING",
+        "class": "logging.FileHandler",
+        "filename": os.path.join(BASE_DIR, "logs/default.log"),
+        "formatter": "file",
+    }
+    handlers["file"] = {
+        "level": "INFO",
+        "class": "logging.FileHandler",
+        "filename": os.path.join(BASE_DIR, "logs/default.log"),
+        "formatter": "file",
+    }
+
+    handlers["csvfile"] = {
+        "level": "WARNING",
+        "class": "logging.FileHandler",
+        "filename": os.path.join(BASE_DIR, "logs/logs.csv"),
+        "formatter": "csvfile",
+    }
+    handlers["csvfile"] = {
+        "level": "INFO",
+        "class": "logging.FileHandler",
+        "filename": os.path.join(BASE_DIR, "logs/logs.csv"),
+        "formatter": "csvfile",
+    }
+
+# Define logger configuration
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": formatters,
+    "handlers": handlers,
+    "loggers": {
+        "": {
+            "level": LOGLEVEL,
+            "handlers": handlers.keys(),
+        },
+        "django": {
+            "handlers": [],
+        },
+        "django.server": {"propagate": True},
+    },
+}
