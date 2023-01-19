@@ -373,7 +373,7 @@ class TaskViewSet(ModelViewSet):
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
                             "language_pair": self.get_language_pair_label(
-                                task["video"], target_language
+                                task.video, target_language
                             ),
                             "status": "Successful",
                             "message": "Task is successfully created.",
