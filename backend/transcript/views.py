@@ -23,6 +23,7 @@ from translation.utils import (
     generate_translation_payload,
     translation_mg,
 )
+from .utils.TTML import generate_ttml
 
 
 from .models import (
@@ -67,7 +68,7 @@ from django.db.models.functions import Cast
         openapi.Parameter(
             "export_type",
             openapi.IN_QUERY,
-            description=("export type parameter srt/vtt/txt/ytt"),
+            description=("export type parameter srt/vtt/txt/ytt/sbv/TTML"),
             type=openapi.TYPE_STRING,
             required=True,
         ),
@@ -85,11 +86,11 @@ def export_transcript(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    supported_types = ["srt", "vtt", "txt", "ytt"]
+    supported_types = ["srt", "vtt", "txt", "ytt", "sbv", "TTML"]
     if export_type not in supported_types:
         return Response(
             {
-                "message": "exported type only supported formats are : {srt, vtt, txt, ytt} "
+                "message": "exported type only supported formats are : {srt, vtt, txt, ytt, sbv, TTML} "
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -131,6 +132,24 @@ def export_transcript(request):
             lines.append(segment["text"] + "\n")
         filename = "transcript.txt"
         content = "\n".join(lines)
+    elif export_type == "sbv":
+        for index, segment in enumerate(payload):
+            lines.append(
+                segment["start_time"]
+                + ","
+                + segment["end_time"]
+                + "\n"
+                + segment["text"]
+                + "\n"
+            )
+        filename = "transcript.sbv"
+        content = "\n".join(lines)
+
+    elif export_type == "TTML":
+        lines = generate_ttml(payload)
+        filename = "transcript.TTML"
+        content = "\n".join(lines)
+
     elif export_type == "ytt":
         try:
             json_data = {

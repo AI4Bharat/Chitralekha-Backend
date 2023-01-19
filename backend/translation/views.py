@@ -12,6 +12,7 @@ from rest_framework.decorators import (
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from json_to_ytt import *
 from transcript.models import Transcript
 from video.models import Video
 from task.models import Task
@@ -41,6 +42,7 @@ from .serializers import TranslationSerializer
 from .utils import get_batch_translations_using_indictrans_nmt_api
 from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
 from django.db.models.functions import Cast
+from transcript.utils.TTML import generate_ttml
 
 
 @swagger_auto_schema(
@@ -56,7 +58,7 @@ from django.db.models.functions import Cast
         openapi.Parameter(
             "export_type",
             openapi.IN_QUERY,
-            description=("export type parameter srt/vtt/txt"),
+            description=("export type parameter srt/vtt/txt/sbv/TTML"),
             type=openapi.TYPE_STRING,
             required=True,
         ),
@@ -83,6 +85,7 @@ def export_translation(request):
         )
 
     translation = get_translation_id(task)
+
     if translation is None:
         return Response(
             {"message": "Translation doesn't exist."},
@@ -92,7 +95,7 @@ def export_translation(request):
     payload = translation.payload["payload"]
     lines = []
 
-    supported_types = ["srt", "vtt", "txt"]
+    supported_types = ["srt", "vtt", "txt", "sbv", "TTML"]
     if export_type not in supported_types:
         return Response(
             {"message": "exported type only supported formats are : {csv,tsv,json} "},
@@ -117,6 +120,23 @@ def export_translation(request):
         for index, segment in enumerate(payload):
             lines.append(segment["target_text"] + "\n")
         filename = "translation.txt"
+        content = "\n".join(lines)
+    elif export_type == "sbv":
+        for index, segment in enumerate(payload):
+            lines.append(
+                segment["start_time"]
+                + ","
+                + segment["end_time"]
+                + "\n"
+                + segment["text"]
+                + "\n"
+            )
+        filename = "translation.sbv"
+        content = "\n".join(lines)
+
+    elif export_type == "TTML":
+        lines = generate_ttml(payload)
+        filename = "translation.TTML"
         content = "\n".join(lines)
     else:
         return Response(
