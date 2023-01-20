@@ -16,14 +16,15 @@ from task.models import Task
 from task.serializers import TaskSerializer, TaskStatusSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
-from django.db.models.functions import Cast
+from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum, Value
+from django.db.models.functions import Cast, Concat
 from config import *
 from users.serializers import UserFetchSerializer
 from datetime import timedelta
 from transcript.models import Transcript
 from translation.models import Translation
 import json
+from translation.metadata import LANGUAGE_CHOICES
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -974,6 +975,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Get Report Users",
         url_name="get_report_users",
     )
+    @is_particular_project_owner
     def get_report_users(self, request, pk=None, *args, **kwargs):
         try:
             prj = Project.objects.get(pk=pk)
@@ -982,8 +984,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
         project_members = User.objects.filter(projects__pk=pk).values(
-            "username", "email"
-        )
+            name=Concat("first_name", Value(' '), "last_name"),mail=F("email")
+        ).order_by('mail')
         user_statistics = (
             project_members.annotate(tasks_assigned_count=Count("task"))
             .annotate(
@@ -1004,7 +1006,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
             .exclude(tasks_assigned_count=0)
         )
-        return Response(list(user_statistics), status=status.HTTP_200_OK)
+        user_data = []
+        for elem in user_statistics:
+            avg_time = None if elem['average_completion_time'] is None else round(elem['average_completion_time'].total_seconds()/3600, 3)
+            user_dict = {"name":{"value":elem['name'], "label": "Name"}, "mail":{"value":elem['mail'], "label": "Email"},
+                         "tasks_assigned_count":{"value":elem['tasks_assigned_count'], "label": "Assigned Tasks"},
+                         "tasks_completed_count":{"value":elem['tasks_completed_count'], "label": "Completed Tasks"},
+                         "tasks_completion_perc":{"value":round(elem['task_completion_percentage'], 2), "label": "Task Completion Index(%)"},
+                         "avg_comp_time":{"value":avg_time, "label": "Avg. Completion Time"}}
+            user_data.append(user_dict)
+        return Response(user_data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
@@ -1013,6 +1024,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Get Report Languages",
         url_name="get_report_langs",
     )
+    @is_particular_project_owner
     def get_report_languages(self, request, pk=None, *args, **kwargs):
         try:
             prj = Project.objects.get(pk=pk)
@@ -1028,7 +1040,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
         transcript_statistics = prj_transcriptions.annotate(
             total_duration=Sum(F("video__duration"))
-        )
+        ).order_by('-total_duration')
         prj_translations = (
             Translation.objects.filter(video__in=prj_videos)
             .filter(status="TRANSLATION_EDIT_COMPLETE")
@@ -1038,9 +1050,23 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
         translation_statistics = prj_translations.annotate(
             transcripts_translated=Count("id")
-        )
+        ).annotate(translation_duration=Sum(F("video__duration"))).order_by('-translation_duration')
+
+        transcript_data=[]
+        for elem in transcript_statistics:
+            transcript_dict = {"language":{"value": dict(LANGUAGE_CHOICES)[elem['language']], "label": "Media Language"},
+                               "total_duration":{"value": round(elem['total_duration'].total_seconds()/3600, 3), "label": "Transcripted Duration (Hours)"}}
+            transcript_data.append(transcript_dict)
+
+        translation_data=[]
+        for elem in translation_statistics:
+            translation_dict = {"src_language":{"value":dict(LANGUAGE_CHOICES)[elem['src_language']], "label": "Src Language"},
+                                "tgt_language":{"value":dict(LANGUAGE_CHOICES)[elem['tgt_language']], "label": "Tgt Language"},
+                                "translation_duration":{"value":round(elem['translation_duration'].total_seconds()/3600, 3), "label": "Translated Duration (Hours)"},
+                                "transcripts_translated":{"value":elem['transcripts_translated'], "label": "Translation Tasks Count"}}
+            translation_data.append(translation_dict)
         res = {
-            "transcript_stats": list(transcript_statistics),
-            "translation_stats": list(translation_statistics),
+            "transcript_stats": transcript_data,
+            "translation_stats": translation_data,
         }
         return Response(res, status=status.HTTP_200_OK)
