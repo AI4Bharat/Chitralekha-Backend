@@ -349,10 +349,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         )
         user_data = []
         for elem in user_statistics:
-            user_dict = {"Name":elem['name'], "Email":elem['mail'], "Assigned Tasks":elem['tasks_assigned_count'],
-                         "Completed Tasks":elem['tasks_completed_count'],
-                         "Task Completion Index(%)":round(elem['task_completion_percentage'], 2),
-                         "Avg. Completion Time":round(elem['average_completion_time'].total_seconds()/3600, 3)}
+            avg_time = None if elem['average_completion_time'] is None else round(elem['average_completion_time'].total_seconds()/3600, 3)
+            user_dict = {"name":{"value":elem['name'], "label": "Name"}, "mail":{"value":elem['mail'], "label": "Email"},
+                         "tasks_assigned_count":{"value":elem['tasks_assigned_count'], "label": "Assigned Tasks"},
+                         "tasks_completed_count":{"value":elem['tasks_completed_count'], "label": "Completed Tasks"},
+                         "task_completion_percentage":{"value":round(elem['task_completion_percentage'], 2), "label": "Task Completion Index(%)"},
+                         "average_completion_time":{"value":avg_time, "label": "Avg. Completion Time"}}
             user_data.append(user_dict)
         return Response(user_data, status=status.HTTP_200_OK)
 
@@ -393,16 +395,16 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
         transcript_data=[]
         for elem in transcript_statistics:
-            transcript_dict = {"Media Language":dict(LANGUAGE_CHOICES)[elem['language']], 
-                               "Transcripted Duration (Hours)":round(elem['total_duration'].total_seconds()/3600, 3)}
+            transcript_dict = {"language":{"value":dict(LANGUAGE_CHOICES)[elem['language']], "label": "Media Language"}, 
+                               "total_duration":{"value":round(elem['total_duration'].total_seconds()/3600, 3), "label": "Transcripted Duration (Hours)"}}
             transcript_data.append(transcript_dict)
 
         translation_data=[]
         for elem in translation_statistics:
-            translation_dict = {"Src Language":dict(LANGUAGE_CHOICES)[elem['src_language']], 
-                                "Tgt Language":dict(LANGUAGE_CHOICES)[elem['tgt_language']], 
-                                "Translated Duration (Hours)":round(elem['translation_duration'].total_seconds()/3600, 3), 
-                                "Translation Tasks Count":elem['transcripts_translated']}
+            translation_dict = {"src_language":{"value":dict(LANGUAGE_CHOICES)[elem['src_language']], "label": "Src Language"}, 
+                                "tgt_language":{"value":dict(LANGUAGE_CHOICES)[elem['tgt_language']], "label": "Tgt Language"}, 
+                                "translation_duration":{"value":round(elem['translation_duration'].total_seconds()/3600, 3), "label": "Translated Duration (Hours)"}, 
+                                "transcripts_translated":{"value":elem['transcripts_translated'], "label": "Translation Tasks Count"}}
             translation_data.append(translation_dict)
         res = {
             "transcript_stats": transcript_data,
@@ -455,9 +457,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 manager_list.append(manager_name.first_name + ' ' + manager_name.last_name)
             transcript_duration = None if elem['total_transcriptions'] is None else round(elem['total_transcriptions'].total_seconds()/3600, 3)
             translation_duration = None if elem['total_translations'] is None else round(elem['total_translations'].total_seconds()/3600, 3)
-            project_dict = {"Title": elem['title'], "Managers": manager_list, "Video Count": elem['num_videos'],
-                            "Transcripted Duration (Hours)": transcript_duration,
-                            "Translated Duration (Hours)": translation_duration}
+            project_dict = {"title": {"value":elem['title'], "label": "Title"}, "managers__username": {"value":manager_list, "label": "Managers"},
+                            "num_videos": {"value":elem['num_videos'], "label": "Video count"},
+                            "total_transcriptions": {"value":transcript_duration, "label": "Transcripted Duration (Hours)"},
+                            "total_translations": {"value":translation_duration, "label": "Translated Duration (Hours)"}}
             project_data.append(project_dict)
 
         return Response(project_data, status=status.HTTP_200_OK)
@@ -504,10 +507,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         )
         org_data = []
         for elem in org_stats:
-            org_dict = {"Title": elem['title'],"Project count": elem['num_projects'],"Video count": elem['num_videos'],
-                        "Assigned Transcription Tasks": elem['num_transcription_tasks'],
-                        "Completed Transcription Tasks": elem['num_transcription_tasks_completed'],
-                        "Assigned Translation tasks": elem['num_translation_tasks'],
-                        "Completed Translation tasks": elem['num_translation_tasks_completed']}
+            org_dict = {"title": {"value":elem['title'], "label": "Title"},"num_projects": {"value":elem['num_projects'], "label": "Project count"},
+                        "num_videos": {"value":elem['num_videos'], "label": "Video count"},
+                        "num_transcription_tasks": {"value":elem['num_transcription_tasks'], "label": "Assigned Transcription Tasks"},
+                        "num_transcription_tasks_completed": {"value":elem['num_transcription_tasks_completed'], "label": "Completed Transcription Tasks"},
+                        "num_translation_tasks": {"value":elem['num_translation_tasks'], "label": "Assigned Translation tasks"},
+                        "num_translation_tasks_completed": {"value":elem['num_translation_tasks_completed'], "label": "Completed Translation tasks"}}
             org_data.append(org_dict)
         return Response(org_data, status=status.HTTP_200_OK)

@@ -965,10 +965,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
         user_data = []
         for elem in user_statistics:
-            user_dict = {"Name":elem['name'], "Email":elem['mail'], "Assigned Tasks":elem['tasks_assigned_count'],
-                         "Completed Tasks":elem['tasks_completed_count'],
-                         "Task Completion Index(%)":round(elem['task_completion_percentage'], 2),
-                         "Avg. Completion Time":round(elem['average_completion_time'].total_seconds()/3600, 3)}
+            avg_time = None if elem['average_completion_time'] is None else round(elem['average_completion_time'].total_seconds()/3600, 3)
+            user_dict = {"name":{"value":elem['name'], "label": "Name"}, "mail":{"value":elem['mail'], "label": "Email"},
+                         "tasks_assigned_count":{"value":elem['tasks_assigned_count'], "label": "Assigned Tasks"},
+                         "tasks_completed_count":{"value":elem['tasks_completed_count'], "label": "Completed Tasks"},
+                         "tasks_completion_perc":{"value":round(elem['task_completion_percentage'], 2), "label": "Task Completion Index(%)"},
+                         "avg_comp_time":{"value":avg_time, "label": "Avg. Completion Time"}}
             user_data.append(user_dict)
         return Response(user_data, status=status.HTTP_200_OK)
 
@@ -1009,16 +1011,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         transcript_data=[]
         for elem in transcript_statistics:
-            transcript_dict = {"Media Language":dict(LANGUAGE_CHOICES)[elem['language']], 
-                               "Transcripted Duration (Hours)":round(elem['total_duration'].total_seconds()/3600, 3)}
+            transcript_dict = {"language":{"value": dict(LANGUAGE_CHOICES)[elem['language']], "label": "Media Language"}, 
+                               "total_duration":{"value": round(elem['total_duration'].total_seconds()/3600, 3), "label": "Transcripted Duration (Hours)"}}
             transcript_data.append(transcript_dict)
 
         translation_data=[]
         for elem in translation_statistics:
-            translation_dict = {"Src Language":dict(LANGUAGE_CHOICES)[elem['src_language']], 
-                                "Tgt Language":dict(LANGUAGE_CHOICES)[elem['tgt_language']], 
-                                "Translated Duration (Hours)":round(elem['translation_duration'].total_seconds()/3600, 3), 
-                                "Translation Tasks Count":elem['transcripts_translated']}
+            translation_dict = {"src_language":{"value":dict(LANGUAGE_CHOICES)[elem['src_language']], "label": "Src Language"}, 
+                                "tgt_language":{"value":dict(LANGUAGE_CHOICES)[elem['tgt_language']], "label": "Tgt Language"}, 
+                                "translation_duration":{"value":round(elem['translation_duration'].total_seconds()/3600, 3), "label": "Translated Duration (Hours)"}, 
+                                "transcripts_translated":{"value":elem['transcripts_translated'], "label": "Translation Tasks Count"}}
             translation_data.append(translation_dict)
         res = {
             "transcript_stats": transcript_data,

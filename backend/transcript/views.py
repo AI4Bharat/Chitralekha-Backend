@@ -848,8 +848,8 @@ def get_transcription_report(request):
     ).order_by('-total_duration')
     transcript_data=[]
     for elem in transcription_statistics:
-        transcript_dict = {"Media Language":dict(LANGUAGE_CHOICES)[elem['language']],
-                            "Transcripted Duration (Hours)":round(elem['total_duration'].total_seconds()/3600, 3)}
+        transcript_dict = {"language":{"value":dict(LANGUAGE_CHOICES)[elem['language']], "label": "Media Language"},
+                            "total_duration":{"value":round(elem['total_duration'].total_seconds()/3600, 3), "label": "Transcripted Duration (Hours)"}}
         transcript_data.append(transcript_dict)
     return Response(transcript_data, status=status.HTTP_200_OK)
 

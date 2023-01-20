@@ -746,9 +746,9 @@ def get_translation_report(request):
                             ).annotate(translation_duration=Sum(F("video__duration"))).order_by('-translation_duration')
     translation_data=[]
     for elem in translation_statistics:
-        translation_dict = {"Src Language":dict(LANGUAGE_CHOICES)[elem['src_language']],
-                            "Tgt Language":dict(LANGUAGE_CHOICES)[elem['tgt_language']],
-                            "Translated Duration (Hours)":round(elem['translation_duration'].total_seconds()/3600, 3),
-                            "Translation Tasks Count":elem['transcripts_translated']}
+        translation_dict = {"src_language":{"value":dict(LANGUAGE_CHOICES)[elem['src_language']], "label": "Src Language"},
+                            "tgt_language":{"value":dict(LANGUAGE_CHOICES)[elem['tgt_language']], "label": "Tgt Language"},
+                            "translation_duration":{"value":round(elem['translation_duration'].total_seconds()/3600, 3), "label": "Translated Duration (Hours)"},
+                            "transcripts_translated":{"value":elem['transcripts_translated'], "label": "Translation Tasks Count"}}
         translation_data.append(translation_dict)
     return Response(translation_data, status=status.HTTP_200_OK)
