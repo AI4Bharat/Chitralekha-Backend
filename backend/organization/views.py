@@ -25,6 +25,7 @@ from datetime import timedelta
 from video.models import Video
 from transcript.models import Transcript
 from translation.models import Translation
+import json
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -292,6 +293,26 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             projects = Project.objects.filter(organization_id=organization)
             videos = Video.objects.filter(project_id__in=projects)
             tasks = Task.objects.filter(video__in=videos)
+            tasks_serializer = TaskSerializer(tasks, many=True)
+            tasks_list = json.loads(json.dumps(tasks_serializer.data))
+            for task in tasks_list:
+                buttons = {
+                    "Edit": False,
+                    "Preview": False,
+                    "Export": False,
+                    "Update": False,
+                    "View": False,
+                    "Delete": False,
+                }
+                buttons["Update"] = True
+                buttons["Delete"] = True
+                if task["status"] == "COMPLETE":
+                    buttons["Export"] = True
+                    buttons["Preview"] = True
+                if task["user"]["email"] == user.email and task["status"] != "COMPLETE":
+                    buttons["Edit"] = True
+                    buttons["View"] = True
+                task["buttons"] = buttons
         else:
             projects = Project.objects.filter(organization_id=organization).filter(
                 managers__in=[user.id]
@@ -302,13 +323,84 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
                 videos = Video.objects.filter(project_id__in=projects)
                 tasks_in_projects = Task.objects.filter(video__in=videos)
+                task_serializer = TaskSerializer(tasks_in_projects, many=True)
+                tasks_in_projects_list = json.loads(json.dumps(task_serializer.data))
+                for task in tasks_in_projects_list:
+                    buttons = {
+                        "Edit": False,
+                        "Preview": False,
+                        "Export": False,
+                        "Update": False,
+                        "View": False,
+                        "Delete": False,
+                    }
+                    buttons["Update"] = True
+                    buttons["Delete"] = True
+                    if task["status"] == "COMPLETE":
+                        buttons["Export"] = True
+                        buttons["Preview"] = True
+                    if (
+                        task["user"]["email"] == user.email
+                        and task["status"] != "COMPLETE"
+                    ):
+                        buttons["Edit"] = True
+                        buttons["View"] = True
+                    task["buttons"] = buttons
+
                 assigned_tasks = Task.objects.filter(user=user)
-                tasks = list(set(list(tasks_in_projects) + list(assigned_tasks)))
+                assigned_tasks_serializer = TaskSerializer(assigned_tasks, many=True)
+                assigned_tasks_list = json.loads(
+                    json.dumps(assigned_tasks_serializer.data)
+                )
+                for task in assigned_tasks_list:
+                    buttons = {
+                        "Edit": False,
+                        "Preview": False,
+                        "Export": False,
+                        "Update": False,
+                        "View": False,
+                        "Delete": False,
+                    }
+                    if task["status"] == "COMPLETE":
+                        buttons["Export"] = True
+                        buttons["Preview"] = True
+                    if (
+                        task["user"]["email"] == user.email
+                        and task["status"] != "COMPLETE"
+                    ):
+                        buttons["Edit"] = True
+                        buttons["View"] = True
+                    task["buttons"] = buttons
+                tasks_list = list(
+                    {
+                        v["id"]: v for v in tasks_in_projects_list + assigned_tasks_list
+                    }.values()
+                )
             else:
                 tasks = Task.objects.filter(user=user)
+                tasks_serializer = TaskSerializer(tasks, many=True)
+                tasks_list = json.loads(json.dumps(tasks_serializer.data))
+                for task in tasks_list:
+                    buttons = {
+                        "Edit": False,
+                        "Preview": False,
+                        "Export": False,
+                        "Update": False,
+                        "View": False,
+                        "Delete": False,
+                    }
+                    if task["status"] == "COMPLETE":
+                        buttons["Export"] = True
+                        buttons["Preview"] = True
+                    if (
+                        task["user"]["email"] == user.email
+                        and task["status"] != "COMPLETE"
+                    ):
+                        buttons["Edit"] = True
+                        buttons["View"] = True
+                    task["buttons"] = buttons
 
-        serializer = TaskSerializer(tasks, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(tasks_list, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(

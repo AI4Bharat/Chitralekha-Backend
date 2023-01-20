@@ -23,6 +23,7 @@ from users.serializers import UserFetchSerializer
 from datetime import timedelta
 from transcript.models import Transcript
 from translation.models import Translation
+import json
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -645,10 +646,52 @@ class ProjectViewSet(viewsets.ModelViewSet):
             tasks = Task.objects.filter(video_id__in=videos)
             if request.user in project.managers.all() or request.user.is_superuser:
                 serializer = TaskSerializer(tasks, many=True)
+                serialized_dict = json.loads(json.dumps(serializer.data))
+                for data in serialized_dict:
+                    buttons = {
+                        "Edit": False,
+                        "Preview": False,
+                        "Export": False,
+                        "Update": False,
+                        "View": False,
+                        "Delete": False,
+                    }
+                    buttons["Update"] = True
+                    buttons["Delete"] = True
+                    if data["status"] == "COMPLETE":
+                        buttons["Export"] = True
+                        buttons["Preview"] = True
+                    if (
+                        data["user"]["email"] == request.user.email
+                        and d["status"] != "COMPLETE"
+                    ):
+                        buttons["Edit"] = True
+                        buttons["View"] = True
+                    data["buttons"] = buttons
             else:
                 tasks_by_users = tasks.filter(user=request.user)
                 serializer = TaskSerializer(tasks_by_users, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+                serialized_dict = json.loads(json.dumps(serializer.data))
+                for data in serialized_dict:
+                    buttons = {
+                        "Edit": False,
+                        "Preview": False,
+                        "Export": False,
+                        "Update": False,
+                        "Create": False,
+                        "Delete": False,
+                    }
+                    if data["status"] == "COMPLETE":
+                        buttons["Export"] = True
+                        buttons["Preview"] = True
+                    if (
+                        data["user"]["email"] == request.user.email
+                        and d["status"] != "COMPLETE"
+                    ):
+                        buttons["Edit"] = True
+                        buttons["View"] = True
+                    data["buttons"] = buttons
+            return Response(serialized_dict, status=status.HTTP_200_OK)
 
         except Project.DoesNotExist:
             return Response(
