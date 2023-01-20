@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
 import logging
+import logging.handlers
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -245,32 +246,24 @@ handlers = {
 
 # enable LOGGING
 LOGGING = "true"
+
 # If logging is enabled, add file handlers
 if LOGGING == "true":
     handlers["file"] = {
         "level": "WARNING",
-        "class": "logging.FileHandler",
+        "class": "logging.handlers.RotatingFileHandler",
         "filename": os.path.join(BASE_DIR, "logs/default.log"),
         "formatter": "file",
+        "maxBytes": 1024*1024*3,
+        'backupCount': 2,
     }
     handlers["file"] = {
         "level": "INFO",
-        "class": "logging.FileHandler",
+        "class": "logging.handlers.RotatingFileHandler",
         "filename": os.path.join(BASE_DIR, "logs/default.log"),
         "formatter": "file",
-    }
-
-    handlers["csvfile"] = {
-        "level": "WARNING",
-        "class": "logging.FileHandler",
-        "filename": os.path.join(BASE_DIR, "logs/logs.csv"),
-        "formatter": "csvfile",
-    }
-    handlers["csvfile"] = {
-        "level": "INFO",
-        "class": "logging.FileHandler",
-        "filename": os.path.join(BASE_DIR, "logs/logs.csv"),
-        "formatter": "csvfile",
+        "maxBytes": 1024*1024*3,
+        'backupCount': 2,
     }
 
 # Define logger configuration
