@@ -664,7 +664,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Preview"] = True
                     if (
                         data["user"]["email"] == request.user.email
-                        and d["status"] != "COMPLETE"
+                        and data["status"] != "COMPLETE"
                     ):
                         buttons["Edit"] = True
                         buttons["View"] = True
