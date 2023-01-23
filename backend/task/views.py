@@ -191,6 +191,7 @@ class TaskViewSet(ModelViewSet):
     def check_transcript_exists(self, video):
         transcript = Transcript.objects.filter(video=video)
 
+        task_review = Task.objects.filter(task_type="TRANSCRIPTION_REVIEW").first()
         if (
             transcript.filter(status="TRANSCRIPTION_REVIEW_COMPLETE").first()
             is not None
@@ -198,6 +199,7 @@ class TaskViewSet(ModelViewSet):
             return transcript.filter(status="TRANSCRIPTION_REVIEW_COMPLETE").first()
         elif (
             transcript.filter(status="TRANSCRIPTION_EDIT_COMPLETE").first() is not None
+            and task_review is None
         ):
             return transcript.filter(status="TRANSCRIPTION_EDIT_COMPLETE").first()
         else:
