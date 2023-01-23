@@ -10,19 +10,21 @@ from video.serializers import VideoSerializer
 from users.models import User
 from .models import Project
 from .serializers import ProjectSerializer
-from .decorators import is_project_owner
+from .decorators import is_project_owner, is_particular_project_owner
 from users.serializers import UserFetchSerializer, UserProfileSerializer
 from task.models import Task
 from task.serializers import TaskSerializer, TaskStatusSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
-from django.db.models.functions import Cast
+from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum, Value
+from django.db.models.functions import Cast, Concat
 from config import *
 from users.serializers import UserFetchSerializer
 from datetime import timedelta
 from transcript.models import Transcript
 from translation.models import Translation
+import json
+from translation.metadata import LANGUAGE_CHOICES
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -56,7 +58,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Add Project members",
         url_name="add_project_members",
     )
-    @is_project_owner
+    @is_particular_project_owner
     def add_project_members(self, request, pk=None, *args, **kwargs):
 
         try:
@@ -99,12 +101,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 )
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         return Response(
-            {"error": "Method is not allowed"},
+            {"message": "Method is not allowed"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
@@ -148,13 +150,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Remove Project members",
         url_name="remove_project_members",
     )
-    @is_project_owner
+    @is_particular_project_owner
     def remove_project_members(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -272,7 +274,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     or User.is_superuser
                 ):
                     return Response(
-                        {"error": "User is not a manager"},
+                        {"message": "User is not a manager"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
                 if project.managers:
@@ -299,12 +301,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         except User.DoesNotExist:
             return Response(
-                {"error": "User doesnot exist"},
+                {"message": "User doesnot exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -350,7 +352,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     or User.is_superuser
                 ):
                     return Response(
-                        {"error": "User is not a manager"},
+                        {"message": "User is not a manager"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
@@ -386,12 +388,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     )
         except User.DoesNotExist:
             return Response(
-                {"error": "User doesnot exist"},
+                {"message": "User doesnot exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -402,7 +404,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Archive Project",
         url_name="archive_project",
     )
-    @is_project_owner
+    @is_particular_project_owner
     def archive_project(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
@@ -414,11 +416,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(
-            {"error": "invalid method"},
+            {"message": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
@@ -428,7 +430,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="List Project Managers",
         url_name="list_project_managers",
     )
-    @is_project_owner
+    @is_particular_project_owner
     def list_project_managers(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
@@ -437,11 +439,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(
-            {"error": "invalid method"},
+            {"message": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
@@ -624,11 +626,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response(video_data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(
-            {"error": "invalid method"},
+            {"message": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
@@ -645,24 +647,68 @@ class ProjectViewSet(viewsets.ModelViewSet):
             tasks = Task.objects.filter(video_id__in=videos)
             if request.user in project.managers.all() or request.user.is_superuser:
                 serializer = TaskSerializer(tasks, many=True)
+                serialized_dict = json.loads(json.dumps(serializer.data))
+                for data in serialized_dict:
+                    buttons = {
+                        "Edit": False,
+                        "Preview": False,
+                        "Export": False,
+                        "Update": False,
+                        "View": False,
+                        "Delete": False,
+                    }
+                    buttons["Update"] = True
+                    buttons["Delete"] = True
+                    if data["status"] == "COMPLETE":
+                        buttons["Export"] = True
+                        buttons["Preview"] = True
+                        buttons["Edit"] = False
+                    if (
+                        data["user"]["email"] == request.user.email
+                        and data["status"] != "COMPLETE"
+                    ):
+                        buttons["Edit"] = True
+                        buttons["View"] = True
+                    data["buttons"] = buttons
             else:
                 tasks_by_users = tasks.filter(user=request.user)
                 serializer = TaskSerializer(tasks_by_users, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+                serialized_dict = json.loads(json.dumps(serializer.data))
+                for data in serialized_dict:
+                    buttons = {
+                        "Edit": False,
+                        "Preview": False,
+                        "Export": False,
+                        "Update": False,
+                        "Create": False,
+                        "Delete": False,
+                    }
+                    if data["status"] == "COMPLETE":
+                        buttons["Edit"] = False
+                        buttons["Export"] = True
+                        buttons["Preview"] = True
+                    if (
+                        data["user"]["email"] == request.user.email
+                        and data["status"] != "COMPLETE"
+                    ):
+                        buttons["Edit"] = True
+                        buttons["View"] = True
+                    data["buttons"] = buttons
+            return Response(serialized_dict, status=status.HTTP_200_OK)
 
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as e:
             print(e)
             return Response(
-                {"error": e},
+                {"message": e},
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(
-            {"error": "invalid method"},
+            {"message": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
@@ -736,7 +782,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @is_project_owner
+    @is_particular_project_owner
     def partial_update(self, request, pk=None, *args, **kwargs):
         """
         Update project details
@@ -816,7 +862,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             {"message": "Project updated successfully."}, status=status.HTTP_200_OK
         )
 
-    @is_project_owner
+    @is_particular_project_owner
     def update(self, request, pk=None, *args, **kwargs):
         super().update(request, *args, **kwargs)
         return Response(
@@ -931,6 +977,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Get Report Users",
         url_name="get_report_users",
     )
+    @is_particular_project_owner
     def get_report_users(self, request, pk=None, *args, **kwargs):
         try:
             prj = Project.objects.get(pk=pk)
@@ -938,8 +985,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        project_members = User.objects.filter(projects__pk=pk).values(
-            "username", "email"
+        project_members = (
+            User.objects.filter(projects__pk=pk)
+            .values(name=Concat("first_name", Value(" "), "last_name"), mail=F("email"))
+            .order_by("mail")
         )
         user_statistics = (
             project_members.annotate(tasks_assigned_count=Count("task"))
@@ -961,7 +1010,32 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
             .exclude(tasks_assigned_count=0)
         )
-        return Response(list(user_statistics), status=status.HTTP_200_OK)
+        user_data = []
+        for elem in user_statistics:
+            avg_time = (
+                None
+                if elem["average_completion_time"] is None
+                else round(elem["average_completion_time"].total_seconds() / 3600, 3)
+            )
+            user_dict = {
+                "name": {"value": elem["name"], "label": "Name"},
+                "mail": {"value": elem["mail"], "label": "Email"},
+                "tasks_assigned_count": {
+                    "value": elem["tasks_assigned_count"],
+                    "label": "Assigned Tasks",
+                },
+                "tasks_completed_count": {
+                    "value": elem["tasks_completed_count"],
+                    "label": "Completed Tasks",
+                },
+                "tasks_completion_perc": {
+                    "value": round(elem["task_completion_percentage"], 2),
+                    "label": "Task Completion Index(%)",
+                },
+                "avg_comp_time": {"value": avg_time, "label": "Avg. Completion Time"},
+            }
+            user_data.append(user_dict)
+        return Response(user_data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
@@ -970,6 +1044,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         name="Get Report Languages",
         url_name="get_report_langs",
     )
+    @is_particular_project_owner
     def get_report_languages(self, request, pk=None, *args, **kwargs):
         try:
             prj = Project.objects.get(pk=pk)
@@ -985,7 +1060,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
         transcript_statistics = prj_transcriptions.annotate(
             total_duration=Sum(F("video__duration"))
-        )
+        ).order_by("-total_duration")
         prj_translations = (
             Translation.objects.filter(video__in=prj_videos)
             .filter(status="TRANSLATION_EDIT_COMPLETE")
@@ -993,11 +1068,51 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 src_language=F("video__language"), tgt_language=F("target_language")
             )
         )
-        translation_statistics = prj_translations.annotate(
-            transcripts_translated=Count("id")
+        translation_statistics = (
+            prj_translations.annotate(transcripts_translated=Count("id"))
+            .annotate(translation_duration=Sum(F("video__duration")))
+            .order_by("-translation_duration")
         )
+
+        transcript_data = []
+        for elem in transcript_statistics:
+            transcript_dict = {
+                "language": {
+                    "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                    "label": "Media Language",
+                },
+                "total_duration": {
+                    "value": round(elem["total_duration"].total_seconds() / 3600, 3),
+                    "label": "Transcripted Duration (Hours)",
+                },
+            }
+            transcript_data.append(transcript_dict)
+
+        translation_data = []
+        for elem in translation_statistics:
+            translation_dict = {
+                "src_language": {
+                    "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                    "label": "Src Language",
+                },
+                "tgt_language": {
+                    "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                    "label": "Tgt Language",
+                },
+                "translation_duration": {
+                    "value": round(
+                        elem["translation_duration"].total_seconds() / 3600, 3
+                    ),
+                    "label": "Translated Duration (Hours)",
+                },
+                "transcripts_translated": {
+                    "value": elem["transcripts_translated"],
+                    "label": "Translation Tasks Count",
+                },
+            }
+            translation_data.append(translation_dict)
         res = {
-            "transcript_stats": list(transcript_statistics),
-            "translation_stats": list(translation_statistics),
+            "transcript_stats": transcript_data,
+            "translation_stats": translation_data,
         }
         return Response(res, status=status.HTTP_200_OK)

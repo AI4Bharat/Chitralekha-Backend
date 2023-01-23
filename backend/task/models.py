@@ -21,10 +21,10 @@ P3 = "P3"
 P4 = "P4"
 
 TASK_STATUS = (
-    (NEW, "NEW"),
-    (SELECTED_SOURCE, "SELECTED_SOURCE"),
-    (INPROGRESS, "INPROGRESS"),
-    (COMPLETE, "COMPLETE"),
+    (NEW, "New"),
+    (SELECTED_SOURCE, "Selected Source"),
+    (INPROGRESS, "Inprogress"),
+    (COMPLETE, "Complete"),
 )
 
 TASK_TYPE = (
@@ -131,6 +131,13 @@ class Task(models.Model):
     @property
     def get_task_status(self):
         return self.get_task_type_label + " : " + self.status
+
+    @property
+    def get_task_status_label(self):
+        for status in TASK_STATUS:
+            if self.status == status[0]:
+                return status[1]
+        return "-"
 
     def __str__(self):
         return str(self.id)

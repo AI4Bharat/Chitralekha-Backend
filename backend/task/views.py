@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
 from project.decorators import is_project_owner, is_particular_project_owner
+from task.decorators import has_task_edit_permission, has_task_create_permission
 from project.models import Project
 from organization.models import Organization
 from transcript.views import generate_transcription
@@ -39,7 +40,6 @@ from .models import (
     COMPLETE,
     PRIORITY,
 )
-
 from .serializers import TaskSerializer
 from users.models import User
 from rest_framework.response import Response
@@ -119,6 +119,14 @@ class TaskViewSet(ModelViewSet):
         for t_type in TASK_TYPE:
             if task_type == t_type[0]:
                 return t_type[1]
+
+    def get_language_pair_label(self, video, target_language):
+        src_language = self.get_target_language_label(video.language)
+        target_language = self.get_target_language_label(target_language)
+        if target_language == "-":
+            return src_language
+        else:
+            return src_language + "-" + target_language
 
     def generate_translation(
         self, video, lang, transcript, user, translation_type, task, payload
@@ -209,6 +217,7 @@ class TaskViewSet(ModelViewSet):
         eta,
         priority,
         description,
+        is_single_task,
     ):
         (
             duplicate_tasks,
@@ -264,8 +273,8 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "target_language": self.get_target_language_label(
-                            target_language
+                        "language_pair": self.get_language_pair_label(
+                            task["video"], target_language
                         ),
                         "status": "Fail",
                         "message": "This task creation failed since Editor and Reviewer can't be same.",
@@ -285,8 +294,8 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "target_language": self.get_target_language_label(
-                            target_language
+                        "language_pair": self.get_language_pair_label(
+                            task["video"], target_language
                         ),
                         "status": "Fail",
                         "message": "Task creation failed as target language is same as source language.",
@@ -306,25 +315,13 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "target_language": self.get_target_language_label(
-                            target_language
+                        "language_pair": self.get_language_pair_label(
+                            task["video"], target_language
                         ),
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
                 )
-
-        if len(videos) <= 0:
-            return Response(
-                {
-                    "message": "{0} Tasks creation failed.".format(len(video_ids)),
-                    "response": {
-                        "consolidated_report": consolidated_error,
-                        "detailed_report": detailed_error,
-                    },
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
         if len(user_ids) > 0:
             if "EDIT" in task_type:
@@ -375,8 +372,8 @@ class TaskViewSet(ModelViewSet):
                             "video_name": task.video.name,
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
-                            "target_language": self.get_target_language_label(
-                                target_language
+                            "language_pair": self.get_language_pair_label(
+                                task.video, target_language
                             ),
                             "status": "Successful",
                             "message": "Task is successfully created.",
@@ -445,9 +442,7 @@ class TaskViewSet(ModelViewSet):
                             "video_name": task.video.name,
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
-                            "target_language": self.get_target_language_label(
-                                target_language
-                            ),
+                            "language_pair": task.get_language_pair_label,
                             "status": "Successful",
                             "message": "Task is successfully created.",
                         }
@@ -488,16 +483,28 @@ class TaskViewSet(ModelViewSet):
 
             message = ""
             if len(video_ids) > 0:
-                message = "{0} Tasks creation failed.".format(len(video_ids))
-            else:
-                message = "{0} Tasks created successfully.".format(len(tasks)) + message
+                message = "{0} Task(s) creation failed.".format(len(video_ids))
+            if len(tasks) > 0:
+                message = (
+                    "{0} Task(s) created successfully.".format(len(tasks)) + message
+                )
             response = {
                 "consolidated_report": consolidated_error,
                 "detailed_report": detailed_error,
             }
+
+            if is_single_task:
+                if detailed_error[0]["status"] == "Fail":
+                    status_code = status.HTTP_400_BAD_REQUEST
+                else:
+                    status_code = status.HTTP_200_OK
+                return Response(
+                    {"message": detailed_error[0]["message"]},
+                    status=status_code,
+                )
             return Response(
                 {"message": message, "response": response},
-                status=status.HTTP_200_OK,
+                status=status.HTTP_207_MULTI_STATUS,
             )
         else:
             return Response(
@@ -517,6 +524,7 @@ class TaskViewSet(ModelViewSet):
         eta,
         priority,
         description,
+        is_single_task,
     ):
         (
             duplicate_tasks,
@@ -570,6 +578,9 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
+                        "language_pair": self.get_language_pair_label(
+                            task["video"], ""
+                        ),
                         "status": "Fail",
                         "message": "This task creation failed since Editor and Reviewer can't be same.",
                     }
@@ -588,6 +599,9 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
+                        "language_pair": self.get_language_pair_label(
+                            task["video"], ""
+                        ),
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
@@ -606,22 +620,13 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
+                        "language_pair": self.get_language_pair_label(
+                            task["video"], ""
+                        ),
                         "status": "Fail",
                         "message": "Task creation for Transcription Review failed as Translation tasks already exists.",
                     }
                 )
-
-        if len(videos) <= 0:
-            return Response(
-                {
-                    "message": "{0} Task creation failed.".format(len(video_ids)),
-                    "response": {
-                        "consolidated_report": consolidated_error,
-                        "detailed_report": detailed_error,
-                    },
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
         if len(user_ids) > 0:
             if "EDIT" in task_type:
@@ -632,6 +637,7 @@ class TaskViewSet(ModelViewSet):
             permitted = True
 
         if permitted:
+            delete_tasks = []
             if "EDIT" in task_type:
                 tasks = []
                 for video in videos:
@@ -658,17 +664,41 @@ class TaskViewSet(ModelViewSet):
                     tasks.append(new_task)
 
                 new_transcripts = []
+                asr_errors = 0
                 for task in tasks:
+                    payloads = self.generate_transcript_payload(task, [source_type])
+                    if type(payloads) != dict:
+                        asr_errors += 1
+                        detailed_error.append(
+                            {
+                                "video_name": task.video.name,
+                                "video_url": task.video.url,
+                                "task_type": self.get_task_type_label(task.task_type),
+                                "language_pair": task.get_language_pair_label,
+                                "status": "Fail",
+                                "message": "Error while calling ASR API.",
+                            }
+                        )
+                        videos.remove(task.video)
+                        video_ids.append(task.video)
+                        delete_tasks.append(task)
+                        consolidated_error.append(
+                            {
+                                "message": "Error while calling ASR API.",
+                                "count": asr_errors,
+                            }
+                        )
+                        continue
                     detailed_error.append(
                         {
                             "video_name": task.video.name,
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
+                            "language_pair": task.get_language_pair_label,
                             "status": "Successful",
-                            "message": "Task is successfully created.",
+                            "message": "Task created successfully.",
                         }
                     )
-                    payloads = self.generate_transcript_payload(task, [source_type])
                     transcript_obj = Transcript(
                         video=task.video,
                         user=task.user,
@@ -723,6 +753,7 @@ class TaskViewSet(ModelViewSet):
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
                             "status": "Successful",
+                            "language_pair": task.get_language_pair_label,
                             "message": "Task is successfully created.",
                         }
                     )
@@ -745,23 +776,37 @@ class TaskViewSet(ModelViewSet):
                     new_transcripts.append(transcript_obj)
                 transcripts = Transcript.objects.bulk_create(new_transcripts)
 
+            for task in delete_tasks:
+                task.delete()
+                tasks.remove(task)
+
             if len(tasks) > 0:
                 consolidated_error.append(
                     {"message": "Tasks created successfully.", "count": len(tasks)}
                 )
-
             message = ""
             if len(video_ids) > 0:
-                message = "{0} Tasks creation failed.".format(len(video_ids))
-            else:
-                message = "{0} Tasks created successfully.".format(len(tasks)) + message
+                message = "{0} Task(s) creation failed.".format(len(video_ids))
+            if len(tasks) > 0:
+                message = (
+                    "{0} Task(s) created successfully.".format(len(tasks)) + message
+                )
             response = {
                 "consolidated_report": consolidated_error,
                 "detailed_report": detailed_error,
             }
+            if is_single_task:
+                if detailed_error[0]["status"] == "Fail":
+                    status_code = status.HTTP_400_BAD_REQUEST
+                else:
+                    status_code = status.HTTP_200_OK
+                return Response(
+                    {"message": detailed_error[0]["message"]},
+                    status=status_code,
+                )
             return Response(
                 {"message": message, "response": response},
-                status=status.HTTP_200_OK,
+                status=status.HTTP_207_MULTI_STATUS,
             )
         else:
             return Response(
@@ -859,6 +904,11 @@ class TaskViewSet(ModelViewSet):
         if len(list_compare_sources) > 0 and request.user == task.user:
             if "TRANSCRIPT" in task.task_type:
                 payloads = self.generate_transcript_payload(task, list_compare_sources)
+                if type(payloads) != dict:
+                    return Response(
+                        {"message": "Error while calling ASR API"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
             else:
                 target_language = task.target_language
                 if target_language is None:
@@ -1028,7 +1078,7 @@ class TaskViewSet(ModelViewSet):
         ],
         responses={409: "There are conflicts with this task."},
     )
-    @is_project_owner
+    @has_task_edit_permission
     @action(detail=True, methods=["delete"], url_path="delete_task")
     def delete_task(self, request, pk=None, *args, **kwargs):
         try:
@@ -1037,7 +1087,6 @@ class TaskViewSet(ModelViewSet):
             return Response(
                 {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
             )
-
         translation_tasks = set()
         flag = request.query_params.get("flag")
 
@@ -1136,6 +1185,11 @@ class TaskViewSet(ModelViewSet):
         description = request.data.get("description")
         priority = request.data.get("priority")
 
+        if "is_single_task" in request.data.keys():
+            is_single_task = request.data.get("is_single_task")
+        else:
+            is_single_task = False
+
         if task_type is None or video_ids is None or len(video_ids) == 0:
             return Response(
                 {"message": "missing param : task_type or user_id or video_ids"},
@@ -1161,6 +1215,11 @@ class TaskViewSet(ModelViewSet):
                     {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
                 )
             videos.append(video)
+
+        permission = has_task_create_permission(videos[0], request.user)
+
+        if type(permission) != bool:
+            return permission
 
         project = videos[0].project_id
         organization = project.organization_id
@@ -1191,6 +1250,7 @@ class TaskViewSet(ModelViewSet):
                 eta,
                 priority,
                 description,
+                is_single_task,
             )
         else:
             source_type = (
@@ -1207,9 +1267,10 @@ class TaskViewSet(ModelViewSet):
                 eta,
                 priority,
                 description,
+                is_single_task,
             )
 
-    @is_project_owner
+    @has_task_edit_permission
     def partial_update(self, request, pk=None, *args, **kwargs):
         user = request.data.get("user")
         description = request.data.get("description")
@@ -1231,26 +1292,30 @@ class TaskViewSet(ModelViewSet):
                     {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
                 )
 
-        if task.task_type == "TRANSCRIPTION_EDIT":
-            permission = self.has_transcript_edit_permission(user_obj, [task.video])
-        elif task.task_type == "TRANSCRIPTION_REVIEW":
-            permission = self.has_transcript_review_permission(user_obj, [task.video])
-        elif task.task_type == "TRANSLATION_EDIT":
-            permission = self.has_translate_edit_permission(user_obj, [task.video])
-        elif task.task_type == "TRANSLATION_REVIEW":
-            permission = self.has_translate_review_permission(user_obj, [task.video])
-        else:
-            print("Not a Valid Type")
+            if task.task_type == "TRANSCRIPTION_EDIT":
+                permission = self.has_transcript_edit_permission(user_obj, [task.video])
+            elif task.task_type == "TRANSCRIPTION_REVIEW":
+                permission = self.has_transcript_review_permission(
+                    user_obj, [task.video]
+                )
+            elif task.task_type == "TRANSLATION_EDIT":
+                permission = self.has_translate_edit_permission(user_obj, [task.video])
+            elif task.task_type == "TRANSLATION_REVIEW":
+                permission = self.has_translate_review_permission(
+                    user_obj, [task.video]
+                )
+            else:
+                print("Not a Valid Type")
 
-        if permission:
-            task.user = user_obj
-        else:
-            return Response(
-                {
-                    "message": "The assigned user is not allowed to perform this task in this project."
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            if permission:
+                task.user = user_obj
+            else:
+                return Response(
+                    {
+                        "message": "The assigned user is not allowed to perform this task in this project."
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         if priority is not None:
             task.priority = priority
@@ -1267,7 +1332,7 @@ class TaskViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @is_project_owner
+    @has_task_edit_permission
     @action(detail=False, methods=["patch"], url_path="update_multiple_tasks")
     def put(self, request, *args, **kwargs):
         task_ids = request.data.get("task_ids")

@@ -108,7 +108,7 @@ def translation_mg(transcript, target_language, batch_size=75):
         # Check if translations output doesn't return a string error
         if isinstance(translations_output, str):
             return Response(
-                {"error": translations_output}, status=status.HTTP_400_BAD_REQUEST
+                {"message": translations_output}, status=status.HTTP_400_BAD_REQUEST
             )
         else:
             # Add the translated sentences to the list
@@ -117,7 +117,7 @@ def translation_mg(transcript, target_language, batch_size=75):
     # Check if the length of the translated sentences is equal to the length of the input sentences
     if len(all_translated_sentences) != len(sentence_list):
         return Response(
-            {"error": "Error while generating translation."},
+            {"message": "Error while generating translation."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

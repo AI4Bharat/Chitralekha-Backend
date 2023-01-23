@@ -19,12 +19,14 @@ from drf_yasg import openapi
 from project.serializers import ProjectSerializer
 from project.models import Project
 from config import *
-from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
-from django.db.models.functions import Cast
+from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum, Value
+from django.db.models.functions import Cast, Concat
 from datetime import timedelta
 from video.models import Video
 from transcript.models import Transcript
 from translation.models import Translation
+import json
+from translation.metadata import LANGUAGE_CHOICES
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -255,17 +257,17 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
         except Project.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Exception as e:
             print(e)
             return Response(
-                {"error": e},
+                {"message": e},
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(
-            {"error": "invalid method"},
+            {"message": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
@@ -280,7 +282,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             organization = Organization.objects.get(pk=pk)
         except Organization.DoesNotExist:
             return Response(
-                {"error": "Project does not exist"},
+                {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         user = request.user
@@ -292,6 +294,26 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             projects = Project.objects.filter(organization_id=organization)
             videos = Video.objects.filter(project_id__in=projects)
             tasks = Task.objects.filter(video__in=videos)
+            tasks_serializer = TaskSerializer(tasks, many=True)
+            tasks_list = json.loads(json.dumps(tasks_serializer.data))
+            for task in tasks_list:
+                buttons = {
+                    "Edit": False,
+                    "Preview": False,
+                    "Export": False,
+                    "Update": False,
+                    "View": False,
+                    "Delete": False,
+                }
+                buttons["Update"] = True
+                buttons["Delete"] = True
+                if task["status"] == "COMPLETE":
+                    buttons["Export"] = True
+                    buttons["Preview"] = True
+                if task["user"]["email"] == user.email and task["status"] != "COMPLETE":
+                    buttons["Edit"] = True
+                    buttons["View"] = True
+                task["buttons"] = buttons
         else:
             projects = Project.objects.filter(organization_id=organization).filter(
                 managers__in=[user.id]
@@ -302,13 +324,84 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
                 videos = Video.objects.filter(project_id__in=projects)
                 tasks_in_projects = Task.objects.filter(video__in=videos)
+                task_serializer = TaskSerializer(tasks_in_projects, many=True)
+                tasks_in_projects_list = json.loads(json.dumps(task_serializer.data))
+                for task in tasks_in_projects_list:
+                    buttons = {
+                        "Edit": False,
+                        "Preview": False,
+                        "Export": False,
+                        "Update": False,
+                        "View": False,
+                        "Delete": False,
+                    }
+                    buttons["Update"] = True
+                    buttons["Delete"] = True
+                    if task["status"] == "COMPLETE":
+                        buttons["Export"] = True
+                        buttons["Preview"] = True
+                    if (
+                        task["user"]["email"] == user.email
+                        and task["status"] != "COMPLETE"
+                    ):
+                        buttons["Edit"] = True
+                        buttons["View"] = True
+                    task["buttons"] = buttons
+
                 assigned_tasks = Task.objects.filter(user=user)
-                tasks = list(set(list(tasks_in_projects) + list(assigned_tasks)))
+                assigned_tasks_serializer = TaskSerializer(assigned_tasks, many=True)
+                assigned_tasks_list = json.loads(
+                    json.dumps(assigned_tasks_serializer.data)
+                )
+                for task in assigned_tasks_list:
+                    buttons = {
+                        "Edit": False,
+                        "Preview": False,
+                        "Export": False,
+                        "Update": False,
+                        "View": False,
+                        "Delete": False,
+                    }
+                    if task["status"] == "COMPLETE":
+                        buttons["Export"] = True
+                        buttons["Preview"] = True
+                    if (
+                        task["user"]["email"] == user.email
+                        and task["status"] != "COMPLETE"
+                    ):
+                        buttons["Edit"] = True
+                        buttons["View"] = True
+                    task["buttons"] = buttons
+                tasks_list = list(
+                    {
+                        v["id"]: v for v in tasks_in_projects_list + assigned_tasks_list
+                    }.values()
+                )
             else:
                 tasks = Task.objects.filter(user=user)
+                tasks_serializer = TaskSerializer(tasks, many=True)
+                tasks_list = json.loads(json.dumps(tasks_serializer.data))
+                for task in tasks_list:
+                    buttons = {
+                        "Edit": False,
+                        "Preview": False,
+                        "Export": False,
+                        "Update": False,
+                        "View": False,
+                        "Delete": False,
+                    }
+                    if task["status"] == "COMPLETE":
+                        buttons["Export"] = True
+                        buttons["Preview"] = True
+                    if (
+                        task["user"]["email"] == user.email
+                        and task["status"] != "COMPLETE"
+                    ):
+                        buttons["Edit"] = True
+                        buttons["View"] = True
+                    task["buttons"] = buttons
 
-        serializer = TaskSerializer(tasks, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(tasks_list, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
@@ -317,6 +410,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         name="Get Report Users",
         url_name="get_report_users",
     )
+    @is_particular_organization_owner
     def get_report_users(self, request, pk=None, *args, **kwargs):
         try:
             org = Organization.objects.get(pk=pk)
@@ -324,7 +418,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        org_members = User.objects.filter(organization=pk).values("username", "email")
+        org_members = (
+            User.objects.filter(organization=pk)
+            .values(name=Concat("first_name", Value(" "), "last_name"), mail=F("email"))
+            .order_by("mail")
+        )
         user_statistics = (
             org_members.annotate(tasks_assigned_count=Count("task"))
             .annotate(
@@ -345,7 +443,35 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             )
             .exclude(tasks_assigned_count=0)
         )
-        return Response(list(user_statistics), status=status.HTTP_200_OK)
+        user_data = []
+        for elem in user_statistics:
+            avg_time = (
+                None
+                if elem["average_completion_time"] is None
+                else round(elem["average_completion_time"].total_seconds() / 3600, 3)
+            )
+            user_dict = {
+                "name": {"value": elem["name"], "label": "Name"},
+                "mail": {"value": elem["mail"], "label": "Email"},
+                "tasks_assigned_count": {
+                    "value": elem["tasks_assigned_count"],
+                    "label": "Assigned Tasks",
+                },
+                "tasks_completed_count": {
+                    "value": elem["tasks_completed_count"],
+                    "label": "Completed Tasks",
+                },
+                "task_completion_percentage": {
+                    "value": round(elem["task_completion_percentage"], 2),
+                    "label": "Task Completion Index(%)",
+                },
+                "average_completion_time": {
+                    "value": avg_time,
+                    "label": "Avg. Completion Time",
+                },
+            }
+            user_data.append(user_dict)
+        return Response(user_data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
@@ -354,6 +480,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         name="Get Report Languages",
         url_name="get_report_langs",
     )
+    @is_particular_organization_owner
     def get_report_languages(self, request, pk=None, *args, **kwargs):
         try:
             org = Organization.objects.get(pk=pk)
@@ -369,7 +496,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         )
         transcript_statistics = org_transcriptions.annotate(
             total_duration=Sum(F("video__duration"))
-        )
+        ).order_by("-total_duration")
         org_translations = (
             Translation.objects.filter(video__in=org_videos)
             .filter(status="TRANSLATION_EDIT_COMPLETE")
@@ -377,12 +504,52 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 src_language=F("video__language"), tgt_language=F("target_language")
             )
         )
-        translation_statistics = org_translations.annotate(
-            transcripts_translated=Count("id")
+        translation_statistics = (
+            org_translations.annotate(transcripts_translated=Count("id"))
+            .annotate(translation_duration=Sum(F("video__duration")))
+            .order_by("-translation_duration")
         )
+
+        transcript_data = []
+        for elem in transcript_statistics:
+            transcript_dict = {
+                "language": {
+                    "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                    "label": "Media Language",
+                },
+                "total_duration": {
+                    "value": round(elem["total_duration"].total_seconds() / 3600, 3),
+                    "label": "Transcripted Duration (Hours)",
+                },
+            }
+            transcript_data.append(transcript_dict)
+
+        translation_data = []
+        for elem in translation_statistics:
+            translation_dict = {
+                "src_language": {
+                    "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                    "label": "Src Language",
+                },
+                "tgt_language": {
+                    "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                    "label": "Tgt Language",
+                },
+                "translation_duration": {
+                    "value": round(
+                        elem["translation_duration"].total_seconds() / 3600, 3
+                    ),
+                    "label": "Translated Duration (Hours)",
+                },
+                "transcripts_translated": {
+                    "value": elem["transcripts_translated"],
+                    "label": "Translation Tasks Count",
+                },
+            }
+            translation_data.append(translation_dict)
         res = {
-            "transcript_stats": list(transcript_statistics),
-            "translation_stats": list(translation_statistics),
+            "transcript_stats": transcript_data,
+            "translation_stats": translation_data,
         }
         return Response(res, status=status.HTTP_200_OK)
 
@@ -393,6 +560,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         name="Get Report Projects",
         url_name="get_report_projects",
     )
+    @is_particular_organization_owner
     def get_report_projects(self, request, pk=None, *args, **kwargs):
         try:
             org = Organization.objects.get(pk=pk)
@@ -400,9 +568,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        org_projects = Project.objects.filter(organization_id=pk).values(
-            "title", "managers__username"
+        org_projects = (
+            Project.objects.filter(organization_id=pk)
+            .values("title", "id")
+            .order_by("id")
         )
+
         project_stats = (
             org_projects.annotate(num_videos=Count("video"))
             .annotate(
@@ -412,15 +583,49 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
             )
             .annotate(
-                transcripts_translated=Count(
-                    "video__translation_video",
+                total_translations=Sum(
+                    "video__duration",
                     filter=Q(
                         video__translation_video__status="TRANSLATION_EDIT_COMPLETE"
                     ),
                 )
             )
         )
-        return Response(list(project_stats), status=status.HTTP_200_OK)
+
+        project_data = []
+        for elem in project_stats:
+            manager_names = Project.objects.get(pk=elem["id"]).managers.all()
+            manager_list = []
+            for manager_name in manager_names:
+                manager_list.append(
+                    manager_name.first_name + " " + manager_name.last_name
+                )
+            transcript_duration = (
+                None
+                if elem["total_transcriptions"] is None
+                else round(elem["total_transcriptions"].total_seconds() / 3600, 3)
+            )
+            translation_duration = (
+                None
+                if elem["total_translations"] is None
+                else round(elem["total_translations"].total_seconds() / 3600, 3)
+            )
+            project_dict = {
+                "title": {"value": elem["title"], "label": "Title"},
+                "managers__username": {"value": manager_list, "label": "Managers"},
+                "num_videos": {"value": elem["num_videos"], "label": "Video count"},
+                "total_transcriptions": {
+                    "value": transcript_duration,
+                    "label": "Transcripted Duration (Hours)",
+                },
+                "total_translations": {
+                    "value": translation_duration,
+                    "label": "Translated Duration (Hours)",
+                },
+            }
+            project_data.append(project_dict)
+
+        return Response(project_data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
@@ -429,6 +634,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         name="Get Report Organizations",
         url_name="get_report_orgs",
     )
+    @is_admin
     def get_report_orgs(self, request, *args, **kwargs):
         org_stats = Organization.objects.all().values("title")
         org_stats = (
@@ -461,4 +667,31 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
             )
         )
-        return Response(list(org_stats), status=status.HTTP_200_OK)
+        org_data = []
+        for elem in org_stats:
+            org_dict = {
+                "title": {"value": elem["title"], "label": "Title"},
+                "num_projects": {
+                    "value": elem["num_projects"],
+                    "label": "Project count",
+                },
+                "num_videos": {"value": elem["num_videos"], "label": "Video count"},
+                "num_transcription_tasks": {
+                    "value": elem["num_transcription_tasks"],
+                    "label": "Assigned Transcription Tasks",
+                },
+                "num_transcription_tasks_completed": {
+                    "value": elem["num_transcription_tasks_completed"],
+                    "label": "Completed Transcription Tasks",
+                },
+                "num_translation_tasks": {
+                    "value": elem["num_translation_tasks"],
+                    "label": "Assigned Translation tasks",
+                },
+                "num_translation_tasks_completed": {
+                    "value": elem["num_translation_tasks_completed"],
+                    "label": "Completed Translation tasks",
+                },
+            }
+            org_data.append(org_dict)
+        return Response(org_data, status=status.HTTP_200_OK)

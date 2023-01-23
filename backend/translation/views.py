@@ -19,7 +19,7 @@ from rest_framework.decorators import action
 from django.http import HttpResponse
 from django.core.files.base import ContentFile
 import requests
-from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES
+from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES, LANGUAGE_CHOICES
 from .models import (
     Translation,
     MACHINE_GENERATED,
@@ -427,7 +427,7 @@ def save_translation(request):
                         is not None
                     ):
                         return Response(
-                            {"error": "Edit Translation already exists."},
+                            {"message": "Edit Translation already exists."},
                             status=status.HTTP_201_CREATED,
                         )
                     else:
@@ -469,7 +469,7 @@ def save_translation(request):
                         )
                         if translation_obj is None:
                             return Response(
-                                {"error": "Translation object does not exist."},
+                                {"message": "Translation object does not exist."},
                                 status=status.HTTP_404_NOT_FOUND,
                             )
                         translation_obj = Translation.objects.create(
@@ -495,7 +495,7 @@ def save_translation(request):
                         is not None
                     ):
                         return Response(
-                            {"error": "Reviewed Translation already exists."},
+                            {"message": "Reviewed Translation already exists."},
                             status=status.HTTP_201_CREATED,
                         )
                     ts_status = TRANSLATION_REVIEW_COMPLETE
@@ -569,6 +569,8 @@ def save_translation(request):
 
 
 @api_view(["GET"])
+@authentication_classes([])
+@permission_classes([])
 def get_supported_languages(request):
 
     # Return the allowed translations and model codes
@@ -636,7 +638,7 @@ def generate_translation(request):
     if not (transcript_id and target_language):
         return Response(
             {
-                "error": "Missing required query params [transcript_id, target_language]."
+                "message": "Missing required query params [transcript_id, target_language]."
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -696,7 +698,7 @@ def generate_translation(request):
         # Check if translations output doesn't return a string error
         if isinstance(translations_output, str):
             return Response(
-                {"error": translations_output}, status=status.HTTP_400_BAD_REQUEST
+                {"message": translations_output}, status=status.HTTP_400_BAD_REQUEST
             )
         else:
             # Add the translated sentences to the list
@@ -705,7 +707,7 @@ def generate_translation(request):
     # Check if the length of the translated sentences is equal to the length of the input sentences
     if len(all_translated_sentences) != len(sentence_list):
         return Response(
-            {"error": "Error while generating translation."},
+            {"message": "Error while generating translation."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -742,5 +744,30 @@ def get_translation_report(request):
     translations = Translation.objects.filter(
         status="TRANSLATION_EDIT_COMPLETE"
     ).values(src_language=F("video__language"), tgt_language=F("target_language"))
-    translation_statistics = translations.annotate(transcripts_translated=Count("id"))
-    return Response(list(translation_statistics), status=status.HTTP_200_OK)
+    translation_statistics = (
+        translations.annotate(transcripts_translated=Count("id"))
+        .annotate(translation_duration=Sum(F("video__duration")))
+        .order_by("-translation_duration")
+    )
+    translation_data = []
+    for elem in translation_statistics:
+        translation_dict = {
+            "src_language": {
+                "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                "label": "Src Language",
+            },
+            "tgt_language": {
+                "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                "label": "Tgt Language",
+            },
+            "translation_duration": {
+                "value": round(elem["translation_duration"].total_seconds() / 3600, 3),
+                "label": "Translated Duration (Hours)",
+            },
+            "transcripts_translated": {
+                "value": elem["transcripts_translated"],
+                "label": "Translation Tasks Count",
+            },
+        }
+        translation_data.append(translation_dict)
+    return Response(translation_data, status=status.HTTP_200_OK)

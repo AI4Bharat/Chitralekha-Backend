@@ -23,7 +23,7 @@ from translation.utils import (
     generate_translation_payload,
     translation_mg,
 )
-
+from translation.metadata import LANGUAGE_CHOICES
 
 from .models import (
     Transcript,
@@ -491,7 +491,7 @@ def change_active_status_of_next_tasks(task, transcript_obj):
             ),
             "final": openapi.Schema(
                 type=openapi.TYPE_BOOLEAN,
-                description="A boolean to pass check whether to allow user to load latest transcript",
+                description="A boolean to complete the task",
             ),
         },
         description="Post request body for projects which have save_type == new_record",
@@ -803,6 +803,8 @@ def get_word_aligned_json(request):
 
 
 @api_view(["GET"])
+@authentication_classes([])
+@permission_classes([])
 def get_supported_languages(request):
     """
     Endpoint to get the supported languages for ASR API
@@ -845,8 +847,21 @@ def get_transcription_report(request):
     ).values("language")
     transcription_statistics = transcripts.annotate(
         total_duration=Sum(F("video__duration"))
-    )
-    return Response(list(transcription_statistics), status=status.HTTP_200_OK)
+    ).order_by("-total_duration")
+    transcript_data = []
+    for elem in transcription_statistics:
+        transcript_dict = {
+            "language": {
+                "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                "label": "Media Language",
+            },
+            "total_duration": {
+                "value": round(elem["total_duration"].total_seconds() / 3600, 3),
+                "label": "Transcripted Duration (Hours)",
+            },
+        }
+        transcript_data.append(transcript_dict)
+    return Response(transcript_data, status=status.HTTP_200_OK)
 
 
 ## Define the Transcript ViewSet

@@ -133,19 +133,18 @@ def get_video(request):
     is_audio_only = is_audio_only.lower() == "true"
     if not url:
         return Response(
-            {"error": "Video URL not provided in query params."},
+            {"message": "Video URL not provided in query params."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     project = Project.objects.filter(pk=project_id).first()
     if project is None:
         return Response(
-            {"error": "Project is not found. "},
+            {"message": "Project is not found. "},
             status=status.HTTP_404_NOT_FOUND,
         )
 
     organization = project.organization_id
-
     default_task_eta = project.default_eta
     default_task_priority = project.default_priority
     default_task_description = project.default_description
@@ -164,7 +163,7 @@ def get_video(request):
             file_id = drive_info_extractor._match_id(url)
         except Exception:
             return Response(
-                {"error": "Invalid Google Drive URL."},
+                {"message": "Invalid Google Drive URL."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -193,6 +192,16 @@ def get_video(request):
                 "description": description,
             },
         )
+        serializer = VideoSerializer(video)
+        response_data = {
+            "video": serializer.data,
+        }
+
+        if is_audio_only:
+            response_data["direct_audio_url"] = direct_audio_url
+        else:
+            response_data["direct_video_url"] = direct_video_url
+
         if created:
             video.save()
             default_task_types = (
@@ -219,12 +228,18 @@ def get_video(request):
                                 default_task_description,
                                 target_language,
                             )
-                            consolidated_report.extend(
-                                task_response["response"]["consolidated_report"]
-                            )
                             detailed_report.extend(
                                 task_response["response"]["detailed_report"]
                             )
+                            if (
+                                task_response["response"]["detailed_report"][0][
+                                    "status"
+                                ]
+                                == "Fail"
+                            ):
+                                fail_count += 1
+                            else:
+                                success_count += 1
                     else:
                         task_response = create_tasks(
                             video.id,
@@ -234,34 +249,43 @@ def get_video(request):
                             default_task_priority,
                             default_task_description,
                         )
-                        consolidated_report.extend(
-                            task_response["response"]["consolidated_report"]
-                        )
                         detailed_report.extend(
                             task_response["response"]["detailed_report"]
                         )
+                        if (
+                            task_response["response"]["detailed_report"][0]["status"]
+                            == "Fail"
+                        ):
+                            fail_count += 1
+                        else:
+                            success_count += 1
                 if fail_count > 0:
                     message = "{0} Tasks creation failed.".format(fail_count)
+                    consolidated_report.append(
+                        {"message": "Tasks creation failed.", "count": fail_count}
+                    )
                 if success_count > 0:
                     message = (
                         "{0} Tasks created successfully.".format(success_count)
                         + message
                     )
+                    consolidated_report.append(
+                        {
+                            "message": "Tasks created successfully.",
+                            "count": success_count,
+                        }
+                    )
+            response_data["consolidated_report"] = consolidated_report
+            response_data["detailed_report"] = detailed_report
             response_data["message"] = "Video created successfully." + message
+
             return Response(
-                {
-                    "video": VideoSerializer(video).data,
-                    "direct_audio_url": direct_audio_url,
-                    "message": "Video successfully created.",
-                },
+                response_data,
                 status=status.HTTP_200_OK,
             )
         else:
             return Response(
-                {
-                    "video": VideoSerializer(video).data,
-                    "direct_audio_url": direct_audio_url,
-                },
+                response_data,
                 status=status.HTTP_200_OK,
             )
 
@@ -276,7 +300,7 @@ def get_video(request):
         ) = get_data_from_google_video(url)
     except DownloadError:
         return Response(
-            {"error": f"{url} is an invalid video URL."},
+            {"message": "This is an invalid video URL."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -538,7 +562,7 @@ def list_tasks(request):
         video_id = request.query_params["video_id"]
     else:
         return Response(
-            {"error": "Please provide a video ID"},
+            {"message": "Please provide a video ID"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -548,7 +572,7 @@ def list_tasks(request):
     # Check if the video exists
     if not video:
         return Response(
-            {"error": "No video found for the provided ID."},
+            {"message": "No video found for the provided ID."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
