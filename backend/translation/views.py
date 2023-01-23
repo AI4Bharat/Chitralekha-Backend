@@ -744,13 +744,30 @@ def get_translation_report(request):
     translations = Translation.objects.filter(
         status="TRANSLATION_EDIT_COMPLETE"
     ).values(src_language=F("video__language"), tgt_language=F("target_language"))
-    translation_statistics = translations.annotate(transcripts_translated=Count("id")
-                            ).annotate(translation_duration=Sum(F("video__duration"))).order_by('-translation_duration')
-    translation_data=[]
+    translation_statistics = (
+        translations.annotate(transcripts_translated=Count("id"))
+        .annotate(translation_duration=Sum(F("video__duration")))
+        .order_by("-translation_duration")
+    )
+    translation_data = []
     for elem in translation_statistics:
-        translation_dict = {"src_language":{"value":dict(LANGUAGE_CHOICES)[elem['src_language']], "label": "Src Language"},
-                            "tgt_language":{"value":dict(LANGUAGE_CHOICES)[elem['tgt_language']], "label": "Tgt Language"},
-                            "translation_duration":{"value":round(elem['translation_duration'].total_seconds()/3600, 3), "label": "Translated Duration (Hours)"},
-                            "transcripts_translated":{"value":elem['transcripts_translated'], "label": "Translation Tasks Count"}}
+        translation_dict = {
+            "src_language": {
+                "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                "label": "Src Language",
+            },
+            "tgt_language": {
+                "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                "label": "Tgt Language",
+            },
+            "translation_duration": {
+                "value": round(elem["translation_duration"].total_seconds() / 3600, 3),
+                "label": "Translated Duration (Hours)",
+            },
+            "transcripts_translated": {
+                "value": elem["transcripts_translated"],
+                "label": "Translation Tasks Count",
+            },
+        }
         translation_data.append(translation_dict)
     return Response(translation_data, status=status.HTTP_200_OK)

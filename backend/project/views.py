@@ -662,6 +662,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     if data["status"] == "COMPLETE":
                         buttons["Export"] = True
                         buttons["Preview"] = True
+                        buttons["Edit"] = False
                     if (
                         data["user"]["email"] == request.user.email
                         and data["status"] != "COMPLETE"
@@ -683,6 +684,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Delete": False,
                     }
                     if data["status"] == "COMPLETE":
+                        buttons["Edit"] = False
                         buttons["Export"] = True
                         buttons["Preview"] = True
                     if (
@@ -983,9 +985,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        project_members = User.objects.filter(projects__pk=pk).values(
-            name=Concat("first_name", Value(' '), "last_name"),mail=F("email")
-        ).order_by('mail')
+        project_members = (
+            User.objects.filter(projects__pk=pk)
+            .values(name=Concat("first_name", Value(" "), "last_name"), mail=F("email"))
+            .order_by("mail")
+        )
         user_statistics = (
             project_members.annotate(tasks_assigned_count=Count("task"))
             .annotate(
@@ -1008,12 +1012,28 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
         user_data = []
         for elem in user_statistics:
-            avg_time = None if elem['average_completion_time'] is None else round(elem['average_completion_time'].total_seconds()/3600, 3)
-            user_dict = {"name":{"value":elem['name'], "label": "Name"}, "mail":{"value":elem['mail'], "label": "Email"},
-                         "tasks_assigned_count":{"value":elem['tasks_assigned_count'], "label": "Assigned Tasks"},
-                         "tasks_completed_count":{"value":elem['tasks_completed_count'], "label": "Completed Tasks"},
-                         "tasks_completion_perc":{"value":round(elem['task_completion_percentage'], 2), "label": "Task Completion Index(%)"},
-                         "avg_comp_time":{"value":avg_time, "label": "Avg. Completion Time"}}
+            avg_time = (
+                None
+                if elem["average_completion_time"] is None
+                else round(elem["average_completion_time"].total_seconds() / 3600, 3)
+            )
+            user_dict = {
+                "name": {"value": elem["name"], "label": "Name"},
+                "mail": {"value": elem["mail"], "label": "Email"},
+                "tasks_assigned_count": {
+                    "value": elem["tasks_assigned_count"],
+                    "label": "Assigned Tasks",
+                },
+                "tasks_completed_count": {
+                    "value": elem["tasks_completed_count"],
+                    "label": "Completed Tasks",
+                },
+                "tasks_completion_perc": {
+                    "value": round(elem["task_completion_percentage"], 2),
+                    "label": "Task Completion Index(%)",
+                },
+                "avg_comp_time": {"value": avg_time, "label": "Avg. Completion Time"},
+            }
             user_data.append(user_dict)
         return Response(user_data, status=status.HTTP_200_OK)
 
@@ -1040,7 +1060,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
         transcript_statistics = prj_transcriptions.annotate(
             total_duration=Sum(F("video__duration"))
-        ).order_by('-total_duration')
+        ).order_by("-total_duration")
         prj_translations = (
             Translation.objects.filter(video__in=prj_videos)
             .filter(status="TRANSLATION_EDIT_COMPLETE")
@@ -1048,22 +1068,48 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 src_language=F("video__language"), tgt_language=F("target_language")
             )
         )
-        translation_statistics = prj_translations.annotate(
-            transcripts_translated=Count("id")
-        ).annotate(translation_duration=Sum(F("video__duration"))).order_by('-translation_duration')
+        translation_statistics = (
+            prj_translations.annotate(transcripts_translated=Count("id"))
+            .annotate(translation_duration=Sum(F("video__duration")))
+            .order_by("-translation_duration")
+        )
 
-        transcript_data=[]
+        transcript_data = []
         for elem in transcript_statistics:
-            transcript_dict = {"language":{"value": dict(LANGUAGE_CHOICES)[elem['language']], "label": "Media Language"},
-                               "total_duration":{"value": round(elem['total_duration'].total_seconds()/3600, 3), "label": "Transcripted Duration (Hours)"}}
+            transcript_dict = {
+                "language": {
+                    "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                    "label": "Media Language",
+                },
+                "total_duration": {
+                    "value": round(elem["total_duration"].total_seconds() / 3600, 3),
+                    "label": "Transcripted Duration (Hours)",
+                },
+            }
             transcript_data.append(transcript_dict)
 
-        translation_data=[]
+        translation_data = []
         for elem in translation_statistics:
-            translation_dict = {"src_language":{"value":dict(LANGUAGE_CHOICES)[elem['src_language']], "label": "Src Language"},
-                                "tgt_language":{"value":dict(LANGUAGE_CHOICES)[elem['tgt_language']], "label": "Tgt Language"},
-                                "translation_duration":{"value":round(elem['translation_duration'].total_seconds()/3600, 3), "label": "Translated Duration (Hours)"},
-                                "transcripts_translated":{"value":elem['transcripts_translated'], "label": "Translation Tasks Count"}}
+            translation_dict = {
+                "src_language": {
+                    "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                    "label": "Src Language",
+                },
+                "tgt_language": {
+                    "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                    "label": "Tgt Language",
+                },
+                "translation_duration": {
+                    "value": round(
+                        elem["translation_duration"].total_seconds() / 3600, 3
+                    ),
+                    "label": "Translated Duration (Hours)",
+                },
+                "transcripts_translated": {
+                    "value": elem["transcripts_translated"],
+                    "label": "Translation Tasks Count",
+                },
+            }
             translation_data.append(translation_dict)
         res = {
             "transcript_stats": transcript_data,

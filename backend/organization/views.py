@@ -418,7 +418,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        org_members = User.objects.filter(organization=pk).values(name=Concat("first_name", Value(' '), "last_name"),mail=F("email")).order_by('mail')
+        org_members = (
+            User.objects.filter(organization=pk)
+            .values(name=Concat("first_name", Value(" "), "last_name"), mail=F("email"))
+            .order_by("mail")
+        )
         user_statistics = (
             org_members.annotate(tasks_assigned_count=Count("task"))
             .annotate(
@@ -441,12 +445,31 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         )
         user_data = []
         for elem in user_statistics:
-            avg_time = None if elem['average_completion_time'] is None else round(elem['average_completion_time'].total_seconds()/3600, 3)
-            user_dict = {"name":{"value":elem['name'], "label": "Name"}, "mail":{"value":elem['mail'], "label": "Email"},
-                         "tasks_assigned_count":{"value":elem['tasks_assigned_count'], "label": "Assigned Tasks"},
-                         "tasks_completed_count":{"value":elem['tasks_completed_count'], "label": "Completed Tasks"},
-                         "task_completion_percentage":{"value":round(elem['task_completion_percentage'], 2), "label": "Task Completion Index(%)"},
-                         "average_completion_time":{"value":avg_time, "label": "Avg. Completion Time"}}
+            avg_time = (
+                None
+                if elem["average_completion_time"] is None
+                else round(elem["average_completion_time"].total_seconds() / 3600, 3)
+            )
+            user_dict = {
+                "name": {"value": elem["name"], "label": "Name"},
+                "mail": {"value": elem["mail"], "label": "Email"},
+                "tasks_assigned_count": {
+                    "value": elem["tasks_assigned_count"],
+                    "label": "Assigned Tasks",
+                },
+                "tasks_completed_count": {
+                    "value": elem["tasks_completed_count"],
+                    "label": "Completed Tasks",
+                },
+                "task_completion_percentage": {
+                    "value": round(elem["task_completion_percentage"], 2),
+                    "label": "Task Completion Index(%)",
+                },
+                "average_completion_time": {
+                    "value": avg_time,
+                    "label": "Avg. Completion Time",
+                },
+            }
             user_data.append(user_dict)
         return Response(user_data, status=status.HTTP_200_OK)
 
@@ -473,7 +496,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         )
         transcript_statistics = org_transcriptions.annotate(
             total_duration=Sum(F("video__duration"))
-        ).order_by('-total_duration')
+        ).order_by("-total_duration")
         org_translations = (
             Translation.objects.filter(video__in=org_videos)
             .filter(status="TRANSLATION_EDIT_COMPLETE")
@@ -481,22 +504,48 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 src_language=F("video__language"), tgt_language=F("target_language")
             )
         )
-        translation_statistics = org_translations.annotate(
-            transcripts_translated=Count("id")
-        ).annotate(translation_duration=Sum(F("video__duration"))).order_by('-translation_duration')
+        translation_statistics = (
+            org_translations.annotate(transcripts_translated=Count("id"))
+            .annotate(translation_duration=Sum(F("video__duration")))
+            .order_by("-translation_duration")
+        )
 
-        transcript_data=[]
+        transcript_data = []
         for elem in transcript_statistics:
-            transcript_dict = {"language":{"value":dict(LANGUAGE_CHOICES)[elem['language']], "label": "Media Language"},
-                               "total_duration":{"value":round(elem['total_duration'].total_seconds()/3600, 3), "label": "Transcripted Duration (Hours)"}}
+            transcript_dict = {
+                "language": {
+                    "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                    "label": "Media Language",
+                },
+                "total_duration": {
+                    "value": round(elem["total_duration"].total_seconds() / 3600, 3),
+                    "label": "Transcripted Duration (Hours)",
+                },
+            }
             transcript_data.append(transcript_dict)
 
-        translation_data=[]
+        translation_data = []
         for elem in translation_statistics:
-            translation_dict = {"src_language":{"value":dict(LANGUAGE_CHOICES)[elem['src_language']], "label": "Src Language"},
-                                "tgt_language":{"value":dict(LANGUAGE_CHOICES)[elem['tgt_language']], "label": "Tgt Language"},
-                                "translation_duration":{"value":round(elem['translation_duration'].total_seconds()/3600, 3), "label": "Translated Duration (Hours)"},
-                                "transcripts_translated":{"value":elem['transcripts_translated'], "label": "Translation Tasks Count"}}
+            translation_dict = {
+                "src_language": {
+                    "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                    "label": "Src Language",
+                },
+                "tgt_language": {
+                    "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                    "label": "Tgt Language",
+                },
+                "translation_duration": {
+                    "value": round(
+                        elem["translation_duration"].total_seconds() / 3600, 3
+                    ),
+                    "label": "Translated Duration (Hours)",
+                },
+                "transcripts_translated": {
+                    "value": elem["transcripts_translated"],
+                    "label": "Translation Tasks Count",
+                },
+            }
             translation_data.append(translation_dict)
         res = {
             "transcript_stats": transcript_data,
@@ -519,9 +568,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        org_projects = Project.objects.filter(organization_id=pk).values(
-            "title", "id"
-        ).order_by('id')
+        org_projects = (
+            Project.objects.filter(organization_id=pk)
+            .values("title", "id")
+            .order_by("id")
+        )
 
         project_stats = (
             org_projects.annotate(num_videos=Count("video"))
@@ -543,16 +594,35 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
         project_data = []
         for elem in project_stats:
-            manager_names = Project.objects.get(pk=elem['id']).managers.all()
+            manager_names = Project.objects.get(pk=elem["id"]).managers.all()
             manager_list = []
             for manager_name in manager_names:
-                manager_list.append(manager_name.first_name + ' ' + manager_name.last_name)
-            transcript_duration = None if elem['total_transcriptions'] is None else round(elem['total_transcriptions'].total_seconds()/3600, 3)
-            translation_duration = None if elem['total_translations'] is None else round(elem['total_translations'].total_seconds()/3600, 3)
-            project_dict = {"title": {"value":elem['title'], "label": "Title"}, "managers__username": {"value":manager_list, "label": "Managers"},
-                            "num_videos": {"value":elem['num_videos'], "label": "Video count"},
-                            "total_transcriptions": {"value":transcript_duration, "label": "Transcripted Duration (Hours)"},
-                            "total_translations": {"value":translation_duration, "label": "Translated Duration (Hours)"}}
+                manager_list.append(
+                    manager_name.first_name + " " + manager_name.last_name
+                )
+            transcript_duration = (
+                None
+                if elem["total_transcriptions"] is None
+                else round(elem["total_transcriptions"].total_seconds() / 3600, 3)
+            )
+            translation_duration = (
+                None
+                if elem["total_translations"] is None
+                else round(elem["total_translations"].total_seconds() / 3600, 3)
+            )
+            project_dict = {
+                "title": {"value": elem["title"], "label": "Title"},
+                "managers__username": {"value": manager_list, "label": "Managers"},
+                "num_videos": {"value": elem["num_videos"], "label": "Video count"},
+                "total_transcriptions": {
+                    "value": transcript_duration,
+                    "label": "Transcripted Duration (Hours)",
+                },
+                "total_translations": {
+                    "value": translation_duration,
+                    "label": "Translated Duration (Hours)",
+                },
+            }
             project_data.append(project_dict)
 
         return Response(project_data, status=status.HTTP_200_OK)
@@ -599,11 +669,29 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         )
         org_data = []
         for elem in org_stats:
-            org_dict = {"title": {"value":elem['title'], "label": "Title"},"num_projects": {"value":elem['num_projects'], "label": "Project count"},
-                        "num_videos": {"value":elem['num_videos'], "label": "Video count"},
-                        "num_transcription_tasks": {"value":elem['num_transcription_tasks'], "label": "Assigned Transcription Tasks"},
-                        "num_transcription_tasks_completed": {"value":elem['num_transcription_tasks_completed'], "label": "Completed Transcription Tasks"},
-                        "num_translation_tasks": {"value":elem['num_translation_tasks'], "label": "Assigned Translation tasks"},
-                        "num_translation_tasks_completed": {"value":elem['num_translation_tasks_completed'], "label": "Completed Translation tasks"}}
+            org_dict = {
+                "title": {"value": elem["title"], "label": "Title"},
+                "num_projects": {
+                    "value": elem["num_projects"],
+                    "label": "Project count",
+                },
+                "num_videos": {"value": elem["num_videos"], "label": "Video count"},
+                "num_transcription_tasks": {
+                    "value": elem["num_transcription_tasks"],
+                    "label": "Assigned Transcription Tasks",
+                },
+                "num_transcription_tasks_completed": {
+                    "value": elem["num_transcription_tasks_completed"],
+                    "label": "Completed Transcription Tasks",
+                },
+                "num_translation_tasks": {
+                    "value": elem["num_translation_tasks"],
+                    "label": "Assigned Translation tasks",
+                },
+                "num_translation_tasks_completed": {
+                    "value": elem["num_translation_tasks_completed"],
+                    "label": "Completed Translation tasks",
+                },
+            }
             org_data.append(org_dict)
         return Response(org_data, status=status.HTTP_200_OK)
