@@ -254,16 +254,16 @@ if LOGGING == "true":
         "class": "logging.handlers.RotatingFileHandler",
         "filename": os.path.join(BASE_DIR, "logs/default.log"),
         "formatter": "file",
-        "maxBytes": 1024*1024*3,
-        'backupCount': 2,
+        "maxBytes": 1024 * 1024 * 300,
+        "backupCount": 2,
     }
     handlers["file"] = {
         "level": "INFO",
         "class": "logging.handlers.RotatingFileHandler",
         "filename": os.path.join(BASE_DIR, "logs/default.log"),
         "formatter": "file",
-        "maxBytes": 1024*1024*3,
-        'backupCount': 2,
+        "maxBytes": 1024 * 1024 * 300,
+        "backupCount": 2,
     }
 
 # Define logger configuration

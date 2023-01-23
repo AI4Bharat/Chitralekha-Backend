@@ -637,6 +637,7 @@ class TaskViewSet(ModelViewSet):
             permitted = True
 
         if permitted:
+            delete_tasks = []
             if "EDIT" in task_type:
                 tasks = []
                 for video in videos:
@@ -663,7 +664,6 @@ class TaskViewSet(ModelViewSet):
                     tasks.append(new_task)
 
                 new_transcripts = []
-                delete_tasks = []
                 asr_errors = 0
                 for task in tasks:
                     payloads = self.generate_transcript_payload(task, [source_type])
