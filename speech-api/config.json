@@ -1,19 +1,184 @@
 {
-    "en":{
-            "model_path":"models/hindi_large.pt",
-            "lm_details" : 
-                         {
-                        "nbest":1, 
-                        "lexicon":"models/lm_hindi/lm_mucs_both/hindi/lexicon.lst", 
-                        "kenlm_model":"models/lm_hindi/lm_mucs_both/hindi/lm.binary", 
-                        "beam_size_token": 1000, 
-                        "beam":256, 
-                        "beam_threshold":250,
-                        "lm_weight":0.5, 
-                        "word_score":2, 
-                        "sil_weight":0.0 
-                        },
-            "lm_usage" : "True"
-                
-         }
+    "hi": {
+        "model_path": "/home/speech/chitralekha-backend/speech-api/models/nemo/hindi/stt_hi_conformer_ctc_large_v2.nemo",
+        "lm_path": "/home/speech/chitralekha-backend/speech-api/models/nemo/hindi/hindi_en_num_char_lm_new_model.binary",
+        "device": "cuda:1",
+        "model_type": "IndicTinyASR"
+    },
+    "gu": {
+        "model_path": "models/IndicSUPERB_asr/gujarati.pt",
+        "lm_details": {
+            "nbest": 1,
+            "lexicon": "models/IndicSUPERB_asr/superb_kenlms/gujarati/topk-5000000_lexicon.lst",
+            "kenlm_model": "models/IndicSUPERB_asr/superb_kenlms/gujarati/topk-5000000_lm.binary",
+            "beam_size_token": 1000,
+            "beam": 128,
+            "beam_threshold": 250,
+            "lm_weight": 1.0,
+            "word_score": -1,
+            "sil_weight": 0.0
+        },
+        "lm_usage": "True",
+        "device": "cuda:1",
+        "model_type": "IndicWav2Vec"
+    },
+    "bn": {
+        "model_path": "models/IndicSUPERB_asr/bengali.pt",
+        "lm_details": {
+            "nbest": 1,
+            "lexicon": "models/IndicSUPERB_asr/superb_kenlms/bengali/topk-5000000_lexicon.lst",
+            "kenlm_model": "models/IndicSUPERB_asr/superb_kenlms/bengali/topk-5000000_lm.binary",
+            "beam_size_token": 1000,
+            "beam": 128,
+            "beam_threshold": 250,
+            "lm_weight": 1.0,
+            "word_score": -1,
+            "sil_weight": 0.0
+        },
+        "lm_usage": "True",
+        "device": "cuda:3",
+        "model_type": "IndicWav2Vec"
+    },
+    "kn": {
+        "model_path": "models/IndicSUPERB_asr/kannada.pt",
+        "lm_details": {
+            "nbest": 1,
+            "lexicon": "models/IndicSUPERB_asr/superb_kenlms/kannada/topk-5000000_lexicon.lst",
+            "kenlm_model": "models/IndicSUPERB_asr/superb_kenlms/kannada/topk-5000000_lm.binary",
+            "beam_size_token": 1000,
+            "beam": 128,
+            "beam_threshold": 250,
+            "lm_weight": 1.0,
+            "word_score": -1,
+            "sil_weight": 0.0
+        },
+        "lm_usage": "True",
+        "device": "cuda:3",
+        "model_type": "IndicWav2Vec"
+    },
+    "ml": {
+        "model_path": "models/IndicSUPERB_asr/malayalam.pt",
+        "lm_details": {
+            "nbest": 1,
+            "lexicon": "models/IndicSUPERB_asr/superb_kenlms/malayalam/topk-5000000_lexicon.lst",
+            "kenlm_model": "models/IndicSUPERB_asr/superb_kenlms/malayalam/topk-5000000_lm.binary",
+            "beam_size_token": 1000,
+            "beam": 128,
+            "beam_threshold": 250,
+            "lm_weight": 1.0,
+            "word_score": -1,
+            "sil_weight": 0.0
+        },
+        "lm_usage": "True",
+        "device": "cuda:2",
+        "model_type": "IndicWav2Vec"
+    },
+    "mr": {
+        "model_path": "/home/speech/chitralekha-backend/speech-api/models/nemo/marathi/mr-large-ai4b.nemo",
+        "lm_path": "/home/speech/chitralekha-backend/speech-api/models/nemo/marathi/marathi_num_lm_model.binary",
+        "device": "cuda:0",
+        "model_type": "IndicTinyASR"
+    },
+    "or": {
+        "model_path": "models/IndicSUPERB_asr/odia.pt",
+        "lm_details": {
+            "nbest": 1,
+            "lexicon": "models/IndicSUPERB_asr/superb_kenlms/odia/topk-5000000_lexicon.lst",
+            "kenlm_model": "models/IndicSUPERB_asr/superb_kenlms/odia/topk-5000000_lm.binary",
+            "beam_size_token": 1000,
+            "beam": 128,
+            "beam_threshold": 250,
+            "lm_weight": 1.0,
+            "word_score": -1,
+            "sil_weight": 0.0
+        },
+        "lm_usage": "True",
+        "device": "cuda:2",
+        "model_type": "IndicWav2Vec"
+    },
+    "pa": {
+        "model_path": "models/IndicSUPERB_asr/punjabi.pt",
+        "lm_details": {
+            "nbest": 1,
+            "lexicon": "models/IndicSUPERB_asr/superb_kenlms/punjabi/topk-5000000_lexicon.lst",
+            "kenlm_model": "models/IndicSUPERB_asr/superb_kenlms/punjabi/topk-5000000_lm.binary",
+            "beam_size_token": 1000,
+            "beam": 128,
+            "beam_threshold": 250,
+            "lm_weight": 1.0,
+            "word_score": -1,
+            "sil_weight": 0.0
+        },
+        "lm_usage": "True",
+        "device": "cuda:2",
+        "model_type": "IndicWav2Vec"
+    },
+    "sa": {
+        "model_path": "models/IndicSUPERB_asr/sanskrit.pt",
+        "lm_details": {
+            "nbest": 1,
+            "lexicon": "models/IndicSUPERB_asr/superb_kenlms/sanskrit/topk-5000000_lexicon.lst",
+            "kenlm_model": "models/IndicSUPERB_asr/superb_kenlms/sanskrit/topk-5000000_lm.binary",
+            "beam_size_token": 1000,
+            "beam": 128,
+            "beam_threshold": 250,
+            "lm_weight": 1.0,
+            "word_score": -1,
+            "sil_weight": 0.0
+        },
+        "lm_usage": "True",
+        "device": "cuda:0",
+        "model_type": "IndicWav2Vec"
+    },
+    "ta": {
+        "model_path": "models/IndicSUPERB_asr/tamil.pt",
+        "lm_details": {
+            "nbest": 1,
+            "lexicon": "models/IndicSUPERB_asr/superb_kenlms/tamil/topk-5000000_lexicon.lst",
+            "kenlm_model": "models/IndicSUPERB_asr/superb_kenlms/tamil/topk-5000000_lm.binary",
+            "beam_size_token": 1000,
+            "beam": 128,
+            "beam_threshold": 250,
+            "lm_weight": 1.0,
+            "word_score": -1,
+            "sil_weight": 0.0
+        },
+        "lm_usage": "True",
+        "device": "cuda:1",
+        "model_type": "IndicWav2Vec"
+    },
+    "te": {
+        "model_path": "models/IndicSUPERB_asr/telugu.pt",
+        "lm_details": {
+            "nbest": 1,
+            "lexicon": "models/IndicSUPERB_asr/superb_kenlms/telugu/topk-5000000_lexicon.lst",
+            "kenlm_model": "models/IndicSUPERB_asr/superb_kenlms/telugu/topk-5000000_lm.binary",
+            "beam_size_token": 1000,
+            "beam": 128,
+            "beam_threshold": 250,
+            "lm_weight": 1.0,
+            "word_score": -1,
+            "sil_weight": 0.0
+        },
+        "lm_usage": "True",
+        "device": "cuda:1",
+        "model_type": "IndicWav2Vec"
+    },
+    "ur": {
+        "model_path": "models/IndicSUPERB_asr/urdu.pt",
+        "lm_details": {
+            "nbest": 1,
+            "lexicon": "models/IndicSUPERB_asr/superb_kenlms/urdu/topk-5000000_lexicon.lst",
+            "kenlm_model": "models/IndicSUPERB_asr/superb_kenlms/urdu/topk-5000000_lm.binary",
+            "beam_size_token": 1000,
+            "beam": 128,
+            "beam_threshold": 250,
+            "lm_weight": 1.0,
+            "word_score": -1,
+            "sil_weight": 0.0
+        },
+        "lm_usage": "True",
+        "device": "cuda:2",
+        "model_type": "IndicWav2Vec"
+    }
 }

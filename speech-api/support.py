@@ -20,9 +20,11 @@ from omegaconf import open_dict, OmegaConf
 from fairseq.dataclass.utils import convert_namespace_to_omegaconf
 import base64
 import uuid
+import traceback
 
 # from vad_old import read_wave
 import subprocess
+from pydub import AudioSegment, effects
 
 try:
     from flashlight.lib.text.dictionary import create_word_dict, load_words
@@ -244,7 +246,7 @@ class W2lKenLMDecoder(W2lDecoder):
 
 
 def load_model(mdl_path):
-    while True:
+    for _ in range(2):
         try:
             print("Loading model..")
             mdl, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task(
@@ -252,8 +254,8 @@ def load_model(mdl_path):
             )
             print("Successfully loaded model " + mdl_path)
             break
-
-        except:
+        except Exception as e:
+            print(traceback.format_exc())
             print(f"Model loading failed for path: {mdl_path}. Retrying..")
             m = torch.load(mdl_path)
             m["cfg"]["task"]["_name"] = "audio_finetuning"
@@ -269,7 +271,7 @@ HEADERS = {
 }
 
 
-def load_data(wavpath, of="raw", **extra):
+def load_data(wavpath, of="raw", denoiser=False, **extra):
     print("Wavpath", wavpath)
     print("of", of)
     if of == "raw":
@@ -277,6 +279,7 @@ def load_data(wavpath, of="raw", **extra):
         # wav = pydub.AudioSegment.from_file(wavpath).set_frame_rate(16000).set_sample_width(2).set_channels(1)
         # if os.path.exists("test.wav"):
         #    os.remove("test.wav")
+        output_wavpath = wavpath + "_new.wav"
         subprocess.call(
             [
                 "ffmpeg",
@@ -290,14 +293,44 @@ def load_data(wavpath, of="raw", **extra):
                 "-hide_banner",
                 "-loglevel",
                 "error",
-                wavpath + "_new.wav",
+                output_wavpath,
             ]
         )
+        if denoiser:
+            os.remove(wavpath)  # Remove old wavfile
+            wavpath_folder = os.path.dirname(output_wavpath)
+            print("Wav folder:", os.listdir(wavpath_folder))
+            denoiser_command = f'python -m denoiser.enhance --dns48 --noisy_dir "{wavpath_folder}" --out_dir "{wavpath_folder}" --num_workers 32 --device cpu --streaming'
+            print("Running Denoiser..")
+            # subprocess.call([denoiser_command], shell=True)
+            # os.remove(output_wavpath)
+            # os.remove(wavpath+'_new_noisy.wav')
+            output_wavpath_enhanced = wavpath + "_new_enhanced.wav"
+            output_wavpath = wavpath + "_new_cleaned.wav"
+            subprocess.call(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    output_wavpath_enhanced,
+                    "-ar",
+                    "16000",
+                    "-ac",
+                    "1",
+                    "-sample_fmt",
+                    "s16",
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    output_wavpath,
+                ]
+            )
 
         # os.remove(wavpath)
         # wavpath = wavpath+'_new.wav'
+        print(f"Loading wav file from {output_wavpath}")
         wav = pydub.AudioSegment.from_file(
-            wavpath + "_new.wav", sample_width=2, frame_rate=16000, channels=1
+            output_wavpath, sample_width=2, frame_rate=16000, channels=1
         )
     elif of == "url":
         if not os.path.exists(DOWNLOAD_FOLDER):
@@ -329,9 +362,10 @@ def load_data(wavpath, of="raw", **extra):
                 DOWNLOAD_FOLDER + file_id + "new.wav",
             ]
         )
-        if os.path.exists(DOWNLOAD_FOLDER + file_id):
-            os.remove(DOWNLOAD_FOLDER + file_id)
-        return load_data(DOWNLOAD_FOLDER + file_id + "new.wav")
+        # if os.path.exists(DOWNLOAD_FOLDER+file_id):
+        #     os.remove(DOWNLOAD_FOLDER+file_id)
+        print("Filename: ", DOWNLOAD_FOLDER + file_id + "new.wav")
+        return load_data(DOWNLOAD_FOLDER + file_id + "new.wav", denoiser=denoiser)
         # return load_data(DOWNLOAD_FOLDER+file_id)
     elif of == "bytes":
         lang = extra["lang"]
@@ -343,7 +377,7 @@ def load_data(wavpath, of="raw", **extra):
             file.setsampwidth(2)
             file.setframerate(16000)
             file.writeframes(base64.b64decode(wavpath))
-        return load_data(DOWNLOAD_FOLDER + name)
+        return load_data(DOWNLOAD_FOLDER + name, denoiser=denoiser)
 
     # sarray = wav.get_array_of_samples()
     # fp_arr = np.array(sarray).T.astype(np.float64)
@@ -351,4 +385,7 @@ def load_data(wavpath, of="raw", **extra):
     # fp_arr = fp_arr.reshape(-1)
     # return fp_arr
 
-    return wav.raw_data
+    if denoiser:
+        wav = effects.normalize(wav)
+
+    return wav.raw_data, output_wavpath

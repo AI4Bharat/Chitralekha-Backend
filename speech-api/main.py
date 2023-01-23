@@ -3,6 +3,7 @@ import math
 import json
 import time
 import os
+import shutil
 import sys
 import io
 from multiprocessing import Process
@@ -11,6 +12,9 @@ import logging
 
 logging.basicConfig()
 logging.getLogger().setLevel(logging.DEBUG)
+import gdown
+from pathlib import Path
+import subprocess
 
 import uvicorn
 from fastapi import FastAPI
@@ -35,6 +39,8 @@ from vad import frame_generator, vad_collector
 from youtube import get_yt_video_and_subs
 
 from tqdm import tqdm
+import whisper
+import nemo.collections.asr as nemo_asr
 
 
 MEDIA_FOLDER = "media/"
@@ -64,44 +70,101 @@ with open(CONFIG_PATH, "r") as j:
 
 print("Config loaded.")
 
-# Load punctuation model
-rpunct = RestorePuncts()
-print("Punctuation model loaded.")
-# output = rpunct.punctuate("i am here to introduce the course data science for engineers")
-outputs = rpunct.punctuate_batch(
-    [
-        "i am here to introduce the course data science for engineers",
-        "hello how are you",
-        "i am fine what about you",
-        "my name is giorgio giovanni",
-    ]
-)
-print(outputs)
-# breakpoint()
+TOKEN_OFFSET = 100
+
+# # Load punctuation model
+# rpunct = RestorePuncts()
+# print("Punctuation model loaded.")
+# # output = rpunct.punctuate("i am here to introduce the course data science for engineers")
+# outputs = rpunct.punctuate_batch([
+#     "i am here to introduce the course data science for engineers",
+#     "hello how are you",
+#     "i am fine what about you",
+#     "my name is giorgio giovanni"
+#     ])
+# print(outputs)
+# # breakpoint()
 
 print("Loading models from config..")
 name2model_dict = dict()
 for k, m in config.items():
-    if eval(m["lm_usage"]):
-        lmarg = OmegaConf.create(m["lm_details"])
-        lmarg.unk_weight = -math.inf
-        device = m["device"]
-        model, dictionary = load_model(m["model_path"])
-        if DEVICE != "cpu" and torch.cuda.is_available():
-            model.to(device)
-        print("Loading LM..")
-        generator = W2lKenLMDecoder(lmarg, dictionary)
-    else:
-        lmarg = OmegaConf.create({"nbest": 1})
-        model, dictionary = load_model(m["model_path"])
-        device = m["device"]
-        if DEVICE != "cpu" and torch.cuda.is_available():
-            model.to(device)
-        generator = W2lViterbiDecoder(lmarg, dictionary)
-    name2model_dict[k] = [model, generator, dictionary]
+    if m["model_type"] == "IndicWav2Vec":
+        if eval(m["lm_usage"]):
+            lmarg = OmegaConf.create(m["lm_details"])
+            lmarg.unk_weight = -math.inf
+            device = m["device"]
+            model, dictionary = load_model(m["model_path"])
+            if DEVICE != "cpu" and torch.cuda.is_available():
+                model.to(device)
+            print("Loading LM..")
+            generator = W2lKenLMDecoder(lmarg, dictionary)
+        else:
+            lmarg = OmegaConf.create({"nbest": 1})
+            model, dictionary = load_model(m["model_path"])
+            device = m["device"]
+            if DEVICE != "cpu" and torch.cuda.is_available():
+                model.to(device)
+            generator = W2lViterbiDecoder(lmarg, dictionary)
+        name2model_dict[k] = [m["model_type"], model, (generator, dictionary)]
+
+    elif m["model_type"] == "IndicTinyASR":
+        model = nemo_asr.models.EncDecCTCModel.restore_from(
+            restore_path=m["model_path"]
+        )
+        model.freeze()
+        # model.decoder.freeze()
+        print(list(model.decoder.vocabulary), m["lm_path"])
+        vocab = model.decoder.vocabulary
+        vocab = [chr(idx + TOKEN_OFFSET) for idx in range(len(vocab))]
+        beam_search = nemo_asr.modules.BeamSearchDecoderWithLM(
+            vocab=vocab,
+            beam_width=128,
+            alpha=0.7,
+            beta=-0.5,  # TODO: Change the values
+            lm_path=m["lm_path"],
+            num_cpus=max(os.cpu_count(), 1),
+            input_tensor=False,
+        )
+        name2model_dict[k] = (m["model_type"], model, beam_search)
 
 
-def align(fp_arr, DEVICE, lang, restore_punct=True):
+en_model = whisper.load_model("medium.en").to("cuda:3")
+
+
+def softmax(logits):
+    e = np.exp(logits - np.max(logits))
+    return e / e.sum(axis=-1).reshape([logits.shape[0], 1])
+
+
+def align_nemo(fp_arr, DEVICE, lang, restore_punct=True):
+    _, asr, beam_search = name2model_dict[lang]
+    ids_to_text_func = asr.tokenizer.ids_to_text
+    feature = torch.from_numpy(fp_arr).float()
+    lengths = torch.Tensor([len(feature)])
+    # model = name2model_dict['hi']
+    if DEVICE != "cpu" and torch.cuda.is_available():
+        feature = feature.cuda()
+        lengths = lengths.cuda()
+        asr = asr.cuda()
+    asr.freeze()
+    # model.decoder.freeze()
+    with torch.no_grad():
+        logits, logits_len, greedy_predictions = asr.forward(
+            input_signal=feature.unsqueeze(0).cuda(), input_signal_length=lengths
+        )
+        current_hypotheses, all_hyp = asr.decoding.ctc_decoder_predictions_tensor(
+            logits,
+            decoder_lengths=logits_len,
+            return_hypotheses=True,
+        )
+        text = current_hypotheses[0].text
+    return text
+
+
+def align_w2v(fp_arr, DEVICE, lang, restore_punct=True):
+
+    _, model, (generator, dictionary) = name2model_dict[lang]
+    DEVICE = next(model.parameters()).device
 
     feature = torch.from_numpy(fp_arr).float()
     if DEVICE != "cpu" and torch.cuda.is_available():
@@ -122,13 +185,21 @@ def align(fp_arr, DEVICE, lang, restore_punct=True):
             .unsqueeze(0)
         )
 
-    model, generator, dictionary = name2model_dict[lang]
-
     with torch.no_grad():
         hypo = generator.generate([model], sample, prefix_tokens=None)
     hyp_pieces = dictionary.string(hypo[0][0]["tokens"].int().cpu())
     tr = hyp_pieces.replace(" ", "").replace("|", " ").strip()
     return tr
+
+
+def align(fp_arr, DEVICE, lang, restore_punct=True):
+
+    model_type, _, _ = name2model_dict[lang]
+    if model_type == "IndicWav2Vec":
+        text = align_w2v(fp_arr, DEVICE, lang, restore_punct=True)
+    elif model_type == "IndicTinyASR":
+        text = align_nemo(fp_arr, DEVICE, lang, restore_punct=True)
+    return text
 
 
 ydl_opts_audio = {
@@ -141,7 +212,49 @@ ydl_audio = YoutubeDL(ydl_opts_audio)
 def download_yt_audio(url):
     info = ydl_audio.extract_info(url, download=True)
     downloaded_audio_path = os.path.join(MEDIA_FOLDER, info["id"]) + ".m4a"
-    return downloaded_audio_path
+    # Create a new folder for each file to perform audio enhancement
+    new_audio_folder = os.path.join(MEDIA_FOLDER, info["id"])
+    Path(new_audio_folder).mkdir(exist_ok=True, parents=True)
+    new_file_path = os.path.join(new_audio_folder, info["id"] + ".m4a")
+    shutil.move(downloaded_audio_path, new_file_path)
+    return new_file_path
+
+
+drive_opts_audio = {
+    "format": "bestaudio[ext=mp3]",
+    "outtmpl": MEDIA_FOLDER + "/%(id)s.mp3",
+}
+drive_audio = YoutubeDL(drive_opts_audio)
+
+
+def download_drive_audio(url):
+    output = gdown.download(url=url, quiet=False, fuzzy=True)
+    new_audio_folder = os.path.join(MEDIA_FOLDER, Path(output).stem)
+    Path(new_audio_folder).mkdir(exist_ok=True, parents=True)
+    downloaded_audio_path = os.path.join(new_audio_folder, output)
+    print(f"Downloaded audio path: {downloaded_audio_path}")
+    shutil.move(output, downloaded_audio_path)
+    subprocess.call(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            downloaded_audio_path,
+            "-ar",
+            "16k",
+            "-ac",
+            "1",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            downloaded_audio_path + "new.wav",
+        ]
+    )
+    # if Path(output).suffix in [".mp3"]:
+    #     sound = AudioSegment.from_mp3(downloaded_audio_path)
+    #     downloaded_audio_path = downloaded_audio_path.replace(".mp3", ".wav")
+    #     sound.export(downloaded_audio_path, format="wav")
+    return downloaded_audio_path + "new.wav"
 
 
 @app.on_event("startup")
@@ -155,32 +268,32 @@ async def homepage():
     return RedirectResponse(url="/docs")
 
 
-# indic_language_dict = {
-#     'English' : 'en',
-#     'Hindi' : 'hi',
-#     'Bengali' : 'bn',
-#     'Gujarati' : 'gu',
-#     'Kannada' : 'kn',
-#     'Malayalam' : 'ml',
-#     'Marathi' : 'mr',
-#     'Odia' : 'or',
-#     'Punjabi' : 'pa',
-#     'Sanskrit' : 'sa',
-#     'Tamil' : 'ta',
-#     'Telugu' : 'te',
-#     'Urdu' : 'ur',
-# }
-
 indic_language_dict = {
     "English": "en",
     "Hindi": "hi",
     "Bengali": "bn",
     "Gujarati": "gu",
+    "Kannada": "kn",
+    "Malayalam": "ml",
     "Marathi": "mr",
     "Odia": "or",
+    "Punjabi": "pa",
+    "Sanskrit": "sa",
     "Tamil": "ta",
     "Telugu": "te",
+    "Urdu": "ur",
 }
+
+# indic_language_dict = {
+#     'English' : 'en',
+#     'Hindi' : 'hi',
+#     'Bengali' : 'bn',
+#     'Gujarati' : 'gu',
+#     'Marathi' : 'mr',
+#     'Odia' : 'or',
+#     'Tamil' : 'ta',
+#     'Telugu' : 'te',
+# }
 
 
 @app.get("/supported_languages")
@@ -199,72 +312,79 @@ class VideoRequest(BaseModel):
     url: str
 
 
-@app.post("/download_video_to_local")
-async def download_video_to_local(video_request: VideoRequest):
-    yt_url = video_request.url
-    ydl_best = YoutubeDL({"format": "best"})
-    downloaded_audio_path = download_yt_audio(yt_url)
-    info = ydl_best.extract_info(yt_url, download=False)
-    print(info.keys())
-    direct_url = info["url"]
-    print(direct_url)
-    if os.path.isfile(downloaded_audio_path):
-        # Vieo will be downloaded in background
-        # Process(target=download_yt_video, args=(yt_url, )).start()
+# @app.post("/download_video_to_local")
+# async def download_video_to_local(video_request: VideoRequest):
+#     yt_url = video_request.url
+#     ydl_best = YoutubeDL({'format': 'best'})
+#     downloaded_audio_path = download_yt_audio(yt_url)
+#     info = ydl_best.extract_info(yt_url, download=False)
+#     print(info.keys())
+#     direct_url = info['url']
+#     print(direct_url)
+#     if os.path.isfile(downloaded_audio_path):
+#         # Vieo will be downloaded in background
+#         # Process(target=download_yt_video, args=(yt_url, )).start()
 
-        downloaded_video_path = downloaded_audio_path.replace(".m4a", ".webm")
-        return {
-            "success": True,
-            "audio_url": downloaded_audio_path,
-            "download_path": downloaded_video_path,
-            "video_url": direct_url,
-        }
-    return {
-        "success": False,
-    }
+#         downloaded_video_path = downloaded_audio_path.replace('.m4a', '.webm')
+#         return {
+#             'success': True,
+#             'audio_url': downloaded_audio_path,
+#             'download_path': downloaded_video_path,
+#             'video_url': direct_url,
+#         }
+#     return {
+#         'success': False,
+#     }
 
 
 class AudioRequest(BaseModel):
     url: str
-    vad_level: Optional[int] = 2
+    vad_level: Optional[int] = 3.0
     chunk_size: Optional[float] = 10.0
     language: Optional[str] = "en"
     restore_punct: Optional[bool] = True
+    denoiser: Optional[bool] = False
 
 
 @app.post("/transcribe")
 async def transcribe_audio(audio_request: AudioRequest):
     url = audio_request.url
-    # vad_val = audio_request.vad_level
-    vad_val = 3
+    vad_val = audio_request.vad_level
     # chunk_size = audio_request.chunk_size
     chunk_size = 10
     language = audio_request.language
     retsore_punct = audio_request.restore_punct
+    is_denoiser = audio_request.denoiser
 
     if "youtube.com" in url or "youtu.be" in url:
+        print("Loaded from youtube URL")
         audio_url = download_yt_audio(url)
+    elif "drive.google.com" in url:
+        print("Loaded from drive URL")
+        audio_url = download_drive_audio(url)
     else:
         audio_url = url
 
-    return process_audio(audio_url, vad_val, chunk_size, language, retsore_punct)
+    return process_audio(
+        audio_url, vad_val, chunk_size, language, is_denoiser, retsore_punct
+    )
 
 
 def get_punctuated(transcript, lang, restore_punct=True):
-    if restore_punct:
-        if lang == "en":
-            tr_nopunct = transcript.translate(
-                str.maketrans(string.punctuation, " " * len(string.punctuation))
-            ).lower()
-            tr_nopunct = " ".join(tr_nopunct.split())
-            if tr_nopunct != "":
-                transcript = rpunct.punctuate(tr_nopunct, batch_size=128)
-                print(transcript)
-                print("Punctuation complete.")
+    # if restore_punct:
+    #     if lang == 'en':
+    #         tr_nopunct = transcript.translate(str.maketrans(string.punctuation, ' '*len(string.punctuation))).lower()
+    #         tr_nopunct = " ".join(tr_nopunct.split())
+    #         if tr_nopunct != '':
+    #             transcript = rpunct.punctuate(tr_nopunct, batch_size=128)
+    #             print(transcript)
+    #             print("Punctuation complete.")
     return transcript
 
 
-def process_audio(audio_url, vad_val, chunk_size, language, restore_punct=True):
+def process_audio(
+    audio_url, vad_val, chunk_size, language, denoiser=False, restore_punct=True
+):
     status = "SUCCESS"
     # la = req_data['config']['language']['sourceLanguage']
     # af = req_data['config']['audioFormat']
@@ -272,10 +392,33 @@ def process_audio(audio_url, vad_val, chunk_size, language, restore_punct=True):
         status = "ERROR"
         return {"status": status, "output": ""}
     elif audio_url.startswith("media"):
-        fp_arr = load_data(audio_url, of="raw")
+        fp_arr, output_wavpath = load_data(audio_url, of="raw", denoiser=denoiser)
     else:
         print("Loading data from url..")
-        fp_arr = load_data(audio_url, of="url")
+        fp_arr, output_wavpath = load_data(audio_url, of="url", denoiser=denoiser)
+
+    if language == "en":
+        result = en_model.transcribe(
+            output_wavpath,
+            language="en",
+        )
+        op = "WEBVTT\n\n"
+
+        for idx, segment in enumerate(result["segments"]):
+            op += str(idx + 1) + "\n"
+            op += (
+                "{0}.000 --> {1}.000".format(
+                    time.strftime("%H:%M:%S", time.gmtime(segment["start"])),
+                    time.strftime("%H:%M:%S", time.gmtime(segment["end"])),
+                )
+                + "\n"
+            )
+            op += segment["text"]
+            op += "\n\n"
+
+        return {"status": status, "output": op}
+
+    print(f"Length of loaded array: {len(fp_arr)}")
 
     # try:
     #     fp_arr = load_data(audio_uri,of='raw')
@@ -288,9 +431,9 @@ def process_audio(audio_url, vad_val, chunk_size, language, restore_punct=True):
     op_nochunk = "WEBVTT\n\n"
     sample_rate = 16000
     vad = webrtcvad.Vad(vad_val)  # 2
-    frames = frame_generator(10, fp_arr, sample_rate)
+    frames = frame_generator(30, fp_arr, sample_rate)
     frames = list(frames)
-    segments = list(vad_collector(sample_rate, 10, 100, vad, frames))
+    segments = list(vad_collector(sample_rate, 30, 300, vad, frames))
     vad_time_stamps = []
     counter = 1
     print("Transcribing..")
