@@ -22,7 +22,11 @@ import nemo.collections.asr as nemo_asr
 from nemo.utils import logging, model_utils
 
 # setup AMP (optional)
-if torch.cuda.is_available() and hasattr(torch.cuda, 'amp') and hasattr(torch.cuda.amp, 'autocast'):
+if (
+    torch.cuda.is_available()
+    and hasattr(torch.cuda, "amp")
+    and hasattr(torch.cuda.amp, "autocast")
+):
     logging.info("AMP enabled!\n")
     autocast = torch.cuda.amp.autocast
 else:
@@ -40,15 +44,19 @@ TAG_ERROR_DURING_TRANSCRIPTION = "<ERROR_DURING_TRANSCRIPTION>"
 
 def get_model_names():
     # Populate local copy of models
-    local_model_paths = glob.glob(os.path.join('models', "**", "*.nemo"), recursive=True)
-    local_model_names = list(sorted([os.path.basename(path) for path in local_model_paths]))
+    local_model_paths = glob.glob(
+        os.path.join("models", "**", "*.nemo"), recursive=True
+    )
+    local_model_names = list(
+        sorted([os.path.basename(path) for path in local_model_paths])
+    )
 
     # Populate with pretrained nemo checkpoint list
     nemo_model_names = set()
     for model_info in nemo_asr.models.ASRModel.list_available_models():
         for superclass in model_info.class_.mro():
-            if 'CTC' in superclass.__name__ or 'RNNT' in superclass.__name__:
-                if 'align' in model_info.pretrained_model_name:
+            if "CTC" in superclass.__name__ or "RNNT" in superclass.__name__:
+                if "align" in model_info.pretrained_model_name:
                     continue
 
                 nemo_model_names.add(model_info.pretrained_model_name)
@@ -59,23 +67,31 @@ def get_model_names():
 def initialize_model(model_name):
     # load model
     if model_name not in MODEL_CACHE:
-        if '.nemo' in model_name:
+        if ".nemo" in model_name:
             # use local model
             model_name_no_ext = os.path.splitext(model_name)[0]
-            model_path = os.path.join('models', model_name_no_ext, model_name)
+            model_path = os.path.join("models", model_name_no_ext, model_name)
 
             # Extract config
-            model_cfg = nemo_asr.models.ASRModel.restore_from(restore_path=model_path, return_config=True)
+            model_cfg = nemo_asr.models.ASRModel.restore_from(
+                restore_path=model_path, return_config=True
+            )
             classpath = model_cfg.target  # original class path
-            imported_class = model_utils.import_class_by_path(classpath)  # type: ASRModel
+            imported_class = model_utils.import_class_by_path(
+                classpath
+            )  # type: ASRModel
             logging.info(f"Restoring local model : {imported_class.__name__}")
 
             # load model from checkpoint
-            model = imported_class.restore_from(restore_path=model_path, map_location='cpu')  # type: ASRModel
+            model = imported_class.restore_from(
+                restore_path=model_path, map_location="cpu"
+            )  # type: ASRModel
 
         else:
             # use pretrained model
-            model = nemo_asr.models.ASRModel.from_pretrained(model_name, map_location='cpu')
+            model = nemo_asr.models.ASRModel.from_pretrained(
+                model_name, map_location="cpu"
+            )
 
         model.freeze()
 
@@ -107,7 +123,9 @@ def transcribe_all(filepaths, model, use_gpu_if_available=True):
         # Purge the cache to clear some memory
         MODEL_CACHE.clear()
 
-        logging.info("Ran out of memory on device - performing inference on CPU for now")
+        logging.info(
+            "Ran out of memory on device - performing inference on CPU for now"
+        )
 
         try:
             model = model.cpu()
@@ -116,7 +134,9 @@ def transcribe_all(filepaths, model, use_gpu_if_available=True):
                 transcriptions = model.transcribe(filepaths, batch_size=32)
 
         except Exception as e:
-            logging.info(f"Exception {e} occured while attemting to transcribe audio. Returning error message")
+            logging.info(
+                f"Exception {e} occured while attemting to transcribe audio. Returning error message"
+            )
             return TAG_ERROR_DURING_TRANSCRIPTION
 
     logging.info(f"Finished transcribing {len(filepaths)} files !")

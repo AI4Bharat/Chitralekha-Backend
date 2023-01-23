@@ -1,7 +1,7 @@
 import time
 import gc
 import itertools as it
-import os,math
+import os, math
 import pydub
 import os.path as osp
 from typing import List
@@ -9,7 +9,7 @@ import warnings
 from collections import deque, namedtuple
 from fairseq.data import Dictionary
 import fairseq
-import soundfile as sf,wave
+import soundfile as sf, wave
 import numpy as np
 import torch
 import urllib.response, requests
@@ -21,9 +21,11 @@ from fairseq.dataclass.utils import convert_namespace_to_omegaconf
 import base64
 import uuid
 import traceback
-#from vad_old import read_wave
+
+# from vad_old import read_wave
 import subprocess
 from pydub import AudioSegment, effects
+
 try:
     from flashlight.lib.text.dictionary import create_word_dict, load_words
     from flashlight.lib.sequence.criterion import CpuViterbiPath, get_data_ptr_as_bytes
@@ -43,6 +45,7 @@ except:
     )
     LM = object
     LMState = object
+
 
 class W2lDecoder(object):
     def __init__(self, args, tgt_dict):
@@ -80,7 +83,7 @@ class W2lDecoder(object):
         model = models[0]
         encoder_out = model(**encoder_input)
         if hasattr(model, "get_logits"):
-            emissions = model.get_logits(encoder_out) # no need to normalize emissions
+            emissions = model.get_logits(encoder_out)  # no need to normalize emissions
         else:
             emissions = model.get_normalized_probs(encoder_out, log_probs=True)
         return emissions.transpose(0, 1).float().cpu().contiguous()
@@ -90,6 +93,7 @@ class W2lDecoder(object):
         idxs = (g[0] for g in it.groupby(idxs))
         idxs = filter(lambda x: x != self.blank, idxs)
         return torch.LongTensor(list(idxs))
+
 
 class W2lViterbiDecoder(W2lDecoder):
     def __init__(self, args, tgt_dict):
@@ -117,7 +121,8 @@ class W2lViterbiDecoder(W2lDecoder):
             [{"tokens": self.get_tokens(viterbi_path[b].tolist()), "score": 0}]
             for b in range(B)
         ]
-    
+
+
 class W2lKenLMDecoder(W2lDecoder):
     def __init__(self, args, tgt_dict):
         super().__init__(args, tgt_dict)
@@ -143,7 +148,7 @@ class W2lKenLMDecoder(W2lDecoder):
                     # ), f"{spelling} {spelling_idxs}"
                     self.trie.insert(spelling_idxs, word_idx, score)
             self.trie.smear(SmearingMode.MAX)
-            
+
             self.decoder_opts = LexiconDecoderOptions(
                 beam_size=args.beam,
                 beam_size_token=int(getattr(args, "beam_size_token", len(tgt_dict))),
@@ -172,13 +177,18 @@ class W2lKenLMDecoder(W2lDecoder):
                 self.unit_lm,
             )
         else:
-            assert args.unit_lm, "lexicon free decoding can only be done with a unit language model"
-            from flashlight.lib.text.decoder import LexiconFreeDecoder, LexiconFreeDecoderOptions
+            assert (
+                args.unit_lm
+            ), "lexicon free decoding can only be done with a unit language model"
+            from flashlight.lib.text.decoder import (
+                LexiconFreeDecoder,
+                LexiconFreeDecoderOptions,
+            )
 
             d = {w: [[w]] for w in tgt_dict.symbols}
             self.word_dict = create_word_dict(d)
             self.lm = KenLM(args.kenlm_model, self.word_dict)
-            
+
             self.decoder_opts = LexiconFreeDecoderOptions(
                 beam_size=args.beam,
                 beam_size_token=int(getattr(args, "beam_size_token", len(tgt_dict))),
@@ -191,7 +201,7 @@ class W2lKenLMDecoder(W2lDecoder):
             self.decoder = LexiconFreeDecoder(
                 self.decoder_opts, self.lm, self.silence, self.blank, []
             )
-            
+
     def get_timesteps(self, token_idxs: List[int]) -> List[int]:
         """Returns frame numbers corresponding to every non-blank token.
         Parameters
@@ -207,7 +217,7 @@ class W2lKenLMDecoder(W2lDecoder):
         for i, token_idx in enumerate(token_idxs):
             if token_idx == self.blank:
                 continue
-            if i == 0 or token_idx != token_idxs[i-1]:
+            if i == 0 or token_idx != token_idxs[i - 1]:
                 timesteps.append(i)
         return timesteps
 
@@ -234,36 +244,60 @@ class W2lKenLMDecoder(W2lDecoder):
             )
         return hypos
 
+
 def load_model(mdl_path):
     for _ in range(2):
         try:
             print("Loading model..")
-            mdl, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([mdl_path])
-            print("Successfully loaded model "+mdl_path)
+            mdl, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task(
+                [mdl_path]
+            )
+            print("Successfully loaded model " + mdl_path)
             break
         except Exception as e:
             print(traceback.format_exc())
             print(f"Model loading failed for path: {mdl_path}. Retrying..")
             m = torch.load(mdl_path)
-            m['cfg']['task']['_name'] = 'audio_finetuning'
-            torch.save(m,mdl_path)
+            m["cfg"]["task"]["_name"] = "audio_finetuning"
+            torch.save(m, mdl_path)
     return mdl[0].eval(), task.target_dictionary
 
+
 import soundfile as sf
-DOWNLOAD_FOLDER = 'media/'
-HEADERS = {"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"}
-def load_data(wavpath,of='raw', denoiser=False, **extra):
+
+DOWNLOAD_FOLDER = "media/"
+HEADERS = {
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
+}
+
+
+def load_data(wavpath, of="raw", denoiser=False, **extra):
     print("Wavpath", wavpath)
     print("of", of)
-    if of == 'raw':    
+    if of == "raw":
         # wav, _ = read_wave(wavpath)
         # wav = pydub.AudioSegment.from_file(wavpath).set_frame_rate(16000).set_sample_width(2).set_channels(1)
-        #if os.path.exists("test.wav"):
+        # if os.path.exists("test.wav"):
         #    os.remove("test.wav")
-        output_wavpath = wavpath+'_new.wav'
-        subprocess.call(['ffmpeg','-y', '-i', wavpath,'-ar', '16000', '-ac', '1', '-hide_banner', '-loglevel', 'error', output_wavpath])
+        output_wavpath = wavpath + "_new.wav"
+        subprocess.call(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                wavpath,
+                "-ar",
+                "16000",
+                "-ac",
+                "1",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                output_wavpath,
+            ]
+        )
         if denoiser:
-            os.remove(wavpath) # Remove old wavfile
+            os.remove(wavpath)  # Remove old wavfile
             wavpath_folder = os.path.dirname(output_wavpath)
             print("Wav folder:", os.listdir(wavpath_folder))
             denoiser_command = f'python -m denoiser.enhance --dns48 --noisy_dir "{wavpath_folder}" --out_dir "{wavpath_folder}" --num_workers 32 --device cpu --streaming'
@@ -271,16 +305,34 @@ def load_data(wavpath,of='raw', denoiser=False, **extra):
             # subprocess.call([denoiser_command], shell=True)
             # os.remove(output_wavpath)
             # os.remove(wavpath+'_new_noisy.wav')
-            output_wavpath_enhanced = wavpath+'_new_enhanced.wav'
-            output_wavpath = wavpath+'_new_cleaned.wav'
-            subprocess.call(['ffmpeg','-y', '-i', output_wavpath_enhanced,'-ar', '16000', '-ac', '1', '-sample_fmt', 's16', '-hide_banner', '-loglevel', 'error', output_wavpath])
+            output_wavpath_enhanced = wavpath + "_new_enhanced.wav"
+            output_wavpath = wavpath + "_new_cleaned.wav"
+            subprocess.call(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    output_wavpath_enhanced,
+                    "-ar",
+                    "16000",
+                    "-ac",
+                    "1",
+                    "-sample_fmt",
+                    "s16",
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    output_wavpath,
+                ]
+            )
 
-
-        #os.remove(wavpath)
-        #wavpath = wavpath+'_new.wav'
+        # os.remove(wavpath)
+        # wavpath = wavpath+'_new.wav'
         print(f"Loading wav file from {output_wavpath}")
-        wav= pydub.AudioSegment.from_file(output_wavpath, sample_width=2, frame_rate=16000, channels=1)
-    elif of == 'url': 
+        wav = pydub.AudioSegment.from_file(
+            output_wavpath, sample_width=2, frame_rate=16000, channels=1
+        )
+    elif of == "url":
         if not os.path.exists(DOWNLOAD_FOLDER):
             os.makedirs(DOWNLOAD_FOLDER)
         file_id = uuid.uuid4().hex[:6].upper()
@@ -288,31 +340,45 @@ def load_data(wavpath,of='raw', denoiser=False, **extra):
         try:
             print("Downloading file..")
             resp = requests.get(wavpath, headers=HEADERS).content
-            with open(DOWNLOAD_FOLDER+file_id, "wb") as f:
+            with open(DOWNLOAD_FOLDER + file_id, "wb") as f:
                 f.write(resp)
             print("Audio is saved")
         except Exception as e:
             print(e)
         print("wavpath", wavpath)
-        print("downloads", DOWNLOAD_FOLDER+file_id)
-        subprocess.call(['ffmpeg', '-i', DOWNLOAD_FOLDER+file_id,'-ar', '16k', '-ac', '1', '-hide_banner', '-loglevel', 'error', DOWNLOAD_FOLDER+file_id+'new.wav'])
+        print("downloads", DOWNLOAD_FOLDER + file_id)
+        subprocess.call(
+            [
+                "ffmpeg",
+                "-i",
+                DOWNLOAD_FOLDER + file_id,
+                "-ar",
+                "16k",
+                "-ac",
+                "1",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                DOWNLOAD_FOLDER + file_id + "new.wav",
+            ]
+        )
         # if os.path.exists(DOWNLOAD_FOLDER+file_id):
         #     os.remove(DOWNLOAD_FOLDER+file_id)
-        print("Filename: ", DOWNLOAD_FOLDER+file_id+'new.wav')
-        return load_data(DOWNLOAD_FOLDER+file_id+'new.wav', denoiser=denoiser)
+        print("Filename: ", DOWNLOAD_FOLDER + file_id + "new.wav")
+        return load_data(DOWNLOAD_FOLDER + file_id + "new.wav", denoiser=denoiser)
         # return load_data(DOWNLOAD_FOLDER+file_id)
-    elif of == 'bytes':
-        lang = extra['lang']
-        name = extra['bytes_name']
+    elif of == "bytes":
+        lang = extra["lang"]
+        name = extra["bytes_name"]
         if not os.path.exists(DOWNLOAD_FOLDER):
             os.makedirs(DOWNLOAD_FOLDER)
-        with wave.open(DOWNLOAD_FOLDER+name, 'wb') as file:
+        with wave.open(DOWNLOAD_FOLDER + name, "wb") as file:
             file.setnchannels(1)
             file.setsampwidth(2)
             file.setframerate(16000)
             file.writeframes(base64.b64decode(wavpath))
-        return load_data(DOWNLOAD_FOLDER+name, denoiser=denoiser)
-    
+        return load_data(DOWNLOAD_FOLDER + name, denoiser=denoiser)
+
     # sarray = wav.get_array_of_samples()
     # fp_arr = np.array(sarray).T.astype(np.float64)
     # fp_arr /= np.iinfo(sarray.typecode).max
@@ -321,5 +387,5 @@ def load_data(wavpath,of='raw', denoiser=False, **extra):
 
     if denoiser:
         wav = effects.normalize(wav)
-    
+
     return wav.raw_data, output_wavpath
