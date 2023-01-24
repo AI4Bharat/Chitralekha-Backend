@@ -23,7 +23,7 @@ from translation.utils import (
     generate_translation_payload,
     translation_mg,
 )
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import LANGUAGE_CHOICES, INDIC_TRANS_SUPPORTED_LANGUAGES
 
 from .models import (
     Transcript,
@@ -811,19 +811,13 @@ def get_supported_languages(request):
     """
 
     # Make a call to the FASTAPI endpoint to get the list of supported languages
-    try:
-        return Response(
-            [
-                {"label": label, "value": value}
-                for label, value in get_asr_supported_languages().items()
-            ],
-            status=status.HTTP_200_OK,
-        )
-    except Exception:
-        return Response(
-            {"message": "Error while calling ASR API"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+    return Response(
+        [
+            {"label": label, "value": value}
+            for label, value in INDIC_TRANS_SUPPORTED_LANGUAGES.items()
+        ],
+        status=status.HTTP_200_OK,
+    )
 
 
 @api_view(["GET"])

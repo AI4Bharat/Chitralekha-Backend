@@ -2,6 +2,7 @@
 ## Utility Functions
 import traceback
 import requests
+import logging
 
 
 def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
@@ -12,16 +13,19 @@ def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
             "chunk_size": chunk_size,
             "language": lang,
         }
+        logging.info("Request to ASR API send")
         request_url = "http://216.48.182.174:5000/transcribe"
         response = requests.post(request_url, json=json_data)
+        logging.info("ASR response generated")
     except:
+        logging("Error in ASR API")
         traceback.print_stack()
         return None
 
     try:
         return response.json()
     except:
-        print(response.text)
+        logging.info(response.text)
         return None
 
 
