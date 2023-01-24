@@ -293,8 +293,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         ):
             projects = Project.objects.filter(organization_id=organization)
             videos = Video.objects.filter(project_id__in=projects)
-            tasks = Task.objects.filter(video__in=videos)
-            tasks_serializer = TaskSerializer(tasks, many=True).order_by("-updated_at")
+            tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
+            tasks_serializer = TaskSerializer(tasks, many=True)
             tasks_list = json.loads(json.dumps(tasks_serializer.data))
             for task in tasks_list:
                 buttons = {
@@ -323,10 +323,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     managers__in=[user.id]
                 )
                 videos = Video.objects.filter(project_id__in=projects)
-                tasks_in_projects = Task.objects.filter(video__in=videos)
-                task_serializer = TaskSerializer(tasks_in_projects, many=True).order_by(
+                tasks_in_projects = Task.objects.filter(video__in=videos).order_by(
                     "-updated_at"
                 )
+                task_serializer = TaskSerializer(tasks_in_projects, many=True)
                 tasks_in_projects_list = json.loads(json.dumps(task_serializer.data))
                 for task in tasks_in_projects_list:
                     buttons = {
@@ -350,10 +350,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         buttons["View"] = True
                     task["buttons"] = buttons
 
-                assigned_tasks = Task.objects.filter(user=user)
-                assigned_tasks_serializer = TaskSerializer(
-                    assigned_tasks, many=True
-                ).order_by("-updated_at")
+                assigned_tasks = Task.objects.filter(user=user).order_by("-updated_at")
+                assigned_tasks_serializer = TaskSerializer(assigned_tasks, many=True)
                 assigned_tasks_list = json.loads(
                     json.dumps(assigned_tasks_serializer.data)
                 )
