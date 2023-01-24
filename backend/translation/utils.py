@@ -1,6 +1,9 @@
 import requests
 from uuid import UUID
 import json
+from rest_framework.response import Response
+from rest_framework import status
+import logging
 
 from .metadata import (
     LANG_TRANS_MODEL_CODES,
@@ -36,6 +39,12 @@ def get_batch_translations_using_indictrans_nmt_api(
     source_language_name = LANG_CODE_TO_NAME_ULCA[source_language]
     target_language_name = LANG_CODE_TO_NAME_ULCA[target_language]
 
+    logging.info("source_language_name %s", source_language_name)
+    logging.info("target_language_name %s", target_language_name)
+    logging.info(
+        "DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID %s", DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID
+    )
+
     # Get the translation model ID
     model_id = LANG_TRANS_MODEL_CODES.get(
         f"{source_language_name}-{target_language_name}",
@@ -44,6 +53,7 @@ def get_batch_translations_using_indictrans_nmt_api(
 
     # Create the input sentences list
     input_sentences = [{"source": sentence} for sentence in sentence_list]
+    logging.info("Length of input_sentences %s", len(input_sentences))
 
     json_data = {
         "input": input_sentences,
@@ -61,7 +71,6 @@ def get_batch_translations_using_indictrans_nmt_api(
             "https://nmt-models.ulcacontrib.org/aai4b-nmt-inference/v0/translate",
             json=json_data,
         )
-
         translations_output = response.json()["output"]
 
         # Collect the translated sentences
@@ -86,7 +95,7 @@ def generate_translation_payload(transcript, target_language, list_compare_sourc
     return payloads
 
 
-def translation_mg(transcript, target_language, batch_size=75):
+def translation_mg(transcript, target_language, batch_size=25):
     sentence_list = []
     vtt_output = transcript.payload
     for vtt_line in vtt_output["payload"]:
@@ -97,7 +106,6 @@ def translation_mg(transcript, target_language, batch_size=75):
     # Iterate over the sentences in batch format and send them to the Translation API
     for i in range(0, len(sentence_list), batch_size):
         batch_of_input_sentences = sentence_list[i : i + batch_size]
-
         # Get the translation using the Indictrans NMT API
         translations_output = get_batch_translations_using_indictrans_nmt_api(
             sentence_list=batch_of_input_sentences,

@@ -449,9 +449,7 @@ def change_active_status_of_next_tasks(task, transcript_obj):
             transcript.parent_transcript = transcript_obj
             transcript.payload = transcript_obj.payload
             transcript.save()
-
     if activate_translations and tasks.filter(task_type="TRANSLATION_EDIT").first():
-        tasks.filter(task_type="TRANSLATION_EDIT").update(is_active=True)
         translations = Translation.objects.filter(video=task.video).filter(
             status="TRANSLATION_SELECT_SOURCE"
         )
@@ -471,6 +469,7 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                 translation.payload = payloads[source_type]
                 translation.transcript = transcript_obj
                 translation.save()
+        tasks.filter(task_type="TRANSLATION_EDIT").update(is_active=True)
     else:
         print("No change in status")
 

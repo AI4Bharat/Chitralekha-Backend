@@ -663,6 +663,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Export"] = True
                         buttons["Preview"] = True
                         buttons["Edit"] = False
+                        buttons["Update"] = False
                     if (
                         data["user"]["email"] == request.user.email
                         and data["status"] != "COMPLETE"
@@ -687,6 +688,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Edit"] = False
                         buttons["Export"] = True
                         buttons["Preview"] = True
+                        buttons["Update"] = False
                     if (
                         data["user"]["email"] == request.user.email
                         and data["status"] != "COMPLETE"

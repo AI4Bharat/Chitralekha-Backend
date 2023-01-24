@@ -205,6 +205,7 @@ def get_video(request):
 
         if created:
             video.save()
+            logging.info("Video is created.")
             default_task_types = (
                 project.default_task_types or organization.default_task_types
             )
@@ -437,7 +438,7 @@ def create_tasks(
         "priority": priority,
         "description": description,
     }
-    logging.info("Create task started.")
+    logging.info("Creation of task started for %s", task_type)
     ret = data.create(new_request)
     return ret.data
 

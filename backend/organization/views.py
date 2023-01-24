@@ -310,6 +310,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 if task["status"] == "COMPLETE":
                     buttons["Export"] = True
                     buttons["Preview"] = True
+                    buttons["Update"] = False
+                    buttons["Edit"] = False
                 if task["user"]["email"] == user.email and task["status"] != "COMPLETE":
                     buttons["Edit"] = True
                     buttons["View"] = True
@@ -342,6 +344,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if task["status"] == "COMPLETE":
                         buttons["Export"] = True
                         buttons["Preview"] = True
+                        buttons["Update"] = False
+                        buttons["Edit"] = False
                     if (
                         task["user"]["email"] == user.email
                         and task["status"] != "COMPLETE"
@@ -367,6 +371,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if task["status"] == "COMPLETE":
                         buttons["Export"] = True
                         buttons["Preview"] = True
+                        buttons["Update"] = False
+                        buttons["Edit"] = False
                     if (
                         task["user"]["email"] == user.email
                         and task["status"] != "COMPLETE"
@@ -397,6 +403,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if task["status"] == "COMPLETE":
                         buttons["Export"] = True
                         buttons["Preview"] = True
+                        buttons["Update"] = False
+                        buttons["Edit"] = False
                     if (
                         task["user"]["email"] == user.email
                         and task["status"] != "COMPLETE"
@@ -404,7 +412,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         buttons["Edit"] = True
                         buttons["View"] = True
                     task["buttons"] = buttons
-
         return Response(tasks_list, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})

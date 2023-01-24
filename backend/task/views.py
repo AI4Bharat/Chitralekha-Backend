@@ -733,6 +733,7 @@ class TaskViewSet(ModelViewSet):
                         .filter(status="TRANSCRIPTION_EDIT_COMPLETE")
                         .first()
                     )
+                    logging.info("Fetched edited transcript for review task.")
                     is_active = False
                     if transcript is not None:
                         is_active = True
@@ -790,7 +791,7 @@ class TaskViewSet(ModelViewSet):
                     )
                     new_transcripts.append(transcript_obj)
                 transcripts = Transcript.objects.bulk_create(new_transcripts)
-
+                logging.info("Transcript Review tasks are created")
             for task in delete_tasks:
                 task.delete()
                 tasks.remove(task)
@@ -815,15 +816,20 @@ class TaskViewSet(ModelViewSet):
                     status_code = status.HTTP_400_BAD_REQUEST
                 else:
                     status_code = status.HTTP_200_OK
+                logging.info(detailed_error[0]["message"])
                 return Response(
                     {"message": detailed_error[0]["message"]},
                     status=status_code,
                 )
+            logging.info(message)
             return Response(
                 {"message": message, "response": response},
                 status=status.HTTP_207_MULTI_STATUS,
             )
         else:
+            logging.info(
+                "The assigned user doesn't have permission to perform this task on transcripts in this project."
+            )
             return Response(
                 {
                     "message": "The assigned user doesn't have permission to perform this task on transcripts in this project."
