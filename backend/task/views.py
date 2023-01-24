@@ -45,6 +45,7 @@ from users.models import User
 from rest_framework.response import Response
 from functools import wraps
 from rest_framework import status
+import logging
 
 
 class TaskViewSet(ModelViewSet):
@@ -191,7 +192,11 @@ class TaskViewSet(ModelViewSet):
     def check_transcript_exists(self, video):
         transcript = Transcript.objects.filter(video=video)
 
-        task_review = Task.objects.filter(task_type="TRANSCRIPTION_REVIEW").first()
+        task_review = (
+            Task.objects.filter(video=video)
+            .filter(task_type="TRANSCRIPTION_REVIEW")
+            .first()
+        )
         if (
             transcript.filter(status="TRANSCRIPTION_REVIEW_COMPLETE").first()
             is not None
@@ -641,6 +646,7 @@ class TaskViewSet(ModelViewSet):
         if permitted:
             delete_tasks = []
             if "EDIT" in task_type:
+                logging.info("No error, creation started")
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
@@ -664,6 +670,7 @@ class TaskViewSet(ModelViewSet):
                     )
                     new_task.save()
                     tasks.append(new_task)
+                    logging.info("Task is created, and inactive")
 
                 new_transcripts = []
                 asr_errors = 0
@@ -690,6 +697,7 @@ class TaskViewSet(ModelViewSet):
                                 "count": asr_errors,
                             }
                         )
+                        logging.info("Error while calling ASR API")
                         continue
                     detailed_error.append(
                         {
@@ -712,6 +720,9 @@ class TaskViewSet(ModelViewSet):
                     )
                     task.is_active = True
                     task.save()
+                    logging.info(
+                        "Transcript generated from ASR API and Task is active now."
+                    )
                     new_transcripts.append(transcript_obj)
                 transcripts = Transcript.objects.bulk_create(new_transcripts)
             else:
@@ -1309,7 +1320,7 @@ class TaskViewSet(ModelViewSet):
                     user_obj, [task.video]
                 )
             else:
-                print("Not a Valid Type")
+                logging.info("Not a Valid Type")
 
             if permission:
                 task.user = user_obj
@@ -1379,7 +1390,7 @@ class TaskViewSet(ModelViewSet):
                         user_obj, [task.video]
                     )
                 else:
-                    print("Not a Valid Type")
+                    logging.info("Not a Valid Type")
 
                 if permission:
                     task.user = user_obj

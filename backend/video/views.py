@@ -27,6 +27,7 @@ from .utils import (
     DownloadError,
 )
 from project.models import Project
+import logging
 
 
 @swagger_auto_schema(
@@ -436,6 +437,7 @@ def create_tasks(
         "priority": priority,
         "description": description,
     }
+    logging.info("Create task started.")
     ret = data.create(new_request)
     return ret.data
 
