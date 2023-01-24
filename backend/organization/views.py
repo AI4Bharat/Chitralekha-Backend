@@ -234,7 +234,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     def list_projects(self, request, pk=None, *args, **kwargs):
         try:
             organization = Organization.objects.get(pk=pk)
-            projects = Project.objects.filter(organization_id=organization)
+            projects = Project.objects.filter(organization_id=organization).order_by(
+                "-created_at"
+            )
 
             user = request.user
             if user.role == User.ORG_OWNER or user.is_superuser:
@@ -245,7 +247,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if request.user in project.members.all():
                         projects_by_roles.append(project)
                 if len(projects_by_roles) > 0:
-                    serializer = ProjectSerializer(projects_by_roles, many=True)
+                    serializer = ProjectSerializer(
+                        projects_by_roles, many=True
+                    ).order_by("-created_at")
                 else:
                     return Response(
                         {
@@ -294,7 +298,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             projects = Project.objects.filter(organization_id=organization)
             videos = Video.objects.filter(project_id__in=projects)
             tasks = Task.objects.filter(video__in=videos)
-            tasks_serializer = TaskSerializer(tasks, many=True)
+            tasks_serializer = TaskSerializer(tasks, many=True).order_by("-updated_at")
             tasks_list = json.loads(json.dumps(tasks_serializer.data))
             for task in tasks_list:
                 buttons = {
@@ -324,7 +328,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
                 videos = Video.objects.filter(project_id__in=projects)
                 tasks_in_projects = Task.objects.filter(video__in=videos)
-                task_serializer = TaskSerializer(tasks_in_projects, many=True)
+                task_serializer = TaskSerializer(tasks_in_projects, many=True).order_by(
+                    "-updated_at"
+                )
                 tasks_in_projects_list = json.loads(json.dumps(task_serializer.data))
                 for task in tasks_in_projects_list:
                     buttons = {
@@ -349,7 +355,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     task["buttons"] = buttons
 
                 assigned_tasks = Task.objects.filter(user=user)
-                assigned_tasks_serializer = TaskSerializer(assigned_tasks, many=True)
+                assigned_tasks_serializer = TaskSerializer(
+                    assigned_tasks, many=True
+                ).order_by("-updated_at")
                 assigned_tasks_list = json.loads(
                     json.dumps(assigned_tasks_serializer.data)
                 )
@@ -379,7 +387,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
             else:
                 tasks = Task.objects.filter(user=user)
-                tasks_serializer = TaskSerializer(tasks, many=True)
+                tasks_serializer = TaskSerializer(tasks, many=True).order_by(
+                    "-updated_at"
+                )
                 tasks_list = json.loads(json.dumps(tasks_serializer.data))
                 for task in tasks_list:
                     buttons = {

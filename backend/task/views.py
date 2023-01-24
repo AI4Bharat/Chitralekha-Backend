@@ -660,7 +660,7 @@ class TaskViewSet(ModelViewSet):
                         eta=eta,
                         description=description,
                         priority=priority,
-                        is_active=True,
+                        is_active=False,
                     )
                     new_task.save()
                     tasks.append(new_task)
@@ -710,6 +710,8 @@ class TaskViewSet(ModelViewSet):
                         transcript_type=source_type,
                         status="TRANSCRIPTION_SELECT_SOURCE",
                     )
+                    task.is_active = True
+                    task.save()
                     new_transcripts.append(transcript_obj)
                 transcripts = Transcript.objects.bulk_create(new_transcripts)
             else:

@@ -644,7 +644,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         try:
             project = Project.objects.get(pk=pk)
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
-            tasks = Task.objects.filter(video_id__in=videos)
+            tasks = Task.objects.filter(video_id__in=videos).order_by("-updated_at")
             if request.user in project.managers.all() or request.user.is_superuser:
                 serializer = TaskSerializer(tasks, many=True)
                 serialized_dict = json.loads(json.dumps(serializer.data))
@@ -671,7 +671,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["View"] = True
                     data["buttons"] = buttons
             else:
-                tasks_by_users = tasks.filter(user=request.user)
+                tasks_by_users = tasks.filter(user=request.user).order_by("-updated_at")
                 serializer = TaskSerializer(tasks_by_users, many=True)
                 serialized_dict = json.loads(json.dumps(serializer.data))
                 for data in serialized_dict:
