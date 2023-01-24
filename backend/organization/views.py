@@ -234,9 +234,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     def list_projects(self, request, pk=None, *args, **kwargs):
         try:
             organization = Organization.objects.get(pk=pk)
-            projects = Project.objects.filter(organization_id=organization).order_by(
-                "-created_at"
-            )
+            projects = Project.objects.filter(organization_id=organization)
 
             user = request.user
             if user.role == User.ORG_OWNER or user.is_superuser:
@@ -247,9 +245,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if request.user in project.members.all():
                         projects_by_roles.append(project)
                 if len(projects_by_roles) > 0:
-                    serializer = ProjectSerializer(
-                        projects_by_roles, many=True
-                    ).order_by("-created_at")
+                    serializer = ProjectSerializer(projects_by_roles, many=True)
                 else:
                     return Response(
                         {
