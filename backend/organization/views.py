@@ -369,6 +369,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "View": False,
                         "Delete": False,
                     }
+                    buttons["Update"] = True
+                    buttons["Delete"] = True
                     if task["status"] == "COMPLETE":
                         buttons["Export"] = True
                         buttons["Preview"] = True
