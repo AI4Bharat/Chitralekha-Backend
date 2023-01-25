@@ -312,9 +312,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     buttons["Preview"] = True
                     buttons["Update"] = False
                     buttons["Edit"] = False
-                if task["user"]["email"] == user.email and task["status"] != "COMPLETE":
-                    buttons["Edit"] = True
-                    buttons["View"] = True
+                if task["user"]["email"] == request.user.email:
+                    if task["status"] != "COMPLETE":
+                        buttons["Edit"] = True
+                    if task["status"] == "SELECTED_SOURCE":
+                        buttons["View"] = True
                 task["buttons"] = buttons
         else:
             projects = Project.objects.filter(organization_id=organization).filter(
@@ -346,12 +348,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         buttons["Preview"] = True
                         buttons["Update"] = False
                         buttons["Edit"] = False
-                    if (
-                        task["user"]["email"] == user.email
-                        and task["status"] != "COMPLETE"
-                    ):
-                        buttons["Edit"] = True
-                        buttons["View"] = True
+                    if task["user"]["email"] == request.user.email:
+                        if task["status"] != "COMPLETE":
+                            buttons["Edit"] = True
+                        if task["status"] == "SELECTED_SOURCE":
+                            buttons["View"] = True
                     task["buttons"] = buttons
 
                 assigned_tasks = Task.objects.filter(user=user).order_by("-updated_at")
@@ -373,12 +374,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         buttons["Preview"] = True
                         buttons["Update"] = False
                         buttons["Edit"] = False
-                    if (
-                        task["user"]["email"] == user.email
-                        and task["status"] != "COMPLETE"
-                    ):
-                        buttons["Edit"] = True
-                        buttons["View"] = True
+                    if task["user"]["email"] == request.user.email:
+                        if task["status"] != "COMPLETE":
+                            buttons["Edit"] = True
+                        if task["status"] == "SELECTED_SOURCE":
+                            buttons["View"] = True
                     task["buttons"] = buttons
                 tasks_list = list(
                     {
@@ -405,12 +405,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         buttons["Preview"] = True
                         buttons["Update"] = False
                         buttons["Edit"] = False
-                    if (
-                        task["user"]["email"] == user.email
-                        and task["status"] != "COMPLETE"
-                    ):
-                        buttons["Edit"] = True
-                        buttons["View"] = True
+                    if task["user"]["email"] == request.user.email:
+                        if task["status"] != "COMPLETE":
+                            buttons["Edit"] = True
+                        if task["status"] == "SELECTED_SOURCE":
+                            buttons["View"] = True
                     task["buttons"] = buttons
         return Response(tasks_list, status=status.HTTP_200_OK)
 

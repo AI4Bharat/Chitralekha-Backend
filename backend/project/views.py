@@ -664,12 +664,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Preview"] = True
                         buttons["Edit"] = False
                         buttons["Update"] = False
-                    if (
-                        data["user"]["email"] == request.user.email
-                        and data["status"] != "COMPLETE"
-                    ):
-                        buttons["Edit"] = True
-                        buttons["View"] = True
+                    if data["user"]["email"] == request.user.email:
+                        if data["status"] != "COMPLETE":
+                            buttons["Edit"] = True
+                        if data["status"] == "SELECTED_SOURCE":
+                            buttons["View"] = True
                     data["buttons"] = buttons
             else:
                 tasks_by_users = tasks.filter(user=request.user).order_by("-updated_at")
@@ -689,12 +688,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Export"] = True
                         buttons["Preview"] = True
                         buttons["Update"] = False
-                    if (
-                        data["user"]["email"] == request.user.email
-                        and data["status"] != "COMPLETE"
-                    ):
-                        buttons["Edit"] = True
-                        buttons["View"] = True
+                    if data["user"]["email"] == request.user.email:
+                        if data["status"] != "COMPLETE":
+                            buttons["Edit"] = True
+                        if data["status"] == "SELECTED_SOURCE":
+                            buttons["View"] = True
                     data["buttons"] = buttons
             return Response(serialized_dict, status=status.HTTP_200_OK)
 
