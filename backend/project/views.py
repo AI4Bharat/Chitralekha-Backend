@@ -555,7 +555,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
             for video in videos:
                 tasks = Task.objects.filter(video=video)
                 video_serializer = VideoSerializer(video).data
-                task_table = self.video_status(tasks)
+                try:
+                    task_table = self.video_status(tasks)
+                except:
+                    continue
                 tasks_to_send = []
                 if len(task_table) == 1:
                     if "transcription" in task_table.keys():
