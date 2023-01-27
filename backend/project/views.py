@@ -558,6 +558,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 try:
                     task_table = self.video_status(tasks)
                 except:
+                    video_serializer["status"] = []
                     video_data.append(video_serializer)
                     continue
                 tasks_to_send = []
