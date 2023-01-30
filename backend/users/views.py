@@ -146,6 +146,25 @@ class InviteViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+    @permission_classes([AllowAny])
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="get_invited_user_info",
+        url_name="get_invited_user_info",
+    )
+    def get_invited_user_info(self, request, pk=None):
+        """
+        Users to sign up for the first time.
+        """
+        try:
+            invite = Invite.objects.get(invite_code=pk)
+        except Invite.DoesNotExist:
+            return Response(
+                {"message": "Invite not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(UserProfileSerializer(invite.user).data)
+
 
 class UserViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthenticated,)
