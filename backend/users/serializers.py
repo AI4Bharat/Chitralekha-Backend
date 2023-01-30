@@ -23,6 +23,19 @@ class UserSignUpSerializer(serializers.ModelSerializer):
         return instance
 
 
+class UpdateUserPasswordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "password",
+        ]
+
+    def update(self, instance, validated_data):
+        instance.set_password(validated_data.get("password"))
+        instance.save()
+        return instance
+
+
 class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User

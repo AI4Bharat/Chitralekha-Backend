@@ -293,7 +293,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         ):
             projects = Project.objects.filter(organization_id=organization)
             videos = Video.objects.filter(project_id__in=projects)
-            tasks = Task.objects.filter(video__in=videos)
+            tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
             tasks_serializer = TaskSerializer(tasks, many=True)
             tasks_list = json.loads(json.dumps(tasks_serializer.data))
             for task in tasks_list:
@@ -310,9 +310,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 if task["status"] == "COMPLETE":
                     buttons["Export"] = True
                     buttons["Preview"] = True
-                if task["user"]["email"] == user.email and task["status"] != "COMPLETE":
-                    buttons["Edit"] = True
-                    buttons["View"] = True
+                    buttons["Update"] = False
+                    buttons["Edit"] = False
+                if task["user"]["email"] == request.user.email:
+                    if task["status"] != "COMPLETE":
+                        buttons["Edit"] = True
+                    if task["status"] == "SELECTED_SOURCE":
+                        buttons["View"] = True
                 task["buttons"] = buttons
         else:
             projects = Project.objects.filter(organization_id=organization).filter(
@@ -323,7 +327,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     managers__in=[user.id]
                 )
                 videos = Video.objects.filter(project_id__in=projects)
-                tasks_in_projects = Task.objects.filter(video__in=videos)
+                tasks_in_projects = Task.objects.filter(video__in=videos).order_by(
+                    "-updated_at"
+                )
                 task_serializer = TaskSerializer(tasks_in_projects, many=True)
                 tasks_in_projects_list = json.loads(json.dumps(task_serializer.data))
                 for task in tasks_in_projects_list:
@@ -340,15 +346,16 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if task["status"] == "COMPLETE":
                         buttons["Export"] = True
                         buttons["Preview"] = True
-                    if (
-                        task["user"]["email"] == user.email
-                        and task["status"] != "COMPLETE"
-                    ):
-                        buttons["Edit"] = True
-                        buttons["View"] = True
+                        buttons["Update"] = False
+                        buttons["Edit"] = False
+                    if task["user"]["email"] == request.user.email:
+                        if task["status"] != "COMPLETE":
+                            buttons["Edit"] = True
+                        if task["status"] == "SELECTED_SOURCE":
+                            buttons["View"] = True
                     task["buttons"] = buttons
 
-                assigned_tasks = Task.objects.filter(user=user)
+                assigned_tasks = Task.objects.filter(user=user).order_by("-updated_at")
                 assigned_tasks_serializer = TaskSerializer(assigned_tasks, many=True)
                 assigned_tasks_list = json.loads(
                     json.dumps(assigned_tasks_serializer.data)
@@ -362,15 +369,18 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "View": False,
                         "Delete": False,
                     }
+                    buttons["Update"] = True
+                    buttons["Delete"] = True
                     if task["status"] == "COMPLETE":
                         buttons["Export"] = True
                         buttons["Preview"] = True
-                    if (
-                        task["user"]["email"] == user.email
-                        and task["status"] != "COMPLETE"
-                    ):
-                        buttons["Edit"] = True
-                        buttons["View"] = True
+                        buttons["Update"] = False
+                        buttons["Edit"] = False
+                    if task["user"]["email"] == request.user.email:
+                        if task["status"] != "COMPLETE":
+                            buttons["Edit"] = True
+                        if task["status"] == "SELECTED_SOURCE":
+                            buttons["View"] = True
                     task["buttons"] = buttons
                 tasks_list = list(
                     {
@@ -379,7 +389,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
             else:
                 tasks = Task.objects.filter(user=user)
-                tasks_serializer = TaskSerializer(tasks, many=True)
+                tasks_serializer = TaskSerializer(tasks, many=True).order_by(
+                    "-updated_at"
+                )
                 tasks_list = json.loads(json.dumps(tasks_serializer.data))
                 for task in tasks_list:
                     buttons = {
@@ -393,14 +405,14 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if task["status"] == "COMPLETE":
                         buttons["Export"] = True
                         buttons["Preview"] = True
-                    if (
-                        task["user"]["email"] == user.email
-                        and task["status"] != "COMPLETE"
-                    ):
-                        buttons["Edit"] = True
-                        buttons["View"] = True
+                        buttons["Update"] = False
+                        buttons["Edit"] = False
+                    if task["user"]["email"] == request.user.email:
+                        if task["status"] != "COMPLETE":
+                            buttons["Edit"] = True
+                        if task["status"] == "SELECTED_SOURCE":
+                            buttons["View"] = True
                     task["buttons"] = buttons
-
         return Response(tasks_list, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})

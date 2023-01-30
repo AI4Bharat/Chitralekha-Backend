@@ -555,7 +555,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
             for video in videos:
                 tasks = Task.objects.filter(video=video)
                 video_serializer = VideoSerializer(video).data
-                task_table = self.video_status(tasks)
+                try:
+                    task_table = self.video_status(tasks)
+                except:
+                    video_serializer["status"] = []
+                    video_data.append(video_serializer)
+                    continue
                 tasks_to_send = []
                 if len(task_table) == 1:
                     if "transcription" in task_table.keys():
@@ -644,7 +649,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         try:
             project = Project.objects.get(pk=pk)
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
-            tasks = Task.objects.filter(video_id__in=videos)
+            tasks = Task.objects.filter(video_id__in=videos).order_by("-updated_at")
             if request.user in project.managers.all() or request.user.is_superuser:
                 serializer = TaskSerializer(tasks, many=True)
                 serialized_dict = json.loads(json.dumps(serializer.data))
@@ -663,15 +668,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Export"] = True
                         buttons["Preview"] = True
                         buttons["Edit"] = False
-                    if (
-                        data["user"]["email"] == request.user.email
-                        and data["status"] != "COMPLETE"
-                    ):
-                        buttons["Edit"] = True
-                        buttons["View"] = True
+                        buttons["Update"] = False
+                    if data["user"]["email"] == request.user.email:
+                        if data["status"] != "COMPLETE":
+                            buttons["Edit"] = True
+                        if data["status"] == "SELECTED_SOURCE":
+                            buttons["View"] = True
                     data["buttons"] = buttons
             else:
-                tasks_by_users = tasks.filter(user=request.user)
+                tasks_by_users = tasks.filter(user=request.user).order_by("-updated_at")
                 serializer = TaskSerializer(tasks_by_users, many=True)
                 serialized_dict = json.loads(json.dumps(serializer.data))
                 for data in serialized_dict:
@@ -687,12 +692,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Edit"] = False
                         buttons["Export"] = True
                         buttons["Preview"] = True
-                    if (
-                        data["user"]["email"] == request.user.email
-                        and data["status"] != "COMPLETE"
-                    ):
-                        buttons["Edit"] = True
-                        buttons["View"] = True
+                        buttons["Update"] = False
+                    if data["user"]["email"] == request.user.email:
+                        if data["status"] != "COMPLETE":
+                            buttons["Edit"] = True
+                        if data["status"] == "SELECTED_SOURCE":
+                            buttons["View"] = True
                     data["buttons"] = buttons
             return Response(serialized_dict, status=status.HTTP_200_OK)
 

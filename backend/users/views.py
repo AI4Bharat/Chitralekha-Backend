@@ -16,6 +16,7 @@ from .serializers import (
     UserUpdateSerializer,
     UserUpdateSerializerOrgOwner,
     LanguageSerializer,
+    UpdateUserPasswordSerializer,
 )
 from organization.models import Invite, Organization
 from organization.serializers import InviteGenerationSerializer
@@ -145,6 +146,25 @@ class InviteViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+    @permission_classes([AllowAny])
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="get_invited_user_info",
+        url_name="get_invited_user_info",
+    )
+    def get_invited_user_info(self, request, pk=None):
+        """
+        Users to sign up for the first time.
+        """
+        try:
+            invite = Invite.objects.get(invite_code=pk)
+        except Invite.DoesNotExist:
+            return Response(
+                {"message": "Invite not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(UserProfileSerializer(invite.user).data)
+
 
 class UserViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthenticated,)
@@ -162,6 +182,37 @@ class UserViewSet(viewsets.ViewSet):
             serialized.save()
             return Response(
                 {"message": "User profile edited"}, status=status.HTTP_200_OK
+            )
+
+    @is_admin
+    @swagger_auto_schema(request_body=UpdateUserPasswordSerializer)
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path="update_password",
+        url_name="set_password",
+    )
+    def user_set_password(self, request, pk=None):
+        """
+        Users to sign up for the first time.
+        """
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response(
+                {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        serialized = UpdateUserPasswordSerializer(user, request.data)
+        if serialized.is_valid():
+            serialized.save()
+            return Response(
+                {"message": "User password changed."}, status=status.HTTP_200_OK
+            )
+        else:
+            return Response(
+                {"message": "Input values are incorrect."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
     @is_organization_owner
