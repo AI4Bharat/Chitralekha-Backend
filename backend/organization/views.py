@@ -288,6 +288,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
         user = request.user
+        src_languages = set()
+        target_languages = set()
         if (
             organization.organization_owner == user
             or user.role == "ADMIN"
@@ -298,8 +300,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
             tasks_serializer = TaskSerializer(tasks, many=True)
             tasks_list = json.loads(json.dumps(tasks_serializer.data))
-            src_languages = set()
-            target_languages = set()
             for task in tasks_list:
                 src_languages.add(task["src_language_label"])
                 target_languages.add(task["target_language_label"])
