@@ -234,7 +234,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     def list_projects(self, request, pk=None, *args, **kwargs):
         try:
             organization = Organization.objects.get(pk=pk)
-            projects = Project.objects.filter(organization_id=organization)
+            projects = Project.objects.filter(organization_id=organization).order_by(
+                "-created_at"
+            )
 
             user = request.user
             if user.role == User.ORG_OWNER or user.is_superuser:
@@ -286,6 +288,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
         user = request.user
+        src_languages = set()
+        target_languages = set()
         if (
             organization.organization_owner == user
             or user.role == "ADMIN"
@@ -297,6 +301,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             tasks_serializer = TaskSerializer(tasks, many=True)
             tasks_list = json.loads(json.dumps(tasks_serializer.data))
             for task in tasks_list:
+                src_languages.add(task["src_language_label"])
+                target_languages.add(task["target_language_label"])
                 buttons = {
                     "Edit": False,
                     "Preview": False,
@@ -333,6 +339,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 task_serializer = TaskSerializer(tasks_in_projects, many=True)
                 tasks_in_projects_list = json.loads(json.dumps(task_serializer.data))
                 for task in tasks_in_projects_list:
+                    src_languages.add(task["src_language_label"])
+                    target_languages.add(task["target_language_label"])
                     buttons = {
                         "Edit": False,
                         "Preview": False,
@@ -361,6 +369,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     json.dumps(assigned_tasks_serializer.data)
                 )
                 for task in assigned_tasks_list:
+                    src_languages.add(task["src_language_label"])
+                    target_languages.add(task["target_language_label"])
                     buttons = {
                         "Edit": False,
                         "Preview": False,
@@ -394,6 +404,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
                 tasks_list = json.loads(json.dumps(tasks_serializer.data))
                 for task in tasks_list:
+                    src_languages.add(task["src_language_label"])
+                    target_languages.add(task["target_language_label"])
                     buttons = {
                         "Edit": False,
                         "Preview": False,
@@ -413,7 +425,17 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         if task["status"] == "SELECTED_SOURCE":
                             buttons["View"] = True
                     task["buttons"] = buttons
-        return Response(tasks_list, status=status.HTTP_200_OK)
+        target_languages_list = list(target_languages)
+        if "-" in target_languages_list:
+            target_languages_list.remove("-")
+        return Response(
+            {
+                "tasks_list": tasks_list,
+                "src_languages_list": list(src_languages),
+                "target_languages_list": target_languages_list,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(

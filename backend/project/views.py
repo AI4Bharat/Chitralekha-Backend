@@ -650,10 +650,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project = Project.objects.get(pk=pk)
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
             tasks = Task.objects.filter(video_id__in=videos).order_by("-updated_at")
+            src_languages = set()
+            target_languages = set()
             if request.user in project.managers.all() or request.user.is_superuser:
                 serializer = TaskSerializer(tasks, many=True)
                 serialized_dict = json.loads(json.dumps(serializer.data))
                 for data in serialized_dict:
+                    src_languages.add(data["src_language_label"])
+                    target_languages.add(data["target_language_label"])
                     buttons = {
                         "Edit": False,
                         "Preview": False,
@@ -680,6 +684,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 serializer = TaskSerializer(tasks_by_users, many=True)
                 serialized_dict = json.loads(json.dumps(serializer.data))
                 for data in serialized_dict:
+                    src_languages.add(data["src_language_label"])
+                    target_languages.add(data["target_language_label"])
                     buttons = {
                         "Edit": False,
                         "Preview": False,
@@ -699,7 +705,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         if data["status"] == "SELECTED_SOURCE":
                             buttons["View"] = True
                     data["buttons"] = buttons
-            return Response(serialized_dict, status=status.HTTP_200_OK)
+            target_languages_list = list(target_languages)
+            if "-" in target_languages_list:
+                target_languages_list.remove("-")
+            return Response(
+                {
+                    "tasks_list": serialized_dict,
+                    "src_languages_list": list(src_languages),
+                    "target_languages_list": target_languages_list,
+                },
+                status=status.HTTP_200_OK,
+            )
 
         except Project.DoesNotExist:
             return Response(
