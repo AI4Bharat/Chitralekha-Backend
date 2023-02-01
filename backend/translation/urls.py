@@ -23,6 +23,11 @@ urlpatterns = [
         name="get_payload",
     ),
     path(
+        "get_translation_export_types/",
+        views.get_translation_export_types,
+        name="get_translation_export_types",
+    ),
+    path(
         "export_translation/",
         views.export_translation,
         name="export_translation",

@@ -10,6 +10,10 @@ from .metadata import (
     DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID,
     LANG_CODE_TO_NAME_ULCA,
 )
+from docx import *
+from docx.shared import Inches
+from django.http import HttpResponse
+
 
 ### Utility Functions ###
 def validate_uuid4(val):
@@ -18,6 +22,17 @@ def validate_uuid4(val):
         return True
     except ValueError:
         return False
+
+
+def convert_to_docx(content):
+    document = Document()
+    response = HttpResponse(
+        content,
+        content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+    response["Content-Disposition"] = "attachment; filename=download_filename.docx"
+    response["Content-Length"] = len(content)
+    return response
 
 
 def get_batch_translations_using_indictrans_nmt_api(
