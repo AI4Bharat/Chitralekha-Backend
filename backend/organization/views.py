@@ -431,8 +431,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         return Response(
             {
                 "tasks_list": tasks_list,
-                "src_languages_list": list(src_languages),
-                "target_languages_list": target_languages_list,
+                "src_languages_list": sorted(list(src_languages)),
+                "target_languages_list": sorted(target_languages_list),
             },
             status=status.HTTP_200_OK,
         )
