@@ -346,6 +346,7 @@ class AudioRequest(BaseModel):
     denoiser: Optional[bool] = False
 
 
+
 @app.post("/transcribe")
 async def transcribe_audio(audio_request: AudioRequest):
     url = audio_request.url
@@ -594,4 +595,23 @@ def process_audio(
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=5050)
+    # .run(app, host="0.0.0.0", port=5050)
+    url = "https://drive.google.com/file/d/1C_Ra23tdqYhc7giuGyMIG0oXyvgFyUYH"
+    use_cuda= False
+    vad_val = 3
+    language = "hi"
+    # chunk_size = audio_request.chunk_size
+    chunk_size = 10
+    # language = audio_request.language
+    print("111111111111111111111")
+    retsore_punct = url.restore_punct
+    print("2222222222222222")
+    if "youtube.com" in url or "youtu.be" in url:
+        audio_url = download_yt_audio(url)
+    elif "drive.google.com" in url:
+        print("Loaded from drive URL")
+        audio_url = download_drive_audio(url)
+    else:
+        audio_url = url
+    print(">aaaaaaaaaaaaa", audio_url)
+    process_audio(audio_url, vad_val, chunk_size, language, retsore_punct)
