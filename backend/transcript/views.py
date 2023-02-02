@@ -137,14 +137,14 @@ def export_transcript(request):
         content = "\n".join(lines)
     elif export_type == "txt":
         for index, segment in enumerate(payload):
-            lines.append(segment["text"] + "\n")
+            lines.append(segment["text"])
         filename = "transcript.txt"
-        content = "\n".join(lines)
+        content = " ".join(lines)
     elif export_type == "docx":
         for index, segment in enumerate(payload):
-            lines.append(segment["text"] + "\n")
+            lines.append(segment["text"])
         filename = "transcript.txt"
-        content = "\n".join(lines)
+        content = " ".join(lines)
         return convert_to_docx(content)
     elif export_type == "ytt":
         try:
