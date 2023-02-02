@@ -1141,7 +1141,7 @@ class TaskViewSet(ModelViewSet):
                     for translation_task in translation_tasks
                 ]
 
-                if flag == "true" or flag:
+                if flag == "true" or flag == True:
                     for task in translation_tasks:
                         tasks_deleted.append(task.id)
                         task.delete()
