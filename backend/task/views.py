@@ -1142,12 +1142,12 @@ class TaskViewSet(ModelViewSet):
                 ]
 
                 if flag == "true" or flag == True:
-                    for task in translation_tasks:
-                        tasks_deleted.append(task.id)
-                        task.delete()
-                    for task in tasks_to_delete:
-                        tasks_deleted.append(task.id)
-                        task.delete()
+                    for task_obj in translation_tasks:
+                        tasks_deleted.append(task_obj.id)
+                        task_obj.delete()
+                    for task_obj in tasks_to_delete:
+                        tasks_deleted.append(task_obj.id)
+                        task_obj.delete()
                 else:
                     return Response(
                         {
@@ -1157,9 +1157,9 @@ class TaskViewSet(ModelViewSet):
                         status=status.HTTP_409_CONFLICT,
                     )
             else:
-                for task in tasks_to_delete:
-                    tasks_deleted.append(task.id)
-                    task.delete()
+                for task_obj in tasks_to_delete:
+                    tasks_deleted.append(task_obj.id)
+                    task_obj.delete()
 
         if task.task_type == "TRANSLATION_EDIT":
             translations = (
@@ -1168,9 +1168,9 @@ class TaskViewSet(ModelViewSet):
                 .all()
             )
             tasks_to_delete = [translation.task for translation in translations]
-            for task in list(set(tasks_to_delete)):
-                tasks_deleted.append(task.id)
-                task.delete()
+            for task_obj in list(set(tasks_to_delete)):
+                tasks_deleted.append(task_obj.id)
+                task_obj.delete()
 
         if task.task_type == "TRANSLATION_REVIEW":
             tasks_deleted.append(task.id)
