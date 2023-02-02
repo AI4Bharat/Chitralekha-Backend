@@ -398,7 +398,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     }.values()
                 )
             else:
-                tasks = Task.objects.filter(user=user).all().order_by(
+                tasks = Task.objects.filter(user=user).order_by(
                     "-updated_at"
                 )
                 tasks_serializer = TaskSerializer(tasks, many=True)
