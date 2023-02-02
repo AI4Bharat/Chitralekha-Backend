@@ -26,8 +26,14 @@ from .utils import (
     drive_info_extractor,
     DownloadError,
 )
+from django.utils import timezone
+from django.http import HttpResponse
+import io
+import zipfile
 from project.models import Project
 import logging
+from transcript.views import export_transcript
+from translation.views import export_translation
 
 
 @swagger_auto_schema(
@@ -585,3 +591,156 @@ def list_tasks(request):
     # Return the tasks
     serializer = TaskSerializer(tasks, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+def exp_translation(request, task_id, export_type):
+    new_request = HttpRequest()
+    new_request.method = "GET"
+    new_request.user = request.user
+    new_request.GET = request.GET.copy()
+    new_request.GET["task_id"] = task_id
+    new_request.GET["export_type"] = export_type
+    return export_translation(new_request)
+
+
+def export(request, task_id, export_type):
+    new_request = HttpRequest()
+    new_request.method = "GET"
+    new_request.user = request.user
+    new_request.GET = request.GET.copy()
+    new_request.GET["task_id"] = task_id
+    new_request.GET["export_type"] = export_type
+    return export_transcript(new_request)
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "video_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the video id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+        openapi.Parameter(
+            "export_type",
+            openapi.IN_QUERY,
+            description=("export type parameter srt/vtt/txt/docx"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+    ],
+    responses={200: "Transcript is exported"},
+)
+@api_view(["GET"])
+def download_all(request):
+    """
+    API Endpoint to download all the completed transcripts/translations for a video
+    Endpoint: /video/download_all/
+    Method: GET
+    """
+    video_id = request.query_params.get("video_id")
+    export_type = request.query_params.get("export_type")
+    if video_id is None or export_type is None:
+        return Response(
+            {"message": "missing required params: video_id or export_type"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        video = Video.objects.get(id=video_id)
+    except Video.DoesNotExist:
+        return Response(
+            {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    tasks = Task.objects.filter(video=video).all()
+    if tasks.filter(task_type="TRANSCRIPTION_REVIEW").exists():
+        transcript_task = (
+            tasks.filter(task_type="TRANSCRIPTION_REVIEW")
+            .filter(status="COMPLETE")
+            .first()
+        )
+    elif (
+        tasks.filter(task_type="TRANSCRIPTION_EDIT").filter(status="COMPLETE").exists()
+    ):
+        transcript_task = (
+            tasks.filter(task_type="TRANSCRIPTION_EDIT")
+            .filter(status="COMPLETE")
+            .first()
+        )
+    else:
+        transcript_task = None
+
+    languages_in_review_tasks = None
+    translation_tasks = []
+    if export_type != "ytt":
+        if tasks.filter(task_type="TRANSLATION_REVIEW").exists():
+            for translation_task in tasks.filter(task_type="TRANSLATION_REVIEW").filter(
+                status="COMPLETE"
+            ):
+                translation_tasks.append(translation_task)
+            languages_in_review_tasks = tasks.filter(
+                task_type="TRANSLATION_REVIEW"
+            ).values_list("target_language", flat=True)
+        if (
+            tasks.filter(task_type="TRANSLATION_EDIT")
+            .filter(status="COMPLETE")
+            .exists()
+        ):
+            edit_translation_tasks = tasks.filter(task_type="TRANSLATION_EDIT").filter(
+                status="COMPLETE"
+            )
+            languages_in_edited_tasks = edit_translation_tasks.values_list(
+                "target_language", flat=True
+            )
+            if languages_in_review_tasks != None:
+                languages_in_edit_tasks_and_not_in_reivew_tasks = list(
+                    set(languages_in_edited_tasks) - set(languages_in_review_tasks)
+                )
+                for translation_task in edit_translation_tasks.filter(
+                    target_language__in=languages_in_edit_tasks_and_not_in_reivew_tasks
+                ):
+                    translation_tasks.append(translation_task)
+            else:
+                for translation_task in edit_translation_tasks:
+                    translation_tasks.append(translation_task)
+
+    if transcript_task is None and len(translation_tasks) == 0:
+        return Response(
+            {
+                "message": "No Completed transcripts/translations found to be downloaded."
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    zip_file = io.BytesIO()
+    with zipfile.ZipFile(zip_file, "w") as zf:
+        if transcript_task is not None:
+            transcript = export(request, transcript_task.id, export_type)
+            zf.writestr(
+                f"{transcript_task.video.name}_transcript.{export_type}",
+                transcript.content,
+            )
+
+        if translation_tasks is not None:
+            for translation_task in translation_tasks:
+                translation = exp_translation(request, translation_task.id, export_type)
+                zf.writestr(
+                    f"{transcript_task.video.name}_translation_{translation_task.target_language}.{export_type}",
+                    translation.content,
+                )
+    zip_file.seek(0)
+    response = HttpResponse(
+        zip_file, content_type="application/zip", status=status.HTTP_200_OK
+    )
+    from datetime import datetime
+
+    time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    print("The current date and time is", time_now)
+    response[
+        "Content-Disposition"
+    ] = f"attachment; filename={video.name}_{time_now}_all.zip"
+    return response
