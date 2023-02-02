@@ -124,14 +124,14 @@ def export_translation(request):
         content = "\n".join(lines)
     elif export_type == "txt":
         for index, segment in enumerate(payload):
-            lines.append(segment["target_text"] + "\n")
+            lines.append(segment["target_text"])
         filename = "translation.txt"
-        content = "\n".join(lines)
+        content = " ".join(lines)
     elif export_type == "docx":
         for index, segment in enumerate(payload):
-            lines.append(segment["text"] + "\n")
-        filename = "transcript.txt"
-        content = "\n".join(lines)
+            lines.append(segment["target_text"])
+        filename = "translation.docx"
+        content = " ".join(lines)
         return convert_to_docx(content)
     else:
         return Response(
