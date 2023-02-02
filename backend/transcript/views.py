@@ -22,6 +22,7 @@ from translation.utils import (
     get_batch_translations_using_indictrans_nmt_api,
     generate_translation_payload,
     translation_mg,
+    convert_to_docx,
 )
 from translation.metadata import LANGUAGE_CHOICES, INDIC_TRANS_SUPPORTED_LANGUAGES
 
@@ -52,6 +53,14 @@ from functools import wraps
 from rest_framework import status
 from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
 from django.db.models.functions import Cast
+
+
+@api_view(["GET"])
+def get_transcript_export_types(request):
+    return Response(
+        {"export_types": ["srt", "vtt", "txt", "docx", "ytt"]},
+        status=status.HTTP_200_OK,
+    )
 
 
 @swagger_auto_schema(
@@ -85,11 +94,11 @@ def export_transcript(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    supported_types = ["srt", "vtt", "txt", "ytt"]
+    supported_types = ["srt", "vtt", "txt", "docx", "ytt"]
     if export_type not in supported_types:
         return Response(
             {
-                "message": "exported type only supported formats are : {srt, vtt, txt, ytt} "
+                "message": "exported type only supported formats are : {srt, vtt, txt, docx, ytt} "
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -128,9 +137,15 @@ def export_transcript(request):
         content = "\n".join(lines)
     elif export_type == "txt":
         for index, segment in enumerate(payload):
-            lines.append(segment["text"] + "\n")
+            lines.append(segment["text"])
         filename = "transcript.txt"
-        content = "\n".join(lines)
+        content = " ".join(lines)
+    elif export_type == "docx":
+        for index, segment in enumerate(payload):
+            lines.append(segment["text"])
+        filename = "transcript.txt"
+        content = " ".join(lines)
+        return convert_to_docx(content)
     elif export_type == "ytt":
         try:
             json_data = {
@@ -143,7 +158,6 @@ def export_transcript(request):
                 json=json_data,
             )
             data = response.json()
-
             ytt_genorator(data, "transcript_local.ytt", prev_line_in=0, mode="data")
             file_location = "transcript_local.ytt"
         except:

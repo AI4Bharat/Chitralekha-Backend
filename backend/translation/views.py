@@ -38,9 +38,16 @@ from .models import (
 
 from .decorators import is_translation_editor
 from .serializers import TranslationSerializer
-from .utils import get_batch_translations_using_indictrans_nmt_api
+from .utils import get_batch_translations_using_indictrans_nmt_api, convert_to_docx
 from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
 from django.db.models.functions import Cast
+
+
+@api_view(["GET"])
+def get_translation_export_types(request):
+    return Response(
+        {"export_types": ["srt", "vtt", "txt", "docx"]}, status=status.HTTP_200_OK
+    )
 
 
 @swagger_auto_schema(
@@ -92,10 +99,12 @@ def export_translation(request):
     payload = translation.payload["payload"]
     lines = []
 
-    supported_types = ["srt", "vtt", "txt"]
+    supported_types = ["srt", "vtt", "txt", "docx"]
     if export_type not in supported_types:
         return Response(
-            {"message": "exported type only supported formats are : {csv,tsv,json} "},
+            {
+                "message": "exported type only supported formats are : {srt, vtt, txt, docx} "
+            },
             status=status.HTTP_404_NOT_FOUND,
         )
     if export_type == "srt":
@@ -115,9 +124,15 @@ def export_translation(request):
         content = "\n".join(lines)
     elif export_type == "txt":
         for index, segment in enumerate(payload):
-            lines.append(segment["target_text"] + "\n")
+            lines.append(segment["target_text"])
         filename = "translation.txt"
-        content = "\n".join(lines)
+        content = " ".join(lines)
+    elif export_type == "docx":
+        for index, segment in enumerate(payload):
+            lines.append(segment["target_text"])
+        filename = "translation.docx"
+        content = " ".join(lines)
+        return convert_to_docx(content)
     else:
         return Response(
             {"message": "This type is not supported."},

@@ -1102,6 +1102,8 @@ class TaskViewSet(ModelViewSet):
     @has_task_edit_permission
     @action(detail=True, methods=["delete"], url_path="delete_task")
     def delete_task(self, request, pk=None, *args, **kwargs):
+        tasks_deleted = []
+
         try:
             task = Task.objects.get(pk=pk)
         except Task.DoesNotExist:
@@ -1110,7 +1112,8 @@ class TaskViewSet(ModelViewSet):
             )
         translation_tasks = set()
         flag = request.query_params.get("flag")
-
+        if "flag" in kwargs:
+            flag = kwargs["flag"]
         if task.task_type in ["TRANSCRIPTION_EDIT", "TRANSCRIPTION_REVIEW"]:
             transcripts = Transcript.objects.filter(video=task.video)
 
@@ -1133,15 +1136,18 @@ class TaskViewSet(ModelViewSet):
                         "target_language": translation_task.get_target_language_label,
                         "video_name": translation_task.video.name,
                         "id": translation_task.id,
+                        "video_id": translation_task.video.id,
                     }
                     for translation_task in translation_tasks
                 ]
 
-                if flag == "true":
-                    for task in translation_tasks:
-                        task.delete()
-                    for task in tasks_to_delete:
-                        task.delete()
+                if flag == "true" or flag == True:
+                    for task_obj in translation_tasks:
+                        tasks_deleted.append(task_obj.id)
+                        task_obj.delete()
+                    for task_obj in tasks_to_delete:
+                        tasks_deleted.append(task_obj.id)
+                        task_obj.delete()
                 else:
                     return Response(
                         {
@@ -1151,8 +1157,9 @@ class TaskViewSet(ModelViewSet):
                         status=status.HTTP_409_CONFLICT,
                     )
             else:
-                for task in tasks_to_delete:
-                    task.delete()
+                for task_obj in tasks_to_delete:
+                    tasks_deleted.append(task_obj.id)
+                    task_obj.delete()
 
         if task.task_type == "TRANSLATION_EDIT":
             translations = (
@@ -1161,15 +1168,123 @@ class TaskViewSet(ModelViewSet):
                 .all()
             )
             tasks_to_delete = [translation.task for translation in translations]
-            for task in list(set(tasks_to_delete)):
-                task.delete()
+            for task_obj in list(set(tasks_to_delete)):
+                tasks_deleted.append(task_obj.id)
+                task_obj.delete()
 
         if task.task_type == "TRANSLATION_REVIEW":
+            tasks_deleted.append(task.id)
             task.delete()
 
         return Response(
             {
-                "message": "Task is deleted, with all associated transcripts/translations"
+                "tasks_deleted": list(set(tasks_deleted)),
+                "message": "Task is deleted, with all associated transcripts/translations",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @swagger_auto_schema(
+        method="delete",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["task_ids"],
+            properties={
+                "task_ids": openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    description="A string to pass the transcript data",
+                ),
+                "flag": openapi.Schema(
+                    type=openapi.TYPE_BOOLEAN,
+                    description="A boolean to complete the task",
+                ),
+            },
+            description="Post request body for projects which have save_type == new_record",
+        ),
+        responses={
+            200: "Transcript has been saved successfully",
+        },
+    )
+    @action(detail=False, methods=["delete"], url_path="delete_bulk_tasks")
+    def delete_bulk_tasks(self, request, *args, **kwargs):
+        task_ids = request.data.get("task_ids")
+        flag = request.data.get("flag")
+        if flag == None:
+            flag = False
+
+        tasks = []
+        detailed_report = []
+        error_report = []
+        tasks_to_delete = set()
+        videos = set()
+        deleted_tasks = []
+        for task_id in task_ids:
+            try:
+                task_obj = Task.objects.get(pk=task_id)
+            except Task.DoesNotExist:
+                if task_id in deleted_tasks:
+                    continue
+                return Response(
+                    {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+            delete = self.delete_task(request, pk=task_id, flag=flag)
+            if delete.status_code == 200:
+                deletion_status = "Success"
+                detailed_report.append(
+                    {
+                        "video_name": task_obj.video.name,
+                        "video_id": task_obj.video_id,
+                        "task_type": task_obj.task_type,
+                        "target_language": task_obj.target_language,
+                    }
+                )
+                deleted_tasks.extend(delete.data.get("tasks_deleted"))
+            elif delete.status_code == 409:
+                dependent_tasks = delete.data
+                for task in dependent_tasks["response"]:
+                    error_report.append(
+                        {
+                            "video_name": task["video_name"],
+                            "video_id": task["video_id"],
+                            "task_type": task["task_type"],
+                            "target_language": task["target_language"],
+                        }
+                    )
+                    videos.add(task["video_id"])
+                    tasks_to_delete.add(task_obj.id)
+            else:
+                deletion_status = "Fail"
+                detailed_report.append(
+                    {
+                        "video_name": task.video.name,
+                        "video_id": task.video_id,
+                        "task_type": task.task_type,
+                        "target_language": task["target_language"],
+                    }
+                )
+
+        response = {}
+        if len(error_report) > 0:
+            response["error_report"] = error_report
+            response["task_ids"] = list(tasks_to_delete)
+            if len(list(videos)) > 1:
+                response[
+                    "message"
+                ] = "The Transcription task for video_id(s) {0} has dependent translation tasks. Do you still want to delete all related translations as well?.".format(
+                    str(list(videos))
+                )
+            else:
+                response[
+                    "message"
+                ] = "The Transcription task has dependent translation tasks. Do you still want to delete all related translations as well?."
+            return Response(
+                response,
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(
+            {
+                "message": "Task(s) deleted, with all associated transcripts/translations"
             },
             status=status.HTTP_200_OK,
         )
