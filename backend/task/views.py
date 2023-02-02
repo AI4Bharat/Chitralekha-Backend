@@ -1280,7 +1280,7 @@ class TaskViewSet(ModelViewSet):
                 ] = "The Transcription task has dependent translation tasks. Do you still want to delete all related translations as well?."
             return Response(
                 response,
-                status=status.HTTP_200_OK,
+                status=status.HTTP_409_CONFLICT,
             )
         return Response(
             {
