@@ -15,6 +15,10 @@ def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
         }
         logging.info("Request to ASR API send")
         request_url = "http://216.48.182.174:5000/transcribe"
+        # For Videos in English, call this API
+        if lang == "en":
+            logging.info("Calling another instance for English video.")
+            request_url = "http://216.48.182.174:5002/transcribe"
         response = requests.post(request_url, json=json_data)
         logging.info("ASR response generated")
     except:
