@@ -398,10 +398,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     }.values()
                 )
             else:
-                tasks = Task.objects.filter(user=user)
-                tasks_serializer = TaskSerializer(tasks, many=True).order_by(
+                tasks = Task.objects.filter(user=user).all().order_by(
                     "-updated_at"
                 )
+                tasks_serializer = TaskSerializer(tasks, many=True)
                 tasks_list = json.loads(json.dumps(tasks_serializer.data))
                 for task in tasks_list:
                     src_languages.add(task["src_language_label"])
