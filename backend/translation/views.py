@@ -317,7 +317,7 @@ def generate_translation(request):
     # Get the query params
     transcript_id = request.query_params.get("transcript_id")
     target_language = request.query_params.get("target_language")
-    batch_size = request.query_params.get("batch_size", 75)
+    batch_size = request.query_params.get("batch_size", 25)
 
     # Ensure that required params are present
     if not (transcript_id and target_language):
