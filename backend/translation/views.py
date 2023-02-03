@@ -58,7 +58,7 @@ from transcript.utils.TTML import generate_ttml
         openapi.Parameter(
             "export_type",
             openapi.IN_QUERY,
-            description=("export type parameter srt/vtt/txt/sbv/TTML"),
+            description=("export type parameter srt/vtt/txt/sbv/TTML/scc"),
             type=openapi.TYPE_STRING,
             required=True,
         ),
@@ -95,7 +95,7 @@ def export_translation(request):
     payload = translation.payload["payload"]
     lines = []
 
-    supported_types = ["srt", "vtt", "txt", "sbv", "TTML"]
+    supported_types = ["srt", "vtt", "txt", "sbv", "TTML","scc"]
     if export_type not in supported_types:
         return Response(
             {"message": "exported type only supported formats are : {csv,tsv,json} "},
@@ -128,7 +128,7 @@ def export_translation(request):
                 + ","
                 + segment["end_time"]
                 + "\n"
-                + segment["text"]
+                + segment["target_text"]
                 + "\n"
             )
         filename = "translation.sbv"
@@ -136,8 +136,59 @@ def export_translation(request):
 
     elif export_type == "TTML":
         lines = generate_ttml(payload)
+        for index, segment in enumerate(payload):
+
+            lines.append(
+                "\t\t\t<p xml:id='subtitle"
+                + str(index + 1)
+                + "' begin='"
+                + segment["start_time"]
+                + "' end='"
+                + segment["end_time"]
+                + "' style='s1'>"
+                + segment["target_text"].replace(",", "<br/>")
+                + "</p>"
+            )
+        lines.append("\t\t</div>\n" + "\t</body>\n" + "</tt>\n")
         filename = "translation.TTML"
         content = "\n".join(lines)
+
+
+    elif export_type == "scc":
+
+        def convert_to_unicode_hex(payload):
+            unicode_hex = []
+            for char in payload:
+                for c in char:
+                    unicode_hex.append(format(ord(c), 'x').zfill(4))
+            return " ".join(unicode_hex)
+
+        def convert_scc_format(payload):
+            lines = translation.payload["payload"]
+            output = "Scenarist_SCC V1.0\n\n"
+            scc_lines = []
+            time = 0
+            for line in lines:
+                
+                line_hex = convert_to_unicode_hex(line)
+                line_time= "00:" + str(time//60).zfill(2) + ":" + str(time%60).zfill(2) + ":00"
+                scc_line = line_time + "\t" + line_hex
+                scc_lines.append(scc_line)
+                time += 16
+            return output + "\n".join(scc_lines)
+
+
+        filename = "transcript.scc"
+        content = convert_scc_format(payload=payload)
+
+        if export_type == "srt":
+            for index, segment in enumerate(payload):
+                lines.append(str(index + 1))
+                lines.append(segment["start_time"] + " --> " + segment["end_time"])
+                lines.append(segment["text"] + "\n")
+            filename = "transcript.srt"
+            content = "\n".join(lines)
+
     else:
         return Response(
             {"message": "This type is not supported."},

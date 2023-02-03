@@ -18,18 +18,4 @@ def generate_ttml(payload):
         + "\t<body>\n"
         + "\t\t<div>\n"
     )
-    for index, segment in enumerate(payload):
-
-        lines.append(
-            "\t\t\t<p xml:id='subtitle"
-            + str(index + 1)
-            + "' begin='"
-            + segment["start_time"]
-            + "' end='"
-            + segment["end_time"]
-            + "' style='s1'>"
-            + segment["text"].replace(",", "<br/>")
-            + "</p>"
-        )
-    lines.append("\t\t</div>\n" + "\t</body>\n" + "</tt>\n")
     return lines
