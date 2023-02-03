@@ -164,6 +164,33 @@ def export_transcript(request):
         filename = "transcript.TTML"
         content = "\n".join(lines)
 
+
+    elif export_type == "ytt":
+        try:
+            json_data = {
+                "srt": transcript.payload,
+                "url": task.video.url,
+                "language": task.video.language,
+            }
+            response = requests.post(
+                "http://216.48.183.5:7000/align_json",
+                json=json_data,
+            )
+            data = response.json()
+
+            ytt_genorator(data, "transcript_local.ytt", prev_line_in=0, mode="data")
+            file_location = "transcript_local.ytt"
+        except:
+            return Response(
+                {"message": "Error in exporting to ytt format."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        with open(file_location, "r") as f:
+            file_data = f.read()
+        response = HttpResponse(file_data, content_type="application/xml")
+        response["Content-Disposition"] = 'attachment; filename="transcript.ytt"'
+        return response
+
     elif export_type == "scc":
 
         def convert_to_unicode_hex(payload):
@@ -195,39 +222,6 @@ def export_transcript(request):
         filename = "transcript.scc"
         content = convert_scc_format(payload=payload)
 
-        if export_type == "srt":
-            for index, segment in enumerate(payload):
-                lines.append(str(index + 1))
-                lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                lines.append(segment["text"] + "\n")
-            filename = "transcript.srt"
-            content = "\n".join(lines)
-
-    elif export_type == "ytt":
-        try:
-            json_data = {
-                "srt": transcript.payload,
-                "url": task.video.url,
-                "language": task.video.language,
-            }
-            response = requests.post(
-                "http://216.48.183.5:7000/align_json",
-                json=json_data,
-            )
-            data = response.json()
-
-            ytt_genorator(data, "transcript_local.ytt", prev_line_in=0, mode="data")
-            file_location = "transcript_local.ytt"
-        except:
-            return Response(
-                {"message": "Error in exporting to ytt format."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-        with open(file_location, "r") as f:
-            file_data = f.read()
-        response = HttpResponse(file_data, content_type="application/xml")
-        response["Content-Disposition"] = 'attachment; filename="transcript.ytt"'
-        return response
 
     else:
         return Response(
