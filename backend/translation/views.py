@@ -1,3 +1,4 @@
+import datetime
 from io import StringIO
 import webvtt
 from django.shortcuts import get_object_or_404
@@ -11,6 +12,7 @@ from rest_framework.decorators import (
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from transcript.utils.TTML import generate_ttml
 from transcript.models import Transcript
 from video.models import Video
 from task.models import Task
@@ -20,6 +22,7 @@ from django.http import HttpRequest
 from django.core.files.base import ContentFile
 import requests
 from .metadata import TRANSLATION_SUPPORTED_LANGUAGES, TRANSLATION_LANGUAGE_CHOICES
+from transcript.utils.TTML import generate_ttml
 from .models import (
     Translation,
     MACHINE_GENERATED,
@@ -85,7 +88,7 @@ def get_translation_export_types(request):
         openapi.Parameter(
             "export_type",
             openapi.IN_QUERY,
-            description=("export type parameter srt/vtt/txt/docx/docx-bilingual"),
+            description=("export type parameter srt/vtt/txt/docx/docx-bilingual/sbv/TTML/scc"),
             type=openapi.TYPE_STRING,
             required=True,
         ),
@@ -142,15 +145,15 @@ def export_translation(request):
             speaker["label"]: speaker["value"] for speaker in speaker_info
         }
 
-    lines = []
-    supported_types = ["srt", "vtt", "txt", "docx", "docx-bilingual"]
+    supported_types = ["srt", "vtt", "txt", "docx", "docx-bilingual", "sbv", "TTML", "scc","rt"]
     if export_type not in supported_types:
         return Response(
             {
-                "message": "exported type only supported formats are : {srt, vtt, txt, docx, docx-bilingual} "
+                "message": "exported type only supported formats are : {srt, vtt, txt, docx, docx-bilingual, sbv, TTML, scc, rt} "
             },
             status=status.HTTP_404_NOT_FOUND,
         )
+
     if export_type == "srt":
         for index, segment in enumerate(payload):
             if "text" in segment.keys():
@@ -198,6 +201,87 @@ def export_translation(request):
         filename = "translation.docx"
         content = convert_to_paragraph_bilingual(payload, task.video.name)
         return convert_to_docx(content)
+
+    elif export_type == "sbv":
+        for index, segment in enumerate(payload):
+            lines.append(
+                segment["start_time"]
+                + ","
+                + segment["end_time"]
+                + "\n"
+                + segment["target_text"]
+                + "\n"
+            )
+        filename = "translation.sbv"
+        content = "\n".join(lines)
+
+    elif export_type == "TTML":
+        lines = generate_ttml(payload)
+        for index, segment in enumerate(payload):
+
+            lines.append(
+                "\t\t\t<p xml:id='subtitle"
+                + str(index + 1)
+                + "' begin='"
+                + segment["start_time"]
+                + "' end='"
+                + segment["end_time"]
+                + "' style='s1'>"
+                + segment["target_text"].replace(",", "<br/>")
+                + "</p>"
+            )
+        lines.append("\t\t</div>\n" + "\t</body>\n" + "</tt>\n")
+        filename = "translation.TTML"
+        content = "\n".join(lines)
+
+    elif export_type == "scc":
+
+        def convert_to_unicode_hex(payload):
+            unicode_hex = []
+            for char in payload:
+                for c in char:
+                    unicode_hex.append(format(ord(c), "x").zfill(4))
+            return " ".join(unicode_hex)
+
+        def convert_scc_format(payload):
+            lines = translation.payload["payload"]
+            output = "Scenarist_SCC V1.0\n\n"
+            scc_lines = []
+            time = 0
+            for line in lines:
+                line_hex = convert_to_unicode_hex(line)
+                line_time = (
+                    "00:"
+                    + str(time // 60).zfill(2)
+                    + ":"
+                    + str(time % 60).zfill(2)
+                    + ":00"
+                )
+                scc_line = line_time + "\t" + line_hex
+                scc_lines.append(scc_line)
+                time += 16
+            return output + "\n".join(scc_lines)
+
+        filename = "tarnslation.scc"
+        content = convert_scc_format(payload=payload)
+
+    elif export_type == "rt":
+        time_format = "%H:%M:%S.%f"
+        lines.append('<Window\n  Width    = "640"\n  Height   = "480"\n  WordWrap = "true"\n  Loop     = "true"\n  bgcolor  = "black"\n>\n<Font\n  Color = "white"\n  Face  = "Arial"\n  Size  = "+2"\n>\n<center>\n<b>\n')
+
+        for index, segment in enumerate(payload):
+            start_time = start_times = [datetime.datetime.strptime("00:%02d:%02d.0" % (m, s), time_format) for m, s in [divmod(index * 16, 60)]][0]
+            end_time = end_times = [datetime.datetime.strptime("00:%02d:%02d.0" % (m, s), time_format) for m, s in [divmod((index + 1) * 16, 60)]][0]
+
+            start_time_str = start_time.strftime("%H:%M:%S.%f")[:-5]
+            end_time_str = end_time.strftime("%H:%M:%S.%f")[:-5]
+
+            lines.append(
+                "<Time begin=" + f"{start_time_str}" + " end=" + f"{end_time_str}" + " />" + "<clear/> " +" " + segment["target_text"] )
+        lines.append("</b>\n</center>")
+        filename = "translation.rt"
+        content = "\n".join(lines)
+
     else:
         return Response(
             {"message": "This type is not supported."},
