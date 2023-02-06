@@ -38,7 +38,11 @@ from .models import (
 
 from .decorators import is_translation_editor
 from .serializers import TranslationSerializer
-from .utils import get_batch_translations_using_indictrans_nmt_api, convert_to_docx
+from .utils import (
+    get_batch_translations_using_indictrans_nmt_api,
+    convert_to_docx,
+    convert_to_paragraph,
+)
 from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
 from django.db.models.functions import Cast
 
@@ -126,12 +130,12 @@ def export_translation(request):
         for index, segment in enumerate(payload):
             lines.append(segment["target_text"])
         filename = "translation.txt"
-        content = " ".join(lines)
+        content = convert_to_paragraph(lines)
     elif export_type == "docx":
         for index, segment in enumerate(payload):
             lines.append(segment["target_text"])
         filename = "translation.docx"
-        content = " ".join(lines)
+        content = convert_to_paragraph(lines)
         return convert_to_docx(content)
     else:
         return Response(
