@@ -53,16 +53,16 @@ class User(AbstractBaseUser, PermissionsMixin):
     PROJECT_MANAGER = "PROJECT_MANAGER"
     ORG_OWNER = "ORG_OWNER"
     ADMIN = "ADMIN"
-    VOICEOVER_EDITOR = "VOICEOVER_EDITOR"
-    VOICEOVER_REVIEWER = "VOICEOVER_REVIEWER"
+    VOICE_OVER_EDITOR = "VOICE_OVER_EDITOR"
+    VOICE_OVER_REVIEWER = "VOICE_OVER_REVIEWER"
 
     ROLE_CHOICES = (
         (TRANSCRIPT_EDITOR, "Transcript editor"),
         (TRANSCRIPT_REVIEWER, "Transcript Reviewer"),
         (TRANSLATION_EDITOR, "Translation editor"),
         (TRANSLATION_REVIEWER, "Translation Reviewer"),
-        (VOICEOVER_EDITOR, "Voice Over Editor"),
-        (VOICEOVER_REVIEWER, "Voice Over Reviewer"),
+        (VOICE_OVER_EDITOR, "Voice Over Editor"),
+        (VOICE_OVER_REVIEWER, "Voice Over Reviewer"),
         (UNIVERSAL_EDITOR, "Universal Editor"),
         (PROJECT_MANAGER, "Project Manager"),
         (ORG_OWNER, "Organization Owner"),

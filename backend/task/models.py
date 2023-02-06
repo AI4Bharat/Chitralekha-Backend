@@ -23,7 +23,7 @@ P4 = "P4"
 TASK_STATUS = (
     (NEW, "New"),
     (SELECTED_SOURCE, "Selected Source"),
-    (INPROGRESS, "In Progress"),
+    (INPROGRESS, "Inprogress"),
     (COMPLETE, "Complete"),
 )
 

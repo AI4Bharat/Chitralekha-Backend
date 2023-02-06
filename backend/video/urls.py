@@ -9,5 +9,4 @@ urlpatterns = [
     path("list_recent", views.list_recent, name="list_recent"),
     path("list_tasks", views.list_tasks, name="list_tasks"),
     path("download_all", views.download_all, name="download_all"),
-    path("send_mail_task", views.send_mail_task, name="send_mail_task"),
 ]
