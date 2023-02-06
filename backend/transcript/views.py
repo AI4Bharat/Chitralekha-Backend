@@ -23,6 +23,7 @@ from translation.utils import (
     generate_translation_payload,
     translation_mg,
     convert_to_docx,
+    convert_to_paragraph
 )
 from translation.metadata import LANGUAGE_CHOICES, INDIC_TRANS_SUPPORTED_LANGUAGES
 
@@ -139,12 +140,12 @@ def export_transcript(request):
         for index, segment in enumerate(payload):
             lines.append(segment["text"])
         filename = "transcript.txt"
-        content = " ".join(lines)
+        content = convert_to_paragraph(lines)
     elif export_type == "docx":
         for index, segment in enumerate(payload):
             lines.append(segment["text"])
         filename = "transcript.txt"
-        content = " ".join(lines)
+        content = convert_to_paragraph(lines)
         return convert_to_docx(content)
     elif export_type == "ytt":
         try:

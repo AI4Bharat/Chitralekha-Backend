@@ -35,6 +35,19 @@ def convert_to_docx(content):
     return response
 
 
+def convert_to_paragraph(lines):
+    count = 0
+    content = ""
+    for line in lines:
+        if count < 5:
+            content = content + " " + line
+            count += 1
+        else:
+            content += "\n" + "\n" + line
+            count = 0
+    return content
+
+
 def get_batch_translations_using_indictrans_nmt_api(
     sentence_list,
     source_language,
