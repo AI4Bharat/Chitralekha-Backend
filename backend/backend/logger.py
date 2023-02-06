@@ -3,7 +3,6 @@ Defines the logging format for the console logger
 """
 import logging
 from django.utils.termcolors import colorize
-import logging.handlers
 
 
 class ConsoleFormatter(logging.Formatter):

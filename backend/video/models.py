@@ -27,7 +27,7 @@ class Video(models.Model):
         primary_key=False,
     )
     name = models.CharField(max_length=255, verbose_name="Video Name")
-    url = models.URLField(verbose_name="Video URL", db_index=True)
+    url = models.URLField(unique=True, verbose_name="Video URL", db_index=True)
     project_id = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,

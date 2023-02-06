@@ -66,7 +66,6 @@ INSTALLED_APPS = [
     "transcript",
     "translation",
     "users",
-    "voiceover",
 ]
 
 MIDDLEWARE = [
@@ -164,7 +163,7 @@ REST_FRAMEWORK = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "NAME": "one_two",
+        "NAME": os.getenv("POSTGRES_DB_NAME"),
         "USER": os.getenv("POSTGRES_DB_USERNAME"),
         "PASSWORD": os.getenv("POSTGRES_DB_PASSWORD"),
         "HOST": os.getenv("POSTGRES_DB_HOST"),
@@ -195,7 +194,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "Asia/Calcutta"
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -255,7 +254,7 @@ if LOGGING == "true":
         "class": "logging.handlers.RotatingFileHandler",
         "filename": os.path.join(BASE_DIR, "logs/default.log"),
         "formatter": "file",
-        "maxBytes": 1024 * 1024 * 3,
+        "maxBytes": 1024 * 1024 * 300,
         "backupCount": 2,
     }
     handlers["file"] = {
@@ -263,7 +262,7 @@ if LOGGING == "true":
         "class": "logging.handlers.RotatingFileHandler",
         "filename": os.path.join(BASE_DIR, "logs/default.log"),
         "formatter": "file",
-        "maxBytes": 1024 * 1024 * 3,
+        "maxBytes": 1024 * 1024 * 300,
         "backupCount": 2,
     }
 

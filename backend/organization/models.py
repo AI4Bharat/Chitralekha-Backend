@@ -122,14 +122,6 @@ class Organization(models.Model):
     created_at = models.DateTimeField(verbose_name="created_at", auto_now_add=True)
     updated_at = models.DateTimeField(verbose_name="updated_at", auto_now=True)
 
-    default_voiceover_type = models.CharField(
-        choices=TRANSLATION_TYPE_CHOICES,
-        max_length=35,
-        default=None,
-        verbose_name="Project Default VoiceOver Type",
-        null=True,
-        blank=True,
-    )
     default_task_types = ArrayField(
         models.CharField(
             choices=TASK_TYPE,
