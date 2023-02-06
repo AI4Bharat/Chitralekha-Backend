@@ -3,6 +3,7 @@
 import traceback
 import requests
 import logging
+from config import asr_url, english_asr_url
 
 
 def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
@@ -13,12 +14,13 @@ def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
             "chunk_size": chunk_size,
             "language": lang,
         }
-        logging.info("Request to ASR API send")
-        request_url = "http://216.48.182.174:5000/transcribe"
-        # For Videos in English, call this API
+        request_url = asr_url
         if lang == "en":
             logging.info("Calling another instance for English video.")
-            request_url = "http://216.48.182.174:5002/transcribe"
+            json_data["restore_punct"] = True
+            json_data["denoiser"] = False
+            request_url = english_asr_url
+        logging.info("Request to ASR API send")
         response = requests.post(request_url, json=json_data)
         logging.info("ASR response generated")
     except:
