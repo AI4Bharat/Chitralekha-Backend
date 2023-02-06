@@ -23,7 +23,7 @@ from translation.utils import (
     generate_translation_payload,
     translation_mg,
     convert_to_docx,
-    convert_to_paragraph
+    convert_to_paragraph,
 )
 from translation.metadata import LANGUAGE_CHOICES, INDIC_TRANS_SUPPORTED_LANGUAGES
 
