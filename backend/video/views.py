@@ -26,6 +26,7 @@ from .utils import (
     drive_info_extractor,
     DownloadError,
 )
+from datetime import datetime
 from django.utils import timezone
 from django.http import HttpResponse
 import io
@@ -735,12 +736,44 @@ def download_all(request):
     response = HttpResponse(
         zip_file, content_type="application/zip", status=status.HTTP_200_OK
     )
-    from datetime import datetime
 
     time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    print("The current date and time is", time_now)
     response[
         "Content-Disposition"
     ] = f"attachment; filename={video.name}_{time_now}_all.zip"
     return response
+
+import datetime
+# @shared_task(name="send_mail_task")
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "description",
+            openapi.IN_QUERY,
+            description=("A string to give description about video"),
+            type=openapi.TYPE_STRING,
+            required=False,
+        )
+    ],
+    responses={200: "Return the video subtitle payload"},
+)
+@api_view(["GET"])
+def send_mail_task(request):
+    import django.utils.timezone
+    end_time = timezone.now()
+    # shift that date by 3 hours to get the start of the range
+    start_time = timezone.now() - datetime.timedelta(hours=3)
+    # tasks which became active in last 3 hours
+    print("end_time>>>>>>>>>>>>>>>>>>>", end_time, start_time)
+    tasks = Task.objects.filter(created_at__range=[start_time, end_time]).filter(is_active=True).filter(status__in=["NEW", "SELECTED_SOURCE"])
+    #users to which, these tasks are assigned
+    users = set(tasks.values_list("user", flat=True))
+    for user in users:
+        print(">>>>>>>>>>>>", user)
+        user_wise_tasks = tasks.filter(user=user)
+        print("user_wise_tasks", user_wise_tasks)
+    return Response(
+        {"message": "Testing."},
+        status=status.HTTP_200_OK,
+    )
