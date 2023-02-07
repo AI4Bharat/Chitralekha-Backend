@@ -1,5 +1,4 @@
 import urllib
-from datetime import timedelta
 import requests
 from drf_yasg import openapi
 from rest_framework.decorators import action
@@ -25,6 +24,8 @@ from .utils import (
     get_subtitles_from_google_video,
     drive_info_extractor,
     DownloadError,
+    get_export_transcript,
+    get_export_translation,
 )
 from django.utils import timezone
 from django.http import HttpResponse
@@ -32,8 +33,7 @@ import io
 import zipfile
 from project.models import Project
 import logging
-from transcript.views import export_transcript
-from translation.views import export_translation
+import datetime
 
 
 @swagger_auto_schema(
@@ -593,26 +593,6 @@ def list_tasks(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-def exp_translation(request, task_id, export_type):
-    new_request = HttpRequest()
-    new_request.method = "GET"
-    new_request.user = request.user
-    new_request.GET = request.GET.copy()
-    new_request.GET["task_id"] = task_id
-    new_request.GET["export_type"] = export_type
-    return export_translation(new_request)
-
-
-def export(request, task_id, export_type):
-    new_request = HttpRequest()
-    new_request.method = "GET"
-    new_request.user = request.user
-    new_request.GET = request.GET.copy()
-    new_request.GET["task_id"] = task_id
-    new_request.GET["export_type"] = export_type
-    return export_transcript(new_request)
-
-
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
@@ -715,32 +695,30 @@ def download_all(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    time_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     zip_file = io.BytesIO()
     with zipfile.ZipFile(zip_file, "w") as zf:
         if transcript_task is not None:
-            transcript = export(request, transcript_task.id, export_type)
+            transcript = get_export_transcript(request, transcript_task.id, export_type)
             zf.writestr(
-                f"{transcript_task.video.name}_transcript.{export_type}",
+                f"{transcript_task.video.name}_{time_now}.{export_type}",
                 transcript.content,
             )
 
         if translation_tasks is not None:
             for translation_task in translation_tasks:
-                translation = exp_translation(request, translation_task.id, export_type)
+                translation = get_export_translation(
+                    request, translation_task.id, export_type
+                )
                 zf.writestr(
-                    f"{transcript_task.video.name}_translation_{translation_task.target_language}.{export_type}",
+                    f"{transcript_task.video.name}_{time_now}_{translation_task.target_language}.{export_type}",
                     translation.content,
                 )
     zip_file.seek(0)
     response = HttpResponse(
         zip_file, content_type="application/zip", status=status.HTTP_200_OK
     )
-    from datetime import datetime
-
-    time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    print("The current date and time is", time_now)
     response[
         "Content-Disposition"
-    ] = f"attachment; filename={video.name}_{time_now}_all.zip"
+    ] = f"attachment; filename=Chitralekha_{time_now}_all.zip"
     return response

@@ -5,6 +5,9 @@ from io import StringIO
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 from yt_dlp.extractor import get_info_extractor
+from django.http import HttpRequest
+from transcript.views import export_transcript
+from translation.views import export_translation
 
 ydl = YoutubeDL({"format": "best"})
 
@@ -120,3 +123,23 @@ def clean_youtube_asr_captions(subtitle_payload: str) -> str:
                 clean_captions.append(caption)
     parsed_vtt._captions = clean_captions
     return parsed_vtt.content
+
+
+def get_export_translation(request, task_id, export_type):
+    new_request = HttpRequest()
+    new_request.method = "GET"
+    new_request.user = request.user
+    new_request.GET = request.GET.copy()
+    new_request.GET["task_id"] = task_id
+    new_request.GET["export_type"] = export_type
+    return export_translation(new_request)
+
+
+def get_export_transcript(request, task_id, export_type):
+    new_request = HttpRequest()
+    new_request.method = "GET"
+    new_request.user = request.user
+    new_request.GET = request.GET.copy()
+    new_request.GET["task_id"] = task_id
+    new_request.GET["export_type"] = export_type
+    return export_transcript(new_request)
