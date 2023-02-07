@@ -1235,23 +1235,39 @@ class TaskViewSet(ModelViewSet):
                 valid_tasks.append(task)
 
         zip_file = io.BytesIO()
+        non_completed_tasks = 0
         time_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with zipfile.ZipFile(zip_file, "w") as zf:
             for task in valid_tasks:
-                if "TRANSCRIPT" in task.task_type:
-                    transcript = get_export_transcript(request, task.id, export_type)
-                    zf.writestr(
-                        f"{task.video.name}_{time_now}.{export_type}",
-                        transcript.content,
-                    )
-                elif "TRANSLATION" in task.task_type:
-                    translation = get_export_translation(request, task.id, export_type)
-                    zf.writestr(
-                        f"{task.video.name}_{time_now}_{task.target_language}.{export_type}",
-                        translation.content,
-                    )
+                if "COMPLETE" in task.status:
+                    if "TRANSCRIPT" in task.task_type:
+                        transcript = get_export_transcript(
+                            request, task.id, export_type
+                        )
+                        zf.writestr(
+                            f"{task.video.name}_{time_now}.{export_type}",
+                            transcript.content,
+                        )
+                    elif "TRANSLATION" in task.task_type:
+                        translation = get_export_translation(
+                            request, task.id, export_type
+                        )
+                        zf.writestr(
+                            f"{task.video.name}_{time_now}_{task.target_language}.{export_type}",
+                            translation.content,
+                        )
+                    else:
+                        logging.info("Not a valid task type")
                 else:
-                    logging.info("Not a valid task type")
+                    non_completed_tasks += 1
+
+        if non_completed_tasks == len(valid_tasks):
+            return Response(
+                {
+                    "message": "The selected task doesn't have completed transcripts/translations."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
         zip_file.seek(0)
         response = HttpResponse(
             zip_file, content_type="application/zip", status=status.HTTP_200_OK
