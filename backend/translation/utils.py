@@ -46,7 +46,7 @@ def convert_to_paragraph(lines):
     sentences_count = 0
     for index, i in enumerate(content):
         count += 1
-        if i == "." and sentences_count == 5:
+        if content[index] == "." and sentences_count == 5:
             content = content[: index + 1] + "\n" + "\n" + content[index + 1 :]
             sentences_count = 0
         if sentences_count < 5 and i == ".":
