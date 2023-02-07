@@ -1240,13 +1240,13 @@ class TaskViewSet(ModelViewSet):
                 if "TRANSCRIPT" in task.task_type:
                     transcript = get_export_transcript(request, task.id, export_type)
                     zf.writestr(
-                        f"{task.video.name[:50]}_{time_now}.{export_type}",
+                        f"{task.video.name}_{time_now}.{export_type}",
                         transcript.content,
                     )
                 elif "TRANSLATION" in task.task_type:
                     translation = get_export_translation(request, task.id, export_type)
                     zf.writestr(
-                        f"{task.video.name[:50]}_{time_now}_{task.target_language}.{export_type}",
+                        f"{task.video.name}_{time_now}_{task.target_language}.{export_type}",
                         translation.content,
                     )
                 else:
