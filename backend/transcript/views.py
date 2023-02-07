@@ -640,7 +640,7 @@ def save_transcription(request):
                             task=task,
                             status=tc_status,
                         )
-                        # task.status = "INPROGRESS"
+                        task.status = "INPROGRESS"
                         task.save()
             else:
                 if request.data.get("final"):
