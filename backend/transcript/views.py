@@ -54,6 +54,8 @@ from functools import wraps
 from rest_framework import status
 from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
 from django.db.models.functions import Cast
+from operator import itemgetter
+from itertools import groupby
 
 
 @api_view(["GET"])
@@ -853,13 +855,14 @@ def get_transcript_types(request):
 def get_transcription_report(request):
     transcripts = Transcript.objects.filter(
         status="TRANSCRIPTION_EDIT_COMPLETE"
-    ).values("language")
+    ).values("language", "video__project_id__organization_id__title")
     transcription_statistics = transcripts.annotate(
         total_duration=Sum(F("video__duration"))
     ).order_by("-total_duration")
     transcript_data = []
     for elem in transcription_statistics:
         transcript_dict = {
+            "org": elem["video__project_id__organization_id__title"],
             "language": {
                 "value": dict(LANGUAGE_CHOICES)[elem["language"]],
                 "label": "Media Language",
@@ -870,7 +873,18 @@ def get_transcription_report(request):
             },
         }
         transcript_data.append(transcript_dict)
-    return Response(transcript_data, status=status.HTTP_200_OK)
+
+    transcript_data.sort(key=itemgetter('org'))
+    res = []
+    for org, items in groupby(transcript_data, key=itemgetter('org')):
+        lang_data = []
+        for i in items:
+            del i['org']
+            lang_data.append(i)
+        temp_data = {"org": org, "data": lang_data}
+        res.append(temp_data)
+
+    return Response(res, status=status.HTTP_200_OK)
 
 
 ## Define the Transcript ViewSet
