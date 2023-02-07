@@ -50,6 +50,7 @@ import io
 from video.utils import get_export_transcript, get_export_translation
 import zipfile
 from django.http import HttpResponse
+import datetime
 
 
 class TaskViewSet(ModelViewSet):
@@ -1234,7 +1235,7 @@ class TaskViewSet(ModelViewSet):
                 valid_tasks.append(task)
 
         zip_file = io.BytesIO()
-        time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        time_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with zipfile.ZipFile(zip_file, "w") as zf:
             for task in valid_tasks:
                 if "TRANSCRIPT" in task.task_type:
