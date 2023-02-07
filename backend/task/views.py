@@ -46,6 +46,10 @@ from rest_framework.response import Response
 from functools import wraps
 from rest_framework import status
 import logging
+import io
+from video.utils import get_export_transcript, get_export_translation
+import zipfile
+from django.http import HttpResponse
 
 
 class TaskViewSet(ModelViewSet):
@@ -1183,6 +1187,78 @@ class TaskViewSet(ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+
+    @swagger_auto_schema(
+        method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "task_ids",
+                openapi.IN_QUERY,
+                description=("A list to pass the task ids"),
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Items(type=openapi.TYPE_INTEGER, format="ids"),
+                required=True,
+            ),
+            openapi.Parameter(
+                "export_type",
+                openapi.IN_QUERY,
+                description=("export type parameter srt/vtt/txt/docx"),
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+        ],
+        responses={200: "Task is exported"},
+    )
+    @action(detail=False, methods=["get"], url_path="download_tasks")
+    def download_tasks(self, request):
+        """
+        API Endpoint to download all the completed transcripts/translations for a video
+        Endpoint: /video/download_all/
+        Method: GET
+        """
+        task_ids = request.query_params.get("task_ids")
+        export_type = request.query_params.get("export_type")
+        if task_ids is None or export_type is None:
+            return Response(
+                {"message": "missing required params: video_id or export_type"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        valid_tasks = []
+        invalid_tasks = []
+
+        for task_id in task_ids.split(","):
+            task = Task.objects.filter(pk=int(task_id)).first()
+            if task is None:
+                invalid_tasks.append(task_id)
+            else:
+                valid_tasks.append(task)
+
+        zip_file = io.BytesIO()
+        time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with zipfile.ZipFile(zip_file, "w") as zf:
+            for task in valid_tasks:
+                if "TRANSCRIPT" in task.task_type:
+                    transcript = get_export_transcript(request, task.id, export_type)
+                    zf.writestr(
+                        f"{task.video.name[:50]}_{time_now}.{export_type}",
+                        transcript.content,
+                    )
+                elif "TRANSLATION" in task.task_type:
+                    translation = get_export_translation(request, task.id, export_type)
+                    zf.writestr(
+                        f"{task.video.name[:50]}_{time_now}_{task.target_language}.{export_type}",
+                        translation.content,
+                    )
+                else:
+                    logging.info("Not a valid task type")
+        zip_file.seek(0)
+        response = HttpResponse(
+            zip_file, content_type="application/zip", status=status.HTTP_200_OK
+        )
+        response[
+            "Content-Disposition"
+        ] = f"attachment; filename=Chitralekha_{time_now}_all.zip"
+        return response
 
     @swagger_auto_schema(
         method="delete",

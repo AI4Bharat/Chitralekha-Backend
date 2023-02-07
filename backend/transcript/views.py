@@ -12,8 +12,8 @@ from video.models import Video
 from task.models import Task
 from rest_framework.decorators import action
 from django.http import HttpResponse
-from django.core.files.base import ContentFile
 import requests
+from django.core.files.base import ContentFile
 from json_to_ytt import *
 from translation.models import Translation
 from project.models import Project
@@ -23,7 +23,7 @@ from translation.utils import (
     generate_translation_payload,
     translation_mg,
     convert_to_docx,
-    convert_to_paragraph
+    convert_to_paragraph,
 )
 from translation.metadata import LANGUAGE_CHOICES, INDIC_TRANS_SUPPORTED_LANGUAGES
 
