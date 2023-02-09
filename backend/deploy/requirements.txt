@@ -16,3 +16,4 @@ click>=8.1
 WhiteNoise
 gunicorn
 python-docx
+azure-storage-blob
