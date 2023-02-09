@@ -874,12 +874,12 @@ def get_transcription_report(request):
         }
         transcript_data.append(transcript_dict)
 
-    transcript_data.sort(key=itemgetter('org'))
+    transcript_data.sort(key=itemgetter("org"))
     res = []
-    for org, items in groupby(transcript_data, key=itemgetter('org')):
+    for org, items in groupby(transcript_data, key=itemgetter("org")):
         lang_data = []
         for i in items:
-            del i['org']
+            del i["org"]
             lang_data.append(i)
         temp_data = {"org": org, "data": lang_data}
         res.append(temp_data)

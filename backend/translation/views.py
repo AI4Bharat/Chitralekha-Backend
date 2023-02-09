@@ -764,7 +764,11 @@ def get_translation_types(request):
 def get_translation_report(request):
     translations = Translation.objects.filter(
         status="TRANSLATION_EDIT_COMPLETE"
-    ).values("video__project_id__organization_id__title", src_language=F("video__language"), tgt_language=F("target_language"))
+    ).values(
+        "video__project_id__organization_id__title",
+        src_language=F("video__language"),
+        tgt_language=F("target_language"),
+    )
     translation_statistics = (
         translations.annotate(transcripts_translated=Count("id"))
         .annotate(translation_duration=Sum(F("video__duration")))
@@ -773,7 +777,7 @@ def get_translation_report(request):
     translation_data = []
     for elem in translation_statistics:
         translation_dict = {
-            "org":elem['video__project_id__organization_id__title'],
+            "org": elem["video__project_id__organization_id__title"],
             "src_language": {
                 "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
                 "label": "Src Language",
@@ -793,12 +797,12 @@ def get_translation_report(request):
         }
         translation_data.append(translation_dict)
 
-    translation_data.sort(key=itemgetter('org'))
+    translation_data.sort(key=itemgetter("org"))
     res = []
-    for org, items in groupby(translation_data, key=itemgetter('org')):
+    for org, items in groupby(translation_data, key=itemgetter("org")):
         lang_data = []
         for i in items:
-            del i['org']
+            del i["org"]
             lang_data.append(i)
         temp_data = {"org": org, "data": lang_data}
         res.append(temp_data)
