@@ -80,6 +80,31 @@ class TaskViewSet(ModelViewSet):
             return True
         return False
 
+    def has_voice_over_edit_permission(self, user, videos):
+        if user in videos[0].project_id.members.all() and (
+            user.role == User.VOICEOVER_EDITOR
+            or user.role == User.UNIVERSAL_EDITOR
+            or user.role == User.VOICEOVER_REVIEWER
+            or user.role == User.PROJECT_MANAGER
+            or user.role == User.ORG_OWNER
+            or user.role == User.ADMIN
+            or user.is_superuser
+        ):
+            return True
+        return False
+
+    def has_voice_over_review_permission(self, user, videos):
+        if user in videos[0].project_id.members.all() and (
+            user.role == User.UNIVERSAL_EDITOR
+            or user.role == User.VOICEOVER_REVIEWER
+            or user.role == User.PROJECT_MANAGER
+            or user.role == User.ORG_OWNER
+            or user.role == User.ADMIN
+            or user.is_superuser
+        ):
+            return True
+        return False
+
     def has_transcript_review_permission(self, user, videos):
         if user in videos[0].project_id.members.all() and (
             user.role == User.UNIVERSAL_EDITOR
