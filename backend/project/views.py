@@ -957,12 +957,29 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         | Q(role="TRANSLATION_REVIEWER")
                         | Q(is_superuser=True)
                     )
-                else:
+                elif task_type == "TRANSLATION_REVIEW":
                     user_by_roles = users.filter(
                         Q(role="PROJECT_MANAGER")
                         | Q(role="ORG_OWNER")
                         | Q(role="UNIVERSAL_EDITOR")
                         | Q(role="TRANSLATION_REVIEWER")
+                        | Q(is_superuser=True)
+                    )
+                elif task_type == "VOICEOVER_EDIT":
+                    user_by_roles = users.filter(
+                        Q(role="PROJECT_MANAGER")
+                        | Q(role="ORG_OWNER")
+                        | Q(role="UNIVERSAL_EDITOR")
+                        | Q(role="VOICEOVER_EDITOR")
+                        | Q(role="VOICEOVER_REVIEWER")
+                        | Q(is_superuser=True)
+                    )
+                else:
+                    user_by_roles = users.filter(
+                        Q(role="PROJECT_MANAGER")
+                        | Q(role="ORG_OWNER")
+                        | Q(role="UNIVERSAL_EDITOR")
+                        | Q(role="VOICEOVER_REVIEWER")
                         | Q(is_superuser=True)
                     )
                 serializer = UserFetchSerializer(user_by_roles, many=True)
