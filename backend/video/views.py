@@ -117,6 +117,13 @@ def delete_video(request):
             type=openapi.TYPE_BOOLEAN,
             required=False,
         ),
+        openapi.Parameter(
+            "create",
+            openapi.IN_QUERY,
+            description=("A boolean to pass to determine get or create"),
+            type=openapi.TYPE_BOOLEAN,
+            required=False,
+        ),
     ],
     responses={200: "Return the video subtitle payload"},
 )
@@ -135,7 +142,20 @@ def get_video(request):
     project_id = request.query_params.get("project_id")
     description = request.query_params.get("description", "")
     is_audio_only = request.query_params.get("is_audio_only", "false")
+    create = request.query_params.get("create", "false")
 
+    create = create.lower() == "true"
+    if create:
+        video = Video.objects.filter(url=url).first()
+        if video is not None:
+            return Response(
+                {
+                    "message": "Video is already a part of project -> {}.".format(
+                        video.project_id.title
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
     # Convert audio only to boolean
     is_audio_only = is_audio_only.lower() == "true"
     if not url:
