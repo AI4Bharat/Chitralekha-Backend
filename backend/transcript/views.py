@@ -480,10 +480,11 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                 )
                 if source_type == None:
                     source_type = "MACHINE_GENERATED"
+                """
                 payloads = generate_translation_payload(
                     transcript_obj, translation.target_language, [source_type]
                 )
-                translation.payload = payloads[source_type]
+                """
                 translation.transcript = transcript_obj
                 translation.save()
         tasks.filter(task_type="TRANSLATION_EDIT").update(is_active=True)
