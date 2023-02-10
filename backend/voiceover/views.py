@@ -137,7 +137,7 @@ def get_payload(request):
         )
 
     sentences_list = []
-    if voice_over.status == "SELECTED_SOURCE":
+    if voice_over.status == "SELECTED_SOURCE" and voice_over.translation:
         for translation_text in voice_over.translation.payload["payload"]:
             sentences_list.append(
                 {
@@ -152,7 +152,7 @@ def get_payload(request):
         payload = voice_over.payload
     return Response(
         {
-            "payload": {"payload": payload},
+            "payload": {"payload": sentences_list},
             "source_type": voice_over.voice_over_type,
         },
         status=status.HTTP_200_OK,
