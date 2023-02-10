@@ -752,6 +752,7 @@ class TaskViewSet(ModelViewSet):
                     if task.is_active == False:
                         translation = None
                     payloads = {"audio": ""}
+                    translation = self.check_translation_exists(video, target_language)
                     voiceover_obj = VoiceOver(
                         video=task.video,
                         user=task.user,
