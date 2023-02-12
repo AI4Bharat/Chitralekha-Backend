@@ -234,9 +234,18 @@ class TaskViewSet(ModelViewSet):
             target_language=target_language
         )
 
+        task_review = (
+            Task.objects.filter(video=video)
+            .filter(task_type="TRANSLATION_REVIEW")
+            .filter(target_language=target_language)
+            .first()
+        )
         if translation.filter(status="TRANSLATION_REVIEW_COMPLETE").first() is not None:
             return translation.filter(status="TRANSLATION_REVIEW_COMPLETE").first()
-        elif translation.filter(status="TRANSLATION_EDIT_COMPLETE").first() is not None:
+        elif (
+            translation.filter(status="TRANSLATION_EDIT_COMPLETE").first() is not None
+            and task_review is None
+        ):
             return translation.filter(status="TRANSLATION_EDIT_COMPLETE").first()
         else:
             return {
@@ -751,8 +760,11 @@ class TaskViewSet(ModelViewSet):
                     )
                     if task.is_active == False:
                         translation = None
+                    else:
+                        translation = self.check_translation_exists(
+                            video, target_language
+                        )
                     payloads = {"audio": ""}
-                    translation = self.check_translation_exists(video, target_language)
                     voiceover_obj = VoiceOver(
                         video=task.video,
                         user=task.user,
@@ -2077,14 +2089,12 @@ class TaskViewSet(ModelViewSet):
         if type == "TRANSLATION":
             target_language = request.query_params.get("target_language")
             label = "Translation"
-        else:
-            label = "Transcription"
-
-        if type == "VOICEOVER":
+        elif type == "VOICEOVER":
             target_language = request.query_params.get("target_language")
             label = "VoiceOver"
         else:
-            label = "Translation"
+            label = "Transcription"
+
 
         try:
             video = Video.objects.get(pk=video_id)
