@@ -152,7 +152,7 @@ def get_payload(request):
         payload = voice_over.payload
     return Response(
         {
-            "payload": {"payload": payload},
+            "payload": payload,
             "source_type": voice_over.voice_over_type,
         },
         status=status.HTTP_200_OK,
