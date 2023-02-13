@@ -13,6 +13,11 @@ urlpatterns = [
     ),
     path("generate", views.generate_translation, name="generate_translation"),
     path(
+        "generate_translation_output/",
+        views.generate_translation_output,
+        name="generate_translation_output",
+    ),
+    path(
         "get_translation_types/",
         views.get_translation_types,
         name="get_translation_types",

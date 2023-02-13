@@ -42,12 +42,15 @@ from .utils import (
     get_batch_translations_using_indictrans_nmt_api,
     convert_to_docx,
     convert_to_paragraph,
+    generate_translation_payload,
 )
 from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
 from django.db.models.functions import Cast
 from operator import itemgetter
 from itertools import groupby
 from voiceover.models import VoiceOver
+from project.models import Project
+import config
 
 
 @api_view(["GET"])
@@ -386,6 +389,74 @@ def change_active_status_of_next_tasks(task, translation_obj):
             voice_over_task.save()
     else:
         print("No change in status")
+
+
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_id"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the task instance",
+            ),
+        },
+        description="Generate Translation payload",
+    ),
+    responses={
+        200: "Translation has been generated",
+    },
+)
+@api_view(["POST"])
+def generate_translation_output(request):
+    task_id = request.data.get("task_id")
+
+    if task_id is None:
+        return Response(
+            {"message": "Missing required parameters - task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user = request.user
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not ative yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    translation = (
+        Translation.objects.filter(video=task.video)
+        .filter(status="TRANSLATION_SELECT_SOURCE")
+        .filter(target_language=task.target_language)
+        .first()
+    )
+    if translation is not None:
+        project = Project.objects.get(id=task.video.project_id.id)
+        organization = project.organization_id
+        source_type = (
+            project.default_translation_type or organization.default_translation_type
+        )
+        if source_type == None:
+            source_type = config.backend_default_translation_type
+        payloads = generate_translation_payload(
+            translation.transcript, translation.target_language, [source_type]
+        )
+        translation.payload = payloads[source_type]
+        translation.save()
+    return Response(
+        {"message": "Payload for translation is generated."},
+        status=status.HTTP_200_OK,
+    )
 
 
 @swagger_auto_schema(
