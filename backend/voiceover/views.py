@@ -163,15 +163,15 @@ def get_payload(request):
             payload_offset_size // 2
         )
         generate_voice_over = True
-        if end_offset >= len(voice_over.translation.payload["payload"]):
+        if end_offset >= len(voice_over.translation.payload["payload"]) - 2:
             next = None
-            previous = "voiceover/get_payload/?task_id=97&offset={0}".format(offset - 1)
+            previous = offset - 1
         elif offset == 1:
             previous = None
-            next = "voiceover/get_payload/?task_id=97&offset={0}".format(offset + 1)
+            next = offset + 1
         else:
-            next = "voiceover/get_payload/?task_id=97&offset={0}".format(offset + 1)
-            previous = "voiceover/get_payload/?task_id=97&offset={0}".format(offset - 1)
+            next = offset + 1
+            previous = offset - 1
         for index, translation_text in enumerate(
             voice_over.translation.payload["payload"][start_offset : end_offset + 1]
         ):
@@ -278,6 +278,7 @@ def get_payload(request):
         {
             "count": count_cards,
             "next": next,
+            "current": offset,
             "previous": previous,
             "payload": payload,
             "source_type": voice_over.voice_over_type,
