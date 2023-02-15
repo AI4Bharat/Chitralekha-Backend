@@ -3,7 +3,13 @@ from uuid import UUID
 import json
 from azure.storage.blob import BlobServiceClient
 import logging
-
+from config import (
+    tts_url,
+    storage_account_key,
+    connection_string,
+    container_name,
+    voice_over_payload_offset_size,
+)
 
 ### Utility Functions ###
 def validate_uuid4(val):
@@ -12,11 +18,6 @@ def validate_uuid4(val):
         return True
     except ValueError:
         return False
-
-
-storage_account_key = "+8RJ9apUdZII//sIXG8Y7Y4FvS5nkC3g8fS/AAEHICreptAdUTnHsPHC9vWYvtuIzXZwh1vo2n+0+ASt9Ew17w=="
-connection_string = "DefaultEndpointsProtocol=https;AccountName=chitralekhadev;AccountKey=+8RJ9apUdZII//sIXG8Y7Y4FvS5nkC3g8fS/AAEHICreptAdUTnHsPHC9vWYvtuIzXZwh1vo2n+0+ASt9Ew17w==;EndpointSuffix=core.windows.net"
-container_name = "multimedia"
 
 
 def uploadToBlobStorage(file_path):
@@ -34,42 +35,49 @@ def uploadToBlobStorage(file_path):
             # print(data)
 
 
-def get_tts_output(translation, gender, target_language):
+def get_tts_output(tts_input, target_language, gender="male"):
     json_data = {
-        "input": [{"source": translation.payload["payload"]}],
+        "input": tts_input,
         "config": {"language": {"sourceLanguage": target_language}, "gender": gender},
     }
 
+    logging.info("Calling TTS API")
     try:
         response = requests.post(
-            "https://tts-api.ai4bharat.org/",
+            tts_url,
             json=json_data,
         )
-
-        tts_output = response.json()["audio"]
+        tts_output = response.json()
 
         # Collect the translated sentences
         return tts_output
 
     except Exception as e:
+        logging.info("Error in TTS API %s", str(e))
         return str(e)
 
 
-def generate_voiceover_payload(translation, target_language, list_compare_sources):
-    payloads = {}
-    translation_output = ""
-    for translation in translation["payload"]:
-        translation_output.join(translation["target_text"])
-    if "MACHINE_GENERATED" in list_compare_sources:
-        voiceover_machine_generated = get_tts_output(
-            translation_output, gender, target_language
-        )
-        payloads["MACHINE_GENERATED"] = {"payload": voiceover_machine_generated}
+def generate_voiceover_payload(translation_payload, target_language):
+    tts_input = []
+    output = [0] * voice_over_payload_offset_size
+    pre_generated_audio_indices = []
+    post_generated_audio_indices = []
+    post_generated_audio_indices = []
 
-    if "MANUALLY_CREATED" in list_compare_sources:
-        payload = []
-        for voice_over in translation.payload["payload"]:
-            voice_over["voice_over"] = ""
-            payload.append(voice_over)
-        payloads["MANUALLY_CREATED"] = {"payload": payload}
-    return payloads
+    for index, (translation_text, audio, call_tts) in enumerate(translation_payload):
+        if call_tts:
+            if len(translation_text) > 1 or translation_text != " ":
+                tts_input.append({"source": translation_text})
+                post_generated_audio_indices.append(index)
+            else:
+                output[index] = ""
+        else:
+            pre_generated_audio_indices.append(index)
+            output[index] = (translation_text, audio)
+
+    if len(tts_input) > 0:
+        voiceover_machine_generated = get_tts_output(tts_input, target_language)
+        for voice_over in voiceover_machine_generated["audio"]:
+            ind = post_generated_audio_indices.pop()
+            output[ind] = (translation_payload[ind][0], voice_over)
+    return output

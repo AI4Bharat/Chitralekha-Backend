@@ -36,10 +36,11 @@ from .models import (
     VOICEOVER_REVIEW_INPROGRESS,
     VOICEOVER_REVIEW_COMPLETE,
 )
-
+from datetime import datetime, date, timedelta
 from .decorators import is_voice_over_editor
 from .serializers import VoiceOverSerializer
-from .utils import uploadToBlobStorage
+from .utils import uploadToBlobStorage, generate_voiceover_payload, get_tts_output
+from config import voice_over_payload_offset_size
 
 
 def get_voice_over_id(task):
@@ -97,6 +98,13 @@ def get_voice_over_id(task):
             type=openapi.TYPE_INTEGER,
             required=True,
         ),
+        openapi.Parameter(
+            "offset",
+            openapi.IN_QUERY,
+            description=("Offset number"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
     ],
     responses={200: "Returns the Translated Audio."},
 )
@@ -104,6 +112,7 @@ def get_voice_over_id(task):
 def get_payload(request):
     try:
         task_id = request.query_params["task_id"]
+        offset = int(request.query_params["offset"])
     except KeyError:
         return Response(
             {"message": "Missing required parameters - task_id"},
@@ -137,21 +146,139 @@ def get_payload(request):
         )
 
     sentences_list = []
-    if voice_over.status == "VOICEOVER_SELECT_SOURCE" and voice_over.translation:
-        for translation_text in voice_over.translation.payload["payload"]:
+
+    current_offset = offset - 1
+    translation_payload = []
+    if voice_over.translation:
+        payload_offset_size = voice_over_payload_offset_size - 1
+        count = (
+            len(voice_over.translation.payload["payload"])
+            - voice_over_payload_offset_size
+        )
+        first_offset = voice_over_payload_offset_size // 2 + 1
+        start_offset = (
+            first_offset + current_offset - 1 * payload_offset_size // 2
+        ) - (payload_offset_size // 2)
+        end_offset = (first_offset + current_offset - 1 * payload_offset_size // 2) + (
+            payload_offset_size // 2
+        )
+        generate_voice_over = True
+        if end_offset >= len(voice_over.translation.payload["payload"]):
+            next = None
+            previous = "voiceover/get_payload/?task_id=97&offset={0}".format(offset - 1)
+        elif offset == 1:
+            previous = None
+            next = "voiceover/get_payload/?task_id=97&offset={0}".format(offset + 1)
+        else:
+            next = "voiceover/get_payload/?task_id=97&offset={0}".format(offset + 1)
+            previous = "voiceover/get_payload/?task_id=97&offset={0}".format(offset - 1)
+        for index, translation_text in enumerate(
+            voice_over.translation.payload["payload"][start_offset : end_offset + 1]
+        ):
+            translation_payload.append((translation_text, index))
+    else:
+        return Response(
+            {"message": "There is no translation associated with this voice over."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if voice_over.voice_over_type == "MACHINE_GENERATED":
+        input_sentences = []
+        for text, index in translation_payload:
+            audio_index = str(start_offset + index)
+            if (
+                voice_over.payload
+                and "payload" in voice_over.payload
+                and len(voice_over.payload["payload"].keys()) > 0
+                and audio_index in voice_over.payload["payload"].keys()
+                and "audioContent"
+                in voice_over.payload["payload"][audio_index]["audio"]
+            ):
+                input_sentences.append(
+                    (
+                        voice_over.payload["payload"][audio_index]["text"],
+                        voice_over.payload["payload"][audio_index]["audio"],
+                        False,
+                    )
+                )
+            else:
+                input_sentences.append((text["target_text"], "", True))
+
+        voiceover_machine_generated = generate_voiceover_payload(
+            input_sentences, task.target_language
+        )
+
+        for i in range(len(voiceover_machine_generated)):
+            start_time = translation_payload[i][0]["start_time"]
+            end_time = translation_payload[i][0]["end_time"]
+            time_difference = (
+                datetime.strptime(end_time, "%H:%M:%S.%f")
+                - timedelta(
+                    hours=float(start_time.split(":")[0]),
+                    minutes=float(start_time.split(":")[1]),
+                    seconds=float(start_time.split(":")[-1]),
+                )
+            ).strftime("%H:%M:%S.%f")
+            t_d = (
+                int(time_difference.split(":")[0]) * 3600
+                + int(time_difference.split(":")[1]) * 60
+                + float(time_difference.split(":")[2])
+            ) * 1000
             sentences_list.append(
                 {
-                    "start_time": translation_text["start_time"],
-                    "end_time": translation_text["end_time"],
-                    "text": translation_text["target_text"],
-                    "audio": "",
+                    "time_difference": t_d,
+                    "start_time": translation_payload[i][0]["start_time"],
+                    "end_time": translation_payload[i][0]["end_time"],
+                    "text": voiceover_machine_generated[i][0],
+                    "audio": voiceover_machine_generated[i][1],
                 }
             )
+        payload = sentences_list
+        payload = {"payload": sentences_list}
+    elif voice_over.voice_over_type == "MANUALLY_CREATED":
+        if voice_over.payload and voice_over.payload["payload"]:
+            count = 0
+            for i in range(start_offset, end_offset + 1):
+                if str(i) in voice_over.payload["payload"]:
+                    sentences_list.append(voice_over.payload["payload"][str(i)])
+                else:
+                    start_time = translation_payload[count][0]["start_time"]
+                    end_time = translation_payload[count][0]["end_time"]
+                    time_difference = (
+                        datetime.strptime(end_time, "%H:%M:%S.%f")
+                        - timedelta(
+                            hours=float(start_time.split(":")[0]),
+                            minutes=float(start_time.split(":")[1]),
+                            seconds=float(start_time.split(":")[-1]),
+                        )
+                    ).strftime("%H:%M:%S.%f")
+                    t_d = (
+                        int(time_difference.split(":")[0]) * 3600
+                        + int(time_difference.split(":")[1]) * 60
+                        + float(time_difference.split(":")[2])
+                    ) * 1000
+                    sentences_list.append(
+                        {
+                            "time_difference": t_d,
+                            "start_time": translation_payload[count][0]["start_time"],
+                            "end_time": translation_payload[count][0]["end_time"],
+                            "text": translation_payload[count][0]["target_text"],
+                            "audio": "",
+                        }
+                    )
+                    count += 1
         payload = {"payload": sentences_list}
     else:
-        payload = voice_over.payload
+        return Response(
+            {"message": "Payload not generated for voice over"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     return Response(
         {
+            "count": count,
+            "next": next,
+            "previous": previous,
             "payload": payload,
             "source_type": voice_over.voice_over_type,
         },
@@ -187,7 +314,7 @@ def change_active_status_of_next_tasks(task, target_language, voice_over_obj):
     method="post",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        required=["task_id", "payload"],
+        required=["task_id", "payload", "offset"],
         properties={
             "task_id": openapi.Schema(
                 type=openapi.TYPE_INTEGER,
@@ -196,6 +323,10 @@ def change_active_status_of_next_tasks(task, target_language, voice_over_obj):
             "payload": openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 description="An audio file ",
+            ),
+            "offset": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="offset",
             ),
         },
         description="Post request body",
@@ -214,6 +345,7 @@ def save_voice_over(request):
         voice_over_id = request.data.get("voice_over_id", None)
         payload = request.data["payload"]
         task_id = request.data["task_id"]
+        offset = request.data["offset"]
     except KeyError:
         return Response(
             {
@@ -233,7 +365,7 @@ def save_voice_over(request):
 
     if not task.is_active:
         return Response(
-            {"message": "This task is not ative yet."},
+            {"message": "This task is not active yet."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -265,6 +397,19 @@ def save_voice_over(request):
                     status=status.HTTP_201_CREATED,
                 )
 
+            payload_offset_size = voice_over_payload_offset_size - 1
+            count = (
+                len(voice_over.translation.payload["payload"])
+                - voice_over_payload_offset_size
+            )
+            first_offset = voice_over_payload_offset_size // 2 + 1
+            current_offset = offset - 1
+            start_offset = (
+                first_offset + current_offset - 1 * payload_offset_size // 2
+            ) - (payload_offset_size // 2)
+            end_offset = (
+                first_offset + current_offset - 1 * payload_offset_size // 2
+            ) + (payload_offset_size // 2)
             if "EDIT" in task.task_type:
                 if request.data.get("final"):
                     if (
@@ -328,6 +473,28 @@ def save_voice_over(request):
                             task, target_language, voice_over_obj
                         )
                 else:
+                    translation_payload = []
+                    for index, voice_over_payload in enumerate(payload["payload"]):
+                        if (
+                            voice_over.voice_over_type == "MACHINE_GENERATED"
+                            and "text_changed" in voice_over_payload
+                            and voice_over_payload["text_changed"] == True
+                        ):
+                            translation_payload.append(
+                                (voice_over_payload["text"], "", True)
+                            )
+                        else:
+                            translation_payload.append(
+                                (
+                                    voice_over_payload["text"],
+                                    voice_over_payload["audio"],
+                                    False,
+                                )
+                            )
+                    voiceover_machine_generated = generate_voiceover_payload(
+                        translation_payload, task.target_language
+                    )
+
                     voice_over_obj = (
                         VoiceOver.objects.filter(status=VOICEOVER_EDIT_INPROGRESS)
                         .filter(target_language=target_language)
@@ -337,7 +504,30 @@ def save_voice_over(request):
                     ts_status = VOICEOVER_EDIT_INPROGRESS
                     voice_over_type = voice_over.voice_over_type
                     if voice_over_obj is not None:
-                        voice_over_obj.payload = payload
+                        for i in range(len(payload["payload"])):
+                            start_time = payload["payload"][i]["start_time"]
+                            end_time = payload["payload"][i]["end_time"]
+                            time_difference = (
+                                datetime.strptime(end_time, "%H:%M:%S.%f")
+                                - timedelta(
+                                    hours=float(start_time.split(":")[0]),
+                                    minutes=float(start_time.split(":")[1]),
+                                    seconds=float(start_time.split(":")[-1]),
+                                )
+                            ).strftime("%H:%M:%S.%f")
+                            t_d = (
+                                int(time_difference.split(":")[0]) * 3600
+                                + int(time_difference.split(":")[1]) * 60
+                                + float(time_difference.split(":")[2])
+                            ) * 1000
+                            voice_over_obj.payload["payload"][start_offset + i] = {
+                                "time_difference": t_d,
+                                "start_time": payload["payload"][i]["start_time"],
+                                "end_time": payload["payload"][i]["end_time"],
+                                "text": payload["payload"][i]["text"],
+                                "audio": voiceover_machine_generated[i][1],
+                            }
+                        # voice_over_obj.payload[start_offset : end_offset] = voiceover_payload
                         voice_over_obj.voice_over_type = voice_over_type
                         voice_over_obj.save()
                     else:
@@ -359,10 +549,34 @@ def save_voice_over(request):
                             video=voice_over_obj.video,
                             target_language=voice_over_obj.target_language,
                             user=user,
-                            payload=payload,
+                            payload={"payload": {}},
                             status=ts_status,
                             task=task,
                         )
+                        for i in range(len(payload["payload"])):
+                            start_time = payload["payload"][i]["start_time"]
+                            end_time = payload["payload"][i]["end_time"]
+                            time_difference = (
+                                datetime.strptime(end_time, "%H:%M:%S.%f")
+                                - timedelta(
+                                    hours=float(start_time.split(":")[0]),
+                                    minutes=float(start_time.split(":")[1]),
+                                    seconds=float(start_time.split(":")[-1]),
+                                )
+                            ).strftime("%H:%M:%S.%f")
+                            t_d = (
+                                int(time_difference.split(":")[0]) * 3600
+                                + int(time_difference.split(":")[1]) * 60
+                                + float(time_difference.split(":")[2])
+                            ) * 1000
+                            voice_over_obj.payload["payload"][start_offset + i] = {
+                                "time_difference": t_d,
+                                "start_time": payload["payload"][i]["start_time"],
+                                "end_time": payload["payload"][i]["end_time"],
+                                "text": payload["payload"][i]["text"],
+                                "audio": voiceover_machine_generated[i][1],
+                            }
+                        voice_over_obj.save()
                         task.status = "INPROGRESS"
                         task.save()
             else:
