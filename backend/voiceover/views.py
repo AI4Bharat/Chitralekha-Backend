@@ -151,7 +151,7 @@ def get_payload(request):
     translation_payload = []
     if voice_over.translation:
         payload_offset_size = voice_over_payload_offset_size - 1
-        count = (
+        count_cards = (
             len(voice_over.translation.payload["payload"])
             - voice_over_payload_offset_size
         )
@@ -276,7 +276,7 @@ def get_payload(request):
 
     return Response(
         {
-            "count": count,
+            "count": count_cards,
             "next": next,
             "previous": previous,
             "payload": payload,
