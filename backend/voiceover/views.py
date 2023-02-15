@@ -233,9 +233,7 @@ def get_payload(request):
                     "start_time": translation_payload[i][0]["start_time"],
                     "end_time": translation_payload[i][0]["end_time"],
                     "text": voiceover_machine_generated[i][0],
-                    "audio": voiceover_machine_generated[
-                        len(voiceover_machine_generated) - 1 - i
-                    ][1],
+                    "audio": voiceover_machine_generated[i][1],
                 }
             )
         payload = sentences_list
@@ -532,9 +530,7 @@ def save_voice_over(request):
                                 "start_time": payload["payload"][i]["start_time"],
                                 "end_time": payload["payload"][i]["end_time"],
                                 "text": payload["payload"][i]["text"],
-                                "audio": voiceover_machine_generated[
-                                    len(voiceover_machine_generated) - 1 - i
-                                ][1],
+                                "audio": voiceover_machine_generated[i][1],
                             }
                         # voice_over_obj.payload[start_offset : end_offset] = voiceover_payload
                         voice_over_obj.voice_over_type = voice_over_type
@@ -584,9 +580,7 @@ def save_voice_over(request):
                                 "start_time": payload["payload"][i]["start_time"],
                                 "end_time": payload["payload"][i]["end_time"],
                                 "text": payload["payload"][i]["text"],
-                                "audio": voiceover_machine_generated[
-                                    len(voiceover_machine_generated) - 1 - i
-                                ][1],
+                                "audio": voiceover_machine_generated[i][1],
                             }
                         voice_over_obj.save()
                         task.status = "INPROGRESS"
