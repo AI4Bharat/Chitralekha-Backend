@@ -764,7 +764,7 @@ class TaskViewSet(ModelViewSet):
                         translation = self.check_translation_exists(
                             video, target_language
                         )
-                    payloads = {"audio": ""}
+                    payloads = {"payload": {}}
                     voiceover_obj = VoiceOver(
                         video=task.video,
                         user=task.user,
@@ -772,7 +772,7 @@ class TaskViewSet(ModelViewSet):
                         payload=payloads,
                         target_language=target_language,
                         task=task,
-                        voice_over_type="MANUALLY_CREATED",
+                        voice_over_type=source_type,
                         status="VOICEOVER_SELECT_SOURCE",
                     )
                     new_voiceovers.append(voiceover_obj)
@@ -837,7 +837,7 @@ class TaskViewSet(ModelViewSet):
                         translation = voiceover.translation
                         is_active = True
                     else:
-                        payload = None
+                        payload = {"payload": {}}
                         translation = None
                         is_active = False
                     voiceover_obj = VoiceOver(
@@ -848,7 +848,7 @@ class TaskViewSet(ModelViewSet):
                         payload=payload,
                         target_language=target_language,
                         task=new_task,
-                        voice_over_type="MANUALLY_CREATED",
+                        voice_over_type=source_type,
                         status="VOICEOVER_REVIEWER_ASSIGNED",
                     )
                     new_voiceovers.append(voiceover_obj)
@@ -1851,6 +1851,8 @@ class TaskViewSet(ModelViewSet):
             source_type = (
                 project.default_voiceover_type or organization.default_voiceover_type
             )
+            if source_type is None:
+                source_type = backend_default_voice_over_type
             return self.create_voiceover_task(
                 videos,
                 user_ids,
@@ -2094,7 +2096,6 @@ class TaskViewSet(ModelViewSet):
             label = "VoiceOver"
         else:
             label = "Transcription"
-
 
         try:
             video = Video.objects.get(pk=video_id)
