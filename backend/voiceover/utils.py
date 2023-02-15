@@ -78,6 +78,6 @@ def generate_voiceover_payload(translation_payload, target_language):
     if len(tts_input) > 0:
         voiceover_machine_generated = get_tts_output(tts_input, target_language)
         for voice_over in voiceover_machine_generated["audio"]:
-            ind = post_generated_audio_indices.pop()
+            ind = post_generated_audio_indices.pop(0)
             output[ind] = (translation_payload[ind][0], voice_over)
     return output
