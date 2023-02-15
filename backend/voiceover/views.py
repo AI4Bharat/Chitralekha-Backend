@@ -230,7 +230,9 @@ def get_payload(request):
                     "start_time": translation_payload[i][0]["start_time"],
                     "end_time": translation_payload[i][0]["end_time"],
                     "text": voiceover_machine_generated[i][0],
-                    "audio": voiceover_machine_generated[len(voiceover_machine_generated)-i][1],
+                    "audio": voiceover_machine_generated[
+                        len(voiceover_machine_generated) - 1 - i
+                    ][1],
                 }
             )
         payload = sentences_list
