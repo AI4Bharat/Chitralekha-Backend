@@ -153,7 +153,7 @@ def get_payload(request):
         payload_offset_size = voice_over_payload_offset_size - 1
         count_cards = (
             len(voice_over.translation.payload["payload"])
-            - voice_over_payload_offset_size
+            - voice_over_payload_offset_size - 1
         )
         first_offset = voice_over_payload_offset_size // 2 + 1
         start_offset = (
