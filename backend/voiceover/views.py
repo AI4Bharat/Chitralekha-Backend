@@ -153,7 +153,8 @@ def get_payload(request):
         payload_offset_size = voice_over_payload_offset_size - 1
         count_cards = (
             len(voice_over.translation.payload["payload"])
-            - voice_over_payload_offset_size + 1
+            - voice_over_payload_offset_size
+            + 1
         )
         first_offset = voice_over_payload_offset_size // 2 + 1
         start_offset = (
@@ -162,6 +163,7 @@ def get_payload(request):
         end_offset = (first_offset + current_offset - 1 * payload_offset_size // 2) + (
             payload_offset_size // 2
         )
+
         generate_voice_over = True
         if end_offset >= len(voice_over.translation.payload["payload"]) - 2:
             next = None
@@ -186,6 +188,7 @@ def get_payload(request):
         input_sentences = []
         for text, index in translation_payload:
             audio_index = str(start_offset + index)
+
             if (
                 voice_over.payload
                 and "payload" in voice_over.payload
@@ -413,6 +416,7 @@ def save_voice_over(request):
             end_offset = (
                 first_offset + current_offset - 1 * payload_offset_size // 2
             ) + (payload_offset_size // 2)
+
             if "EDIT" in task.task_type:
                 if request.data.get("final"):
                     if (
@@ -528,7 +532,9 @@ def save_voice_over(request):
                                 "start_time": payload["payload"][i]["start_time"],
                                 "end_time": payload["payload"][i]["end_time"],
                                 "text": payload["payload"][i]["text"],
-                                "audio": voiceover_machine_generated[i][1],
+                                "audio": voiceover_machine_generated[
+                                    len(voiceover_machine_generated) - 1 - i
+                                ][1],
                             }
                         # voice_over_obj.payload[start_offset : end_offset] = voiceover_payload
                         voice_over_obj.voice_over_type = voice_over_type
@@ -572,12 +578,15 @@ def save_voice_over(request):
                                 + int(time_difference.split(":")[1]) * 60
                                 + float(time_difference.split(":")[2])
                             ) * 1000
+
                             voice_over_obj.payload["payload"][start_offset + i] = {
                                 "time_difference": t_d,
                                 "start_time": payload["payload"][i]["start_time"],
                                 "end_time": payload["payload"][i]["end_time"],
                                 "text": payload["payload"][i]["text"],
-                                "audio": voiceover_machine_generated[i][1],
+                                "audio": voiceover_machine_generated[
+                                    len(voiceover_machine_generated) - 1 - i
+                                ][1],
                             }
                         voice_over_obj.save()
                         task.status = "INPROGRESS"
