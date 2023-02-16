@@ -673,7 +673,7 @@ def save_translation(request):
                         "message": "Translation updated successfully.",
                         "task_id": task.id,
                         "translation_id": translation_obj.id,
-                        "data": translation_obj.payload,
+                        # "data": translation_obj.payload,
                     },
                     status=status.HTTP_200_OK,
                 )
@@ -682,7 +682,8 @@ def save_translation(request):
                     {
                         "task_id": task.id,
                         "translation_id": translation_obj.id,
-                        "data": translation_obj.payload,
+                        # "data": translation_obj.payload,
+                        "message": "Saved as draft.",
                     },
                     status=status.HTTP_200_OK,
                 )
