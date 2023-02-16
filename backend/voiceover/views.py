@@ -115,7 +115,7 @@ def get_payload(request):
         offset = int(request.query_params["offset"])
     except KeyError:
         return Response(
-            {"message": "Missing required parameters - task_id"},
+            {"message": "Missing required parameters - task_id or offset"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -223,12 +223,13 @@ def get_payload(request):
                 )
             ).strftime("%H:%M:%S.%f")
             t_d = (
-                int(time_difference.split(":")[0]) * 3600
-                + int(time_difference.split(":")[1]) * 60
+                float(time_difference.split(":")[0]) * 3600
+                + float(time_difference.split(":")[1]) * 60
                 + float(time_difference.split(":")[2])
-            ) * 1000
+            )
             sentences_list.append(
                 {
+                    "id": start_offset + i + 1,
                     "time_difference": t_d,
                     "start_time": translation_payload[i][0]["start_time"],
                     "end_time": translation_payload[i][0]["end_time"],
@@ -239,11 +240,39 @@ def get_payload(request):
         payload = sentences_list
         payload = {"payload": sentences_list}
     elif voice_over.voice_over_type == "MANUALLY_CREATED":
-        if voice_over.payload and voice_over.payload["payload"]:
+        if voice_over.payload and "payload" in voice_over.payload:
             count = 0
             for i in range(start_offset, end_offset + 1):
-                if str(i) in voice_over.payload["payload"]:
-                    sentences_list.append(voice_over.payload["payload"][str(i)])
+                if str(i) in voice_over.payload["payload"].keys():
+                    start_time = voice_over.payload["payload"][str(i)]["start_time"]
+                    end_time = voice_over.payload["payload"][str(i)]["end_time"]
+                    time_difference = (
+                        datetime.strptime(end_time, "%H:%M:%S.%f")
+                        - timedelta(
+                            hours=float(start_time.split(":")[0]),
+                            minutes=float(start_time.split(":")[1]),
+                            seconds=float(start_time.split(":")[-1]),
+                        )
+                    ).strftime("%H:%M:%S.%f")
+                    t_d = (
+                        int(time_difference.split(":")[0]) * 3600
+                        + int(time_difference.split(":")[1]) * 60
+                        + float(time_difference.split(":")[2])
+                    )
+                    sentences_list.append(
+                        {
+                            "audio": voice_over.payload["payload"][str(i)]["audio"],
+                            "text": voice_over.payload["payload"][str(i)]["text"],
+                            "start_time": voice_over.payload["payload"][str(i)][
+                                "start_time"
+                            ],
+                            "end_time": voice_over.payload["payload"][str(i)][
+                                "end_time"
+                            ],
+                            "time_difference": t_d,
+                            "id": i + 1,
+                        }
+                    )
                 else:
                     start_time = translation_payload[count][0]["start_time"]
                     end_time = translation_payload[count][0]["end_time"]
@@ -259,7 +288,7 @@ def get_payload(request):
                         int(time_difference.split(":")[0]) * 3600
                         + int(time_difference.split(":")[1]) * 60
                         + float(time_difference.split(":")[2])
-                    ) * 1000
+                    )
                     sentences_list.append(
                         {
                             "time_difference": t_d,
@@ -267,6 +296,7 @@ def get_payload(request):
                             "end_time": translation_payload[count][0]["end_time"],
                             "text": translation_payload[count][0]["target_text"],
                             "audio": "",
+                            "id": start_offset + count + 1,
                         }
                     )
                     count += 1
@@ -524,7 +554,7 @@ def save_voice_over(request):
                                 int(time_difference.split(":")[0]) * 3600
                                 + int(time_difference.split(":")[1]) * 60
                                 + float(time_difference.split(":")[2])
-                            ) * 1000
+                            )
                             voice_over_obj.payload["payload"][start_offset + i] = {
                                 "time_difference": t_d,
                                 "start_time": payload["payload"][i]["start_time"],
@@ -573,7 +603,7 @@ def save_voice_over(request):
                                 int(time_difference.split(":")[0]) * 3600
                                 + int(time_difference.split(":")[1]) * 60
                                 + float(time_difference.split(":")[2])
-                            ) * 1000
+                            )
 
                             voice_over_obj.payload["payload"][start_offset + i] = {
                                 "time_difference": t_d,
@@ -654,9 +684,10 @@ def save_voice_over(request):
             else:
                 return Response(
                     {
+                        "message": "Saved as draft.",
                         "task_id": task.id,
                         "voice_over_id": voice_over_obj.id,
-                        "data": voice_over_obj.payload,
+                        # "data": voice_over_obj.payload,
                     },
                     status=status.HTTP_200_OK,
                 )

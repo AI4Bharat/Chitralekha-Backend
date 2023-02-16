@@ -704,7 +704,7 @@ def save_transcription(request):
                     {
                         "task_id": task_id,
                         "transcript_id": transcript_obj.id,
-                        "data": transcript_obj.payload,
+                        # "data": transcript_obj.payload,
                         "message": "Transcript is submitted.",
                     },
                     status=status.HTTP_200_OK,
@@ -714,7 +714,8 @@ def save_transcription(request):
                     {
                         "task_id": task_id,
                         "transcript_id": transcript_obj.id,
-                        "data": transcript_obj.payload,
+                        # "data": transcript_obj.payload,
+                        "message": "Saved as draft.",
                     },
                     status=status.HTTP_200_OK,
                 )
