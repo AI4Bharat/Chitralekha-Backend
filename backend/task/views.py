@@ -1561,9 +1561,8 @@ class TaskViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @has_task_edit_permission
     @action(detail=False, methods=["patch"], url_path="update_multiple_tasks")
-    def put(self, request, *args, **kwargs):
+    def update_multiple_tasks(self, request, *args, **kwargs):
         task_ids = request.data.get("task_ids")
         user = request.data.get("user")
         description = request.data.get("description")
