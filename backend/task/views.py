@@ -51,6 +51,7 @@ from video.utils import get_export_transcript, get_export_translation
 import zipfile
 from django.http import HttpResponse
 import datetime
+from task.tasks import celery_asr_call
 
 
 class TaskViewSet(ModelViewSet):
@@ -680,7 +681,9 @@ class TaskViewSet(ModelViewSet):
                 new_transcripts = []
                 asr_errors = 0
                 for task in tasks:
-                    payloads = self.generate_transcript_payload(task, [source_type])
+                    payloads = self.generate_transcript_payload(task, [source_type], True)
+                    if source_type == "MACHINE_GENERATED":
+                        continue
                     if type(payloads) != dict:
                         asr_errors += 1
                         detailed_error.append(
@@ -857,18 +860,22 @@ class TaskViewSet(ModelViewSet):
 
         return json.loads(json.dumps({"payload": sentences_list}))
 
-    def generate_transcript_payload(self, task, list_compare_sources):
+    def generate_transcript_payload(self, task, list_compare_sources, is_async=False):
         payloads = {}
         if "MACHINE_GENERATED" in list_compare_sources:
-            transcribed_data = make_asr_api_call(task.video.url, task.video.language)
-            if transcribed_data is not None:
-                data = self.convert_payload_format(transcribed_data)
-                payloads["MACHINE_GENERATED"] = data
+            if is_async==True:
+                celery_asr_call.delay(task_id=task.id)
+                payloads["MACHINE_GENERATED"] = {"payload": []}
             else:
-                return Response(
-                    {"message": "Error while calling ASR API"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+                transcribed_data = make_asr_api_call(task.video.url, task.video.language)
+                if transcribed_data is not None:
+                    data = self.convert_payload_format(transcribed_data)
+                    payloads["MACHINE_GENERATED"] = data
+                else:
+                    return Response(
+                        {"message": "Error while calling ASR API"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
         if "ORIGINAL_SOURCE" in list_compare_sources:
             subtitles = task.video.subtitles
             if subtitles is not None:

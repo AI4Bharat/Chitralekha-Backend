@@ -17,3 +17,7 @@ WhiteNoise
 gunicorn
 python-docx
 git+https://github.com/yt-dlp/yt-dlp
+azure-storage-blob
+celery==5.2.7
+redis==4.5.1
+scipy==1.10.1
