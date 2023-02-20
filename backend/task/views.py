@@ -1049,6 +1049,16 @@ class TaskViewSet(ModelViewSet):
                 for task in tasks:
                     payloads = self.generate_transcript_payload(task, [source_type], True)
                     if source_type == "MACHINE_GENERATED":
+                        detailed_error.append(
+                            {
+                                "video_name": task.video.name,
+                                "video_url": task.video.url,
+                                "task_type": self.get_task_type_label(task.task_type),
+                                "language_pair": task.get_language_pair_label,
+                                "status": "Successful",
+                                "message": "Task created successfully.",
+                            }
+                        )
                         continue
                     if type(payloads) != dict:
                         asr_errors += 1
