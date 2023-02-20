@@ -13,6 +13,7 @@ from .metadata import (
 from docx import *
 from docx.shared import Inches
 from django.http import HttpResponse
+import datetime
 
 
 ### Utility Functions ###
@@ -168,11 +169,17 @@ def translation_mg(transcript, target_language, batch_size=25):
     # Update the translation payload with the generated translations
     payload = []
     for (source, target) in zip(vtt_output["payload"], all_translated_sentences):
+        start_time = datetime.datetime.strptime(source["start_time"], "%H:%M:%S.%f")
+        unix_start_time = datetime.datetime.timestamp(start_time)
+        end_time = datetime.datetime.strptime(source["end_time"], "%H:%M:%S.%f")
+        unix_end_time = datetime.datetime.timestamp(end_time)
         payload.append(
             {
                 "start_time": source["start_time"],
                 "end_time": source["end_time"],
                 "text": source["text"],
+                "unix_start_time": unix_start_time,
+                "unix_end_time": unix_end_time,
                 "target_text": target if source["text"].strip() else source["text"],
             }
         )
