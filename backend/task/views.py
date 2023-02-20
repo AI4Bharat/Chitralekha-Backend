@@ -1213,11 +1213,18 @@ class TaskViewSet(ModelViewSet):
         if "output" in data.keys():
             payload = data["output"]
         for vtt_line in webvtt.read_buffer(StringIO(payload)):
+            start_time = datetime.datetime.strptime(vtt_line.start, "%H:%M:%S.%f")
+            unix_start_time = datetime.datetime.timestamp(start_time)
+            end_time = datetime.datetime.strptime(vtt_line.end, "%H:%M:%S.%f")
+            unix_end_time = datetime.datetime.timestamp(end_time)
+
             sentences_list.append(
                 {
                     "start_time": vtt_line.start,
                     "end_time": vtt_line.end,
                     "text": vtt_line.text,
+                    "unix_start_time": unix_start_time,
+                    "unix_end_time": unix_end_time,
                 }
             )
 
