@@ -218,6 +218,7 @@ LOGLEVEL = "INFO"
 
 # Make a new directory for logs
 Path(BASE_DIR / "logs").mkdir(exist_ok=True)
+Path(BASE_DIR / "temporary_video_audio_storage").mkdir(exist_ok=True)
 
 # Define the list of formatters
 formatters = {
