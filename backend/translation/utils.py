@@ -13,6 +13,8 @@ from .metadata import (
 from docx import *
 from docx.shared import Inches
 from django.http import HttpResponse
+from io import StringIO, BytesIO
+import os
 
 
 ### Utility Functions ###
@@ -26,12 +28,25 @@ def validate_uuid4(val):
 
 def convert_to_docx(content):
     document = Document()
+    document.add_paragraph(content)
+    # document.add_page_break()
+
+    # Prepare document for download
+    # -----------------------------
+    buffer = BytesIO()
+    with open("temp_f.txt", "w") as out_f:
+        out_f.write(content)
+    buffer.write(open("temp_f.txt", "rb").read())
+    os.remove("temp_f.txt")
+    document.save(buffer)
+    length = buffer.tell()
+    buffer.seek(0)
     response = HttpResponse(
-        content,
+        buffer.getvalue(),
         content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
-    response["Content-Disposition"] = "attachment; filename=download_filename.docx"
-    response["Content-Length"] = len(content)
+    response["Content-Disposition"] = "attachment; filename=" + "new_file_download"
+    response["Content-Length"] = length
     return response
 
 
