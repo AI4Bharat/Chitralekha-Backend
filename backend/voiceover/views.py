@@ -282,8 +282,10 @@ def get_payload(request):
                         }
                     )
                 else:
-                    start_time = translation_payload[count][0]["start_time"]
-                    end_time = translation_payload[count][0]["end_time"]
+                    start_time = voice_over.translation.payload["payload"][i][
+                        "start_time"
+                    ]
+                    end_time = voice_over.translation.payload["payload"][i]["end_time"]
                     time_difference = (
                         datetime.strptime(end_time, "%H:%M:%S.%f")
                         - timedelta(
@@ -300,11 +302,13 @@ def get_payload(request):
                     sentences_list.append(
                         {
                             "time_difference": t_d,
-                            "start_time": translation_payload[count][0]["start_time"],
-                            "end_time": translation_payload[count][0]["end_time"],
-                            "text": translation_payload[count][0]["target_text"],
+                            "start_time": start_time,
+                            "end_time": end_time,
+                            "text": voice_over.translation.payload["payload"][i][
+                                "target_text"
+                            ],
                             "audio": "",
-                            "id": start_offset + i + 1,
+                            "id": i + 1,
                             "audio_speed": 1,
                         }
                     )
