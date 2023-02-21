@@ -304,7 +304,7 @@ def get_payload(request):
                             "end_time": translation_payload[count][0]["end_time"],
                             "text": translation_payload[count][0]["target_text"],
                             "audio": "",
-                            "id": start_offset + count + 1,
+                            "id": start_offset + i + 1,
                             "audio_speed": 1,
                         }
                     )
