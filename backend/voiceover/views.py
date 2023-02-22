@@ -11,6 +11,7 @@ from rest_framework.decorators import (
     permission_classes,
     authentication_classes,
 )
+from wsgiref.util import FileWrapper
 from scipy.io.wavfile import write
 import os
 from rest_framework.permissions import IsAuthenticated
@@ -803,3 +804,46 @@ def get_voice_over_types(request):
         for voice_over_type in VOICEOVER_TYPE_CHOICES
     ]
     return Response(data, status=status.HTTP_200_OK)
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the video id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
+    responses={200: "Transcript is exported"},
+)
+@api_view(["GET"])
+def export_voiceover(request):
+    task_id = request.query_params.get("task_id")
+    if task_id is None:
+        return Response(
+            {"message": "missing param : task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    folder_path = "temporary_video_audio_storage"
+    file_path = os.path.join(folder_path + "/" + task.video.name + ".mp4")
+    download_from_blob_storage(file_path)
+    file = FileWrapper(open(file_path, "rb"))
+    response = HttpResponse(file, content_type="video/mp4")
+    video_name = task.video.name
+    response["Content-Disposition"] = "attachment; filename={0}".format(
+        "file_name" + ".mp4"
+    )
+    # response['file_name'] = video_name + ".mp4"
+    return response

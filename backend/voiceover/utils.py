@@ -40,6 +40,16 @@ def validate_uuid4(val):
         return False
 
 
+def download_from_blob_storage(file_path):
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+    blob_client = blob_service_client.get_blob_client(
+        container=container_name, blob=file_path.split("/")[-1]
+    )
+    with open(file=file_path.split("/")[-1], mode="wb") as sample_blob:
+        download_stream = blob_client.download_blob()
+        sample_blob.write(download_stream.readall())
+
+
 def uploadToBlobStorage(file_path):
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     blob_client = blob_service_client.get_blob_client(
