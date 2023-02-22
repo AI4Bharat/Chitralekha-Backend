@@ -20,4 +20,5 @@ urlpatterns = [
         views.get_payload,
         name="get_payload",
     ),
+    path("export_voiceover/", views.export_voiceover, name="export_voiceover/"),
 ]
