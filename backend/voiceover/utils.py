@@ -57,11 +57,19 @@ def uploadToBlobStorage(file_path):
     )
     with open(file_path, "rb") as data:
         try:
-            blob_client.upload_blob(data)
-            logging.info(blob_client.url)
+            if not blob_client.exists():
+                blob_client.upload_blob(data)
+                logging.info("Video uploaded successfully!")
+                logging.info(blob_client.url)
+            else:
+                blob_client.delete_blob()
+                logging.info("Old Video deleted successfully!")
+                blob_client.upload_blob(data)
+                logging.info("New video uploaded successfully!")
         except Exception as e:
-            logging.info("This file already exists")
+            logging.info("This video can't be uploaded")
             logging.info(blob_client.url)
+            os.remove(file_path)
             # blob_data = blob_client.download_blob()
             # data = blob_data.readall()
             # print(data)
@@ -129,6 +137,7 @@ def generate_voiceover_payload(translation_payload, target_language):
 
 
 def download_video(url):
+    logging.info("Downloading video %s", url)
     ydl = YoutubeDL({"format": "best"})
     """
     Get video details from Google's platforms:
@@ -146,10 +155,13 @@ def download_video(url):
             ydl.download([url])
     except DownloadError:
         return {"message": "Error in downloading video"}
+    logging.info("Downloaded video")
 
 
 def integrate_audio_with_video(file_name, voice_over_obj, video):
+    logging.info("Audio Integration Started.")
     integrate_all_audios(file_name, voice_over_obj.payload, video.duration)
+    logging.info("Audio Integration Completed.")
     # load the video
     download_video(video.url)
     video_file = file_name + ".mp4"
@@ -167,7 +179,10 @@ def integrate_audio_with_video(file_name, voice_over_obj, video):
     # add the final audio to the video
     final_clip = video_clip.set_audio(final_audio)
     # save the final clip
-    final_clip.write_videofile(video_file)
+    final_clip.write_videofile(os.path.join(file_name + "final.mp4"))
+    logging.info("Integration of audio and video done")
+    os.remove(video_file)
+    os.rename(os.path.join(file_name + "final.mp4"), file_name + ".mp4")
 
 
 def check_audio_completion(voice_over_obj):
@@ -222,18 +237,19 @@ def adjust_audio(audio_file, original_time, audio_speed):
     hours, mins, seconds = audio_duration(length)
     audio_time_difference = original_time - seconds
     if audio_time_difference > 0:
-        silence_segment = AudioSegment.silent(
-            duration=audio_time_difference * 1000
-        )  # duration in milliseconds
+        logging.info("Add silence in the audio of %s", str(audio_time_difference))
+        # duration in milliseconds
+        silence_segment = AudioSegment.silent(duration=audio_time_difference * 1000)
         # read wav file to an audio segment
         audio = AudioSegment.from_wav(audio_file)
         # Add above two audio segments
         final_audio = audio + silence_segment
-        # Either save modified audio
+        # save modified audio
         final_audio.export(audio_file, format="wav")
     elif audio_time_difference == 0:
-        print("No time difference")
+        logging.info("No time difference")
     else:
+        logging.info("Speed up the audio by %s", str(seconds / original_time))
         adjust_speed(audio_file, seconds / original_time)
 
 
@@ -258,16 +274,19 @@ def integrate_all_audios(file_name, payload, video_duration):
     length_payload = len(payload["payload"])
     first_audio = payload["payload"]["0"]["audio"]["audioContent"]
     first_audio_decoded = base64.b64decode(first_audio)
+    logging.info("Index of Audio : #%s", str(0))
     with open(file_name + ".wav", "wb") as out_f23:
         out_f23.write(first_audio_decoded)
     adjust_audio(file_name + ".wav", payload["payload"][str(0)]["time_difference"], -1)
     for index in range(length_payload):
+        logging.info("Index of Audio : #%s", str(index))
         if index > 0:
-            curent_payload = payload["payload"][str(index)]["start_time"]
+            current_payload = payload["payload"][str(index)]["start_time"]
             previous_payload = payload["payload"][str(index - 1)]["end_time"]
             difference_between_payloads = get_original_duration(
-                previous_payload, curent_payload
+                previous_payload, current_payload
             )
+            """
             if difference_between_payloads > 0:
                 silence_segment = AudioSegment.silent(
                     duration=difference_between_payloads * 1000
@@ -277,6 +296,7 @@ def integrate_all_audios(file_name, payload, video_duration):
                 # Add above two audio segments
                 final_audio = audio + silence_segment
                 final_audio.export(file_name + ".wav", format="wav")
+            """
             if index == length_payload - 1:
                 end_time = payload["payload"][str(index)]["end_time"]
                 last_segment_difference = get_original_duration(
@@ -296,9 +316,7 @@ def integrate_all_audios(file_name, payload, video_duration):
                 )
                 with open(file_name + "_1.wav", "wb") as out_f23:
                     out_f23.write(audio_2_decoded)
-
                 adjust_audio(file_name + "_1.wav", original_time, -1)
-
             sound1 = AudioSegment.from_wav(file_name + ".wav")
             sound2 = AudioSegment.from_wav(file_name + "_1.wav")
             combined_sounds = sound1 + sound2
