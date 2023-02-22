@@ -48,8 +48,10 @@ def uploadToBlobStorage(file_path):
     with open(file_path, "rb") as data:
         try:
             blob_client.upload_blob(data)
+            logging.info(blob_client.url)
         except Exception as e:
             logging.info("This file already exists")
+            logging.info(blob_client.url)
             # blob_data = blob_client.download_blob()
             # data = blob_data.readall()
             # print(data)
@@ -108,7 +110,11 @@ def generate_voiceover_payload(translation_payload, target_language):
                 output_f.write(first_audio_decoded)
             adjust_audio(audio_file, translation_payload[ind][3], -1)
             encoded_audio = base64.b64encode(open(audio_file, "rb").read())
-            output[ind] = (translation_payload[ind][0], {"audioContent": encoded_audio})
+            output[ind] = (
+                translation_payload[ind][0],
+                {"audioContent": str(encoded_audio)},
+            )
+            os.remove(audio_file)
     return output
 
 
