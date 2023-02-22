@@ -112,7 +112,7 @@ def generate_voiceover_payload(translation_payload, target_language):
             encoded_audio = base64.b64encode(open(audio_file, "rb").read())
             output[ind] = (
                 translation_payload[ind][0],
-                {"audioContent": str(encoded_audio)},
+                {"audioContent": encoded_audio.decode()},
             )
             os.remove(audio_file)
     return output
