@@ -286,17 +286,16 @@ def integrate_all_audios(file_name, payload, video_duration):
             difference_between_payloads = get_original_duration(
                 previous_payload, current_payload
             )
-            """
             if difference_between_payloads > 0:
                 silence_segment = AudioSegment.silent(
                     duration=difference_between_payloads * 1000
-                )  # duration in milliseconds
+                )
+                # duration in milliseconds
                 # read wav file to an audio segment
                 audio = AudioSegment.from_wav(file_name + ".wav")
                 # Add above two audio segments
                 final_audio = audio + silence_segment
                 final_audio.export(file_name + ".wav", format="wav")
-            """
             if index == length_payload - 1:
                 end_time = payload["payload"][str(index)]["end_time"]
                 last_segment_difference = get_original_duration(
