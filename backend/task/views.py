@@ -53,6 +53,7 @@ from video.utils import get_export_transcript, get_export_translation
 import zipfile
 from django.http import HttpResponse
 import datetime
+from task.tasks import celery_asr_call
 
 
 class TaskViewSet(ModelViewSet):
@@ -234,9 +235,18 @@ class TaskViewSet(ModelViewSet):
             target_language=target_language
         )
 
+        task_review = (
+            Task.objects.filter(video=video)
+            .filter(task_type="TRANSLATION_REVIEW")
+            .filter(target_language=target_language)
+            .first()
+        )
         if translation.filter(status="TRANSLATION_REVIEW_COMPLETE").first() is not None:
             return translation.filter(status="TRANSLATION_REVIEW_COMPLETE").first()
-        elif translation.filter(status="TRANSLATION_EDIT_COMPLETE").first() is not None:
+        elif (
+            translation.filter(status="TRANSLATION_EDIT_COMPLETE").first() is not None
+            and task_review is None
+        ):
             return translation.filter(status="TRANSLATION_EDIT_COMPLETE").first()
         else:
             return {
@@ -751,7 +761,11 @@ class TaskViewSet(ModelViewSet):
                     )
                     if task.is_active == False:
                         translation = None
-                    payloads = {"audio": ""}
+                    else:
+                        translation = self.check_translation_exists(
+                            video, target_language
+                        )
+                    payloads = {"payload": {}}
                     voiceover_obj = VoiceOver(
                         video=task.video,
                         user=task.user,
@@ -759,7 +773,7 @@ class TaskViewSet(ModelViewSet):
                         payload=payloads,
                         target_language=target_language,
                         task=task,
-                        voice_over_type="MANUALLY_CREATED",
+                        voice_over_type=source_type,
                         status="VOICEOVER_SELECT_SOURCE",
                     )
                     new_voiceovers.append(voiceover_obj)
@@ -824,7 +838,7 @@ class TaskViewSet(ModelViewSet):
                         translation = voiceover.translation
                         is_active = True
                     else:
-                        payload = None
+                        payload = {"payload": {}}
                         translation = None
                         is_active = False
                     voiceover_obj = VoiceOver(
@@ -835,7 +849,7 @@ class TaskViewSet(ModelViewSet):
                         payload=payload,
                         target_language=target_language,
                         task=new_task,
-                        voice_over_type="MANUALLY_CREATED",
+                        voice_over_type=source_type,
                         status="VOICEOVER_REVIEWER_ASSIGNED",
                     )
                     new_voiceovers.append(voiceover_obj)
@@ -1033,7 +1047,19 @@ class TaskViewSet(ModelViewSet):
                 new_transcripts = []
                 asr_errors = 0
                 for task in tasks:
-                    payloads = self.generate_transcript_payload(task, [source_type])
+                    payloads = self.generate_transcript_payload(task, [source_type], True)
+                    if source_type == "MACHINE_GENERATED":
+                        detailed_error.append(
+                            {
+                                "video_name": task.video.name,
+                                "video_url": task.video.url,
+                                "task_type": self.get_task_type_label(task.task_type),
+                                "language_pair": task.get_language_pair_label,
+                                "status": "Successful",
+                                "message": "Task created successfully.",
+                            }
+                        )
+                        continue
                     if type(payloads) != dict:
                         asr_errors += 1
                         detailed_error.append(
@@ -1200,28 +1226,39 @@ class TaskViewSet(ModelViewSet):
         if "output" in data.keys():
             payload = data["output"]
         for vtt_line in webvtt.read_buffer(StringIO(payload)):
+            start_time = datetime.datetime.strptime(vtt_line.start, "%H:%M:%S.%f")
+            unix_start_time = datetime.datetime.timestamp(start_time)
+            end_time = datetime.datetime.strptime(vtt_line.end, "%H:%M:%S.%f")
+            unix_end_time = datetime.datetime.timestamp(end_time)
+
             sentences_list.append(
                 {
                     "start_time": vtt_line.start,
                     "end_time": vtt_line.end,
                     "text": vtt_line.text,
+                    "unix_start_time": unix_start_time,
+                    "unix_end_time": unix_end_time,
                 }
             )
 
         return json.loads(json.dumps({"payload": sentences_list}))
 
-    def generate_transcript_payload(self, task, list_compare_sources):
+    def generate_transcript_payload(self, task, list_compare_sources, is_async=False):
         payloads = {}
         if "MACHINE_GENERATED" in list_compare_sources:
-            transcribed_data = make_asr_api_call(task.video.url, task.video.language)
-            if transcribed_data is not None:
-                data = self.convert_payload_format(transcribed_data)
-                payloads["MACHINE_GENERATED"] = data
+            if is_async==True:
+                celery_asr_call.delay(task_id=task.id)
+                payloads["MACHINE_GENERATED"] = {"payload": []}
             else:
-                return Response(
-                    {"message": "Error while calling ASR API"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+                transcribed_data = make_asr_api_call(task.video.url, task.video.language)
+                if transcribed_data is not None:
+                    data = self.convert_payload_format(transcribed_data)
+                    payloads["MACHINE_GENERATED"] = data
+                else:
+                    return Response(
+                        {"message": "Error while calling ASR API"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
         if "ORIGINAL_SOURCE" in list_compare_sources:
             subtitles = task.video.subtitles
             if subtitles is not None:
@@ -1838,6 +1875,8 @@ class TaskViewSet(ModelViewSet):
             source_type = (
                 project.default_voiceover_type or organization.default_voiceover_type
             )
+            if source_type is None:
+                source_type = backend_default_voice_over_type
             return self.create_voiceover_task(
                 videos,
                 user_ids,
@@ -2076,14 +2115,11 @@ class TaskViewSet(ModelViewSet):
         if type == "TRANSLATION":
             target_language = request.query_params.get("target_language")
             label = "Translation"
-        else:
-            label = "Transcription"
-
-        if type == "VOICEOVER":
+        elif type == "VOICEOVER":
             target_language = request.query_params.get("target_language")
             label = "VoiceOver"
         else:
-            label = "Translation"
+            label = "Transcription"
 
         try:
             video = Video.objects.get(pk=video_id)

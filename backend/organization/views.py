@@ -48,6 +48,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         organization_owner = request.data.get("organization_owner")
         default_transcript_type = request.data.get("default_transcript_type")
         default_translation_type = request.data.get("default_translation_type")
+        default_voiceover_type = request.data.get("default_voiceover_type")
         default_task_types = request.data.get("default_task_types")
         default_target_languages = None
 
@@ -94,6 +95,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 created_by=request.user,
                 default_transcript_type=default_transcript_type,
                 default_translation_type=default_translation_type,
+                default_voiceover_type=default_voiceover_type,
                 default_task_types=default_task_types,
                 default_target_languages=default_target_languages,
             )
@@ -128,6 +130,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         description = request.data.get("description")
         default_transcript_type = request.data.get("default_transcript_type")
         default_translation_type = request.data.get("default_translation_type")
+        default_voiceover_type = request.data.get("default_voiceover_type")
         default_target_languages = request.data.get("default_target_languages")
         default_task_types = request.data.get("default_task_types")
         org_owner = request.data.get("organization_owner")
@@ -160,11 +163,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             organization.default_task_types = default_task_types
 
         if organization.default_task_types is not None and (
-            "TRANSLATION_EDIT"
+            "TRANSLATION_EDIT" in organization.default_task_types
             or "TRANSLATION_REVIEW" in organization.default_task_types
         ):
             default_target_languages = request.data.get("default_target_languages")
-            if default_target_languages is None:
+            if default_target_languages is None or len(default_target_languages) == 0:
                 return Response(
                     {
                         "message": "missing param : Target Language can't be None if Translation task is selected."
@@ -179,6 +182,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         if default_translation_type is not None:
             organization.default_translation_type = default_translation_type
 
+        if default_voiceover_type is not None:
+            organization.default_voiceover_type = default_voiceover_type
         organization.save()
 
         return Response(

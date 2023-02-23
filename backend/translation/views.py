@@ -48,6 +48,7 @@ from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
 from django.db.models.functions import Cast
 from operator import itemgetter
 from itertools import groupby
+from voiceover.models import VoiceOver
 from project.models import Project
 import config
 
@@ -336,13 +337,13 @@ def get_payload(request):
 
 
 def change_active_status_of_next_tasks(task, translation_obj):
-    task = (
+    translation_review_task = (
         Task.objects.filter(video=task.video)
         .filter(target_language=translation_obj.target_language)
         .filter(task_type="TRANSLATION_REVIEW")
         .first()
     )
-    if task:
+    if translation_review_task:
         translation = (
             Translation.objects.filter(target_language=translation_obj.target_language)
             .filter(video=task.video)
@@ -350,11 +351,42 @@ def change_active_status_of_next_tasks(task, translation_obj):
             .first()
         )
         if translation is not None:
-            task.is_active = True
+            translation_review_task.is_active = True
             translation.transcript = translation_obj.transcript
             translation.payload = translation_obj.payload
             translation.save()
-            task.save()
+            translation_review_task.save()
+    voice_over_task = (
+        Task.objects.filter(task_type="VOICEOVER_EDIT")
+        .filter(video=task.video)
+        .filter(target_language=task.target_language)
+        .first()
+    )
+    if (
+        voice_over_task is not None
+        and task.task_type == "TRANSLATION_EDIT"
+        and translation_review_task is None
+    ):
+        activate_voice_over = True
+    elif (
+        voice_over_task is not None
+        and task.task_type == "TRANSLATION_REVIEW"
+        and "COMPLETE" in translation_obj.status
+    ):
+        activate_voice_over = True
+    else:
+        activate_voice_over = False
+    if activate_voice_over:
+        voice_over = (
+            VoiceOver.objects.filter(video=task.video)
+            .filter(target_language=task.target_language)
+            .first()
+        )
+        if voice_over_task is not None:
+            voice_over.translation = translation_obj
+            voice_over_task.is_active = True
+            voice_over.save()
+            voice_over_task.save()
     else:
         print("No change in status")
 
@@ -602,6 +634,7 @@ def save_translation(request):
                         status=ts_status,
                         task=task,
                     )
+                    change_active_status_of_next_tasks(task, translation_obj)
                     task.status = "COMPLETE"
                     task.save()
                 else:
@@ -640,7 +673,7 @@ def save_translation(request):
                         "message": "Translation updated successfully.",
                         "task_id": task.id,
                         "translation_id": translation_obj.id,
-                        "data": translation_obj.payload,
+                        # "data": translation_obj.payload,
                     },
                     status=status.HTTP_200_OK,
                 )
@@ -649,7 +682,8 @@ def save_translation(request):
                     {
                         "task_id": task.id,
                         "translation_id": translation_obj.id,
-                        "data": translation_obj.payload,
+                        # "data": translation_obj.payload,
+                        "message": "Saved as draft.",
                     },
                     status=status.HTTP_200_OK,
                 )

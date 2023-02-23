@@ -24,6 +24,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             "default_target_languages",
             "default_transcript_type",
             "default_translation_type",
+            "default_voiceover_type",
             "default_eta",
             "default_priority",
             "default_description",
