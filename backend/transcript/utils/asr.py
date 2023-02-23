@@ -21,7 +21,15 @@ def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
             json_data["denoiser"] = False
             request_url = english_asr_url
         logging.info("Request to ASR API send")
-        response = requests.post(request_url, json=json_data)
+        response = requests.post(
+            request_url,
+            json=json_data,
+            timeout=None,
+            headers={
+                "Connection": "keep-alive",
+                "Keep-Alive": "timeout=40*60, max=60*60",
+            },
+        )
         logging.info("ASR response generated")
     except:
         logging("Error in ASR API")
