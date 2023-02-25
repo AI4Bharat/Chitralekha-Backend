@@ -4,42 +4,39 @@ import traceback
 import requests
 import logging
 from config import asr_url, english_asr_url
+import subprocess
 
 
 def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
+    json_data = json.dumps(
+        {"url": url, "vad_level": vad_level, "chunk_size": chunk_size, "language": lang}
+    )
+    request_url = asr_url
+    if lang == "en":
+        logging.info("Calling another instance for English video.%s", url)
+        request_url = english_asr_url
+    logging.info("Request to ASR API send %s", request_url)
     try:
-        json_data = {
-            "url": url,
-            "vad_level": vad_level,
-            "chunk_size": chunk_size,
-            "language": lang,
-        }
-        request_url = asr_url
-        if lang == "en":
-            logging.info("Calling another instance for English video.")
-            json_data["restore_punct"] = True
-            json_data["denoiser"] = False
-            request_url = english_asr_url
-        logging.info("Request to ASR API send")
-        response = requests.post(
-            request_url,
-            json=json_data,
-            timeout=None,
-            headers={
-                "Connection": "keep-alive",
-                "Keep-Alive": "timeout=40*60, max=60*60",
-            },
+        curl_request = subprocess.run(
+            [
+                "curl",
+                "-X",
+                "POST",
+                "-d",
+                json_data,
+                "-H",
+                "Keep-Alive: timeout=40*60,max=60*60",
+                "-H",
+                "Content-Type: application/json",
+                request_url,
+            ],
+            capture_output=True,
         )
-        logging.info("ASR response generated")
+        output = curl_request.stdout.decode()
+        return eval(output)
     except:
-        logging("Error in ASR API")
+        logging.info("Error in ASR API")
         traceback.print_stack()
-        return None
-
-    try:
-        return response.json()
-    except:
-        logging.info(response.text)
         return None
 
 
