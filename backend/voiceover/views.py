@@ -11,6 +11,7 @@ from rest_framework.decorators import (
     permission_classes,
     authentication_classes,
 )
+from wsgiref.util import FileWrapper
 from scipy.io.wavfile import write
 import os
 from rest_framework.permissions import IsAuthenticated
@@ -39,7 +40,7 @@ from .models import (
 from datetime import datetime, date, timedelta
 from .decorators import is_voice_over_editor
 from .serializers import VoiceOverSerializer
-from .utils import uploadToBlobStorage, generate_voiceover_payload, get_tts_output
+from .utils import *
 from config import voice_over_payload_offset_size
 
 
@@ -146,7 +147,6 @@ def get_payload(request):
         )
 
     sentences_list = []
-
     current_offset = offset - 1
     translation_payload = []
     if voice_over.translation:
@@ -165,7 +165,7 @@ def get_payload(request):
         )
 
         generate_voice_over = True
-        if end_offset >= len(voice_over.translation.payload["payload"]) - 2:
+        if end_offset > count_cards:
             next = None
             previous = offset - 1
         elif offset == 1:
@@ -188,24 +188,32 @@ def get_payload(request):
         input_sentences = []
         for text, index in translation_payload:
             audio_index = str(start_offset + index)
-
             if (
                 voice_over.payload
                 and "payload" in voice_over.payload
                 and len(voice_over.payload["payload"].keys()) > 0
                 and audio_index in voice_over.payload["payload"].keys()
                 and "audioContent"
-                in voice_over.payload["payload"][audio_index]["audio"]
+                in voice_over.payload["payload"][audio_index]["audio"].keys()
             ):
+                start_time = voice_over.payload["payload"][audio_index]["start_time"]
+                end_time = voice_over.payload["payload"][audio_index]["end_time"]
+                original_duration = get_original_duration(start_time, end_time)
                 input_sentences.append(
                     (
                         voice_over.payload["payload"][audio_index]["text"],
                         voice_over.payload["payload"][audio_index]["audio"],
                         False,
+                        original_duration,
                     )
                 )
             else:
-                input_sentences.append((text["target_text"], "", True))
+                start_time = text["start_time"]
+                end_time = text["end_time"]
+                original_duration = get_original_duration(start_time, end_time)
+                input_sentences.append(
+                    (text["target_text"], "", True, original_duration)
+                )
 
         voiceover_machine_generated = generate_voiceover_payload(
             input_sentences, task.target_language
@@ -235,9 +243,9 @@ def get_payload(request):
                     "end_time": translation_payload[i][0]["end_time"],
                     "text": voiceover_machine_generated[i][0],
                     "audio": voiceover_machine_generated[i][1],
+                    "audio_speed": 1,
                 }
             )
-        payload = sentences_list
         payload = {"payload": sentences_list}
     elif voice_over.voice_over_type == "MANUALLY_CREATED":
         if voice_over.payload and "payload" in voice_over.payload:
@@ -271,11 +279,14 @@ def get_payload(request):
                             ],
                             "time_difference": t_d,
                             "id": i + 1,
+                            "audio_speed": 1,
                         }
                     )
                 else:
-                    start_time = translation_payload[count][0]["start_time"]
-                    end_time = translation_payload[count][0]["end_time"]
+                    start_time = voice_over.translation.payload["payload"][i][
+                        "start_time"
+                    ]
+                    end_time = voice_over.translation.payload["payload"][i]["end_time"]
                     time_difference = (
                         datetime.strptime(end_time, "%H:%M:%S.%f")
                         - timedelta(
@@ -292,11 +303,14 @@ def get_payload(request):
                     sentences_list.append(
                         {
                             "time_difference": t_d,
-                            "start_time": translation_payload[count][0]["start_time"],
-                            "end_time": translation_payload[count][0]["end_time"],
-                            "text": translation_payload[count][0]["target_text"],
+                            "start_time": start_time,
+                            "end_time": end_time,
+                            "text": voice_over.translation.payload["payload"][i][
+                                "target_text"
+                            ],
                             "audio": "",
-                            "id": start_offset + count + 1,
+                            "id": i + 1,
+                            "audio_speed": 1,
                         }
                     )
                     count += 1
@@ -432,9 +446,10 @@ def save_voice_over(request):
                 )
 
             payload_offset_size = voice_over_payload_offset_size - 1
-            count = (
+            count_cards = (
                 len(voice_over.translation.payload["payload"])
                 - voice_over_payload_offset_size
+                + 1
             )
             first_offset = voice_over_payload_offset_size // 2 + 1
             current_offset = offset - 1
@@ -445,7 +460,43 @@ def save_voice_over(request):
                 first_offset + current_offset - 1 * payload_offset_size // 2
             ) + (payload_offset_size // 2)
 
+            if end_offset > count_cards:
+                next = None
+                previous = offset - 1
+            elif offset == 1:
+                previous = None
+                next = offset + 1
+            else:
+                next = offset + 1
+                previous = offset - 1
+
+            sentences_list = []
             if "EDIT" in task.task_type:
+                translation_payload = []
+                for index, voice_over_payload in enumerate(payload["payload"]):
+                    start_time = voice_over_payload["start_time"]
+                    end_time = voice_over_payload["end_time"]
+                    original_duration = get_original_duration(start_time, end_time)
+                    if (
+                        voice_over.voice_over_type == "MACHINE_GENERATED"
+                        and "text_changed" in voice_over_payload
+                        and voice_over_payload["text_changed"] == True
+                    ):
+                        translation_payload.append(
+                            (voice_over_payload["text"], "", True, original_duration)
+                        )
+                    else:
+                        translation_payload.append(
+                            (
+                                voice_over_payload["text"],
+                                voice_over_payload["audio"],
+                                False,
+                                original_duration,
+                            )
+                        )
+                voiceover_machine_generated = generate_voiceover_payload(
+                    translation_payload, task.target_language
+                )
                 if request.data.get("final"):
                     if (
                         VoiceOver.objects.filter(status=VOICEOVER_EDIT_COMPLETE)
@@ -455,88 +506,100 @@ def save_voice_over(request):
                         is not None
                     ):
                         return Response(
-                            {"error": "Voice Over Edit already exists."},
+                            {"message": "Voice Over Edit already exists."},
                             status=status.HTTP_201_CREATED,
                         )
                     else:
-                        audios = []
-                        audio_name = task.video.name + "_" + task.target_language
-                        file_path = os.path.join(
-                            "./temporary_audio_files_dir/" + audio_name + ".json"
+                        voice_over_obj_inprogress = (
+                            VoiceOver.objects.filter(status=VOICEOVER_EDIT_INPROGRESS)
+                            .filter(target_language=target_language)
+                            .filter(translation=translation)
+                            .first()
                         )
-                        try:
-                            for audio in payload["payload"]:
-                                audios.append(
-                                    {
-                                        "start_time": audio["start_time"],
-                                        "end_time": audio["end_time"],
-                                        "audio": audio["audio"],
-                                    }
+                        if voice_over_obj_inprogress is None:
+                            voice_over_obj_selected = (
+                                VoiceOver.objects.filter(status=VOICEOVER_SELECT_SOURCE)
+                                .filter(target_language=target_language)
+                                .filter(translation=translation)
+                                .first()
+                            )
+                            voice_over_obj = voice_over_obj_selected
+                        else:
+                            voice_over_obj = voice_over_obj_inprogress
+                        ts_status = VOICEOVER_EDIT_INPROGRESS
+                        voice_over_type = voice_over.voice_over_type
+                        for i in range(len(payload["payload"])):
+                            start_time = payload["payload"][i]["start_time"]
+                            end_time = payload["payload"][i]["end_time"]
+                            time_difference = (
+                                datetime.strptime(end_time, "%H:%M:%S.%f")
+                                - timedelta(
+                                    hours=float(start_time.split(":")[0]),
+                                    minutes=float(start_time.split(":")[1]),
+                                    seconds=float(start_time.split(":")[-1]),
                                 )
-                                """
-                                if len(audio["audio"]) > 0:
-                                    decode_string = base64.b64decode(audio["audio"]["audio"][0]["audioContent"])
-                                    sample_rate = audio["audio"]["config"]["samplingRate"]
-                                    wav_file.write(decode_string)
-                                """
-                            with open(file_path, "w") as outfile:
-                                json.dump(audios, outfile)
-                            # uploadToBlobStorage(file_path)
-                        except:
+                            ).strftime("%H:%M:%S.%f")
+                            t_d = (
+                                int(time_difference.split(":")[0]) * 3600
+                                + int(time_difference.split(":")[1]) * 60
+                                + float(time_difference.split(":")[2])
+                            )
+
+                            voice_over_obj.payload["payload"][str(start_offset + i)] = {
+                                "time_difference": t_d,
+                                "start_time": payload["payload"][i]["start_time"],
+                                "end_time": payload["payload"][i]["end_time"],
+                                "text": payload["payload"][i]["text"],
+                                "audio": voiceover_machine_generated[i][1],
+                                "audio_speed": 1,
+                            }
+                            voice_over_obj.save()
+                            sentences_list.append(
+                                {
+                                    "id": start_offset + i + 1,
+                                    "time_difference": t_d,
+                                    "start_time": payload["payload"][i]["start_time"],
+                                    "end_time": payload["payload"][i]["end_time"],
+                                    "text": payload["payload"][i]["text"],
+                                    "audio": voiceover_machine_generated[i][1],
+                                    "audio_speed": 1,
+                                }
+                            )
+                        # delete inprogress payload
+                        missing_cards = check_audio_completion(voice_over_obj)
+                        if len(missing_cards) > 0:
                             return Response(
                                 {
-                                    "error": "Voice Over can't be completed as audio file couldn't be processed."
+                                    "message": "Voice Over can't be saved as there are following issues.",
+                                    "missing_cards_info": missing_cards,
                                 },
-                                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                status=status.HTTP_400_BAD_REQUEST,
                             )
-                        ts_status = VOICEOVER_EDIT_COMPLETE
-                        voice_over_type = voice_over.voice_over_type
-                        voice_over_obj = VoiceOver.objects.create(
-                            voice_over_type=voice_over_type,
-                            parent=voice_over,
-                            translation=voice_over.translation,
-                            video=voice_over.video,
-                            target_language=voice_over.target_language,
-                            user=user,
-                            payload={"audio": audios},
-                            status=ts_status,
-                            task=task,
+                        file_name = voice_over_obj.video.name
+                        file_path = "temporary_video_audio_storage"
+                        integrate_audio_with_video(
+                            file_path + "/" + file_name,
+                            voice_over_obj,
+                            voice_over_obj.video,
                         )
+                        uploadToBlobStorage(
+                            os.path.join(file_path + "/" + file_name + ".mp4")
+                        )
+                        # change_active_status_of_next_tasks(
+                        #    task, target_language, voice_over_obj
+                        # )
+                        ts_status = VOICEOVER_EDIT_COMPLETE
+                        voice_over_obj.status = ts_status
+                        voice_over_obj.save()
                         task.status = "COMPLETE"
                         task.save()
-                        change_active_status_of_next_tasks(
-                            task, target_language, voice_over_obj
-                        )
                 else:
-                    translation_payload = []
-                    for index, voice_over_payload in enumerate(payload["payload"]):
-                        if (
-                            voice_over.voice_over_type == "MACHINE_GENERATED"
-                            and "text_changed" in voice_over_payload
-                            and voice_over_payload["text_changed"] == True
-                        ):
-                            translation_payload.append(
-                                (voice_over_payload["text"], "", True)
-                            )
-                        else:
-                            translation_payload.append(
-                                (
-                                    voice_over_payload["text"],
-                                    voice_over_payload["audio"],
-                                    False,
-                                )
-                            )
-                    voiceover_machine_generated = generate_voiceover_payload(
-                        translation_payload, task.target_language
-                    )
-
                     voice_over_obj = (
                         VoiceOver.objects.filter(status=VOICEOVER_EDIT_INPROGRESS)
                         .filter(target_language=target_language)
                         .filter(translation=translation)
                         .first()
                     )
-                    ts_status = VOICEOVER_EDIT_INPROGRESS
                     voice_over_type = voice_over.voice_over_type
                     if voice_over_obj is not None:
                         for i in range(len(payload["payload"])):
@@ -555,16 +618,29 @@ def save_voice_over(request):
                                 + int(time_difference.split(":")[1]) * 60
                                 + float(time_difference.split(":")[2])
                             )
-                            voice_over_obj.payload["payload"][start_offset + i] = {
+                            voice_over_obj.payload["payload"][str(start_offset + i)] = {
                                 "time_difference": t_d,
                                 "start_time": payload["payload"][i]["start_time"],
                                 "end_time": payload["payload"][i]["end_time"],
                                 "text": payload["payload"][i]["text"],
                                 "audio": voiceover_machine_generated[i][1],
+                                "audio_speed": 1,
                             }
+                            sentences_list.append(
+                                {
+                                    "id": start_offset + i + 1,
+                                    "time_difference": t_d,
+                                    "start_time": payload["payload"][i]["start_time"],
+                                    "end_time": payload["payload"][i]["end_time"],
+                                    "text": payload["payload"][i]["text"],
+                                    "audio": voiceover_machine_generated[i][1],
+                                    "audio_speed": 1,
+                                }
+                            )
                         # voice_over_obj.payload[start_offset : end_offset] = voiceover_payload
                         voice_over_obj.voice_over_type = voice_over_type
                         voice_over_obj.save()
+
                     else:
                         voice_over_obj = (
                             VoiceOver.objects.filter(status=VOICEOVER_SELECT_SOURCE)
@@ -574,9 +650,10 @@ def save_voice_over(request):
                         )
                         if voice_over_obj is None:
                             return Response(
-                                {"error": "VoiceOver object does not exist."},
+                                {"message": "VoiceOver object does not exist."},
                                 status=status.HTTP_404_NOT_FOUND,
                             )
+                        ts_status = VOICEOVER_EDIT_INPROGRESS
                         voice_over_obj = VoiceOver.objects.create(
                             voice_over_type=voice_over_type,
                             parent=voice_over_obj,
@@ -605,12 +682,13 @@ def save_voice_over(request):
                                 + float(time_difference.split(":")[2])
                             )
 
-                            voice_over_obj.payload["payload"][start_offset + i] = {
+                            voice_over_obj.payload["payload"][str(start_offset + i)] = {
                                 "time_difference": t_d,
                                 "start_time": payload["payload"][i]["start_time"],
                                 "end_time": payload["payload"][i]["end_time"],
                                 "text": payload["payload"][i]["text"],
                                 "audio": voiceover_machine_generated[i][1],
+                                "audio_speed": 1,
                             }
                         voice_over_obj.save()
                         task.status = "INPROGRESS"
@@ -625,7 +703,7 @@ def save_voice_over(request):
                         is not None
                     ):
                         return Response(
-                            {"error": "Reviewed Voice Over already exists."},
+                            {"message": "Reviewed Voice Over already exists."},
                             status=status.HTTP_201_CREATED,
                         )
                     ts_status = VOICEOVER_REVIEW_COMPLETE
@@ -684,10 +762,15 @@ def save_voice_over(request):
             else:
                 return Response(
                     {
+                        "count": count_cards,
+                        "next": next,
+                        "current": offset,
+                        "previous": previous,
+                        "source_type": voice_over.voice_over_type,
                         "message": "Saved as draft.",
                         "task_id": task.id,
                         "voice_over_id": voice_over_obj.id,
-                        # "data": voice_over_obj.payload,
+                        "payload": {"payload": sentences_list},
                     },
                     status=status.HTTP_200_OK,
                 )
@@ -721,3 +804,46 @@ def get_voice_over_types(request):
         for voice_over_type in VOICEOVER_TYPE_CHOICES
     ]
     return Response(data, status=status.HTTP_200_OK)
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the video id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
+    responses={200: "Transcript is exported"},
+)
+@api_view(["GET"])
+def export_voiceover(request):
+    task_id = request.query_params.get("task_id")
+    if task_id is None:
+        return Response(
+            {"message": "missing param : task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    folder_path = "temporary_video_audio_storage"
+    file_path = os.path.join(folder_path + "/" + task.video.name + ".mp4")
+    download_from_blob_storage(file_path)
+    file = FileWrapper(open(file_path, "rb"))
+    response = HttpResponse(file, content_type="video/mp4")
+    video_name = task.video.name
+    response["Content-Disposition"] = "attachment; filename={0}".format(
+        "file_name" + ".mp4"
+    )
+    # response['file_name'] = video_name + ".mp4"
+    return response
