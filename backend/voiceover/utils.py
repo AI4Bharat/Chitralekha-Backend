@@ -30,6 +30,7 @@ from mutagen.wave import WAVE
 import numpy
 import librosa
 import sys
+from mutagen.mp3 import MP3
 
 
 ### Utility Functions ###
@@ -97,9 +98,10 @@ def get_tts_output(tts_input, target_language, gender="male"):
         return str(e)
 
 
-def process_translation_payload(translation, target_language):
+def process_translation_payload(translation_obj, target_language):
     tts_input = []
     empty_sentences = []
+    translation = translation_obj.payload
     for ind, text in enumerate(translation["payload"]):
         clean_target_text = text["target_text"].replace('""', "").replace('"."', "")
         if len(clean_target_text) > 1 or clean_target_text != " ":
@@ -130,6 +132,27 @@ def process_translation_payload(translation, target_language):
             + float(time_difference.split(":")[1]) * 60
             + float(time_difference.split(":")[2])
         )
+        if ind == len(translation["payload"]) - 1:
+            original_video_duration = translation_obj.video.duration
+            if not compare_time(str(original_video_duration) + str(".000"), end_time)[
+                0
+            ]:
+                time_difference = (
+                    datetime.strptime(
+                        str(original_video_duration) + str(".000"), "%H:%M:%S.%f"
+                    )
+                    - timedelta(
+                        hours=float(start_time.split(":")[0]),
+                        minutes=float(start_time.split(":")[1]),
+                        seconds=float(start_time.split(":")[-1]),
+                    )
+                ).strftime("%H:%M:%S.%f")
+                t_d = (
+                    float(time_difference.split(":")[0]) * 3600
+                    + float(time_difference.split(":")[1]) * 60
+                    + float(time_difference.split(":")[2])
+                )
+
         if ind not in empty_sentences:
             logging.info("Count of audios saved %s", str(count))
             audio_file = "temp_1.wav"
@@ -137,13 +160,14 @@ def process_translation_payload(translation, target_language):
             with open(audio_file, "wb") as output_f:
                 output_f.write(audio_decoded)
             # audio_file_1 = wav_to_mp3(audio_file)
-            adjust_audio(audio_file, t_d, -1)
+            adjust_audio_wav(audio_file, t_d, -1)
             # encoded_audio = base64.b64encode(open("temp_1.wav", "rb").read())
             AudioSegment.from_wav("temp_1.wav").export("temp_1.mp3", format="mp3")
+            # adjust_audio("temp_1.mp3", t_d, -1)
             encoded_audio = base64.b64encode(open("temp_1.mp3", "rb").read())
             logging.info("size of encoded mp3 %s", str(sys.getsizeof(encoded_audio)))
-            # os.remove("temp_1.wav")
-            # os.remove("temp_1.mp3")
+            os.remove("temp_1.wav")
+            os.remove("temp_1.mp3")
             voiceover_payload["payload"][str(ind)] = {
                 "time_difference": t_d,
                 "start_time": start_time,
@@ -236,7 +260,7 @@ def integrate_audio_with_video(file_name, voice_over_obj, video):
     video_file = file_name + ".mp4"
     video_clip = VideoFileClip(video_file)
     # load the audio
-    audio_file = file_name + ".wav"
+    audio_file = file_name + ".mp3"
     audio_clip = AudioFileClip(audio_file)
     audio_clip = audio_clip.volumex(1)
     end = video_clip.end
@@ -299,7 +323,7 @@ def adjust_speed(audio_file, speed_adjustment):
         wavfile.write(audio_file, lr_speech_rate, stretched)
 
 
-def adjust_audio(audio_file, original_time, audio_speed):
+def adjust_audio_wav(audio_file, original_time, audio_speed):
     audio = WAVE(audio_file)
     audio_info = audio.info
     length = int(audio_info.length)
@@ -322,11 +346,41 @@ def adjust_audio(audio_file, original_time, audio_speed):
         adjust_speed(audio_file, seconds / original_time)
 
 
+def adjust_audio(audio_file, original_time, audio_speed):
+    audio = MP3(audio_file)
+    # audio = WAVE(audio_file)
+    audio_info = audio.info
+    length = int(audio_info.length)
+    hours, mins, seconds = audio_duration(length)
+    audio_time_difference = original_time - seconds
+    if audio_time_difference > 0:
+        logging.info("Add silence in the audio of %s", str(audio_time_difference))
+        # duration in milliseconds
+        silence_segment = AudioSegment.silent(duration=audio_time_difference * 1000)
+        # read wav file to an audio segment
+        audio = AudioSegment.from_mp3(audio_file)
+        # Add above two audio segments
+        final_audio = audio + silence_segment
+        # save modified audio
+        final_audio.export(audio_file, format="mp3")
+    elif audio_time_difference == 0:
+        logging.info("No time difference")
+    else:
+        logging.info("Speed up the audio by %s", str(seconds / original_time))
+        adjust_speed(audio_file, seconds / original_time)
+
+
+def compare_time(original_time, end_time):
+    original_date_time = datetime.strptime(original_time, "%H:%M:%S.%f")
+    end_date_time = datetime.strptime(end_time, "%H:%M:%S.%f")
+    if original_date_time > end_date_time:
+        delta = original_date_time - end_date_time
+    else:
+        delta = end_date_time - original_date_time
+    return original_date_time > end_date_time, delta.total_seconds()
+
+
 def get_original_duration(start_time, end_time):
-    print("start time", start_time)
-    print("end time", end_time)
-    print("date time end", datetime.strptime(end_time, "%H:%M:%S.%f"))
-    print("time in seconds", float(start_time.split(":")[-1]))
     time_difference = (
         datetime.strptime(end_time, "%H:%M:%S.%f")
         - timedelta(
@@ -350,9 +404,9 @@ def integrate_all_audios(file_name, payload, video_duration):
     first_audio = payload["payload"]["0"]["audio"]["audioContent"]
     first_audio_decoded = base64.b64decode(first_audio)
     logging.info("Index of Audio : #%s", str(0))
-    with open(file_name + ".wav", "wb") as out_f23:
+    with open(file_name + ".mp3", "wb") as out_f23:
         out_f23.write(first_audio_decoded)
-    adjust_audio(file_name + ".wav", payload["payload"][str(0)]["time_difference"], -1)
+    adjust_audio(file_name + ".mp3", payload["payload"][str(0)]["time_difference"], -1)
     for key in sorted(payload["payload"].keys()):
         index = int(key)
         if str(index) in payload["payload"].keys() and index > 0:
@@ -372,41 +426,39 @@ def integrate_all_audios(file_name, payload, video_duration):
                     )
                     # duration in milliseconds
                     # read wav file to an audio segment
-                    audio = AudioSegment.from_wav(file_name + ".wav")
+                    audio = AudioSegment.from_mp3(file_name + ".mp3")
                     # Add above two audio segments
                     final_audio = audio + silence_segment
-                    final_audio.export(file_name + ".wav", format="wav")
+                    final_audio.export(file_name + ".mp3", format="mp3")
             if index == length_payload - 1:
                 end_time = payload["payload"][str(index)]["end_time"]
-                last_segment_difference = get_original_duration(
-                    end_time, str(video_duration) + str(".000")
-                )
-                print("end_time", end_time)
-                print("video_duration", video_duration)
-                print("last_segment_difference", last_segment_difference)
                 audio_2_decoded = base64.b64decode(
                     payload["payload"][str(index)]["audio"]["audioContent"]
                 )
-                if last_segment_difference > 0:
-                    # prnt
-                    with open(file_name + "_1.wav", "wb") as out_f23:
-                        out_f23.write(audio_2_decoded)
-                    adjust_audio(file_name + "_1.wav", last_segment_difference, -1)
-                else:
-                    with open(file_name + "_1.wav", "wb") as out_f23:
-                        out_f23.write(audio_2_decoded)
+                if compare_time(str(video_duration) + str(".000"), end_time)[0]:
+                    last_segment_difference = get_original_duration(
+                        end_time, str(video_duration) + str(".000")
+                    )
+                    if last_segment_difference > 0:
+                        with open(file_name + "_1.mp3", "wb") as out_f23:
+                            out_f23.write(audio_2_decoded)
+                        adjust_audio(file_name + "_1.mp3", last_segment_difference, -1)
 
+                else:
+                    with open(file_name + "_1.mp3", "wb") as out_f23:
+                        out_f23.write(audio_2_decoded)
             else:
                 original_time = payload["payload"][str(index)]["time_difference"]
                 audio_2_decoded = base64.b64decode(
                     payload["payload"][str(index)]["audio"]["audioContent"]
                 )
-                with open(file_name + "_1.wav", "wb") as out_f23:
+                with open(file_name + "_1.mp3", "wb") as out_f23:
                     out_f23.write(audio_2_decoded)
-                adjust_audio(file_name + "_1.wav", original_time, -1)
+                adjust_audio(file_name + "_1.mp3", original_time, -1)
                 # adjust_audio(file_name + "__" + str(index) + ".wav", original_time, -1)
-            sound1 = AudioSegment.from_wav(file_name + ".wav")
-            sound2 = AudioSegment.from_wav(file_name + "_1.wav")
+            sound1 = AudioSegment.from_mp3(file_name + ".mp3")
+            sound2 = AudioSegment.from_mp3(file_name + "_1.mp3")
             combined_sounds = sound1 + sound2
-            combined_sounds.export(file_name + ".wav", format="wav")
-    adjust_audio(file_name + ".wav", video_duration.total_seconds(), -1)
+            combined_sounds.export(file_name + ".mp3", format="mp3")
+    adjust_audio(file_name + ".mp3", video_duration.total_seconds(), -1)
+    os.remove(file_name + "_1.mp3")
