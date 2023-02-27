@@ -756,7 +756,7 @@ class TaskViewSet(ModelViewSet):
                             video, target_language
                         )
                         tts_payload = process_translation_payload(
-                            translation.payload, target_language
+                            translation, target_language
                         )
                         if len(tts_payload) == 0:
                             tts_errors += 1

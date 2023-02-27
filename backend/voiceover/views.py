@@ -207,7 +207,7 @@ def get_payload(request):
             )
             sentences_list.append(
                 {
-                    "id": audio_index,
+                    "id": str(int(audio_index) + 1),
                     "time_difference": t_d,
                     "start_time": start_time,
                     "end_time": end_time,
