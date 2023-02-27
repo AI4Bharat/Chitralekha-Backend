@@ -212,7 +212,7 @@ def get_payload(request):
                     "start_time": start_time,
                     "end_time": end_time,
                     "text": translation_payload[index][0]["target_text"],
-                    "audio": voice_over.payload["payload"][str(index)]["audio"],
+                    "audio": voice_over.payload["payload"][str(audio_index)]["audio"],
                     "audio_speed": 1,
                 }
             )
