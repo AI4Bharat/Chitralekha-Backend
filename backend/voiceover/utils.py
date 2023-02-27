@@ -29,6 +29,7 @@ from scipy.io import wavfile
 from mutagen.wave import WAVE
 import numpy
 import librosa
+import sys
 
 
 ### Utility Functions ###
@@ -88,13 +89,81 @@ def get_tts_output(tts_input, target_language, gender="male"):
             json=json_data,
         )
         tts_output = response.json()
-
         # Collect the translated sentences
         return tts_output
 
     except Exception as e:
         logging.info("Error in TTS API %s", str(e))
         return str(e)
+
+
+def process_translation_payload(translation, target_language):
+    tts_input = []
+    empty_sentences = []
+    for ind, text in enumerate(translation["payload"]):
+        clean_target_text = text["target_text"].replace('""', "").replace('"."', "")
+        if len(clean_target_text) > 1 or clean_target_text != " ":
+            tts_input.append({"source": clean_target_text})
+        else:
+            empty_sentences.append(ind)
+
+    try:
+        tts_output = get_tts_output(tts_input, target_language)
+        logging.info("Output from TTS generated")
+    except:
+        logging.info("error in tts")
+    voiceover_payload = {"payload": {}}
+    count = 0
+    for ind, text in enumerate(translation["payload"]):
+        start_time = text["start_time"]
+        end_time = text["end_time"]
+        time_difference = (
+            datetime.strptime(end_time, "%H:%M:%S.%f")
+            - timedelta(
+                hours=float(start_time.split(":")[0]),
+                minutes=float(start_time.split(":")[1]),
+                seconds=float(start_time.split(":")[-1]),
+            )
+        ).strftime("%H:%M:%S.%f")
+        t_d = (
+            float(time_difference.split(":")[0]) * 3600
+            + float(time_difference.split(":")[1]) * 60
+            + float(time_difference.split(":")[2])
+        )
+        if ind not in empty_sentences:
+            logging.info("Count of audios saved %s", str(count))
+            audio_file = "temp_1.wav"
+            audio_decoded = base64.b64decode(tts_output["audio"][count]["audioContent"])
+            with open(audio_file, "wb") as output_f:
+                output_f.write(audio_decoded)
+            # audio_file_1 = wav_to_mp3(audio_file)
+            adjust_audio(audio_file, t_d, -1)
+            # encoded_audio = base64.b64encode(open("temp_1.wav", "rb").read())
+            AudioSegment.from_wav("temp_1.wav").export("temp_1.mp3", format="mp3")
+            encoded_audio = base64.b64encode(open("temp_1.mp3", "rb").read())
+            logging.info("size of encoded mp3 %s", str(sys.getsizeof(encoded_audio)))
+            # os.remove("temp_1.wav")
+            # os.remove("temp_1.mp3")
+            voiceover_payload["payload"][str(ind)] = {
+                "time_difference": t_d,
+                "start_time": start_time,
+                "end_time": end_time,
+                "text": text["target_text"],
+                "audio": {"audioContent": encoded_audio.decode()},
+                "audio_speed": 1,
+            }
+            count = count + 1
+        else:
+            voiceover_payload["payload"][str(ind)] = {
+                "time_difference": t_d,
+                "start_time": start_time,
+                "end_time": end_time,
+                "text": text["target_text"],
+                "audio": "",
+                "audio_speed": 1,
+            }
+    logging.info("Size of voiceover payload %s", str(sys.getsizeof(voiceover_payload)))
+    return voiceover_payload
 
 
 def generate_voiceover_payload(translation_payload, target_language):
@@ -254,6 +323,10 @@ def adjust_audio(audio_file, original_time, audio_speed):
 
 
 def get_original_duration(start_time, end_time):
+    print("start time", start_time)
+    print("end time", end_time)
+    print("date time end", datetime.strptime(end_time, "%H:%M:%S.%f"))
+    print("time in seconds", float(start_time.split(":")[-1]))
     time_difference = (
         datetime.strptime(end_time, "%H:%M:%S.%f")
         - timedelta(
@@ -262,6 +335,8 @@ def get_original_duration(start_time, end_time):
             seconds=float(start_time.split(":")[-1]),
         )
     ).strftime("%H:%M:%S.%f")
+
+    print("time difference", time_difference)
     t_d = (
         int(time_difference.split(":")[0]) * 3600
         + int(time_difference.split(":")[1]) * 60
@@ -278,36 +353,49 @@ def integrate_all_audios(file_name, payload, video_duration):
     with open(file_name + ".wav", "wb") as out_f23:
         out_f23.write(first_audio_decoded)
     adjust_audio(file_name + ".wav", payload["payload"][str(0)]["time_difference"], -1)
-    for index in range(length_payload):
-        logging.info("Index of Audio : #%s", str(index))
-        if index > 0:
-            current_payload = payload["payload"][str(index)]["start_time"]
-            previous_payload = payload["payload"][str(index - 1)]["end_time"]
-            difference_between_payloads = get_original_duration(
-                previous_payload, current_payload
-            )
-            if difference_between_payloads > 0:
-                silence_segment = AudioSegment.silent(
-                    duration=difference_between_payloads * 1000
+    for key in sorted(payload["payload"].keys()):
+        index = int(key)
+        if str(index) in payload["payload"].keys() and index > 0:
+            logging.info("Index of Audio : #%s", str(index))
+            if str(index - 1) in payload["payload"].keys():
+                current_payload = payload["payload"][str(index)]["start_time"]
+                previous_payload = payload["payload"][str(index - 1)]["end_time"]
+                difference_between_payloads = get_original_duration(
+                    previous_payload, current_payload
                 )
-                # duration in milliseconds
-                # read wav file to an audio segment
-                audio = AudioSegment.from_wav(file_name + ".wav")
-                # Add above two audio segments
-                final_audio = audio + silence_segment
-                final_audio.export(file_name + ".wav", format="wav")
+                print("current_payload", current_payload)
+                print("previous_payload", previous_payload)
+                print("difference_betwwen_payloads", difference_between_payloads)
+                if difference_between_payloads > 0:
+                    silence_segment = AudioSegment.silent(
+                        duration=difference_between_payloads * 1000
+                    )
+                    # duration in milliseconds
+                    # read wav file to an audio segment
+                    audio = AudioSegment.from_wav(file_name + ".wav")
+                    # Add above two audio segments
+                    final_audio = audio + silence_segment
+                    final_audio.export(file_name + ".wav", format="wav")
             if index == length_payload - 1:
                 end_time = payload["payload"][str(index)]["end_time"]
                 last_segment_difference = get_original_duration(
                     end_time, str(video_duration) + str(".000")
                 )
+                print("end_time", end_time)
+                print("video_duration", video_duration)
+                print("last_segment_difference", last_segment_difference)
                 audio_2_decoded = base64.b64decode(
                     payload["payload"][str(index)]["audio"]["audioContent"]
                 )
                 if last_segment_difference > 0:
+                    # prnt
                     with open(file_name + "_1.wav", "wb") as out_f23:
                         out_f23.write(audio_2_decoded)
                     adjust_audio(file_name + "_1.wav", last_segment_difference, -1)
+                else:
+                    with open(file_name + "_1.wav", "wb") as out_f23:
+                        out_f23.write(audio_2_decoded)
+
             else:
                 original_time = payload["payload"][str(index)]["time_difference"]
                 audio_2_decoded = base64.b64decode(
@@ -316,6 +404,7 @@ def integrate_all_audios(file_name, payload, video_duration):
                 with open(file_name + "_1.wav", "wb") as out_f23:
                     out_f23.write(audio_2_decoded)
                 adjust_audio(file_name + "_1.wav", original_time, -1)
+                # adjust_audio(file_name + "__" + str(index) + ".wav", original_time, -1)
             sound1 = AudioSegment.from_wav(file_name + ".wav")
             sound2 = AudioSegment.from_wav(file_name + "_1.wav")
             combined_sounds = sound1 + sound2

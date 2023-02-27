@@ -13,7 +13,7 @@ from transcript.views import generate_transcription
 from rest_framework.decorators import action
 from users.models import User
 from transcript.utils.asr import get_asr_supported_languages, make_asr_api_call
-from voiceover.utils import generate_voiceover_payload
+from voiceover.utils import generate_voiceover_payload, process_translation_payload
 from transcript.models import Transcript
 from translation.models import Translation
 from django.db.models import Count
@@ -745,26 +745,56 @@ class TaskViewSet(ModelViewSet):
                     tasks.append(new_task)
 
                 new_voiceovers = []
+                tts_errors = 0
                 for task in tasks:
-                    detailed_error.append(
-                        {
-                            "video_name": task.video.name,
-                            "video_url": task.video.url,
-                            "task_type": self.get_task_type_label(task.task_type),
-                            "language_pair": self.get_language_pair_label(
-                                task.video, target_language
-                            ),
-                            "status": "Successful",
-                            "message": "Task is successfully created.",
-                        }
-                    )
-                    if task.is_active == False:
-                        translation = None
+                    if task.is_active == False or source_type == "MANUALLY_CREATED":
+                        payloads = {"payload": {}}
+                        None
                     else:
                         translation = self.check_translation_exists(
                             video, target_language
                         )
-                    payloads = {"payload": {}}
+                        tts_payload = process_translation_payload(
+                            translation.payload, target_language
+                        )
+                        if len(tts_payload) == 0:
+                            tts_errors += 1
+                            detailed_error.append(
+                                {
+                                    "video_name": task.video.name,
+                                    "video_url": task.video.url,
+                                    "task_type": self.get_task_type_label(
+                                        task.task_type
+                                    ),
+                                    "language_pair": task.get_language_pair_label,
+                                    "status": "Fail",
+                                    "message": "Error while calling TTS API.",
+                                }
+                            )
+                            videos.remove(task.video)
+                            video_ids.append(task.video)
+                            delete_tasks.append(task)
+                            consolidated_error.append(
+                                {
+                                    "message": "Error while calling TTS API, as there are empty sentences in translation.",
+                                    "count": tts_errors,
+                                }
+                            )
+                            logging.info("Error while calling TTS API")
+                            continue
+                        detailed_error.append(
+                            {
+                                "video_name": task.video.name,
+                                "video_url": task.video.url,
+                                "task_type": self.get_task_type_label(task.task_type),
+                                "language_pair": self.get_language_pair_label(
+                                    task.video, target_language
+                                ),
+                                "status": "Successful",
+                                "message": "Task is successfully created.",
+                            }
+                        )
+                        payloads = tts_payload
                     voiceover_obj = VoiceOver(
                         video=task.video,
                         user=task.user,
