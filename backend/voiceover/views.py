@@ -697,6 +697,17 @@ def save_voice_over(request):
                                 "audio": voiceover_machine_generated[i][1],
                                 "audio_speed": 1,
                             }
+                            sentences_list.append(
+                                {
+                                    "id": start_offset + i + 1,
+                                    "time_difference": t_d,
+                                    "start_time": payload["payload"][i]["start_time"],
+                                    "end_time": payload["payload"][i]["end_time"],
+                                    "text": payload["payload"][i]["text"],
+                                    "audio": voiceover_machine_generated[i][1],
+                                    "audio_speed": 1,
+                                }
+                            )
                         voice_over_obj.status = VOICEOVER_EDIT_INPROGRESS
                         voice_over_obj.save()
                         task.status = "INPROGRESS"

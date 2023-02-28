@@ -119,6 +119,8 @@ def process_translation_payload(translation_obj, target_language):
     for ind, text in enumerate(translation["payload"]):
         start_time = text["start_time"]
         end_time = text["end_time"]
+        logging.info("Starting time of this sentence %s", start_time)
+        logging.info("Ending time of this sentence %s", end_time)
         time_difference = (
             datetime.strptime(end_time, "%H:%M:%S.%f")
             - timedelta(
@@ -159,13 +161,32 @@ def process_translation_payload(translation_obj, target_language):
             audio_decoded = base64.b64decode(tts_output["audio"][count]["audioContent"])
             with open(audio_file, "wb") as output_f:
                 output_f.write(audio_decoded)
-            # audio_file_1 = wav_to_mp3(audio_file)
             adjust_audio_wav(audio_file, t_d, -1)
-            # encoded_audio = base64.b64encode(open("temp_1.wav", "rb").read())
+            audio = WAVE("temp_1.wav")
+            audio_info = audio.info
+            length = int(audio_info.length)
+            hours, mins, wav_seconds = audio_duration(length)
+            logging.info("Seconds of encoded wav %s", str(wav_seconds))
             AudioSegment.from_wav("temp_1.wav").export("temp_1.mp3", format="mp3")
-            # adjust_audio("temp_1.mp3", t_d, -1)
+            # command = f"ffmpeg -i temp_1.wav -vn -ar 44100 -ac 2 -b:a 160k temp_1.mp3"
+            # os.system(command)
+            audio = MP3("temp_1.mp3")
+            audio_info = audio.info
+            length = int(audio_info.length)
+            hours, mins, seconds = audio_duration(length)
+            logging.info("Seconds of encoded mp3 %s", str(seconds))
             encoded_audio = base64.b64encode(open("temp_1.mp3", "rb").read())
             logging.info("size of encoded mp3 %s", str(sys.getsizeof(encoded_audio)))
+            audio = MP3("temp_1.mp3")
+            audio_info = audio.info
+            length = int(audio_info.length)
+            hours, mins, seconds = audio_duration(length)
+            logging.info("Seconds of encoded mp3 %s", str(seconds))
+            logging.info(
+                "Difference between encoded size of encoded mp3 and wav %s",
+                str(seconds - wav_seconds),
+            )
+            adjust_audio("temp_1.mp3", t_d, -1)
             os.remove("temp_1.wav")
             os.remove("temp_1.mp3")
             voiceover_payload["payload"][str(ind)] = {
@@ -328,9 +349,10 @@ def adjust_audio_wav(audio_file, original_time, audio_speed):
     audio_info = audio.info
     length = int(audio_info.length)
     hours, mins, seconds = audio_duration(length)
+    logging.info("Seconds of audio %s", str(seconds))
     audio_time_difference = original_time - seconds
     if audio_time_difference > 0:
-        logging.info("Add silence in the audio of %s", str(audio_time_difference))
+        logging.info("Add silence in the audio of wav %s", str(audio_time_difference))
         # duration in milliseconds
         silence_segment = AudioSegment.silent(duration=audio_time_difference * 1000)
         # read wav file to an audio segment
@@ -352,7 +374,10 @@ def adjust_audio(audio_file, original_time, audio_speed):
     audio_info = audio.info
     length = int(audio_info.length)
     hours, mins, seconds = audio_duration(length)
+    print(original_time)
+    print(seconds)
     audio_time_difference = original_time - seconds
+    print("audio_time_difference", audio_time_difference)
     if audio_time_difference > 0:
         logging.info("Add silence in the audio of %s", str(audio_time_difference))
         # duration in milliseconds
