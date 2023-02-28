@@ -175,13 +175,6 @@ def process_translation_payload(translation_obj, target_language):
             length = int(audio_info.length)
             hours, mins, seconds = audio_duration(length)
             logging.info("Seconds of encoded mp3 %s", str(seconds))
-            encoded_audio = base64.b64encode(open("temp_1.mp3", "rb").read())
-            logging.info("size of encoded mp3 %s", str(sys.getsizeof(encoded_audio)))
-            audio = MP3("temp_1.mp3")
-            audio_info = audio.info
-            length = int(audio_info.length)
-            hours, mins, seconds = audio_duration(length)
-            logging.info("Seconds of encoded mp3 %s", str(seconds))
             logging.info(
                 "Difference between encoded size of encoded mp3 and wav %s",
                 str(seconds - wav_seconds),
@@ -240,13 +233,18 @@ def generate_voiceover_payload(translation_payload, target_language):
             first_audio_decoded = base64.b64decode(voice_over["audioContent"])
             with open(audio_file, "wb") as output_f:
                 output_f.write(first_audio_decoded)
-            adjust_audio(audio_file, translation_payload[ind][3], -1)
+            adjust_audio_wav(audio_file, translation_payload[ind][3], -1)
+            AudioSegment.from_wav("temp.wav").export("temp.mp3", format="mp3")
+            # command = f"ffmpeg -i temp_1.wav -vn -ar 44100 -ac 2 -b:a 160k temp_1.mp3"
+            # os.system(command)
+            adjust_audio("temp.mp3", translation_payload[ind][3], -1)
             encoded_audio = base64.b64encode(open(audio_file, "rb").read())
             output[ind] = (
                 translation_payload[ind][0],
                 {"audioContent": encoded_audio.decode()},
             )
             os.remove(audio_file)
+            os.remove("temp.mp3")
     return output
 
 
