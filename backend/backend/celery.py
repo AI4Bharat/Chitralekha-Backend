@@ -7,6 +7,7 @@ app = Celery(
     accept_content=["application/json"],
     result_serializer="json",
     task_serializer="json",
+    worker_prefetch_multiplier = 0,
 )
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
