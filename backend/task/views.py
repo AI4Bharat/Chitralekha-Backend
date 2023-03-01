@@ -54,6 +54,7 @@ import zipfile
 from django.http import HttpResponse
 import datetime
 from task.tasks import celery_asr_call
+import requests
 
 
 class TaskViewSet(ModelViewSet):
@@ -2179,3 +2180,22 @@ class TaskViewSet(ModelViewSet):
             response,
             status=status.HTTP_200_OK,
         )
+
+    @swagger_auto_schema(
+        method="get",
+        responses={200: "successful", 500: "unable to query celery"},
+    )
+    @action(detail=False, methods=["get"], url_path="inspect_asr_queue")
+    def inspect_asr_queue(self, request):
+        url = "http://localhost:5555/api/tasks"
+        params = {"state":"RECEIVED", "sort_by":"received"}
+        try:
+            res = requests.get(url, params=params)
+            data = res.json()
+            task_data = list(data.values())
+            task_list = []
+            for elem in task_data:
+                task_list.append(eval(elem['kwargs'])['task_id'])
+            return Response({"message": "successful", "data": task_list}, status=status.HTTP_200_OK)
+        except Exception:
+            return Response({"message": "unable to query celery", "data": []}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
