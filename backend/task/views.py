@@ -55,6 +55,8 @@ from django.http import HttpResponse
 import datetime
 from task.tasks import celery_asr_call
 import requests
+from django.db.models.functions import Concat
+from django.db.models import Value
 
 
 class TaskViewSet(ModelViewSet):
@@ -2187,15 +2189,28 @@ class TaskViewSet(ModelViewSet):
     )
     @action(detail=False, methods=["get"], url_path="inspect_asr_queue")
     def inspect_asr_queue(self, request):
-        url = "http://localhost:5555/api/tasks"
-        params = {"state[]":["RECEIVED", "STARTED"], "sort_by":"received"}
         try:
+            task_list = []
+            url = "http://localhost:5555/api/tasks"
+            params = {"state":"STARTED", "sort_by":"received"}
             res = requests.get(url, params=params)
             data = res.json()
             task_data = list(data.values())
-            task_list = []
             for elem in task_data:
                 task_list.append(eval(elem['kwargs'])['task_id'])
+            params = {"state":"RECEIVED", "sort_by":"received"}
+            res = requests.get(url, params=params)
+            data = res.json()
+            task_data = list(data.values())
+            for elem in task_data:
+                task_list.append(eval(elem['kwargs'])['task_id'])
+            if task_list:
+                task_details = Task.objects.filter(id__in=task_list).values("id", "video__duration", "created_by__organization", submitter_name=Concat("created_by__first_name", Value(" "), "created_by__last_name"))
+                for elem in task_details:
+                    task_dict = {"task_id": elem["id"], "submitter_name": elem["submitter_name"], "org_name": elem["created_by__organization"], "video_duration": round(elem["video__duration"].total_seconds() / 60, 3)}
+                    i = task_list.index(elem["id"])
+                    task_list[i] = task_dict
+
             return Response({"message": "successful", "data": task_list}, status=status.HTTP_200_OK)
         except Exception:
             return Response({"message": "unable to query celery", "data": []}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
