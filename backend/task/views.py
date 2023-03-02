@@ -2205,9 +2205,9 @@ class TaskViewSet(ModelViewSet):
             for elem in task_data:
                 task_list.append(eval(elem['kwargs'])['task_id'])
             if task_list:
-                task_details = Task.objects.filter(id__in=task_list).values("id", "video__duration", "created_by__organization", submitter_name=Concat("created_by__first_name", Value(" "), "created_by__last_name"))
+                task_details = Task.objects.filter(id__in=task_list).values("id", "video__duration", "created_by__organization__title", submitter_name=Concat("created_by__first_name", Value(" "), "created_by__last_name"))
                 for elem in task_details:
-                    task_dict = {"task_id": elem["id"], "submitter_name": elem["submitter_name"], "org_name": elem["created_by__organization"], "video_duration": round(elem["video__duration"].total_seconds() / 60, 3)}
+                    task_dict = {"task_id": elem["id"], "submitter_name": elem["submitter_name"], "org_name": elem["created_by__organization__title"], "video_duration": str(elem["video__duration"])}
                     i = task_list.index(elem["id"])
                     task_list[i] = task_dict
 
