@@ -2188,7 +2188,7 @@ class TaskViewSet(ModelViewSet):
     @action(detail=False, methods=["get"], url_path="inspect_asr_queue")
     def inspect_asr_queue(self, request):
         url = "http://localhost:5555/api/tasks"
-        params = {"state":"RECEIVED", "sort_by":"received"}
+        params = {"state[]":["RECEIVED", "STARTED"], "sort_by":"received"}
         try:
             res = requests.get(url, params=params)
             data = res.json()
