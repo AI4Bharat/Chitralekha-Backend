@@ -884,6 +884,10 @@ class TaskViewSet(ModelViewSet):
                     new_voiceovers.append(voiceover_obj)
                 voiceovers = VoiceOver.objects.bulk_create(new_voiceovers)
 
+            for task in delete_tasks:
+                task.delete()
+                tasks.remove(task)
+
             if len(tasks) > 0:
                 consolidated_error.append(
                     {"message": "Tasks created successfully.", "count": len(tasks)}
@@ -1536,6 +1540,12 @@ class TaskViewSet(ModelViewSet):
             for transcript in transcripts.all():
                 for translation in Translation.objects.filter(video=task.video).all():
                     translation_tasks.add(translation.task)
+                    for voiceover in (
+                        VoiceOver.objects.filter(video=task.video)
+                        .filter(target_language=translation.target_language)
+                        .all()
+                    ):
+                        translation_tasks.add(voiceover.task)
 
             if len(translation_tasks) > 0:
                 response = [
@@ -1560,7 +1570,7 @@ class TaskViewSet(ModelViewSet):
                     return Response(
                         {
                             "response": response,
-                            "message": "The Transcription task has dependent translation tasks. Do you still want to delete all related translations as well?.",
+                            "message": "The Transcription task has dependent Translation/Voice Over tasks. Do you still want to delete all related translations as well?.",
                         },
                         status=status.HTTP_409_CONFLICT,
                     )
@@ -1569,25 +1579,69 @@ class TaskViewSet(ModelViewSet):
                     tasks_deleted.append(task_obj.id)
                     task_obj.delete()
 
-        if task.task_type == "TRANSLATION_EDIT":
+        if task.task_type in ["TRANSLATION_EDIT", "TRANSLATION_REVIEW"]:
+
             translations = (
                 Translation.objects.filter(video=task.video)
                 .filter(target_language=task.target_language)
                 .all()
             )
-            tasks_to_delete = [translation.task for translation in translations]
-            for task_obj in list(set(tasks_to_delete)):
-                tasks_deleted.append(task_obj.id)
-                task_obj.delete()
+            voice_over = (
+                VoiceOver.objects.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .all()
+            )
+            voiceover_tasks = [voiceover.task for voiceover in list(voice_over)]
 
-        if task.task_type == "TRANSLATION_REVIEW":
+            if "REVIEW" in task.task_type:
+                translation_tasks = [task]
+            else:
+                translation_tasks = [
+                    translation.task for translation in list(translations)
+                ]
+
+            if len(list(voiceover_tasks)) > 0:
+                response = [
+                    {
+                        "task_type": voiceover_task.get_task_type_label,
+                        "target_language": voiceover_task.get_target_language_label,
+                        "video_name": voiceover_task.video.name,
+                        "id": voiceover_task.id,
+                        "video_id": voiceover_task.video.id,
+                    }
+                    for voiceover_task in voiceover_tasks
+                ]
+
+                if flag == "true" or flag == True:
+                    for task_obj in voiceover_tasks + translation_tasks:
+                        tasks_deleted.append(task_obj.id)
+                        task_obj.delete()
+                else:
+                    return Response(
+                        {
+                            "response": response,
+                            "message": "The Translation task has dependent Voice Over tasks. Do you still want to delete all related Voice Over as well?.",
+                        },
+                        status=status.HTTP_409_CONFLICT,
+                    )
+            else:
+                for task_obj in translation_tasks:
+                    tasks_deleted.append(task_obj.id)
+                    task_obj.delete()
+
+        if task.task_type == "VOICEOVER_EDIT":
+            voice_over = (
+                VoiceOver.objects.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .all()
+            )
             tasks_deleted.append(task.id)
             task.delete()
 
         return Response(
             {
                 "tasks_deleted": list(set(tasks_deleted)),
-                "message": "Task is deleted, with all associated transcripts/translations",
+                "message": "Task is deleted, with all associated Transcripts/Translations/Voice Over",
             },
             status=status.HTTP_200_OK,
         )
