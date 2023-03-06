@@ -615,7 +615,7 @@ def save_voice_over(request):
                             voice_over_obj.video,
                         )
                         azure_url = uploadToBlobStorage(
-                            os.path.join(file_path + "/" + file_name), voice_over_obj
+                            os.path.join(file_path + "/" + file_name)
                         )
                         # change_active_status_of_next_tasks(
                         #    task, target_language, voice_over_obj
