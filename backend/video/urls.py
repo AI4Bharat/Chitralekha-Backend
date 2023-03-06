@@ -9,4 +9,5 @@ urlpatterns = [
     path("list_recent", views.list_recent, name="list_recent"),
     path("list_tasks", views.list_tasks, name="list_tasks"),
     path("download_all", views.download_all, name="download_all"),
+    path("update_video", views.update_video, name="update_video"),
 ]

@@ -183,7 +183,6 @@ def get_video(request):
     ## PATCH: Handle audio_only files separately for google drive links
     ## TODO: Move it to an util function
     if "drive.google.com" in url and is_audio_only:
-
         # Construct a direct download link from the google drive url
         # get the id from the drive link
         try:
@@ -509,7 +508,6 @@ def list_recent(request):
     # In the future, if that constraint is removed then we might need to alter the logic.
 
     try:
-
         # Get the relevant videos, based on the audio only param
         video_list = Video.objects.filter(audio_only=is_audio_only)
 
@@ -742,3 +740,53 @@ def download_all(request):
         "Content-Disposition"
     ] = f"attachment; filename=Chitralekha_{time_now}_all.zip"
     return response
+
+
+@swagger_auto_schema(
+    method="patch",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            "video_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+            "description": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Description of video",
+            ),
+        },
+        required=["video_id"],
+    ),
+    responses={200: "Video's information is updated"},
+)
+@api_view(["PATCH"])
+def update_video(request):
+    """
+    API Endpoint to update parameter of video
+    Endpoint: /video/update_video/
+    Method: PATCH
+    """
+    video_id = request.data.get("video_id")
+    description = request.data.get("description")
+
+    try:
+        video = Video.objects.get(id=video_id)
+
+        if description is not None:
+            video.description = description
+
+        video.save()
+
+        getUpdatedVideo = Video.objects.get(id=video_id)
+
+        serializer = VideoSerializer(getUpdatedVideo)
+        response_data = {
+            "video": serializer.data,
+        }
+
+        return Response(
+            response_data,
+            status=status.HTTP_200_OK,
+        )
+    except Video.DoesNotExist:
+        return Response(
+            {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
+        )
