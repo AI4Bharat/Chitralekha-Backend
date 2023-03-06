@@ -218,7 +218,7 @@ def get_payload(request):
                     "time_difference": t_d,
                     "start_time": start_time,
                     "end_time": end_time,
-                    "text": translation_payload[index][0]["target_text"],
+                    "text": voice_over.payload["payload"][str(audio_index)]["text"],
                     "audio": voice_over.payload["payload"][str(audio_index)]["audio"],
                     "audio_speed": 1,
                 }
