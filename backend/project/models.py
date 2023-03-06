@@ -20,6 +20,7 @@ TASK_TYPE = (
     ("TRANSCRIPTION_REVIEW", "Transcription Review"),
     ("TRANSLATION_EDIT", "Translation Edit"),
     ("TRANSLATION_REVIEW", "Translation Review"),
+    ("VOICEOVER_EDIT", "VoiceOver Edit"),
 )
 
 PRIORITY = (

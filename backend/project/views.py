@@ -673,8 +673,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Preview"] = True
                         buttons["Edit"] = False
                         buttons["Update"] = False
+                    if data["status"] == "POST_PROCESS":
+                        buttons["Update"] = True
                     if data["user"]["email"] == request.user.email:
-                        if data["status"] != "COMPLETE":
+                        if data["status"] not in ["COMPLETE", "POST_PROCESS"]:
                             buttons["Edit"] = True
                         if data["status"] == "SELECTED_SOURCE":
                             buttons["View"] = True
@@ -699,8 +701,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Export"] = True
                         buttons["Preview"] = True
                         buttons["Update"] = False
+                    if data["status"] == "POST_PROCESS":
+                        buttons["Update"] = True
                     if data["user"]["email"] == request.user.email:
-                        if data["status"] != "COMPLETE":
+                        if data["status"] not in ["COMPLETE", "POST_PROCESS"]:
                             buttons["Edit"] = True
                         if data["status"] == "SELECTED_SOURCE":
                             buttons["View"] = True

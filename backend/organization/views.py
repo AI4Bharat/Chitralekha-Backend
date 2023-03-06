@@ -323,8 +323,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     buttons["Preview"] = True
                     buttons["Update"] = False
                     buttons["Edit"] = False
+                if data["status"] == "POST_PROCESS":
+                    buttons["Update"] = True
                 if task["user"]["email"] == request.user.email:
-                    if task["status"] != "COMPLETE":
+                    if task["status"] not in ["COMPLETE", "POST_PROCESS"]:
                         buttons["Edit"] = True
                     if task["status"] == "SELECTED_SOURCE":
                         buttons["View"] = True
@@ -361,8 +363,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         buttons["Preview"] = True
                         buttons["Update"] = False
                         buttons["Edit"] = False
+                    if data["status"] == "POST_PROCESS":
+                        buttons["Update"] = True
                     if task["user"]["email"] == request.user.email:
-                        if task["status"] != "COMPLETE":
+                        if task["status"] not in ["COMPLETE", "POST_PROCESS"]:
                             buttons["Edit"] = True
                         if task["status"] == "SELECTED_SOURCE":
                             buttons["View"] = True
@@ -391,8 +395,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         buttons["Preview"] = True
                         buttons["Update"] = False
                         buttons["Edit"] = False
+                    if data["status"] == "POST_PROCESS":
+                        buttons["Update"] = True
                     if task["user"]["email"] == request.user.email:
-                        if task["status"] != "COMPLETE":
+                        if task["status"] not in ["COMPLETE", "POST_PROCESS"]:
                             buttons["Edit"] = True
                         if task["status"] == "SELECTED_SOURCE":
                             buttons["View"] = True
@@ -403,9 +409,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     }.values()
                 )
             else:
-                tasks = Task.objects.filter(user=user).order_by(
-                    "-updated_at"
-                )
+                tasks = Task.objects.filter(user=user).order_by("-updated_at")
                 tasks_serializer = TaskSerializer(tasks, many=True)
                 tasks_list = json.loads(json.dumps(tasks_serializer.data))
                 for task in tasks_list:
@@ -424,8 +428,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         buttons["Preview"] = True
                         buttons["Update"] = False
                         buttons["Edit"] = False
+                    if data["status"] == "POST_PROCESS":
+                        buttons["Update"] = True
                     if task["user"]["email"] == request.user.email:
-                        if task["status"] != "COMPLETE":
+                        if task["status"] not in ["COMPLETE", "POST_PROCESS"]:
                             buttons["Edit"] = True
                         if task["status"] == "SELECTED_SOURCE":
                             buttons["View"] = True

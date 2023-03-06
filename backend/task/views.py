@@ -715,6 +715,7 @@ class TaskViewSet(ModelViewSet):
             permitted = True
 
         if permitted:
+            delete_tasks = []
             if "EDIT" in task_type:
                 tasks = []
                 for video in videos:
@@ -729,9 +730,7 @@ class TaskViewSet(ModelViewSet):
                     translation = self.check_translation_exists(video, target_language)
 
                     if type(translation) == dict:
-                        is_active = False
-                    else:
-                        is_active = True
+                        translation = None
 
                     new_task = Task(
                         task_type=task_type,
@@ -743,7 +742,7 @@ class TaskViewSet(ModelViewSet):
                         eta=eta,
                         description=description,
                         priority=priority,
-                        is_active=is_active,
+                        is_active=False,
                     )
                     new_task.save()
                     tasks.append(new_task)
@@ -751,17 +750,24 @@ class TaskViewSet(ModelViewSet):
                 new_voiceovers = []
                 tts_errors = 0
                 for task in tasks:
-                    if task.is_active == False or source_type == "MANUALLY_CREATED":
+                    if translation is None or source_type == "MANUALLY_CREATED":
                         payloads = {"payload": {}}
-                        None
                     else:
-                        translation = self.check_translation_exists(
-                            video, target_language
-                        )
                         tts_payload = process_translation_payload(
                             translation, target_language
                         )
-                        if len(tts_payload) == 0:
+                        if (
+                            len(tts_payload) == 0
+                            or type(tts_payload) != dict
+                            or "payload" not in tts_payload.keys()
+                        ):
+                            message = "Error while calling TTS API."
+                            if (
+                                type(tts_payload) == dict
+                                and "message" in tts_payload.keys()
+                            ):
+                                message = tts_payload["message"]
+
                             tts_errors += 1
                             detailed_error.append(
                                 {
@@ -772,7 +778,7 @@ class TaskViewSet(ModelViewSet):
                                     ),
                                     "language_pair": task.get_language_pair_label,
                                     "status": "Fail",
-                                    "message": "Error while calling TTS API.",
+                                    "message": message,
                                 }
                             )
                             videos.remove(task.video)
@@ -780,25 +786,27 @@ class TaskViewSet(ModelViewSet):
                             delete_tasks.append(task)
                             consolidated_error.append(
                                 {
-                                    "message": "Error while calling TTS API, as there are empty sentences in translation.",
+                                    "message": message,
                                     "count": tts_errors,
                                 }
                             )
                             logging.info("Error while calling TTS API")
                             continue
-                        detailed_error.append(
-                            {
-                                "video_name": task.video.name,
-                                "video_url": task.video.url,
-                                "task_type": self.get_task_type_label(task.task_type),
-                                "language_pair": self.get_language_pair_label(
-                                    task.video, target_language
-                                ),
-                                "status": "Successful",
-                                "message": "Task is successfully created.",
-                            }
-                        )
                         payloads = tts_payload
+                        task.is_active = True
+                        task.save()
+                    detailed_error.append(
+                        {
+                            "video_name": task.video.name,
+                            "video_url": task.video.url,
+                            "task_type": self.get_task_type_label(task.task_type),
+                            "language_pair": self.get_language_pair_label(
+                                task.video, target_language
+                            ),
+                            "status": "Successful",
+                            "message": "Task is successfully created.",
+                        }
+                    )
                     voiceover_obj = VoiceOver(
                         video=task.video,
                         user=task.user,
@@ -887,6 +895,10 @@ class TaskViewSet(ModelViewSet):
                     )
                     new_voiceovers.append(voiceover_obj)
                 voiceovers = VoiceOver.objects.bulk_create(new_voiceovers)
+
+            for task in delete_tasks:
+                task.delete()
+                tasks.remove(task)
 
             if len(tasks) > 0:
                 consolidated_error.append(
@@ -1556,6 +1568,12 @@ class TaskViewSet(ModelViewSet):
             for transcript in transcripts.all():
                 for translation in Translation.objects.filter(video=task.video).all():
                     translation_tasks.add(translation.task)
+                    for voiceover in (
+                        VoiceOver.objects.filter(video=task.video)
+                        .filter(target_language=translation.target_language)
+                        .all()
+                    ):
+                        translation_tasks.add(voiceover.task)
 
             if len(translation_tasks) > 0:
                 response = [
@@ -1580,7 +1598,7 @@ class TaskViewSet(ModelViewSet):
                     return Response(
                         {
                             "response": response,
-                            "message": "The Transcription task has dependent translation tasks. Do you still want to delete all related translations as well?.",
+                            "message": "The Transcription task has dependent Translation/Voice Over tasks. Do you still want to delete all related translations as well?.",
                         },
                         status=status.HTTP_409_CONFLICT,
                     )
@@ -1589,25 +1607,69 @@ class TaskViewSet(ModelViewSet):
                     tasks_deleted.append(task_obj.id)
                     task_obj.delete()
 
-        if task.task_type == "TRANSLATION_EDIT":
+        if task.task_type in ["TRANSLATION_EDIT", "TRANSLATION_REVIEW"]:
+
             translations = (
                 Translation.objects.filter(video=task.video)
                 .filter(target_language=task.target_language)
                 .all()
             )
-            tasks_to_delete = [translation.task for translation in translations]
-            for task_obj in list(set(tasks_to_delete)):
-                tasks_deleted.append(task_obj.id)
-                task_obj.delete()
+            voice_over = (
+                VoiceOver.objects.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .all()
+            )
+            voiceover_tasks = [voiceover.task for voiceover in list(voice_over)]
 
-        if task.task_type == "TRANSLATION_REVIEW":
+            if "REVIEW" in task.task_type:
+                translation_tasks = [task]
+            else:
+                translation_tasks = [
+                    translation.task for translation in list(translations)
+                ]
+
+            if len(list(voiceover_tasks)) > 0:
+                response = [
+                    {
+                        "task_type": voiceover_task.get_task_type_label,
+                        "target_language": voiceover_task.get_target_language_label,
+                        "video_name": voiceover_task.video.name,
+                        "id": voiceover_task.id,
+                        "video_id": voiceover_task.video.id,
+                    }
+                    for voiceover_task in voiceover_tasks
+                ]
+
+                if flag == "true" or flag == True:
+                    for task_obj in voiceover_tasks + translation_tasks:
+                        tasks_deleted.append(task_obj.id)
+                        task_obj.delete()
+                else:
+                    return Response(
+                        {
+                            "response": response,
+                            "message": "The Translation task has dependent Voice Over tasks. Do you still want to delete all related Voice Over as well?.",
+                        },
+                        status=status.HTTP_409_CONFLICT,
+                    )
+            else:
+                for task_obj in translation_tasks:
+                    tasks_deleted.append(task_obj.id)
+                    task_obj.delete()
+
+        if task.task_type == "VOICEOVER_EDIT":
+            voice_over = (
+                VoiceOver.objects.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .all()
+            )
             tasks_deleted.append(task.id)
             task.delete()
 
         return Response(
             {
                 "tasks_deleted": list(set(tasks_deleted)),
-                "message": "Task is deleted, with all associated transcripts/translations",
+                "message": "Task is deleted, with all associated Transcripts/Translations/Voice Over",
             },
             status=status.HTTP_200_OK,
         )

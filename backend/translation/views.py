@@ -35,7 +35,7 @@ from .models import (
     TRANSLATION_REVIEW_INPROGRESS,
     TRANSLATION_REVIEW_COMPLETE,
 )
-
+from voiceover.utils import process_translation_payload
 from .decorators import is_translation_editor
 from .serializers import TranslationSerializer
 from .utils import (
@@ -384,11 +384,26 @@ def change_active_status_of_next_tasks(task, translation_obj):
         )
         if voice_over_task is not None:
             voice_over.translation = translation_obj
-            voice_over_task.is_active = True
-            voice_over.save()
-            voice_over_task.save()
+            tts_payload = process_translation_payload(
+                translation_obj, task.target_language
+            )
+            if (
+                len(tts_payload) == 0
+                or type(tts_payload) != dict
+                or "payload" not in tts_payload.keys()
+            ):
+                message = "Error while calling TTS API."
+                if type(tts_payload) == dict and "message" in tts_payload.keys():
+                    message = tts_payload["message"]
+                return message
+            else:
+                voice_over_task.is_active = True
+                voice_over.payload = tts_payload
+                voice_over.save()
+                voice_over_task.save()
     else:
         print("No change in status")
+    return None
 
 
 @swagger_auto_schema(
@@ -525,7 +540,7 @@ def save_translation(request):
         translation = Translation.objects.get(pk=translation_id)
         target_language = translation.target_language
         transcript = translation.transcript
-
+        message = None
         # Check if the transcript has a user
         if task.user != request.user:
             return Response(
@@ -570,7 +585,9 @@ def save_translation(request):
                         )
                         task.status = "COMPLETE"
                         task.save()
-                        change_active_status_of_next_tasks(task, translation_obj)
+                        message = change_active_status_of_next_tasks(
+                            task, translation_obj
+                        )
                 else:
                     translation_obj = (
                         Translation.objects.filter(status=TRANSLATION_EDIT_INPROGRESS)
@@ -634,7 +651,7 @@ def save_translation(request):
                         status=ts_status,
                         task=task,
                     )
-                    change_active_status_of_next_tasks(task, translation_obj)
+                    message = change_active_status_of_next_tasks(task, translation_obj)
                     task.status = "COMPLETE"
                     task.save()
                 else:
@@ -668,9 +685,13 @@ def save_translation(request):
                         task.status = "INPROGRESS"
                         task.save()
             if request.data.get("final"):
+                if message is not None:
+                    full_message = "Translation updated successfully. " + message
+                else:
+                    full_message = "Translation updated successfully."
                 return Response(
                     {
-                        "message": "Translation updated successfully.",
+                        "message": full_message,
                         "task_id": task.id,
                         "translation_id": translation_obj.id,
                         # "data": translation_obj.payload,

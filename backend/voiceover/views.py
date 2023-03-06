@@ -62,6 +62,8 @@ def get_voice_over_id(task):
                 .filter(status="VOICEOVER_EDIT_INPROGRESS")
                 .first()
             )
+        if task.status == "POST_PROCESS":
+            voice_over_id = None
         if task.status == "COMPLETE":
             voice_over_id = (
                 voice_over.filter(video=task.video)
@@ -133,6 +135,11 @@ def get_payload(request):
     if voice_over is not None:
         voice_over_id = voice_over.id
     else:
+        if task.status == "POST_PROCESS":
+            return Response(
+                {"message": "VoiceOver is in Post Process stage."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
@@ -438,6 +445,11 @@ def save_voice_over(request):
     if voice_over is not None:
         voice_over_id = voice_over.id
     else:
+        if task.status == "POST_PROCESS":
+            return Response(
+                {"message": "VoiceOver is in Post Process stage."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
@@ -595,16 +607,14 @@ def save_voice_over(request):
                             )
                         file_name = voice_over_obj.video.name
                         file_path = "temporary_video_audio_storage"
-                        print("start integrating")
+                        task.status = "POST_PROCESS"
+                        task.save()
                         integrate_audio_with_video(
                             file_path + "/" + file_name,
                             voice_over_obj,
                             voice_over_obj.video,
                         )
-                        print("integrated")
-                        uploadToBlobStorage(
-                            os.path.join(file_path + "/" + file_name + ".mp4")
-                        )
+                        uploadToBlobStorage(os.path.join(file_path + "/" + file_name))
                         # change_active_status_of_next_tasks(
                         #    task, target_language, voice_over_obj
                         # )
@@ -697,6 +707,17 @@ def save_voice_over(request):
                                 "audio": voiceover_machine_generated[i][1],
                                 "audio_speed": 1,
                             }
+                            sentences_list.append(
+                                {
+                                    "id": start_offset + i + 1,
+                                    "time_difference": t_d,
+                                    "start_time": payload["payload"][i]["start_time"],
+                                    "end_time": payload["payload"][i]["end_time"],
+                                    "text": payload["payload"][i]["text"],
+                                    "audio": voiceover_machine_generated[i][1],
+                                    "audio_speed": 1,
+                                }
+                            )
                         voice_over_obj.status = VOICEOVER_EDIT_INPROGRESS
                         voice_over_obj.save()
                         task.status = "INPROGRESS"
