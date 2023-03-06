@@ -258,7 +258,7 @@ def generate_voiceover_payload(translation_payload, target_language):
 
             AudioSegment.from_wav("temp.wav").export("temp.mp3", format="mp3")
             adjust_audio("temp.mp3", translation_payload[ind][3], -1)
-            encoded_audio = base64.b64encode(open(audio_file, "rb").read())
+            encoded_audio = base64.b64encode(open("temp.mp3", "rb").read())
             output[ind] = (
                 translation_payload[ind][0],
                 {"audioContent": encoded_audio.decode()},
