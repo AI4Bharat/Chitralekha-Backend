@@ -614,7 +614,9 @@ def save_voice_over(request):
                             voice_over_obj,
                             voice_over_obj.video,
                         )
-                        uploadToBlobStorage(os.path.join(file_path + "/" + file_name))
+                        uploadToBlobStorage(
+                            os.path.join(file_path + "/" + file_name), voice_over_obj
+                        )
                         # change_active_status_of_next_tasks(
                         #    task, target_language, voice_over_obj
                         # )
@@ -864,15 +866,21 @@ def export_voiceover(request):
             {"message": "Task not found."},
             status=status.HTTP_404_NOT_FOUND,
         )
-
-    folder_path = "temporary_video_audio_storage"
-    file_path = os.path.join(folder_path + "/" + task.video.name + ".mp4")
-    download_from_blob_storage(file_path)
-    file = FileWrapper(open(file_path, "rb"))
-    response = HttpResponse(file, content_type="video/mp4")
     video_name = task.video.name
-    response["Content-Disposition"] = "attachment; filename={0}".format(
-        "file_name" + ".mp4"
+    voice_over = get_voice_over_id(task)
+    if voice_over is not None:
+        voice_over = voice_over
+    else:
+        if task.status == "POST_PROCESS":
+            return Response(
+                {"message": "VoiceOver is in Post Process stage."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {"message": "VoiceOver doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return Response(
+        {"azure_url": voice_over.azure_url},
+        status=status.HTTP_200_OK,
     )
-    # response['file_name'] = video_name + ".mp4"
-    return response

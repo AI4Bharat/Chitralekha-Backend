@@ -59,11 +59,11 @@ def download_from_blob_storage(file_path):
         sample_blob.write(download_stream.readall())
 
 
-def uploadToBlobStorage(file_path):
+def uploadToBlobStorage(file_path, voice_over_obj):
     full_path = file_path + ".mp4"
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     blob_client = blob_service_client.get_blob_client(
-        container=container_name, blob=full_path.split("/")[-1]
+        container=container_name, blob=file_path.split("/")[-1] + ".mp4"
     )
     with open(full_path, "rb") as data:
         try:
@@ -78,7 +78,9 @@ def uploadToBlobStorage(file_path):
                 logging.info("New video uploaded successfully!")
         except Exception as e:
             logging.info("This video can't be uploaded")
-            logging.info(blob_client.url)
+        logging.info(blob_client.url)
+        voice_over_obj.azure_url = blob_client.url
+        voice_over_obj.save()
         os.remove(file_path + ".mp4")
         os.remove(file_path + "final.mp3")
         # blob_data = blob_client.download_blob()
