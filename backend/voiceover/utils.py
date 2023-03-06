@@ -59,7 +59,7 @@ def download_from_blob_storage(file_path):
         sample_blob.write(download_stream.readall())
 
 
-def uploadToBlobStorage(file_path, voice_over_obj):
+def uploadToBlobStorage(file_path):
     full_path = file_path + ".mp4"
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     blob_client = blob_service_client.get_blob_client(
@@ -79,10 +79,9 @@ def uploadToBlobStorage(file_path, voice_over_obj):
         except Exception as e:
             logging.info("This video can't be uploaded")
         logging.info(blob_client.url)
-        voice_over_obj.azure_url = blob_client.url
-        voice_over_obj.save()
         os.remove(file_path + ".mp4")
         os.remove(file_path + "final.mp3")
+        return blob_client.url
         # blob_data = blob_client.download_blob()
         # data = blob_data.readall()
         # print(data)
@@ -257,9 +256,6 @@ def generate_voiceover_payload(translation_payload, target_language):
             with open(audio_file, "wb") as output_f:
                 output_f.write(first_audio_decoded)
 
-            with open("temp" + str(ind) + "wav", "wb") as output_f:
-                output_f.write(first_audio_decoded)
-            adjust_audio_wav(audio_file, translation_payload[ind][3], -1)
             AudioSegment.from_wav("temp.wav").export("temp.mp3", format="mp3")
             adjust_audio("temp.mp3", translation_payload[ind][3], -1)
             encoded_audio = base64.b64encode(open(audio_file, "rb").read())
