@@ -214,7 +214,7 @@ def process_translation_payload(translation_obj, target_language):
                 "time_difference": t_d,
                 "start_time": start_time,
                 "end_time": end_time,
-                "text": text["text"],
+                "text": text["target_text"],
                 "audio": {"audioContent": decoded_audio},
                 "audio_speed": 1,
             }
