@@ -711,6 +711,7 @@ class TaskViewSet(ModelViewSet):
             permitted = True
 
         if permitted:
+            delete_tasks = []
             if "EDIT" in task_type:
                 tasks = []
                 for video in videos:
@@ -725,9 +726,7 @@ class TaskViewSet(ModelViewSet):
                     translation = self.check_translation_exists(video, target_language)
 
                     if type(translation) == dict:
-                        is_active = False
-                    else:
-                        is_active = True
+                        translation = None
 
                     new_task = Task(
                         task_type=task_type,
@@ -739,7 +738,7 @@ class TaskViewSet(ModelViewSet):
                         eta=eta,
                         description=description,
                         priority=priority,
-                        is_active=is_active,
+                        is_active=False,
                     )
                     new_task.save()
                     tasks.append(new_task)
@@ -747,17 +746,24 @@ class TaskViewSet(ModelViewSet):
                 new_voiceovers = []
                 tts_errors = 0
                 for task in tasks:
-                    if task.is_active == False or source_type == "MANUALLY_CREATED":
+                    if translation is None or source_type == "MANUALLY_CREATED":
                         payloads = {"payload": {}}
-                        None
                     else:
-                        translation = self.check_translation_exists(
-                            video, target_language
-                        )
                         tts_payload = process_translation_payload(
                             translation, target_language
                         )
-                        if len(tts_payload) == 0:
+                        if (
+                            len(tts_payload) == 0
+                            or type(tts_payload) != dict
+                            or "payload" not in tts_payload.keys()
+                        ):
+                            message = "Error while calling TTS API."
+                            if (
+                                type(tts_payload) == dict
+                                and "message" in tts_payload.keys()
+                            ):
+                                message = tts_payload["message"]
+
                             tts_errors += 1
                             detailed_error.append(
                                 {
@@ -768,7 +774,7 @@ class TaskViewSet(ModelViewSet):
                                     ),
                                     "language_pair": task.get_language_pair_label,
                                     "status": "Fail",
-                                    "message": "Error while calling TTS API.",
+                                    "message": message,
                                 }
                             )
                             videos.remove(task.video)
@@ -776,25 +782,27 @@ class TaskViewSet(ModelViewSet):
                             delete_tasks.append(task)
                             consolidated_error.append(
                                 {
-                                    "message": "Error while calling TTS API, as there are empty sentences in translation.",
+                                    "message": message,
                                     "count": tts_errors,
                                 }
                             )
                             logging.info("Error while calling TTS API")
                             continue
-                        detailed_error.append(
-                            {
-                                "video_name": task.video.name,
-                                "video_url": task.video.url,
-                                "task_type": self.get_task_type_label(task.task_type),
-                                "language_pair": self.get_language_pair_label(
-                                    task.video, target_language
-                                ),
-                                "status": "Successful",
-                                "message": "Task is successfully created.",
-                            }
-                        )
                         payloads = tts_payload
+                        task.is_active = True
+                        task.save()
+                    detailed_error.append(
+                        {
+                            "video_name": task.video.name,
+                            "video_url": task.video.url,
+                            "task_type": self.get_task_type_label(task.task_type),
+                            "language_pair": self.get_language_pair_label(
+                                task.video, target_language
+                            ),
+                            "status": "Successful",
+                            "message": "Task is successfully created.",
+                        }
+                    )
                     voiceover_obj = VoiceOver(
                         video=task.video,
                         user=task.user,

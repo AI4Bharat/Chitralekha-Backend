@@ -17,6 +17,7 @@ NEW = "NEW"
 SELECTED_SOURCE = "SELECTED_SOURCE"
 INPROGRESS = "INPROGRESS"
 COMPLETE = "COMPLETE"
+POST_PROGRESS = "POST_PROGRESS"
 P1 = "P1"
 P2 = "P2"
 P3 = "P3"
@@ -26,6 +27,7 @@ TASK_STATUS = (
     (NEW, "New"),
     (SELECTED_SOURCE, "Selected Source"),
     (INPROGRESS, "In Progress"),
+    (POST_PROGRESS, "Post Progress"),
     (COMPLETE, "Complete"),
 )
 
