@@ -795,6 +795,9 @@ class TaskViewSet(ModelViewSet):
                         payloads = tts_payload
                         task.is_active = True
                         task.save()
+                    if source_type == "MANUALLY_CREATED":
+                        task.is_active = True
+                        task.save()
                     detailed_error.append(
                         {
                             "video_name": task.video.name,

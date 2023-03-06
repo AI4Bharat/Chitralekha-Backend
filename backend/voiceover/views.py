@@ -614,7 +614,7 @@ def save_voice_over(request):
                             voice_over_obj,
                             voice_over_obj.video,
                         )
-                        uploadToBlobStorage(
+                        azure_url = uploadToBlobStorage(
                             os.path.join(file_path + "/" + file_name), voice_over_obj
                         )
                         # change_active_status_of_next_tasks(
@@ -623,6 +623,7 @@ def save_voice_over(request):
                         ts_status = VOICEOVER_EDIT_COMPLETE
                         voice_over_obj.status = ts_status
                         voice_over_obj.payload = {"payload": ""}
+                        voice_over_obj.azure_url = azure_url
                         voice_over_obj.save()
                         task.status = "COMPLETE"
                         task.save()
