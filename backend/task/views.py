@@ -751,7 +751,7 @@ class TaskViewSet(ModelViewSet):
                 tts_errors = 0
                 for task in tasks:
                     if translation is None or source_type == "MANUALLY_CREATED":
-                        payloads = {"payload": {}}
+                        payloads = {"payload": {"completed_count": 0}}
                     else:
                         tts_payload = process_translation_payload(
                             translation, target_language
