@@ -157,6 +157,7 @@ def get_payload(request):
     sentences_list = []
     current_offset = offset - 1
     translation_payload = []
+    completed_count = 0
     if voice_over.translation:
         payload_offset_size = voice_over_payload_offset_size - 1
         count_cards = (
@@ -346,8 +347,23 @@ def get_payload(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    if voice_over.voice_over_type == "MANUALLY_CREATED":
+        return Response(
+            {
+                "completed_count": voice_over.payload["payload"]["completed_count"],
+                "count": count_cards,
+                "next": next,
+                "current": offset,
+                "previous": previous,
+                "payload": payload,
+                "source_type": voice_over.voice_over_type,
+            },
+            status=status.HTTP_200_OK,
+        )
+
     return Response(
         {
+            "completed_count": count_cards,
             "count": count_cards,
             "next": next,
             "current": offset,
@@ -441,6 +457,7 @@ def save_voice_over(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    completed_count = 0
     voice_over = get_voice_over_id(task)
     if voice_over is not None:
         voice_over_id = voice_over.id
@@ -573,7 +590,21 @@ def save_voice_over(request):
                                 + int(time_difference.split(":")[1]) * 60
                                 + float(time_difference.split(":")[2])
                             )
-
+                            if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
+                                if (
+                                    str(start_offset + i)
+                                    not in voice_over_obj.payload["payload"].keys()
+                                    and "audioContent"
+                                    in voiceover_machine_generated[i][1].keys()
+                                ):
+                                    voice_over_obj.payload["payload"][
+                                        "completed_count"
+                                    ] += 1
+                                completed_count = voice_over_obj.payload["payload"][
+                                    "completed_count"
+                                ]
+                            else:
+                                completed_count = count_cards
                             voice_over_obj.payload["payload"][str(start_offset + i)] = {
                                 "time_difference": t_d,
                                 "start_time": payload["payload"][i]["start_time"],
@@ -606,8 +637,16 @@ def save_voice_over(request):
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
                         file_name = voice_over_obj.video.name
+                        time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        file_name = "Chitralekha_Video_{}_{}_{}".format(
+                            voice_over_obj.video.id,
+                            time_now,
+                            voice_over_obj.target_language,
+                        )
                         file_path = "temporary_video_audio_storage"
                         task.status = "POST_PROCESS"
+                        if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
+                            del voice_over_obj.payload["payload"]["completed_count"]
                         task.save()
                         integrate_audio_with_video(
                             file_path + "/" + file_name,
@@ -652,6 +691,21 @@ def save_voice_over(request):
                                 + int(time_difference.split(":")[1]) * 60
                                 + float(time_difference.split(":")[2])
                             )
+                            if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
+                                if (
+                                    str(start_offset + i)
+                                    not in voice_over_obj.payload["payload"].keys()
+                                    and "audioContent"
+                                    in voiceover_machine_generated[i][1].keys()
+                                ):
+                                    voice_over_obj.payload["payload"][
+                                        "completed_count"
+                                    ] += 1
+                                completed_count = voice_over_obj.payload["payload"][
+                                    "completed_count"
+                                ]
+                            else:
+                                completed_count = count_cards
                             voice_over_obj.payload["payload"][str(start_offset + i)] = {
                                 "time_difference": t_d,
                                 "start_time": payload["payload"][i]["start_time"],
@@ -702,6 +756,21 @@ def save_voice_over(request):
                                 + int(time_difference.split(":")[1]) * 60
                                 + float(time_difference.split(":")[2])
                             )
+                            if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
+                                if (
+                                    str(start_offset + i)
+                                    not in voice_over_obj.payload["payload"].keys()
+                                    and "audioContent"
+                                    in voiceover_machine_generated[i][1].keys()
+                                ):
+                                    voice_over_obj.payload["payload"][
+                                        "completed_count"
+                                    ] += 1
+                                completed_count = voice_over_obj.payload["payload"][
+                                    "completed_count"
+                                ]
+                            else:
+                                completed_count = count_cards
                             voice_over_obj.payload["payload"][str(start_offset + i)] = {
                                 "time_difference": t_d,
                                 "start_time": payload["payload"][i]["start_time"],
@@ -794,6 +863,7 @@ def save_voice_over(request):
             else:
                 return Response(
                     {
+                        "completed_count": completed_count,
                         "count": count_cards,
                         "next": next,
                         "current": offset,

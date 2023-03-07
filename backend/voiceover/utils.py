@@ -268,7 +268,7 @@ def generate_voiceover_payload(translation_payload, target_language):
     return output
 
 
-def download_video(url):
+def download_video(url, file_name):
     logging.info("Downloading video %s", url)
     ydl = YoutubeDL({"format": "best"})
     """
@@ -277,12 +277,7 @@ def download_video(url):
     """
     try:
         with YoutubeDL(
-            {
-                "format": "best",
-                "outtmpl": os.path.join(
-                    "temporary_video_audio_storage", "%(title)s.%(ext)s"
-                ),
-            }
+            {"format": "best", "outtmpl": "{}.%(ext)s".format(file_name)}
         ) as ydl:
             ydl.download([url])
     except DownloadError:
@@ -295,7 +290,7 @@ def integrate_audio_with_video(file_name, voice_over_obj, video):
     integrate_all_audios(file_name, voice_over_obj.payload, video.duration)
     logging.info("Audio Integration Completed.")
     # load the video
-    download_video(video.url)
+    download_video(video.url, file_name)
     video_file = file_name + ".mp4"
     video_clip = VideoFileClip(video_file)
     # load the audio
