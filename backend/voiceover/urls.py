@@ -1,5 +1,4 @@
 from django.urls import path
-
 from . import views
 
 
@@ -21,4 +20,9 @@ urlpatterns = [
         name="get_payload",
     ),
     path("export_voiceover/", views.export_voiceover, name="export_voiceover/"),
+    path(
+        "get_voice_over_task_counts/",
+        views.get_voice_over_task_counts,
+        name="get_voice_over_task_counts/",
+    ),
 ]

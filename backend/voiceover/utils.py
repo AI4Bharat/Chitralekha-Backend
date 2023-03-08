@@ -59,12 +59,34 @@ def download_from_blob_storage(file_path):
         sample_blob.write(download_stream.readall())
 
 
-def uploadToBlobStorage(file_path):
+def uploadToBlobStorage(file_path, voice_over_obj):
     full_path = file_path + ".mp4"
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     blob_client = blob_service_client.get_blob_client(
         container=container_name, blob=file_path.split("/")[-1] + ".mp4"
     )
+    voice_over_payload = voice_over_obj.payload
+    json_object = json.dumps(voice_over_payload)
+    with open(file_path.split("/")[-1] + ".json", "w") as outfile:
+        outfile.write(json_object)
+
+    blob_client_json = blob_service_client.get_blob_client(
+        container=container_name, blob=file_path.split("/")[-1] + ".json"
+    )
+    with open(file_path.split("/")[-1] + ".json", "rb") as data:
+        try:
+            if not blob_client_json.exists():
+                blob_client_json.upload_blob(data)
+                logging.info("Voice Over payload uploaded successfully!")
+                logging.info(blob_client_json.url)
+            else:
+                blob_client_json.delete_blob()
+                logging.info("Old Voice Over payload deleted successfully!")
+                blob_client_json.upload_blob(data)
+                logging.info("New Voice Over payload successfully!")
+        except Exception as e:
+            logging.info("This Voice Over payload can't be uploaded")
+
     with open(full_path, "rb") as data:
         try:
             if not blob_client.exists():
@@ -82,10 +104,6 @@ def uploadToBlobStorage(file_path):
         os.remove(file_path + ".mp4")
         os.remove(file_path + "final.mp3")
         return blob_client.url
-        # blob_data = blob_client.download_blob()
-        # data = blob_data.readall()
-        # print(data)
-        # delete temporary audio and video
 
 
 def get_tts_output(tts_input, target_language, gender="male"):
@@ -432,7 +450,6 @@ def get_original_duration(start_time, end_time):
         )
     ).strftime("%H:%M:%S.%f")
 
-    # print("time difference", time_difference)
     t_d = (
         int(time_difference.split(":")[0]) * 3600
         + int(time_difference.split(":")[1]) * 60
