@@ -1,48 +1,24 @@
-from io import StringIO
-import base64
-import json
-import webvtt
-from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import (
     api_view,
-    permission_classes,
-    authentication_classes,
 )
-from wsgiref.util import FileWrapper
-from scipy.io.wavfile import write
-import os
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from transcript.models import Transcript
-from video.models import Video
 from task.models import Task
-from rest_framework.decorators import action
-from django.http import HttpResponse
-from django.core.files.base import ContentFile
-import requests
 from translation.metadata import INDIC_TRANS_SUPPORTED_LANGUAGES
 from .models import (
     VoiceOver,
-    MACHINE_GENERATED,
-    MANUALLY_CREATED,
     VOICEOVER_TYPE_CHOICES,
     VOICEOVER_SELECT_SOURCE,
-    VOICEOVER_EDITOR_ASSIGNED,
     VOICEOVER_EDIT_INPROGRESS,
     VOICEOVER_EDIT_COMPLETE,
-    VOICEOVER_REVIEWER_ASSIGNED,
     VOICEOVER_REVIEW_INPROGRESS,
     VOICEOVER_REVIEW_COMPLETE,
 )
-from datetime import datetime, date, timedelta
-from .decorators import is_voice_over_editor
-from .serializers import VoiceOverSerializer
+from datetime import datetime, timedelta
 from .utils import *
 from config import voice_over_payload_offset_size
-import re
 from .tasks import celery_integration
 
 

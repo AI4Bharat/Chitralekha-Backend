@@ -16,7 +16,6 @@ from scipy.io.wavfile import write, read
 import os
 import wave
 import base64
-from scipy.io.wavfile import read as read_wav
 from datetime import timedelta
 import webvtt
 from io import StringIO
@@ -28,7 +27,6 @@ from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_audioclips
 from scipy.io import wavfile
 from mutagen.wave import WAVE
 import numpy
-import librosa
 import sys
 from mutagen.mp3 import MP3
 import numpy as np
@@ -346,6 +344,7 @@ def audio_duration(length):
     return hours, mins, seconds  # returns the duration
 
 
+"""
 def adjust_speed(audio_file, speed_adjustment):
     # reload the audio to use librosa's expected format
     lr_speech_data, lr_speech_rate = librosa.load(audio_file)
@@ -375,6 +374,7 @@ def adjust_audio_wav(audio_file, original_time, audio_speed):
     else:
         logging.info("Speed up the audio by %s", str(seconds / original_time))
         adjust_speed(audio_file, seconds / original_time)
+"""
 
 
 def adjust_audio(audio_file, original_time, audio_speed):
