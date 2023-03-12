@@ -43,6 +43,7 @@ from .serializers import VoiceOverSerializer
 from .utils import *
 from config import voice_over_payload_offset_size
 import re
+from .tasks import celery_integration
 
 
 def get_voice_over_id(task):
@@ -648,6 +649,13 @@ def save_voice_over(request):
                         if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
                             del voice_over_obj.payload["payload"]["completed_count"]
                         task.save()
+                        celery_integration.delay(
+                            file_path + "/" + file_name,
+                            voice_over_obj.id,
+                            voice_over_obj.video.id,
+                            task.id,
+                        )
+                        """
                         integrate_audio_with_video(
                             file_path + "/" + file_name,
                             voice_over_obj,
@@ -666,6 +674,7 @@ def save_voice_over(request):
                         voice_over_obj.save()
                         task.status = "COMPLETE"
                         task.save()
+                        """
                 else:
                     voice_over_obj = (
                         VoiceOver.objects.filter(status=VOICEOVER_EDIT_INPROGRESS)
