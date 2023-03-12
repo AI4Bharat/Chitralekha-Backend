@@ -16,7 +16,6 @@ from scipy.io.wavfile import write, read
 import os
 import wave
 import base64
-from scipy.io.wavfile import read as read_wav
 from datetime import timedelta
 import webvtt
 from io import StringIO
@@ -28,7 +27,6 @@ from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_audioclips
 from scipy.io import wavfile
 from mutagen.wave import WAVE
 import numpy
-import librosa
 import sys
 from mutagen.mp3 import MP3
 import numpy as np
@@ -364,6 +362,7 @@ def audio_duration(length):
     return hours, mins, seconds  # returns the duration
 
 
+"""
 def adjust_speed(audio_file, speed_adjustment):
     # reload the audio to use librosa's expected format
     lr_speech_data, lr_speech_rate = librosa.load(audio_file)
@@ -393,6 +392,7 @@ def adjust_audio_wav(audio_file, original_time, audio_speed):
     else:
         logging.info("Speed up the audio by %s", str(seconds / original_time))
         adjust_speed(audio_file, seconds / original_time)
+"""
 
 
 def adjust_audio(audio_file, original_time, audio_speed):
@@ -543,23 +543,23 @@ def integrate_all_audios(file_name, payload, video_duration):
                 adjust_audio(file_name + "_" + str(index) + ".mp3", original_time, -1)
                 audio_file_paths.append(file_name + "_" + str(index) + ".mp3")
 
-    batch_size = math.ceil(len(audio_file_paths) / 100)
+    batch_size = math.ceil(len(audio_file_paths) / 50)
     final_paths = []
     for i in range(batch_size):
         if i == 0:
-            audio_batch_paths = audio_file_paths[: (i + 1) * 100]
+            audio_batch_paths = audio_file_paths[: (i + 1) * 50]
             clips = [AudioFileClip(c) for c in audio_batch_paths]
             final_clip = concatenate_audioclips(clips)
             final_clip.write_audiofile(file_name + str(i) + ".mp3")
             final_paths.append(file_name + str(i) + ".mp3")
         elif i == batch_size - 1:
-            audio_batch_paths = audio_file_paths[(i) * 100 : len(audio_file_paths)]
+            audio_batch_paths = audio_file_paths[(i) * 50 : len(audio_file_paths)]
             clips = [AudioFileClip(c) for c in audio_batch_paths]
             final_clip = concatenate_audioclips(clips)
             final_clip.write_audiofile(file_name + str(i) + ".mp3")
             final_paths.append(file_name + str(i) + ".mp3")
         else:
-            audio_batch_paths = audio_file_paths[(i) * 100 : (i + 1) * 100]
+            audio_batch_paths = audio_file_paths[(i) * 50 : (i + 1) * 50]
             clips = [AudioFileClip(c) for c in audio_batch_paths]
             final_clip = concatenate_audioclips(clips)
             final_clip.write_audiofile(file_name + str(i) + ".mp3")

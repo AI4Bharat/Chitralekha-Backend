@@ -1,48 +1,25 @@
-from io import StringIO
-import base64
-import json
-import webvtt
-from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import (
     api_view,
-    permission_classes,
-    authentication_classes,
 )
-from wsgiref.util import FileWrapper
-from scipy.io.wavfile import write
-import os
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from transcript.models import Transcript
-from video.models import Video
 from task.models import Task
-from rest_framework.decorators import action
-from django.http import HttpResponse
-from django.core.files.base import ContentFile
-import requests
 from translation.metadata import INDIC_TRANS_SUPPORTED_LANGUAGES
 from .models import (
     VoiceOver,
-    MACHINE_GENERATED,
-    MANUALLY_CREATED,
     VOICEOVER_TYPE_CHOICES,
     VOICEOVER_SELECT_SOURCE,
-    VOICEOVER_EDITOR_ASSIGNED,
     VOICEOVER_EDIT_INPROGRESS,
     VOICEOVER_EDIT_COMPLETE,
-    VOICEOVER_REVIEWER_ASSIGNED,
     VOICEOVER_REVIEW_INPROGRESS,
     VOICEOVER_REVIEW_COMPLETE,
 )
-from datetime import datetime, date, timedelta
-from .decorators import is_voice_over_editor
-from .serializers import VoiceOverSerializer
+from datetime import datetime, timedelta
 from .utils import *
 from config import voice_over_payload_offset_size
-import re
+from .tasks import celery_integration
 
 
 def get_voice_over_id(task):
@@ -680,31 +657,22 @@ def save_voice_over(request):
                         if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
                             del voice_over_obj.payload["payload"]["completed_count"]
                         task.save()
-                        try:
-                            integrate_audio_with_video(
-                                file_path + "/" + file_name,
-                                voice_over_obj,
-                                voice_over_obj.video,
-                            )
-                        except:
-                            task.status = "FAILED"
-                            task.save()
-                            return Response(
-                                {"message": "Error in integrating audio and video."},
-                                status=status.HTTP_400_BAD_REQUEST,
-                            )
-                        try:
-                            azure_url = uploadToBlobStorage(
-                                os.path.join(file_path + "/" + file_name),
-                                voice_over_obj,
-                            )
-                        except:
-                            task.status = "FAILED"
-                            task.save()
-                            return Response(
-                                {"message": "Error in uploading to azure blob."},
-                                status=status.HTTP_400_BAD_REQUEST,
-                            )
+
+                        celery_integration.delay(
+                            file_path + "/" + file_name,
+                            voice_over_obj.id,
+                            voice_over_obj.video.id,
+                            task.id,
+                        )
+                        """
+                        integrate_audio_with_video(
+                            file_path + "/" + file_name,
+                            voice_over_obj,
+                            voice_over_obj.video,
+                        )
+                        azure_url = uploadToBlobStorage(
+                            os.path.join(file_path + "/" + file_name)
+                        )
                         # change_active_status_of_next_tasks(
                         #    task, target_language, voice_over_obj
                         # )
@@ -715,6 +683,7 @@ def save_voice_over(request):
                         voice_over_obj.save()
                         task.status = "COMPLETE"
                         task.save()
+                        """
                 else:
                     voice_over_obj = (
                         VoiceOver.objects.filter(status=VOICEOVER_EDIT_INPROGRESS)

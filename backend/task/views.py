@@ -53,6 +53,10 @@ from video.utils import get_export_transcript, get_export_translation
 import zipfile
 from django.http import HttpResponse
 import datetime
+from task.tasks import celery_asr_call
+import requests
+from django.db.models.functions import Concat
+from django.db.models import Value
 
 
 class TaskViewSet(ModelViewSet):
@@ -1091,7 +1095,19 @@ class TaskViewSet(ModelViewSet):
                 new_transcripts = []
                 asr_errors = 0
                 for task in tasks:
-                    payloads = self.generate_transcript_payload(task, [source_type])
+                    payloads = self.generate_transcript_payload(task, [source_type], True)
+                    if source_type == "MACHINE_GENERATED":
+                        detailed_error.append(
+                            {
+                                "video_name": task.video.name,
+                                "video_url": task.video.url,
+                                "task_type": self.get_task_type_label(task.task_type),
+                                "language_pair": task.get_language_pair_label,
+                                "status": "Successful",
+                                "message": "Task created successfully.",
+                            }
+                        )
+                        continue
                     if type(payloads) != dict:
                         asr_errors += 1
                         detailed_error.append(
@@ -1275,18 +1291,22 @@ class TaskViewSet(ModelViewSet):
 
         return json.loads(json.dumps({"payload": sentences_list}))
 
-    def generate_transcript_payload(self, task, list_compare_sources):
+    def generate_transcript_payload(self, task, list_compare_sources, is_async=False):
         payloads = {}
         if "MACHINE_GENERATED" in list_compare_sources:
-            transcribed_data = make_asr_api_call(task.video.url, task.video.language)
-            if transcribed_data is not None:
-                data = self.convert_payload_format(transcribed_data)
-                payloads["MACHINE_GENERATED"] = data
+            if is_async==True:
+                celery_asr_call.delay(task_id=task.id)
+                payloads["MACHINE_GENERATED"] = {"payload": []}
             else:
-                return Response(
-                    {"message": "Error while calling ASR API"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+                transcribed_data = make_asr_api_call(task.video.url, task.video.language)
+                if transcribed_data is not None:
+                    data = self.convert_payload_format(transcribed_data)
+                    payloads["MACHINE_GENERATED"] = data
+                else:
+                    return Response(
+                        {"message": "Error while calling ASR API"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
         if "ORIGINAL_SOURCE" in list_compare_sources:
             subtitles = task.video.subtitles
             if subtitles is not None:
@@ -2228,3 +2248,35 @@ class TaskViewSet(ModelViewSet):
             response,
             status=status.HTTP_200_OK,
         )
+
+    @swagger_auto_schema(
+        method="get",
+        responses={200: "successful", 500: "unable to query celery"},
+    )
+    @action(detail=False, methods=["get"], url_path="inspect_asr_queue")
+    def inspect_asr_queue(self, request):
+        try:
+            task_list = []
+            url = "http://localhost:5555/api/tasks"
+            params = {"state":"STARTED", "sort_by":"received"}
+            res = requests.get(url, params=params)
+            data = res.json()
+            task_data = list(data.values())
+            for elem in task_data:
+                task_list.append(eval(elem['kwargs'])['task_id'])
+            params = {"state":"RECEIVED", "sort_by":"received"}
+            res = requests.get(url, params=params)
+            data = res.json()
+            task_data = list(data.values())
+            for elem in task_data:
+                task_list.append(eval(elem['kwargs'])['task_id'])
+            if task_list:
+                task_details = Task.objects.filter(id__in=task_list).values("id", "video__duration", "created_by__organization__title", submitter_name=Concat("created_by__first_name", Value(" "), "created_by__last_name"))
+                for elem in task_details:
+                    task_dict = {"task_id": elem["id"], "submitter_name": elem["submitter_name"], "org_name": elem["created_by__organization__title"], "video_duration": str(elem["video__duration"])}
+                    i = task_list.index(elem["id"])
+                    task_list[i] = task_dict
+
+            return Response({"message": "successful", "data": task_list}, status=status.HTTP_200_OK)
+        except Exception:
+            return Response({"message": "unable to query celery", "data": []}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

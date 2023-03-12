@@ -285,3 +285,6 @@ LOGGING = {
         "django.server": {"propagate": True},
     },
 }
+
+# Celery settings
+CELERY_BROKER_URL = "redis://localhost:6379"
