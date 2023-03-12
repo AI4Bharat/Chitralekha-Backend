@@ -270,6 +270,8 @@ def get_payload(request):
                         + int(time_difference.split(":")[1]) * 60
                         + float(time_difference.split(":")[2])
                     )
+                    # if "audioContent" in voice_over.payload["payload"][str(i)]["audio"].keys():
+                    #     completed_count += 1
                     sentences_list.append(
                         {
                             "audio": voice_over.payload["payload"][str(i)]["audio"],
@@ -467,6 +469,11 @@ def save_voice_over(request):
                     },
                     status=status.HTTP_201_CREATED,
                 )
+            if task.status == "POST_PROCESS":
+                return Response(
+                    {"message": "Voice Over is in Post Process stage."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             payload_offset_size = voice_over_payload_offset_size - 1
             count_cards = (
@@ -569,17 +576,42 @@ def save_voice_over(request):
                             )
                             if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
                                 if (
-                                    str(start_offset + i)
-                                    not in voice_over_obj.payload["payload"].keys()
+                                    type(voiceover_machine_generated[i][1]) == dict
                                     and "audioContent"
                                     in voiceover_machine_generated[i][1].keys()
                                 ):
-                                    voice_over_obj.payload["payload"][
+                                    if (
+                                        str(start_offset + i)
+                                        not in voice_over_obj.payload["payload"].keys()
+                                    ):
+                                        voice_over_obj.payload["payload"][
+                                            "completed_count"
+                                        ] += 1
+
+                                    elif (
+                                        str(start_offset + i)
+                                        in voice_over_obj.payload["payload"].keys()
+                                        and "audio"
+                                        in voice_over_obj.payload["payload"][
+                                            str(start_offset + i)
+                                        ].keys()
+                                        and type(
+                                            voice_over_obj.payload["payload"][
+                                                str(start_offset + i)
+                                            ]
+                                        )
+                                        == dict
+                                        and "audioContent"
+                                        not in voice_over_obj.payload["payload"][
+                                            str(start_offset + i)
+                                        ]["audio"]
+                                    ):
+                                        voice_over_obj.payload["payload"][
+                                            "completed_count"
+                                        ] += 1
+                                    completed_count = voice_over_obj.payload["payload"][
                                         "completed_count"
-                                    ] += 1
-                                completed_count = voice_over_obj.payload["payload"][
-                                    "completed_count"
-                                ]
+                                    ]
                             else:
                                 completed_count = count_cards
                             voice_over_obj.payload["payload"][str(start_offset + i)] = {
@@ -625,6 +657,7 @@ def save_voice_over(request):
                         if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
                             del voice_over_obj.payload["payload"]["completed_count"]
                         task.save()
+
                         celery_integration.delay(
                             file_path + "/" + file_name,
                             voice_over_obj.id,
@@ -678,17 +711,42 @@ def save_voice_over(request):
                             )
                             if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
                                 if (
-                                    str(start_offset + i)
-                                    not in voice_over_obj.payload["payload"].keys()
+                                    type(voiceover_machine_generated[i][1]) == dict
                                     and "audioContent"
                                     in voiceover_machine_generated[i][1].keys()
                                 ):
-                                    voice_over_obj.payload["payload"][
+                                    if (
+                                        str(start_offset + i)
+                                        not in voice_over_obj.payload["payload"].keys()
+                                    ):
+                                        voice_over_obj.payload["payload"][
+                                            "completed_count"
+                                        ] += 1
+
+                                    elif (
+                                        str(start_offset + i)
+                                        in voice_over_obj.payload["payload"].keys()
+                                        and "audio"
+                                        in voice_over_obj.payload["payload"][
+                                            str(start_offset + i)
+                                        ].keys()
+                                        and type(
+                                            voice_over_obj.payload["payload"][
+                                                str(start_offset + i)
+                                            ]
+                                        )
+                                        == dict
+                                        and "audioContent"
+                                        not in voice_over_obj.payload["payload"][
+                                            str(start_offset + i)
+                                        ]["audio"]
+                                    ):
+                                        voice_over_obj.payload["payload"][
+                                            "completed_count"
+                                        ] += 1
+                                    completed_count = voice_over_obj.payload["payload"][
                                         "completed_count"
-                                    ] += 1
-                                completed_count = voice_over_obj.payload["payload"][
-                                    "completed_count"
-                                ]
+                                    ]
                             else:
                                 completed_count = count_cards
                             voice_over_obj.payload["payload"][str(start_offset + i)] = {
@@ -710,7 +768,6 @@ def save_voice_over(request):
                                     "audio_speed": 1,
                                 }
                             )
-                        voice_over_obj.voice_over_type = voice_over_type
                         voice_over_obj.save()
                     else:
                         voice_over_obj = (
@@ -743,17 +800,42 @@ def save_voice_over(request):
                             )
                             if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
                                 if (
-                                    str(start_offset + i)
-                                    not in voice_over_obj.payload["payload"].keys()
+                                    type(voiceover_machine_generated[i][1]) == dict
                                     and "audioContent"
                                     in voiceover_machine_generated[i][1].keys()
                                 ):
-                                    voice_over_obj.payload["payload"][
+                                    if (
+                                        str(start_offset + i)
+                                        not in voice_over_obj.payload["payload"].keys()
+                                    ):
+                                        voice_over_obj.payload["payload"][
+                                            "completed_count"
+                                        ] += 1
+
+                                    elif (
+                                        str(start_offset + i)
+                                        in voice_over_obj.payload["payload"].keys()
+                                        and "audio"
+                                        in voice_over_obj.payload["payload"][
+                                            str(start_offset + i)
+                                        ].keys()
+                                        and type(
+                                            voice_over_obj.payload["payload"][
+                                                str(start_offset + i)
+                                            ]
+                                        )
+                                        == dict
+                                        and "audioContent"
+                                        not in voice_over_obj.payload["payload"][
+                                            str(start_offset + i)
+                                        ]["audio"]
+                                    ):
+                                        voice_over_obj.payload["payload"][
+                                            "completed_count"
+                                        ] += 1
+                                    completed_count = voice_over_obj.payload["payload"][
                                         "completed_count"
-                                    ] += 1
-                                completed_count = voice_over_obj.payload["payload"][
-                                    "completed_count"
-                                ]
+                                    ]
                             else:
                                 completed_count = count_cards
                             voice_over_obj.payload["payload"][str(start_offset + i)] = {
@@ -938,5 +1020,24 @@ def export_voiceover(request):
         )
     return Response(
         {"azure_url": voice_over.azure_url},
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["GET"])
+def get_voice_over_task_counts(request):
+    response = []
+    tasks_in_post_process = Task.objects.filter(status="POST_PROCESS").all()
+    if len(list(tasks_in_post_process)) > 0:
+        for task in tasks_in_post_process:
+            response.append(
+                {
+                    "task_id": task.id,
+                    "video_id": task.video.id,
+                    "video": task.video.name,
+                }
+            )
+    return Response(
+        response,
         status=status.HTTP_200_OK,
     )

@@ -675,6 +675,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Update"] = False
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
+                    if data["task_type"] == "VOICEOVER_EDIT":
+                        buttons["Preview"] = False
                     if data["user"]["email"] == request.user.email:
                         if data["status"] not in ["COMPLETE", "POST_PROCESS"]:
                             buttons["Edit"] = True
@@ -703,6 +705,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Update"] = False
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
+                    if data["task_type"] == "VOICEOVER_EDIT":
+                        buttons["Preview"] = False
                     if data["user"]["email"] == request.user.email:
                         if data["status"] not in ["COMPLETE", "POST_PROCESS"]:
                             buttons["Edit"] = True

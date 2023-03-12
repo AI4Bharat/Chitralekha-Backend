@@ -323,7 +323,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     buttons["Preview"] = True
                     buttons["Update"] = False
                     buttons["Edit"] = False
-                if data["status"] == "POST_PROCESS":
+                if task["status"] == "POST_PROCESS":
                     buttons["Update"] = True
                 if task["user"]["email"] == request.user.email:
                     if task["status"] not in ["COMPLETE", "POST_PROCESS"]:
@@ -363,7 +363,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         buttons["Preview"] = True
                         buttons["Update"] = False
                         buttons["Edit"] = False
-                    if data["status"] == "POST_PROCESS":
+                    if task["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if task["user"]["email"] == request.user.email:
                         if task["status"] not in ["COMPLETE", "POST_PROCESS"]:
@@ -395,7 +395,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         buttons["Preview"] = True
                         buttons["Update"] = False
                         buttons["Edit"] = False
-                    if data["status"] == "POST_PROCESS":
+                    if task["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if task["user"]["email"] == request.user.email:
                         if task["status"] not in ["COMPLETE", "POST_PROCESS"]:
@@ -428,7 +428,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         buttons["Preview"] = True
                         buttons["Update"] = False
                         buttons["Edit"] = False
-                    if data["status"] == "POST_PROCESS":
+                    if task["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if task["user"]["email"] == request.user.email:
                         if task["status"] not in ["COMPLETE", "POST_PROCESS"]:
