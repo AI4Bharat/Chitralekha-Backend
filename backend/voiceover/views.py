@@ -625,6 +625,7 @@ def save_voice_over(request):
                         if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
                             del voice_over_obj.payload["payload"]["completed_count"]
                         task.save()
+                        logging.info("Calling Async Celery Integration")
                         celery_integration.delay(
                             file_path + "/" + file_name,
                             voice_over_obj.id,
