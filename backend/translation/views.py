@@ -384,14 +384,13 @@ def change_active_status_of_next_tasks(task, translation_obj):
         )
         if voice_over_task is not None:
             voice_over.translation = translation_obj
-            tts_payload = process_translation_payload(
-                translation_obj, task.target_language
-            )
-            if (
-                len(tts_payload) == 0
-                or type(tts_payload) != dict
-                or "payload" not in tts_payload.keys()
-            ):
+            if voice_over.voice_over_type == "MANUALLY_CREATED":
+                tts_payload = {"payload": {"completed_count": 0}}
+            else:
+                tts_payload = process_translation_payload(
+                    translation_obj, task.target_language
+                )
+            if type(tts_payload) != dict or "payload" not in tts_payload.keys():
                 message = "Error while calling TTS API."
                 if type(tts_payload) == dict and "message" in tts_payload.keys():
                     message = tts_payload["message"]

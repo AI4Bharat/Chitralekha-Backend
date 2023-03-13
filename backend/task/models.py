@@ -18,6 +18,8 @@ SELECTED_SOURCE = "SELECTED_SOURCE"
 INPROGRESS = "INPROGRESS"
 COMPLETE = "COMPLETE"
 POST_PROCESS = "POST_PROCESS"
+FAILED = "FAILED"
+REOPEN = "REOPEN"
 P1 = "P1"
 P2 = "P2"
 P3 = "P3"
@@ -28,6 +30,7 @@ TASK_STATUS = (
     (SELECTED_SOURCE, "Selected Source"),
     (INPROGRESS, "In Progress"),
     (POST_PROCESS, "Post Process"),
+    (FAILED, "Failed"),
     (COMPLETE, "Complete"),
 )
 
@@ -77,7 +80,6 @@ class Task(models.Model):
     status = models.CharField(
         choices=TASK_STATUS, verbose_name="Task Status", max_length=35, default=None
     )
-
     user = models.ForeignKey(
         User,
         verbose_name="Task Assignee",
