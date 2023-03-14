@@ -2269,25 +2269,42 @@ class TaskViewSet(ModelViewSet):
         try:
             task_list = []
             url = "http://localhost:5555/api/tasks"
-            params = {"state":"STARTED", "sort_by":"received"}
+            params = {"state": "STARTED", "sort_by": "received", "name": "task.tasks.celery_asr_call"}
             res = requests.get(url, params=params)
             data = res.json()
             task_data = list(data.values())
             for elem in task_data:
-                task_list.append(eval(elem['kwargs'])['task_id'])
-            params = {"state":"RECEIVED", "sort_by":"received"}
+                task_list.append(eval(elem["kwargs"])["task_id"])
+            params = {"state": "RECEIVED", "sort_by": "received", "name": "task.tasks.celery_asr_call"}
             res = requests.get(url, params=params)
             data = res.json()
             task_data = list(data.values())
             for elem in task_data:
-                task_list.append(eval(elem['kwargs'])['task_id'])
+                task_list.append(eval(elem["kwargs"])["task_id"])
             if task_list:
-                task_details = Task.objects.filter(id__in=task_list).values("id", "video__duration", "created_by__organization__title", submitter_name=Concat("created_by__first_name", Value(" "), "created_by__last_name"))
+                task_details = Task.objects.filter(id__in=task_list).values(
+                    "id",
+                    "video__duration",
+                    "created_by__organization__title",
+                    submitter_name=Concat(
+                        "created_by__first_name", Value(" "), "created_by__last_name"
+                    ),
+                )
                 for elem in task_details:
-                    task_dict = {"task_id": elem["id"], "submitter_name": elem["submitter_name"], "org_name": elem["created_by__organization__title"], "video_duration": str(elem["video__duration"])}
+                    task_dict = {
+                        "task_id": elem["id"],
+                        "submitter_name": elem["submitter_name"],
+                        "org_name": elem["created_by__organization__title"],
+                        "video_duration": str(elem["video__duration"]),
+                    }
                     i = task_list.index(elem["id"])
                     task_list[i] = task_dict
 
-            return Response({"message": "successful", "data": task_list}, status=status.HTTP_200_OK)
+            return Response(
+                {"message": "successful", "data": task_list}, status=status.HTTP_200_OK
+            )
         except Exception:
-            return Response({"message": "unable to query celery", "data": []}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"message": "unable to query celery", "data": []},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
