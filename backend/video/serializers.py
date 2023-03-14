@@ -19,4 +19,5 @@ class VideoSerializer(serializers.ModelSerializer):
             "audio_only",
             "project_id",
             "language_label",
+            "gender",
         )

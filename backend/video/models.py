@@ -4,6 +4,9 @@ from project.models import Project
 from translation.metadata import LANGUAGE_CHOICES
 from django.contrib.postgres.fields import ArrayField
 
+MALE = "MALE"
+FEMALE = "FEMALE"
+
 VIDEO_STATUS = (
     ("NEW", "NEW"),
     ("TRANSCRIPTION_EDIT", "Transcription Edit"),
@@ -12,6 +15,8 @@ VIDEO_STATUS = (
     ("TRANSLATION_REVIEW", "Translation Review"),
     ("COMPLETED", "COMPLETED"),
 )
+
+GENDER = ((MALE, "Male"), (FEMALE, "Female"))
 
 
 class Video(models.Model):
@@ -45,6 +50,12 @@ class Video(models.Model):
         verbose_name="Audio Only",
         default=False,
         help_text="Does this object only contain audio?",
+    )
+    gender = models.CharField(
+        choices=GENDER,
+        max_length=10,
+        default=MALE,
+        verbose_name="Gender",
     )
 
     def __str__(self):

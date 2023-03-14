@@ -16,6 +16,7 @@ from transcript.models import ORIGINAL_SOURCE, Transcript
 from translation.models import Translation
 from project.decorators import is_project_owner
 from .models import Video
+from .models import GENDER
 from task.views import TaskViewSet
 from task.serializers import TaskStatusSerializer
 from .serializers import VideoSerializer
@@ -752,6 +753,10 @@ def download_all(request):
                 type=openapi.TYPE_STRING,
                 description="Description of video",
             ),
+            "gender": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Gender of video's voice",
+            ),
         },
         required=["video_id"],
     ),
@@ -766,12 +771,19 @@ def update_video(request):
     """
     video_id = request.data.get("video_id")
     description = request.data.get("description")
+    gender = request.data.get("gender")
 
     try:
         video = Video.objects.get(id=video_id)
 
         if description is not None:
             video.description = description
+
+        if gender is not None:
+            for gender_list_obj in GENDER:
+                if gender == gender_list_obj[0]:
+                    video.gender = gender_list_obj[1]
+                    break
 
         video.save()
 
