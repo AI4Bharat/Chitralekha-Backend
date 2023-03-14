@@ -53,7 +53,7 @@ from video.utils import get_export_transcript, get_export_translation
 import zipfile
 from django.http import HttpResponse
 import datetime
-from task.tasks import celery_asr_call
+from task.tasks import celery_asr_call, celery_tts_call
 import requests
 from django.db.models.functions import Concat
 from django.db.models import Value
@@ -750,24 +750,17 @@ class TaskViewSet(ModelViewSet):
                 new_voiceovers = []
                 tts_errors = 0
                 for task in tasks:
-                    if translation is None or source_type == "MANUALLY_CREATED":
+                    if translation is None:
                         payloads = {"payload": {"completed_count": 0}}
                     else:
                         tts_payload = process_translation_payload(
                             translation, target_language
                         )
                         if (
-                            len(tts_payload) == 0
-                            or type(tts_payload) != dict
-                            or "payload" not in tts_payload.keys()
+                            type(tts_payload) == dict
+                            and "message" in tts_payload.keys()
                         ):
-                            message = "Error while calling TTS API."
-                            if (
-                                type(tts_payload) == dict
-                                and "message" in tts_payload.keys()
-                            ):
-                                message = tts_payload["message"]
-
+                            message = tts_payload["message"]
                             tts_errors += 1
                             detailed_error.append(
                                 {
@@ -781,7 +774,8 @@ class TaskViewSet(ModelViewSet):
                                     "message": message,
                                 }
                             )
-                            videos.remove(task.video)
+                            task.status = "FAILED"
+                            task.save()
                             video_ids.append(task.video)
                             delete_tasks.append(task)
                             consolidated_error.append(
@@ -792,12 +786,38 @@ class TaskViewSet(ModelViewSet):
                             )
                             logging.info("Error while calling TTS API")
                             continue
-                        payloads = tts_payload
-                        task.is_active = True
-                        task.save()
+                        if source_type != "MANUALLY_CREATED":
+                            (
+                                tts_input,
+                                target_language,
+                                translation,
+                                translation_id,
+                                empty_sentences,
+                            ) = tts_payload
+                            logging.info("Async call for TTS")
+                            celery_tts_call.delay(
+                                task.id,
+                                tts_input,
+                                target_language,
+                                translation,
+                                translation_id,
+                                empty_sentences,
+                            )
                     if source_type == "MANUALLY_CREATED":
-                        task.is_active = True
-                        task.save()
+                        voiceover_obj = VoiceOver(
+                            video=task.video,
+                            user=task.user,
+                            translation=translation,
+                            payload=payloads,
+                            target_language=target_language,
+                            task=task,
+                            voice_over_type=source_type,
+                            status="VOICEOVER_SELECT_SOURCE",
+                        )
+                        new_voiceovers.append(voiceover_obj)
+                        if translation is not None:
+                            task.is_active = True
+                            task.save()
                     detailed_error.append(
                         {
                             "video_name": task.video.name,
@@ -810,18 +830,8 @@ class TaskViewSet(ModelViewSet):
                             "message": "Task is successfully created.",
                         }
                     )
-                    voiceover_obj = VoiceOver(
-                        video=task.video,
-                        user=task.user,
-                        translation=translation,
-                        payload=payloads,
-                        target_language=target_language,
-                        task=task,
-                        voice_over_type=source_type,
-                        status="VOICEOVER_SELECT_SOURCE",
-                    )
-                    new_voiceovers.append(voiceover_obj)
-                voiceovers = VoiceOver.objects.bulk_create(new_voiceovers)
+                if len(new_voiceovers) > 0:
+                    voiceovers = VoiceOver.objects.bulk_create(new_voiceovers)
             else:
                 tasks = []
                 for video in videos:
@@ -900,7 +910,6 @@ class TaskViewSet(ModelViewSet):
                 voiceovers = VoiceOver.objects.bulk_create(new_voiceovers)
 
             for task in delete_tasks:
-                task.delete()
                 tasks.remove(task)
 
             if len(tasks) > 0:
@@ -1095,7 +1104,9 @@ class TaskViewSet(ModelViewSet):
                 new_transcripts = []
                 asr_errors = 0
                 for task in tasks:
-                    payloads = self.generate_transcript_payload(task, [source_type], True)
+                    payloads = self.generate_transcript_payload(
+                        task, [source_type], True
+                    )
                     if source_type == "MACHINE_GENERATED":
                         detailed_error.append(
                             {

@@ -127,37 +127,9 @@ def get_tts_output(tts_input, target_language, gender="male"):
         }
 
 
-def process_translation_payload(translation_obj, target_language):
-    tts_input = []
-    empty_sentences = []
-    translation = translation_obj.payload
-    for ind, text in enumerate(translation["payload"]):
-        if not compare_time(text["end_time"], text["start_time"])[0]:
-            return {
-                "message": "Voice Over can't be generated as end time of a sentence is smaller than start time.",
-                "status": status.HTTP_400_BAD_REQUEST,
-            }
-        if (
-            ind != 0
-            and ind < len(translation["payload"])
-            and compare_time(
-                translation["payload"][ind - 1]["end_time"], text["start_time"]
-            )[0]
-        ):
-            return {
-                "message": "Voice Over can't be generated as start time of a sentence is greater than end time of previous sentence.",
-                "status": status.HTTP_400_BAD_REQUEST,
-            }
-        clean_target_text = text["target_text"].replace('""', "").replace('"."', "")
-        if (
-            len(clean_target_text) > 1
-            and clean_target_text != " "
-            and clean_target_text.isspace() == False
-        ):
-            tts_input.append({"source": clean_target_text})
-        else:
-            empty_sentences.append(ind)
-
+def generate_tts_output(
+    tts_input, target_language, translation, translation_obj, empty_sentences
+):
     tts_output = get_tts_output(tts_input, target_language)
     if type(tts_output) != dict or "audio" not in tts_output.keys():
         return tts_output
@@ -240,6 +212,46 @@ def process_translation_payload(translation_obj, target_language):
     logging.info("Size of voiceover payload %s", str(asizeof(voiceover_payload)))
     logging.info("Size of combined audios %s", str(payload_size))
     return voiceover_payload
+
+
+def process_translation_payload(translation_obj, target_language):
+    tts_input = []
+    empty_sentences = []
+    translation = translation_obj.payload
+    for ind, text in enumerate(translation["payload"]):
+        if not compare_time(text["end_time"], text["start_time"])[0]:
+            return {
+                "message": "Voice Over can't be generated as end time of a sentence is smaller than start time.",
+                "status": status.HTTP_400_BAD_REQUEST,
+            }
+        if (
+            ind != 0
+            and ind < len(translation["payload"])
+            and compare_time(
+                translation["payload"][ind - 1]["end_time"], text["start_time"]
+            )[0]
+        ):
+            return {
+                "message": "Voice Over can't be generated as start time of a sentence is greater than end time of previous sentence.",
+                "status": status.HTTP_400_BAD_REQUEST,
+            }
+
+        clean_target_text = text["target_text"].replace('""', "").replace('"."', "")
+        if (
+            len(clean_target_text) > 1
+            and clean_target_text != " "
+            and clean_target_text.isspace() == False
+        ):
+            tts_input.append({"source": clean_target_text})
+        else:
+            empty_sentences.append(ind)
+    return (
+        tts_input,
+        target_language,
+        translation,
+        translation_obj.id,
+        empty_sentences,
+    )
 
 
 def generate_voiceover_payload(translation_payload, target_language):

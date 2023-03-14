@@ -1,5 +1,4 @@
 from io import StringIO
-
 import webvtt
 from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
@@ -51,6 +50,8 @@ from itertools import groupby
 from voiceover.models import VoiceOver
 from project.models import Project
 import config
+from task.tasks import celery_tts_call
+import logging
 
 
 @api_view(["GET"])
@@ -377,29 +378,48 @@ def change_active_status_of_next_tasks(task, translation_obj):
     else:
         activate_voice_over = False
     if activate_voice_over:
-        voice_over = (
+        voice_over_obj = (
             VoiceOver.objects.filter(video=task.video)
             .filter(target_language=task.target_language)
             .first()
         )
+        source_type = (
+            task.video.project_id.default_voiceover_type
+            or task.video.project_id.organization_id.default_voiceover_type
+        )
+        if source_type is None:
+            source_type = backend_default_voice_over_type
         if voice_over_task is not None:
-            voice_over.translation = translation_obj
-            if voice_over.voice_over_type == "MANUALLY_CREATED":
-                tts_payload = {"payload": {"completed_count": 0}}
-            else:
-                tts_payload = process_translation_payload(
-                    translation_obj, task.target_language
-                )
-            if type(tts_payload) != dict or "payload" not in tts_payload.keys():
-                message = "Error while calling TTS API."
-                if type(tts_payload) == dict and "message" in tts_payload.keys():
-                    message = tts_payload["message"]
-                return message
-            else:
-                voice_over_task.is_active = True
-                voice_over.payload = tts_payload
-                voice_over.save()
+            tts_payload = process_translation_payload(
+                translation_obj, voice_over_task.target_language
+            )
+            if type(tts_payload) == dict and "message" in tts_payload.keys():
+                message = tts_payload["message"]
+                voice_over_task.status = "FAILED"
                 voice_over_task.save()
+                return message
+            if source_type == "MANUALLY_CREATED":
+                voice_over_obj.translation = translation_obj
+                voice_over_obj.save()
+                voice_over_task.is_active = True
+                voice_over_task.save()
+            else:
+                    (
+                        tts_input,
+                        target_language,
+                        translation,
+                        translation_id,
+                        empty_sentences,
+                    ) = tts_payload
+                    logging.info("Async call for TTS")
+                    celery_tts_call.delay(
+                        voice_over_task.id,
+                        tts_input,
+                        target_language,
+                        translation,
+                        translation_id,
+                        empty_sentences,
+                    )
     else:
         print("No change in status")
     return None
