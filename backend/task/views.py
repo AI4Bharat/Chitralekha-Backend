@@ -57,6 +57,7 @@ from task.tasks import celery_asr_call
 import requests
 from django.db.models.functions import Concat
 from django.db.models import Value
+from video.serializers import VideoSerializer
 
 
 class TaskViewSet(ModelViewSet):
@@ -1095,7 +1096,9 @@ class TaskViewSet(ModelViewSet):
                 new_transcripts = []
                 asr_errors = 0
                 for task in tasks:
-                    payloads = self.generate_transcript_payload(task, [source_type], True)
+                    payloads = self.generate_transcript_payload(
+                        task, [source_type], True
+                    )
                     if source_type == "MACHINE_GENERATED":
                         detailed_error.append(
                             {
@@ -1294,11 +1297,13 @@ class TaskViewSet(ModelViewSet):
     def generate_transcript_payload(self, task, list_compare_sources, is_async=False):
         payloads = {}
         if "MACHINE_GENERATED" in list_compare_sources:
-            if is_async==True:
+            if is_async == True:
                 celery_asr_call.delay(task_id=task.id)
                 payloads["MACHINE_GENERATED"] = {"payload": []}
             else:
-                transcribed_data = make_asr_api_call(task.video.url, task.video.language)
+                transcribed_data = make_asr_api_call(
+                    task.video.url, task.video.language
+                )
                 if transcribed_data is not None:
                     data = self.convert_payload_format(transcribed_data)
                     payloads["MACHINE_GENERATED"] = data
@@ -1611,7 +1616,6 @@ class TaskViewSet(ModelViewSet):
                     task_obj.delete()
 
         if task.task_type in ["TRANSLATION_EDIT", "TRANSLATION_REVIEW"]:
-
             translations = (
                 Translation.objects.filter(video=task.video)
                 .filter(target_language=task.target_language)
@@ -1927,6 +1931,13 @@ class TaskViewSet(ModelViewSet):
         for video_id in video_ids:
             try:
                 video = Video.objects.get(pk=video_id)
+                # if task's description is empty, video's decription should be task description
+                if description is None:
+                    get_videoObj = Video.objects.filter(pk=video_id)
+                    video_serializer = VideoSerializer(get_videoObj, many=True)
+                    video_data = video_serializer.data
+                    description = video_data[0]["description"]
+
             except Video.DoesNotExist:
                 return Response(
                     {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
@@ -2258,25 +2269,42 @@ class TaskViewSet(ModelViewSet):
         try:
             task_list = []
             url = "http://localhost:5555/api/tasks"
-            params = {"state":"STARTED", "sort_by":"received"}
+            params = {"state": "STARTED", "sort_by": "received"}
             res = requests.get(url, params=params)
             data = res.json()
             task_data = list(data.values())
             for elem in task_data:
-                task_list.append(eval(elem['kwargs'])['task_id'])
-            params = {"state":"RECEIVED", "sort_by":"received"}
+                task_list.append(eval(elem["kwargs"])["task_id"])
+            params = {"state": "RECEIVED", "sort_by": "received"}
             res = requests.get(url, params=params)
             data = res.json()
             task_data = list(data.values())
             for elem in task_data:
-                task_list.append(eval(elem['kwargs'])['task_id'])
+                task_list.append(eval(elem["kwargs"])["task_id"])
             if task_list:
-                task_details = Task.objects.filter(id__in=task_list).values("id", "video__duration", "created_by__organization__title", submitter_name=Concat("created_by__first_name", Value(" "), "created_by__last_name"))
+                task_details = Task.objects.filter(id__in=task_list).values(
+                    "id",
+                    "video__duration",
+                    "created_by__organization__title",
+                    submitter_name=Concat(
+                        "created_by__first_name", Value(" "), "created_by__last_name"
+                    ),
+                )
                 for elem in task_details:
-                    task_dict = {"task_id": elem["id"], "submitter_name": elem["submitter_name"], "org_name": elem["created_by__organization__title"], "video_duration": str(elem["video__duration"])}
+                    task_dict = {
+                        "task_id": elem["id"],
+                        "submitter_name": elem["submitter_name"],
+                        "org_name": elem["created_by__organization__title"],
+                        "video_duration": str(elem["video__duration"]),
+                    }
                     i = task_list.index(elem["id"])
                     task_list[i] = task_dict
 
-            return Response({"message": "successful", "data": task_list}, status=status.HTTP_200_OK)
+            return Response(
+                {"message": "successful", "data": task_list}, status=status.HTTP_200_OK
+            )
         except Exception:
-            return Response({"message": "unable to query celery", "data": []}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"message": "unable to query celery", "data": []},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
