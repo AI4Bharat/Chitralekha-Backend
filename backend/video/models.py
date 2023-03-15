@@ -66,3 +66,8 @@ class Video(models.Model):
         for language in LANGUAGE_CHOICES:
             if self.language == language[0]:
                 return language[1]
+
+    def get_gender_label(gender):
+        for gender_list_obj in GENDER:
+            if gender == gender_list_obj[0]:
+                return gender_list_obj[1]

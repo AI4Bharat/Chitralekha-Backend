@@ -16,7 +16,6 @@ from transcript.models import ORIGINAL_SOURCE, Transcript
 from translation.models import Translation
 from project.decorators import is_project_owner
 from .models import Video
-from .models import GENDER
 from task.views import TaskViewSet
 from task.serializers import TaskStatusSerializer
 from .serializers import VideoSerializer
@@ -125,6 +124,13 @@ def delete_video(request):
             type=openapi.TYPE_BOOLEAN,
             required=False,
         ),
+        openapi.Parameter(
+            "gender",
+            openapi.IN_QUERY,
+            description=("Gender of video's voice"),
+            type=openapi.TYPE_STRING,
+            required=False,
+        ),
     ],
     responses={200: "Return the video subtitle payload"},
 )
@@ -144,6 +150,7 @@ def get_video(request):
     description = request.query_params.get("description", "")
     is_audio_only = request.query_params.get("is_audio_only", "false")
     create = request.query_params.get("create", "false")
+    gender = request.query_params.get("gender")
 
     create = create.lower() == "true"
     if create:
@@ -164,6 +171,9 @@ def get_video(request):
             {"message": "Video URL not provided in query params."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    if gender is not None:
+        gender = Video.get_gender_label(gender)
 
     project = Project.objects.filter(pk=project_id).first()
     if project is None:
@@ -342,6 +352,7 @@ def get_video(request):
             "audio_only": is_audio_only,
             "language": lang,
             "description": description,
+            "gender": gender,
         },
     )
     if created:
@@ -780,22 +791,14 @@ def update_video(request):
             video.description = description
 
         if gender is not None:
-            for gender_list_obj in GENDER:
-                if gender == gender_list_obj[0]:
-                    video.gender = gender_list_obj[1]
-                    break
+            video.gender = Video.get_gender_label(gender)
 
         video.save()
 
-        getUpdatedVideo = Video.objects.get(id=video_id)
-
-        serializer = VideoSerializer(getUpdatedVideo)
-        response_data = {
-            "video": serializer.data,
-        }
-
         return Response(
-            response_data,
+            {
+                "message": "Video updated successfully.",
+            },
             status=status.HTTP_200_OK,
         )
     except Video.DoesNotExist:
