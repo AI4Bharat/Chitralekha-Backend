@@ -1933,10 +1933,7 @@ class TaskViewSet(ModelViewSet):
                 video = Video.objects.get(pk=video_id)
                 # if task's description is empty, video's decription should be task description
                 if description is None:
-                    get_videoObj = Video.objects.filter(pk=video_id)
-                    video_serializer = VideoSerializer(get_videoObj, many=True)
-                    video_data = video_serializer.data
-                    description = video_data[0]["description"]
+                    description = video.description
 
             except Video.DoesNotExist:
                 return Response(
