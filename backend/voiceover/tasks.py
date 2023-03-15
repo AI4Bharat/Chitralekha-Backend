@@ -17,9 +17,8 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
     logging.info("Starting Async Celery Integration....")
     voice_over_obj = VoiceOver.objects.filter(id=voice_over_obj_id).first()
     task = Task.objects.filter(id=task_id).first()
-    try:
-        integrate_audio_with_video(file_name, voice_over_obj, voice_over_obj.video)
-    except:
+    integrate_audio_with_video(file_name, voice_over_obj, voice_over_obj.video)
+    if not os.path.isfile(file_name):
         task.status = "FAILED"
         task.save()
         logging.info("Error in integrating audio and video")
