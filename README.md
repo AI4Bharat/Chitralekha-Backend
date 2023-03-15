@@ -75,10 +75,17 @@ python backend/manage.py migrate
 # Create superuser
 python backend/manage.py createsuperuser
 
-# Run the server
-python backend/manage.py runserver
-```
+# 1. Need to install REDIS and run in one terminal parallely
+# 2. Start Flower
+   python -m celery -A backend flower   
+# 3. 1st CELERY worker needs to start with below cmnd
+   python -m celery -A backend worker -Q default --concurrency=1 -l DEBUG
+# 4. 2nd CELERY worker needs to start with below cmnd
+   python -m celery -A backend worker -Q voiceover --concurrency=1 -l DEBUG
+# 5. Run the server
+   python manage.py runserver
 
+```
 The project will start running on `http://localhost:8000/`.
 
 ### Running Linters and Formatters
