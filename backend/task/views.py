@@ -1938,6 +1938,10 @@ class TaskViewSet(ModelViewSet):
         for video_id in video_ids:
             try:
                 video = Video.objects.get(pk=video_id)
+
+                if description is None:
+                    description = video.description
+
             except Video.DoesNotExist:
                 return Response(
                     {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
