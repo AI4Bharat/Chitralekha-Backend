@@ -555,23 +555,23 @@ def integrate_all_audios(file_name, payload, video_duration):
                 adjust_audio(file_name + "_" + str(index) + ".mp3", original_time, -1)
                 audio_file_paths.append(file_name + "_" + str(index) + ".mp3")
 
-    batch_size = math.ceil(len(audio_file_paths) / 50)
+    batch_size = math.ceil(len(audio_file_paths) / 20)
     final_paths = []
     for i in range(batch_size):
         if i == 0:
-            audio_batch_paths = audio_file_paths[: (i + 1) * 50]
+            audio_batch_paths = audio_file_paths[: (i + 1) * 20]
             clips = [AudioFileClip(c) for c in audio_batch_paths]
             final_clip = concatenate_audioclips(clips)
             final_clip.write_audiofile(file_name + str(i) + ".mp3")
             final_paths.append(file_name + str(i) + ".mp3")
         elif i == batch_size - 1:
-            audio_batch_paths = audio_file_paths[(i) * 50 : len(audio_file_paths)]
+            audio_batch_paths = audio_file_paths[(i) * 20 : len(audio_file_paths)]
             clips = [AudioFileClip(c) for c in audio_batch_paths]
             final_clip = concatenate_audioclips(clips)
             final_clip.write_audiofile(file_name + str(i) + ".mp3")
             final_paths.append(file_name + str(i) + ".mp3")
         else:
-            audio_batch_paths = audio_file_paths[(i) * 50 : (i + 1) * 50]
+            audio_batch_paths = audio_file_paths[(i) * 20 : (i + 1) * 20]
             clips = [AudioFileClip(c) for c in audio_batch_paths]
             final_clip = concatenate_audioclips(clips)
             final_clip.write_audiofile(file_name + str(i) + ".mp3")
