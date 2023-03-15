@@ -150,7 +150,7 @@ def get_video(request):
     description = request.query_params.get("description", "")
     is_audio_only = request.query_params.get("is_audio_only", "false")
     create = request.query_params.get("create", "false")
-    gender = request.query_params.get("gender")
+    gender = request.query_params.get("gender", "Male")
 
     create = create.lower() == "true"
     if create:
@@ -227,6 +227,7 @@ def get_video(request):
                 "audio_only": is_audio_only,
                 "language": lang,
                 "description": description,
+                "gender": gender,
             },
         )
         serializer = VideoSerializer(video)
@@ -791,7 +792,7 @@ def update_video(request):
             video.description = description
 
         if gender is not None:
-            video.gender = Video.get_gender_label(gender)
+            video.gender = Video.get_gender_label(gender.capitalize())
 
         video.save()
 

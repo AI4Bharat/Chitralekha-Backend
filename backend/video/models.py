@@ -55,6 +55,8 @@ class Video(models.Model):
         choices=GENDER,
         max_length=10,
         default=MALE,
+        null=True,
+        blank=True,
         verbose_name="Gender",
     )
 
@@ -69,5 +71,5 @@ class Video(models.Model):
 
     def get_gender_label(gender):
         for gender_list_obj in GENDER:
-            if gender == gender_list_obj[0]:
-                return gender_list_obj[1]
+            if gender == gender_list_obj[1]:
+                return gender_list_obj[0]
