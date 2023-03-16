@@ -404,22 +404,22 @@ def change_active_status_of_next_tasks(task, translation_obj):
                 voice_over_task.is_active = True
                 voice_over_task.save()
             else:
-                    (
-                        tts_input,
-                        target_language,
-                        translation,
-                        translation_id,
-                        empty_sentences,
-                    ) = tts_payload
-                    logging.info("Async call for TTS")
-                    celery_tts_call.delay(
-                        voice_over_task.id,
-                        tts_input,
-                        target_language,
-                        translation,
-                        translation_id,
-                        empty_sentences,
-                    )
+                (
+                    tts_input,
+                    target_language,
+                    translation,
+                    translation_id,
+                    empty_sentences,
+                ) = tts_payload
+                logging.info("Async call for TTS")
+                celery_tts_call.delay(
+                    voice_over_task.id,
+                    tts_input,
+                    target_language,
+                    translation,
+                    translation_id,
+                    empty_sentences,
+                )
     else:
         print("No change in status")
     return None
@@ -475,6 +475,15 @@ def generate_translation_output(request):
         .first()
     )
     if translation is not None:
+        if (
+            translation.payload is not None
+            and type(translation.payload) == dict
+            and "payload" in translation.payload.keys()
+        ):
+            return Response(
+                {"message": "Payload for translation is generated."},
+                status=status.HTTP_200_OK,
+            )
         project = Project.objects.get(id=task.video.project_id.id)
         organization = project.organization_id
         source_type = (

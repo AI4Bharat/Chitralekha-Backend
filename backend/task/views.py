@@ -195,10 +195,8 @@ class TaskViewSet(ModelViewSet):
         for video in videos:
             task = Task.objects.filter(video=video)
             if target_language is not None:
-                task = (
-                    Task.objects.filter(video=video)
-                    .filter(task_type=task_type)
-                    .filter(target_language=target_language)
+                task = Task.objects.filter(video=video).filter(
+                    target_language=target_language
                 )
                 if target_language == video.language:
                     same_language.append(video)
@@ -214,7 +212,7 @@ class TaskViewSet(ModelViewSet):
 
             if (
                 task_type == "TRANSLATION_REVIEW"
-                and task.filter(task_type="VOICEOVER_REVIEW").first() is not None
+                and task.filter(task_type="VOICEOVER_EDIT").first() is not None
             ):
                 delete_video.append(video)
 
@@ -310,6 +308,7 @@ class TaskViewSet(ModelViewSet):
         error_duplicate_tasks = []
         error_user_tasks = []
         error_same_language_tasks = []
+        error_review_tasks = []
 
         if len(duplicate_tasks) > 0:
             for task in duplicate_tasks:
@@ -329,6 +328,11 @@ class TaskViewSet(ModelViewSet):
                 error_same_language_tasks.append(
                     {"video": video, "task_type": task_type}
                 )
+
+        if len(delete_video) > 0:
+            for video in delete_video:
+                video_ids.append(video)
+                error_review_tasks.append({"video": video, "task_type": task_type})
 
         for video in video_ids:
             videos.remove(video)
@@ -395,6 +399,27 @@ class TaskViewSet(ModelViewSet):
                         ),
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
+                    }
+                )
+
+        if len(error_review_tasks) > 0:
+            consolidated_error.append(
+                {
+                    "message": "Task creation for Translation Review failed as Voice Over tasks already exists.",
+                    "count": len(error_review_tasks),
+                }
+            )
+            for task in error_review_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": self.get_task_type_label(task["task_type"]),
+                        "language_pair": self.get_language_pair_label(
+                            task["video"], ""
+                        ),
+                        "status": "Fail",
+                        "message": "Task creation for Translation Review failed as Voice Over task already exists.",
                     }
                 )
 
@@ -2249,6 +2274,8 @@ class TaskViewSet(ModelViewSet):
             response = [{"value": type + "_EDIT", "label": "Edit"}]
         elif task.filter(task_type=type + "_EDIT").first() is None:
             response = [{"value": type + "_EDIT", "label": "Edit"}]
+        elif type == "VOICEOVER":
+            response = [{"value": type + "_EDIT", "label": "Edit"}]
         elif task.filter(task_type=type + "_EDIT").first() is not None:
             response = [{"value": type + "_REVIEW", "label": "Review"}]
         else:
@@ -2269,13 +2296,21 @@ class TaskViewSet(ModelViewSet):
         try:
             task_list = []
             url = "http://localhost:5555/api/tasks"
-            params = {"state": "STARTED", "sort_by": "received", "name": "task.tasks.celery_asr_call"}
+            params = {
+                "state": "STARTED",
+                "sort_by": "received",
+                "name": "task.tasks.celery_asr_call",
+            }
             res = requests.get(url, params=params)
             data = res.json()
             task_data = list(data.values())
             for elem in task_data:
                 task_list.append(eval(elem["kwargs"])["task_id"])
-            params = {"state": "RECEIVED", "sort_by": "received", "name": "task.tasks.celery_asr_call"}
+            params = {
+                "state": "RECEIVED",
+                "sort_by": "received",
+                "name": "task.tasks.celery_asr_call",
+            }
             res = requests.get(url, params=params)
             data = res.json()
             task_data = list(data.values())
@@ -2285,6 +2320,7 @@ class TaskViewSet(ModelViewSet):
                 task_details = Task.objects.filter(id__in=task_list).values(
                     "id",
                     "video__duration",
+                    "video__id",
                     "created_by__organization__title",
                     submitter_name=Concat(
                         "created_by__first_name", Value(" "), "created_by__last_name"
@@ -2293,6 +2329,7 @@ class TaskViewSet(ModelViewSet):
                 for elem in task_details:
                     task_dict = {
                         "task_id": elem["id"],
+                        "video_id": elem["video__id"],
                         "submitter_name": elem["submitter_name"],
                         "org_name": elem["created_by__organization__title"],
                         "video_duration": str(elem["video__duration"]),

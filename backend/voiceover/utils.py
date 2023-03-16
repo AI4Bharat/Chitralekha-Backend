@@ -36,6 +36,7 @@ from rest_framework import status
 import math
 from pydub.effects import speedup
 from pydub import AudioSegment
+import re
 
 
 ### Utility Functions ###
@@ -237,10 +238,14 @@ def process_translation_payload(translation_obj, target_language):
             }
 
         clean_target_text = text["target_text"].replace('""', "").replace('"."', "")
+        match = re.search(r"[a-zA-Z]+", clean_target_text) or re.search(
+            r"[0-9]+", clean_target_text
+        )
         if (
             len(clean_target_text) > 1
             and clean_target_text != " "
             and clean_target_text.isspace() == False
+            and re.match(r"^[_\W]+$", clean_target_text) == None
         ):
             tts_input.append({"source": clean_target_text})
         else:
@@ -283,7 +288,6 @@ def generate_voiceover_payload(translation_payload, target_language):
             first_audio_decoded = base64.b64decode(voice_over["audioContent"])
             with open(audio_file, "wb") as output_f:
                 output_f.write(first_audio_decoded)
-
             AudioSegment.from_wav("temp.wav").export("temp.mp3", format="mp3")
             adjust_audio("temp.mp3", translation_payload[ind][3], -1)
             encoded_audio = base64.b64encode(open("temp.mp3", "rb").read())
@@ -581,5 +585,5 @@ def integrate_all_audios(file_name, payload, video_duration):
     final_clip_1 = concatenate_audioclips(clips)
     final_clip_1.write_audiofile(file_name + "final.mp3")
     for fname in audio_file_paths + final_paths:
-        if os.path.isfile(fname):  # this makes the code more robust
+        if os.path.isfile(fname):
             os.remove(fname)
