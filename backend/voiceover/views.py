@@ -525,7 +525,7 @@ def save_voice_over(request):
                             )
                         )
                 voiceover_machine_generated = generate_voiceover_payload(
-                    translation_payload, task.target_language
+                    translation_payload, task.target_language, task
                 )
                 if request.data.get("final"):
                     if (

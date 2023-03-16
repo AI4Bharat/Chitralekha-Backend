@@ -105,7 +105,7 @@ def uploadToBlobStorage(file_path, voice_over_obj):
         return blob_client.url
 
 
-def get_tts_output(tts_input, target_language, gender="male"):
+def get_tts_output(tts_input, target_language, gender):
     json_data = {
         "input": tts_input,
         "config": {"language": {"sourceLanguage": target_language}, "gender": gender},
@@ -131,7 +131,11 @@ def get_tts_output(tts_input, target_language, gender="male"):
 def generate_tts_output(
     tts_input, target_language, translation, translation_obj, empty_sentences
 ):
-    tts_output = get_tts_output(tts_input, target_language)
+    if translation_obj.video.gender == None:
+        gender = "MALE"
+    else:
+        gender = translation_obj.video.gender
+    tts_output = get_tts_output(tts_input, target_language, gender.lower())
     if type(tts_output) != dict or "audio" not in tts_output.keys():
         return tts_output
     logging.info("Size of TTS output %s", str(asizeof(tts_output)))
@@ -259,7 +263,7 @@ def process_translation_payload(translation_obj, target_language):
     )
 
 
-def generate_voiceover_payload(translation_payload, target_language):
+def generate_voiceover_payload(translation_payload, target_language, task):
     tts_input = []
     output = [0] * voice_over_payload_offset_size
     pre_generated_audio_indices = []
@@ -281,7 +285,13 @@ def generate_voiceover_payload(translation_payload, target_language):
             output[index] = (translation_text, audio)
 
     if len(tts_input) > 0:
-        voiceover_machine_generated = get_tts_output(tts_input, target_language)
+        if task.video.gender == None:
+            gender = "MALE"
+        else:
+            gender = task.video.gender
+        voiceover_machine_generated = get_tts_output(
+            tts_input, target_language, gender.lower()
+        )
         for voice_over in voiceover_machine_generated["audio"]:
             ind = post_generated_audio_indices.pop(0)
             audio_file = "temp.wav"

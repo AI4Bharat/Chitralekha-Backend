@@ -58,6 +58,10 @@ def celery_tts_call(
     voiceover_obj.save()
     task_obj.is_active = True
     task_obj.save()
+    if "message" in tts_payload:
+        task_obj.is_active = False
+        task_obj.status = "FAILED"
+        task_obj.save()
 
 
 @shared_task()
