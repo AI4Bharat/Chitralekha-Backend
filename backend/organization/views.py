@@ -326,9 +326,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 if task["status"] == "POST_PROCESS":
                     buttons["Update"] = True
                 if task["user"]["email"] == request.user.email:
-                    if task["status"] not in ["COMPLETE", "POST_PROCESS"]:
+                    if task["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                         buttons["Edit"] = True
-                    if task["status"] == "SELECTED_SOURCE":
+                    if (
+                        task["status"] == "SELECTED_SOURCE"
+                        and task["task_type"] != "VOICEOVER_EDIT"
+                    ):
                         buttons["View"] = True
                 task["buttons"] = buttons
         else:
@@ -366,9 +369,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if task["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if task["user"]["email"] == request.user.email:
-                        if task["status"] not in ["COMPLETE", "POST_PROCESS"]:
+                        if task["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
-                        if task["status"] == "SELECTED_SOURCE":
+                        if (
+                            task["status"] == "SELECTED_SOURCE"
+                            and task["task_type"] != "VOICEOVER_EDIT"
+                        ):
                             buttons["View"] = True
                     task["buttons"] = buttons
 
@@ -398,9 +404,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if task["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if task["user"]["email"] == request.user.email:
-                        if task["status"] not in ["COMPLETE", "POST_PROCESS"]:
+                        if task["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
-                        if task["status"] == "SELECTED_SOURCE":
+                        if (
+                            task["status"] == "SELECTED_SOURCE"
+                            and task["task_type"] != "VOICEOVER_EDIT"
+                        ):
                             buttons["View"] = True
                     task["buttons"] = buttons
                 tasks_list = list(
@@ -431,9 +440,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if task["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if task["user"]["email"] == request.user.email:
-                        if task["status"] not in ["COMPLETE", "POST_PROCESS"]:
+                        if task["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
-                        if task["status"] == "SELECTED_SOURCE":
+                        if (
+                            task["status"] == "SELECTED_SOURCE"
+                            and task["task_type"] != "VOICEOVER_EDIT"
+                        ):
                             buttons["View"] = True
                     task["buttons"] = buttons
         target_languages_list = list(target_languages)

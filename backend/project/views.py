@@ -678,9 +678,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
                     if data["user"]["email"] == request.user.email:
-                        if data["status"] not in ["COMPLETE", "POST_PROCESS"]:
+                        if data["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
-                        if data["status"] == "SELECTED_SOURCE":
+                        if (
+                            data["status"] == "SELECTED_SOURCE"
+                            and data["task_type"] != "VOICEOVER_EDIT"
+                        ):
                             buttons["View"] = True
                     data["buttons"] = buttons
             else:
@@ -708,9 +711,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
                     if data["user"]["email"] == request.user.email:
-                        if data["status"] not in ["COMPLETE", "POST_PROCESS"]:
+                        if data["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
-                        if data["status"] == "SELECTED_SOURCE":
+                        if (
+                            data["status"] == "SELECTED_SOURCE"
+                            and data["task_type"] != "VOICEOVER_EDIT"
+                        ):
                             buttons["View"] = True
                     data["buttons"] = buttons
             target_languages_list = list(target_languages)
