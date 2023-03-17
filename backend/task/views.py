@@ -1608,11 +1608,12 @@ class TaskViewSet(ModelViewSet):
                 for translation in Translation.objects.filter(video=task.video).all():
                     translation_tasks.add(translation.task)
                     for voiceover in (
-                        VoiceOver.objects.filter(video=task.video)
+                        Task.objects.filter(task_type="VOICEOVER_EDIT")
+                        .filter(video=task.video)
                         .filter(target_language=translation.target_language)
                         .all()
                     ):
-                        translation_tasks.add(voiceover.task)
+                        translation_tasks.add(voiceover)
 
             if len(translation_tasks) > 0:
                 response = [
@@ -1647,18 +1648,18 @@ class TaskViewSet(ModelViewSet):
                     task_obj.delete()
 
         if task.task_type in ["TRANSLATION_EDIT", "TRANSLATION_REVIEW"]:
-
             translations = (
                 Translation.objects.filter(video=task.video)
                 .filter(target_language=task.target_language)
                 .all()
             )
             voice_over = (
-                VoiceOver.objects.filter(video=task.video)
+                Task.objects.filter(video=task.video)
                 .filter(target_language=task.target_language)
+                .filter(task_type="VOICEOVER_EDIT")
                 .all()
             )
-            voiceover_tasks = [voiceover.task for voiceover in list(voice_over)]
+            voiceover_tasks = [voiceover for voiceover in list(voice_over)]
 
             if "REVIEW" in task.task_type:
                 translation_tasks = [task]
@@ -1697,11 +1698,6 @@ class TaskViewSet(ModelViewSet):
                     task_obj.delete()
 
         if task.task_type == "VOICEOVER_EDIT":
-            voice_over = (
-                VoiceOver.objects.filter(video=task.video)
-                .filter(target_language=task.target_language)
-                .all()
-            )
             tasks_deleted.append(task.id)
             task.delete()
 
