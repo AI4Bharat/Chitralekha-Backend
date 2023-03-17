@@ -15,7 +15,7 @@ from rest_framework.viewsets import ModelViewSet
 from transcript.models import ORIGINAL_SOURCE, Transcript
 from translation.models import Translation
 from project.decorators import is_project_owner
-from .models import Video
+from .models import Video, GENDER
 from task.views import TaskViewSet
 from task.serializers import TaskStatusSerializer
 from .serializers import VideoSerializer
@@ -150,7 +150,7 @@ def get_video(request):
     description = request.query_params.get("description", "")
     is_audio_only = request.query_params.get("is_audio_only", "false")
     create = request.query_params.get("create", "false")
-    gender = request.query_params.get("gender", "Male")
+    gender = request.query_params.get("gender", "MALE")
 
     create = create.lower() == "true"
     if create:
@@ -173,9 +173,9 @@ def get_video(request):
         )
 
     if gender is not None:
-        getGender = Video.get_gender_label(gender.capitalize())
-        if getGender is not None:
-            gender = getGender
+        gender_list = [gender[0] for gender in GENDER]
+        if gender.upper() in gender_list:
+            gender = gender.upper()
         else:
             gender = "MALE"
 
@@ -798,9 +798,9 @@ def update_video(request):
             video.description = description
 
         if gender is not None:
-            getGender = Video.get_gender_label(gender.capitalize())
-            if getGender is not None:
-                video.gender = getGender
+            gender_list = [gender[0] for gender in GENDER]
+            if gender.upper() in gender_list:
+                video.gender = gender.upper()
 
         video.save()
 
