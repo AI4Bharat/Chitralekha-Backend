@@ -11,10 +11,15 @@ TRANSCRIPTION_EDIT = "TRANSCRIPTION_EDIT"
 TRANSCRIPTION_REVIEW = "TRANSCRIPTION_REVIEW"
 TRANSLATION_EDIT = "TRANSLATION_EDIT"
 TRANSLATION_REVIEW = "TRANSLATION_REVIEW"
+VOICEOVER_EDIT = "VOICEOVER_EDIT"
+VOICEOVER_REVIEW = "VOICEOVER_REVIEW"
 NEW = "NEW"
 SELECTED_SOURCE = "SELECTED_SOURCE"
 INPROGRESS = "INPROGRESS"
 COMPLETE = "COMPLETE"
+POST_PROCESS = "POST_PROCESS"
+FAILED = "FAILED"
+REOPEN = "REOPEN"
 P1 = "P1"
 P2 = "P2"
 P3 = "P3"
@@ -23,7 +28,9 @@ P4 = "P4"
 TASK_STATUS = (
     (NEW, "New"),
     (SELECTED_SOURCE, "Selected Source"),
-    (INPROGRESS, "Inprogress"),
+    (INPROGRESS, "In Progress"),
+    (POST_PROCESS, "Post Process"),
+    (FAILED, "Failed"),
     (COMPLETE, "Complete"),
 )
 
@@ -32,6 +39,8 @@ TASK_TYPE = (
     (TRANSCRIPTION_REVIEW, "Transcription Review"),
     (TRANSLATION_EDIT, "Translation Edit"),
     (TRANSLATION_REVIEW, "Translation Review"),
+    (VOICEOVER_EDIT, "VoiceOver Edit"),
+    (VOICEOVER_REVIEW, "VoiceOver Review"),
 )
 
 PRIORITY = (
@@ -71,7 +80,6 @@ class Task(models.Model):
     status = models.CharField(
         choices=TASK_STATUS, verbose_name="Task Status", max_length=35, default=None
     )
-
     user = models.ForeignKey(
         User,
         verbose_name="Task Assignee",

@@ -20,6 +20,7 @@ TASK_TYPE = (
     ("TRANSCRIPTION_REVIEW", "Transcription Review"),
     ("TRANSLATION_EDIT", "Translation Edit"),
     ("TRANSLATION_REVIEW", "Translation Review"),
+    ("VOICEOVER_EDIT", "VoiceOver Edit"),
 )
 
 PRIORITY = (
@@ -127,7 +128,6 @@ class Project(models.Model):
         null=True,
         blank=True,
     )
-
     default_translation_type = models.CharField(
         choices=TRANSLATION_TYPE_CHOICES,
         max_length=35,
@@ -136,7 +136,14 @@ class Project(models.Model):
         null=True,
         blank=True,
     )
-
+    default_voiceover_type = models.CharField(
+        choices=TRANSLATION_TYPE_CHOICES,
+        max_length=35,
+        default=None,
+        verbose_name="Project Default VoiceOver Type",
+        null=True,
+        blank=True,
+    )
     default_task_types = ArrayField(
         models.CharField(
             choices=TASK_TYPE,

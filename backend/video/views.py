@@ -15,7 +15,7 @@ from rest_framework.viewsets import ModelViewSet
 from transcript.models import ORIGINAL_SOURCE, Transcript
 from translation.models import Translation
 from project.decorators import is_project_owner
-from .models import Video
+from .models import Video, GENDER
 from task.views import TaskViewSet
 from task.serializers import TaskStatusSerializer
 from .serializers import VideoSerializer
@@ -125,6 +125,13 @@ def delete_video(request):
             type=openapi.TYPE_BOOLEAN,
             required=False,
         ),
+        openapi.Parameter(
+            "gender",
+            openapi.IN_QUERY,
+            description=("Gender of video's voice"),
+            type=openapi.TYPE_STRING,
+            required=False,
+        ),
     ],
     responses={200: "Return the video subtitle payload"},
 )
@@ -144,6 +151,7 @@ def get_video(request):
     description = request.query_params.get("description", "")
     is_audio_only = request.query_params.get("is_audio_only", "false")
     create = request.query_params.get("create", "false")
+    gender = request.query_params.get("gender", "MALE")
 
     create = create.lower() == "true"
     if create:
@@ -164,6 +172,13 @@ def get_video(request):
             {"message": "Video URL not provided in query params."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    if gender is not None:
+        gender_list = [gender[0] for gender in GENDER]
+        if gender.upper() in gender_list:
+            gender = gender.upper()
+        else:
+            gender = "MALE"
 
     project = Project.objects.filter(pk=project_id).first()
     if project is None:
@@ -218,6 +233,7 @@ def get_video(request):
                 "audio_only": is_audio_only,
                 "language": lang,
                 "description": description,
+                "gender": gender,
             },
         )
         serializer = VideoSerializer(video)
@@ -343,6 +359,7 @@ def get_video(request):
             "audio_only": is_audio_only,
             "language": lang,
             "description": description,
+            "gender": gender,
         },
     )
     if created:
@@ -743,3 +760,58 @@ def download_all(request):
         "Content-Disposition"
     ] = f"attachment; filename=Chitralekha_{time_now}_all.zip"
     return response
+
+
+@swagger_auto_schema(
+    method="patch",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            "video_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+            "description": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Description of video",
+            ),
+            "gender": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Gender of video's voice",
+            ),
+        },
+        required=["video_id"],
+    ),
+    responses={200: "Video's information is updated"},
+)
+@api_view(["PATCH"])
+def update_video(request):
+    """
+    API Endpoint to update parameter of video
+    Endpoint: /video/update_video/
+    Method: PATCH
+    """
+    video_id = request.data.get("video_id")
+    description = request.data.get("description")
+    gender = request.data.get("gender")
+
+    try:
+        video = Video.objects.get(id=video_id)
+
+        if description is not None:
+            video.description = description
+
+        if gender is not None:
+            gender_list = [gender[0] for gender in GENDER]
+            if gender.upper() in gender_list:
+                video.gender = gender.upper()
+
+        video.save()
+
+        return Response(
+            {
+                "message": "Video updated successfully.",
+            },
+            status=status.HTTP_200_OK,
+        )
+    except Video.DoesNotExist:
+        return Response(
+            {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
+        )

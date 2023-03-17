@@ -1,5 +1,4 @@
 from io import StringIO
-
 import webvtt
 from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
@@ -35,7 +34,7 @@ from .models import (
     TRANSLATION_REVIEW_INPROGRESS,
     TRANSLATION_REVIEW_COMPLETE,
 )
-
+from voiceover.utils import process_translation_payload
 from .decorators import is_translation_editor
 from .serializers import TranslationSerializer
 from .utils import (
@@ -48,8 +47,11 @@ from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
 from django.db.models.functions import Cast
 from operator import itemgetter
 from itertools import groupby
+from voiceover.models import VoiceOver
 from project.models import Project
 import config
+from task.tasks import celery_tts_call
+import logging
 
 
 @api_view(["GET"])
@@ -336,13 +338,13 @@ def get_payload(request):
 
 
 def change_active_status_of_next_tasks(task, translation_obj):
-    task = (
+    translation_review_task = (
         Task.objects.filter(video=task.video)
         .filter(target_language=translation_obj.target_language)
         .filter(task_type="TRANSLATION_REVIEW")
         .first()
     )
-    if task:
+    if translation_review_task:
         translation = (
             Translation.objects.filter(target_language=translation_obj.target_language)
             .filter(video=task.video)
@@ -350,13 +352,77 @@ def change_active_status_of_next_tasks(task, translation_obj):
             .first()
         )
         if translation is not None:
-            task.is_active = True
+            translation_review_task.is_active = True
             translation.transcript = translation_obj.transcript
             translation.payload = translation_obj.payload
             translation.save()
-            task.save()
+            translation_review_task.save()
+    voice_over_task = (
+        Task.objects.filter(task_type="VOICEOVER_EDIT")
+        .filter(video=task.video)
+        .filter(target_language=task.target_language)
+        .first()
+    )
+    if (
+        voice_over_task is not None
+        and task.task_type == "TRANSLATION_EDIT"
+        and translation_review_task is None
+    ):
+        activate_voice_over = True
+    elif (
+        voice_over_task is not None
+        and task.task_type == "TRANSLATION_REVIEW"
+        and "COMPLETE" in translation_obj.status
+    ):
+        activate_voice_over = True
+    else:
+        activate_voice_over = False
+    if activate_voice_over:
+        voice_over_obj = (
+            VoiceOver.objects.filter(video=task.video)
+            .filter(target_language=task.target_language)
+            .first()
+        )
+        source_type = (
+            task.video.project_id.default_voiceover_type
+            or task.video.project_id.organization_id.default_voiceover_type
+        )
+        if source_type is None:
+            source_type = backend_default_voice_over_type
+        if voice_over_task is not None:
+            tts_payload = process_translation_payload(
+                translation_obj, voice_over_task.target_language
+            )
+            if type(tts_payload) == dict and "message" in tts_payload.keys():
+                message = tts_payload["message"]
+                voice_over_task.status = "FAILED"
+                voice_over_task.save()
+                return message
+            if source_type == "MANUALLY_CREATED":
+                voice_over_obj.translation = translation_obj
+                voice_over_obj.save()
+                voice_over_task.is_active = True
+                voice_over_task.save()
+            else:
+                (
+                    tts_input,
+                    target_language,
+                    translation,
+                    translation_id,
+                    empty_sentences,
+                ) = tts_payload
+                logging.info("Async call for TTS")
+                celery_tts_call.delay(
+                    voice_over_task.id,
+                    tts_input,
+                    target_language,
+                    translation,
+                    translation_id,
+                    empty_sentences,
+                )
     else:
         print("No change in status")
+    return None
 
 
 @swagger_auto_schema(
@@ -409,6 +475,15 @@ def generate_translation_output(request):
         .first()
     )
     if translation is not None:
+        if (
+            translation.payload is not None
+            and type(translation.payload) == dict
+            and "payload" in translation.payload.keys()
+        ):
+            return Response(
+                {"message": "Payload for translation is generated."},
+                status=status.HTTP_200_OK,
+            )
         project = Project.objects.get(id=task.video.project_id.id)
         organization = project.organization_id
         source_type = (
@@ -493,7 +568,7 @@ def save_translation(request):
         translation = Translation.objects.get(pk=translation_id)
         target_language = translation.target_language
         transcript = translation.transcript
-
+        message = None
         # Check if the transcript has a user
         if task.user != request.user:
             return Response(
@@ -538,7 +613,9 @@ def save_translation(request):
                         )
                         task.status = "COMPLETE"
                         task.save()
-                        change_active_status_of_next_tasks(task, translation_obj)
+                        message = change_active_status_of_next_tasks(
+                            task, translation_obj
+                        )
                 else:
                     translation_obj = (
                         Translation.objects.filter(status=TRANSLATION_EDIT_INPROGRESS)
@@ -602,6 +679,7 @@ def save_translation(request):
                         status=ts_status,
                         task=task,
                     )
+                    message = change_active_status_of_next_tasks(task, translation_obj)
                     task.status = "COMPLETE"
                     task.save()
                 else:
@@ -635,12 +713,16 @@ def save_translation(request):
                         task.status = "INPROGRESS"
                         task.save()
             if request.data.get("final"):
+                if message is not None:
+                    full_message = "Translation updated successfully. " + message
+                else:
+                    full_message = "Translation updated successfully."
                 return Response(
                     {
-                        "message": "Translation updated successfully.",
+                        "message": full_message,
                         "task_id": task.id,
                         "translation_id": translation_obj.id,
-                        "data": translation_obj.payload,
+                        # "data": translation_obj.payload,
                     },
                     status=status.HTTP_200_OK,
                 )
@@ -649,7 +731,8 @@ def save_translation(request):
                     {
                         "task_id": task.id,
                         "translation_id": translation_obj.id,
-                        "data": translation_obj.payload,
+                        # "data": translation_obj.payload,
+                        "message": "Saved as draft.",
                     },
                     status=status.HTTP_200_OK,
                 )
@@ -835,7 +918,11 @@ def get_translation_types(request):
 def get_translation_report(request):
     translations = Translation.objects.filter(
         status="TRANSLATION_EDIT_COMPLETE"
-    ).values("video__project_id__organization_id__title", src_language=F("video__language"), tgt_language=F("target_language"))
+    ).values(
+        "video__project_id__organization_id__title",
+        src_language=F("video__language"),
+        tgt_language=F("target_language"),
+    )
     translation_statistics = (
         translations.annotate(transcripts_translated=Count("id"))
         .annotate(translation_duration=Sum(F("video__duration")))
@@ -844,7 +931,7 @@ def get_translation_report(request):
     translation_data = []
     for elem in translation_statistics:
         translation_dict = {
-            "org":elem['video__project_id__organization_id__title'],
+            "org": elem["video__project_id__organization_id__title"],
             "src_language": {
                 "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
                 "label": "Src Language",
@@ -864,12 +951,12 @@ def get_translation_report(request):
         }
         translation_data.append(translation_dict)
 
-    translation_data.sort(key=itemgetter('org'))
+    translation_data.sort(key=itemgetter("org"))
     res = []
-    for org, items in groupby(translation_data, key=itemgetter('org')):
+    for org, items in groupby(translation_data, key=itemgetter("org")):
         lang_data = []
         for i in items:
-            del i['org']
+            del i["org"]
             lang_data.append(i)
         temp_data = {"org": org, "data": lang_data}
         res.append(temp_data)

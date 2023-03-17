@@ -26,7 +26,7 @@ load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "transcript",
     "translation",
     "users",
+    "voiceover",
 ]
 
 MIDDLEWARE = [
@@ -217,6 +218,7 @@ LOGLEVEL = "INFO"
 
 # Make a new directory for logs
 Path(BASE_DIR / "logs").mkdir(exist_ok=True)
+Path(BASE_DIR / "temporary_video_audio_storage").mkdir(exist_ok=True)
 
 # Define the list of formatters
 formatters = {
@@ -286,4 +288,3 @@ LOGGING = {
 
 # Celery settings
 CELERY_BROKER_URL = "redis://localhost:6379"
-CELERY_RESULT_BACKEND = "redis://localhost:6379"

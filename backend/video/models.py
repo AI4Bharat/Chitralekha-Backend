@@ -4,6 +4,11 @@ from project.models import Project
 from translation.metadata import LANGUAGE_CHOICES
 from django.contrib.postgres.fields import ArrayField
 
+MALE = "MALE"
+FEMALE = "FEMALE"
+
+GENDER = ((MALE, "Male"), (FEMALE, "Female"))
+
 VIDEO_STATUS = (
     ("NEW", "NEW"),
     ("TRANSCRIPTION_EDIT", "Transcription Edit"),
@@ -27,7 +32,7 @@ class Video(models.Model):
         primary_key=False,
     )
     name = models.CharField(max_length=255, verbose_name="Video Name")
-    url = models.URLField(unique=True, verbose_name="Video URL", db_index=True)
+    url = models.URLField(verbose_name="Video URL", db_index=True)
     project_id = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
@@ -46,6 +51,14 @@ class Video(models.Model):
         default=False,
         help_text="Does this object only contain audio?",
     )
+    gender = models.CharField(
+        choices=GENDER,
+        max_length=10,
+        default=MALE,
+        null=True,
+        blank=True,
+        verbose_name="Gender",
+    )
 
     def __str__(self):
         return str(self.video_uuid) + " : " + self.name
@@ -55,3 +68,9 @@ class Video(models.Model):
         for language in LANGUAGE_CHOICES:
             if self.language == language[0]:
                 return language[1]
+
+    @property
+    def get_gender_label(self):
+        for gender_list_obj in GENDER:
+            if self.gender == gender_list_obj[0]:
+                return gender_list_obj[1]
