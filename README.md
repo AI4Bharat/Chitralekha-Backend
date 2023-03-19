@@ -1,32 +1,15 @@
 # Chitralekha Backend
 Transcribe your videos and translate it into Indic languages.
 
-This repository contains the [Chitralekha](https://github.com/AI4Bharat/Chitralekha) Backend codebase. The backend is built using Django and Django Rest Framework.
+This repository contains the [Chitralekha](https://github.com/AI4Bharat/Chitralekha) Backend codebase. The backend is built using Django Rest Framework.
 
 You can watch a demo of our tool - [Video](https://youtu.be/l9jUcja0E94)
 
 ## Pre-requisites
 
-The project was created using [Python 3.7](https://www.python.org/downloads/). All major dependencies are listed below; the rest are in the `backend/deploy/requirements.txt` file.
-
-- django
-- djangorestframework
-- django-cors-headers
-- knox
-- drf-yasg
-- psycopg2
-- python-dotenv
-- webvtt-py
-
-<!-- ## Installation
-
-The installation and setup instructions have been tested on the following platforms:
-
-- Docker
-- Docker-Compose
-- Ubuntu 20.04
-
-If you are using a different operating system, you will have to look at external resources (eg. StackOverflow) to correct any errors. -->
+- Recommended [Python: 3.7+](https://www.python.org/downloads/).
+- `cd backend`
+- Installing dependencies: `pip install deploy/requirements.txt`
 
 ### Create a Virtual Environment
 

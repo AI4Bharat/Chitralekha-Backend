@@ -1,0 +1,14 @@
+version: "3"
+
+services:
+  backend:
+    container_name: backend
+    build:
+      context: ./backend
+    stdin_open: true
+    tty: true
+    env_file:
+      - backend/.env
+    ports:
+      - "8000:8000"
+    # command: uvicorn main:app --workers $BACKEND_WORKERS --port $BACKEND_PORT --host 0.0.0.0
