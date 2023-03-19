@@ -287,4 +287,4 @@ LOGGING = {
 }
 
 # Celery settings
-CELERY_BROKER_URL = "redis://localhost:6379"
+CELERY_BROKER_URL = os.getenv("DEBUG", "redis://localhost:6379")
