@@ -12,6 +12,12 @@ storage_account_key = os.getenv("AZURE_STORAGE_ACCOUNT_KEY")
 connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 container_name = os.getenv("AZURE_STORAGE_CONTAINER_NAME")
 
+flower_url = os.getenv("FLOWER_URL", "http://localhost:5555")
+flower_auth = os.getenv("FLOWER_BASIC_AUTH", None)
+flower_username, flower_password = None, None
+if flower_auth:
+    flower_username, flower_password = flower_auth.split(':')
+
 ## CONSTANTS ##
 
 backend_default_translation_type = "MACHINE_GENERATED"

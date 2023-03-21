@@ -2294,13 +2294,16 @@ class TaskViewSet(ModelViewSet):
     def inspect_asr_queue(self, request):
         try:
             task_list = []
-            url = "http://localhost:5555/api/tasks"
+            url = f"{flower_url}/api/tasks"
             params = {
                 "state": "STARTED",
                 "sort_by": "received",
                 "name": "task.tasks.celery_asr_call",
             }
-            res = requests.get(url, params=params)
+            if flower_username and flower_password:
+                res = requests.get(url, params=params, auth=(flower_username, flower_password))
+            else:
+                res = requests.get(url, params=params)
             data = res.json()
             task_data = list(data.values())
             for elem in task_data:

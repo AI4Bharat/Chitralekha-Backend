@@ -6,6 +6,8 @@ services:
     image: server_image
     build:
       context: ./backend
+    volumes: 
+      - ./backend/logs:/home/backend/logs
     env_file:
       - backend/.env
     ports:
@@ -15,9 +17,11 @@ services:
   
   redis:
     image: redis:latest
-    container_name: redis_cache
-    ports:
-      - "6379:6379"
+    container_name: redis
+    expose:
+      - 6379
+    # ports:
+    #   - "6379:6379"
     volumes: 
       - redis:/data
     command: redis-server --save 20 1 --loglevel warning
@@ -34,7 +38,7 @@ services:
         condition: service_started
       backend:
         condition: service_started
-    command: python3 -m celery -A backend worker -Q default --concurrency=1 -l DEBUG
+    command: python3 -m celery -A backend worker -Q default -n default_worker@%h --concurrency=1 -l DEBUG
     restart: unless-stopped
 
   celery_tasks:
@@ -48,7 +52,7 @@ services:
         condition: service_started
       backend:
         condition: service_started
-    command: python3 -m celery -A backend worker -Q task --concurrency=1 -l DEBUG
+    command: python3 -m celery -A backend worker -Q task -n task_worker@%h --concurrency=1 -l DEBUG
     restart: unless-stopped
   
   celery_voiceover:
@@ -62,7 +66,7 @@ services:
         condition: service_started
       backend:
         condition: service_started
-    command: python3 -m celery -A backend worker -Q voiceover --concurrency=1 -l DEBUG
+    command: python3 -m celery -A backend worker -Q voiceover -n voiceover_worker@%h --concurrency=1 -l DEBUG
     restart: unless-stopped
   
   flower:
@@ -79,6 +83,12 @@ services:
       redis:
         condition: service_started
       backend:
+        condition: service_started
+      celery_default:
+        condition: service_started
+      celery_tasks:
+        condition: service_started
+      celery_voiceover:
         condition: service_started
     command: python3 -m celery -A backend flower --loglevel=info
     restart: unless-stopped
