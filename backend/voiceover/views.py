@@ -137,11 +137,18 @@ def get_payload(request):
     completed_count = 0
     if voice_over.translation:
         payload_offset_size = voice_over_payload_offset_size - 1
-        count_cards = (
-            len(voice_over.translation.payload["payload"])
-            - voice_over_payload_offset_size
-            + 1
-        )
+        if voice_over.voice_over_type == "MACHINE_GENERATED":
+            count_cards = (
+                len(list(voice_over.payload["payload"].keys()))
+                - voice_over_payload_offset_size
+                + 1
+            )
+        else:
+            count_cards = (
+                len(voice_over.translation.payload["payload"])
+                - voice_over_payload_offset_size
+                + 1
+            )
         first_offset = voice_over_payload_offset_size // 2 + 1
         start_offset = (
             first_offset + current_offset - 1 * payload_offset_size // 2
@@ -476,11 +483,18 @@ def save_voice_over(request):
                 )
 
             payload_offset_size = voice_over_payload_offset_size - 1
-            count_cards = (
-                len(voice_over.translation.payload["payload"])
-                - voice_over_payload_offset_size
-                + 1
-            )
+            if voice_over.voice_over_type == "MACHINE_GENERATED":
+                count_cards = (
+                    len(list(voice_over.payload["payload"].keys()))
+                    - voice_over_payload_offset_size
+                    + 1
+                )
+            else:
+                count_cards = (
+                    len(voice_over.translation.payload["payload"])
+                    - voice_over_payload_offset_size
+                    + 1
+                )
             first_offset = voice_over_payload_offset_size // 2 + 1
             current_offset = offset - 1
             start_offset = (
@@ -1028,13 +1042,26 @@ def export_voiceover(request):
 def get_voice_over_task_counts(request):
     response = []
     tasks_in_post_process = Task.objects.filter(status="POST_PROCESS").all()
+    all_voice_over_tasks = Task.objects.filter(task_type="VOICEOVER_EDIT").all()
     if len(list(tasks_in_post_process)) > 0:
         for task in tasks_in_post_process:
+            response.append(
+                {
+                    "stage": "post process",
+                    "task_id": task.id,
+                    "video_id": task.video.id,
+                    "video": task.video.name,
+                }
+            )
+    if len(list(all_voice_over_tasks)) > 0:
+        for task in all_voice_over_tasks:
             response.append(
                 {
                     "task_id": task.id,
                     "video_id": task.video.id,
                     "video": task.video.name,
+                    "status": task.status,
+                    "active": task.is_active,
                 }
             )
     return Response(

@@ -12,7 +12,6 @@ from config import (
 )
 from pydub import AudioSegment
 from datetime import datetime, date, timedelta
-from scipy.io.wavfile import write, read
 import os
 import wave
 import base64
@@ -24,13 +23,11 @@ from yt_dlp.utils import DownloadError
 from yt_dlp.extractor import get_info_extractor
 from django.http import HttpRequest
 from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_audioclips
-from scipy.io import wavfile
 from mutagen.wave import WAVE
 import numpy
 import sys
 from mutagen.mp3 import MP3
 import numpy as np
-import soundfile as sf
 from pympler.asizeof import asizeof
 from rest_framework import status
 import math
