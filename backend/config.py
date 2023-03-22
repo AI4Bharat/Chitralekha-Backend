@@ -1,6 +1,6 @@
 backend_default_translation_type = "MACHINE_GENERATED"
 backend_default_transcript_type = "MACHINE_GENERATED"
-backend_default_voice_over_type = "MANUALLY_CREATED"
+backend_default_voice_over_type = "MACHINE_GENERATED"
 voice_over_payload_offset_size = 3
 
 allowed_roles = {
