@@ -388,7 +388,7 @@ def change_active_status_of_next_tasks(task, translation_obj):
             or task.video.project_id.organization_id.default_voiceover_type
         )
         if source_type is None:
-            source_type = backend_default_voice_over_type
+            source_type = config.backend_default_voice_over_type
         if voice_over_task is not None:
             tts_payload = process_translation_payload(
                 translation_obj, voice_over_task.target_language
