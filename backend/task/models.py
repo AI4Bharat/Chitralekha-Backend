@@ -6,6 +6,7 @@ from django.conf import settings
 import datetime
 from django.utils import timezone
 from users.models import User
+from organization.models import TRANSCRIPT_TYPE, TRANSLATION_TYPE_CHOICES
 
 TRANSCRIPTION_EDIT = "TRANSCRIPTION_EDIT"
 TRANSCRIPTION_REVIEW = "TRANSCRIPTION_REVIEW"
@@ -146,6 +147,39 @@ class Task(models.Model):
             if self.status == status[0]:
                 return status[1]
         return "-"
+
+    @property
+    def get_source_type(self):
+        source_mapping = {
+            "TRANSCRIPTION_EDIT": "self.transcript_tasks.values('transcript_type').first()",
+            "TRANSCRIPTION_REVIEW": "self.transcript_tasks.values('transcript_type').first()",
+            "TRANSLATION_EDIT": "self.translation_tasks.values('translation_type').first()",
+            "TRANSLATION_REVIEW": "self.translation_tasks.values('translation_type').first()",
+            "VOICEOVER_EDIT": "self.voice_over_tasks.values('voice_over_type').first()",
+            "VOICEOVER_REVIEW": "self.voice_over_tasks.values('voice_over_type').first()",
+        }
+
+        fields_mapping = {
+            "TRANSCRIPTION_EDIT": "transcript_type",
+            "TRANSCRIPTION_REVIEW": "transcript_type",
+            "TRANSLATION_EDIT": "translation_type",
+            "TRANSLATION_REVIEW": "translation_type",
+            "VOICEOVER_EDIT": "voice_over_type",
+            "VOICEOVER_REVIEW": "voice_over_type",
+        }
+
+        source_type = None
+
+        if self.task_type in source_mapping.keys():
+            source_type_var = eval(source_mapping[self.task_type])
+            if source_type_var is not None:
+                source_type = source_type_var[fields_mapping[self.task_type]]
+
+        if source_type:
+            for TRANSCRIPT_TYPE_OBJ in TRANSCRIPT_TYPE:
+                if source_type == TRANSCRIPT_TYPE_OBJ[0]:
+                    return TRANSCRIPT_TYPE_OBJ[1]
+            return "-"
 
     def __str__(self):
         return str(self.id)
