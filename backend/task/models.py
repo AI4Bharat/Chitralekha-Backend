@@ -180,6 +180,8 @@ class Task(models.Model):
                 if source_type == TRANSCRIPT_TYPE_OBJ[0]:
                     return TRANSCRIPT_TYPE_OBJ[1]
             return "-"
+        else:
+            return "-"
 
     def __str__(self):
         return str(self.id)
