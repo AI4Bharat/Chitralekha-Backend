@@ -56,6 +56,7 @@ from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
 from django.db.models.functions import Cast
 from operator import itemgetter
 from itertools import groupby
+from django.core.cache import cache
 
 
 @api_view(["GET"])
@@ -401,6 +402,20 @@ def get_transcript_id(task):
             type=openapi.TYPE_INTEGER,
             required=True,
         ),
+        openapi.Parameter(
+            "offset",
+            openapi.IN_QUERY,
+            description=("An integer to pass the offset"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+        openapi.Parameter(
+            "limit",
+            openapi.IN_QUERY,
+            description=("An integer to pass the limit"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
     ],
     responses={200: "Returns the initial transcription after source is selected."},
 )
@@ -433,15 +448,49 @@ def get_payload(request):
 
     # Retrieve the transcript object
     try:
-        transcript = Transcript.objects.get(pk=transcript_id)
+        cache_key = f"transcript_cache_{transcript_id}"
+        # Check if the results are already cached
+        transcript = cache.get(cache_key)
+        if not transcript:
+            # If not cached, fetch the data from the database and cache the result
+            transcript = Transcript.objects.get(pk=transcript_id)
+            cache.set(cache_key, transcript, timeout=60 * 5)  # 5 minutes cache timeout
+
     except Transcript.DoesNotExist:
         return Response(
             {"message": "Transcript doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    # pagination
+    page = request.query_params["offset"]
+    limit = request.query_params["limit"]
+
+    start = (int(page) - 1) * int(limit)
+    end = start + int(limit)
+    page_records = transcript.payload["payload"][start:end]
+    records = transcript.payload["payload"]
+
+    total_pages = len(records) // int(limit) + 1
+    next_page = int(page) + 1
+    pre_page = int(page) - 1
+
+    if next_page > total_pages:
+        next_page = None
+
+    if (pre_page <= 0) | (int(page) > total_pages):
+        pre_page = None
+
+    response = {
+        "payload": [record_object for record_object in page_records],
+        "count": len(records),
+        "current": int(page),
+        "previous": pre_page,
+        "next": next_page,
+    }
+
     return Response(
-        {"payload": transcript.payload, "source_type": transcript.transcript_type},
+        {"payload": response, "source_type": transcript.transcript_type},
         status=status.HTTP_200_OK,
     )
 
