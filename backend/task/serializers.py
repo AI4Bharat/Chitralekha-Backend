@@ -24,6 +24,7 @@ class TaskSerializer(serializers.ModelSerializer):
     project = serializers.CharField(source="video.project_id.id", read_only=True)
     project_name = serializers.CharField(source="video.project_id", read_only=True)
     src_language_label = serializers.CharField(source="get_src_language_label")
+    source_type = serializers.CharField(source="get_source_type")
     target_language_label = serializers.CharField(source="get_target_language_label")
     task_type_label = serializers.CharField(source="get_task_type_label")
     status_label = serializers.CharField(source="get_task_status_label")
@@ -46,6 +47,7 @@ class TaskSerializer(serializers.ModelSerializer):
             "project_name",
             "target_language",
             "target_language_label",
+            "source_type",
             "status",
             "status_label",
             "user",

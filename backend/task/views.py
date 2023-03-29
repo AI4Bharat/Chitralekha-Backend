@@ -1140,7 +1140,7 @@ class TaskViewSet(ModelViewSet):
                                 "task_type": self.get_task_type_label(task.task_type),
                                 "language_pair": task.get_language_pair_label,
                                 "status": "Successful",
-                                "message": "Task created successfully.",
+                                "message": "Task is successfully created.",
                             }
                         )
                         continue
@@ -1174,7 +1174,7 @@ class TaskViewSet(ModelViewSet):
                             "task_type": self.get_task_type_label(task.task_type),
                             "language_pair": task.get_language_pair_label,
                             "status": "Successful",
-                            "message": "Task created successfully.",
+                            "message": "Task is successfully created.",
                         }
                     )
                     transcript_obj = Transcript(
