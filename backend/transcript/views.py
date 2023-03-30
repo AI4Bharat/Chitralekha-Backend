@@ -56,6 +56,7 @@ from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
 from django.db.models.functions import Cast
 from operator import itemgetter
 from itertools import groupby
+from django.core.cache import cache
 
 
 @api_view(["GET"])
@@ -401,6 +402,20 @@ def get_transcript_id(task):
             type=openapi.TYPE_INTEGER,
             required=True,
         ),
+        openapi.Parameter(
+            "offset",
+            openapi.IN_QUERY,
+            description=("An integer to pass the offset"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+        openapi.Parameter(
+            "limit",
+            openapi.IN_QUERY,
+            description=("An integer to pass the limit"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
     ],
     responses={200: "Returns the initial transcription after source is selected."},
 )
@@ -408,9 +423,11 @@ def get_transcript_id(task):
 def get_payload(request):
     try:
         task_id = request.query_params["task_id"]
+        page = request.query_params["offset"]
+        limit = request.query_params["limit"]
     except KeyError:
         return Response(
-            {"message": "Missing required parameters - task_id"},
+            {"message": "Missing required parameters - task_id or offset or limit"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -433,15 +450,49 @@ def get_payload(request):
 
     # Retrieve the transcript object
     try:
-        transcript = Transcript.objects.get(pk=transcript_id)
+        cache_key = f"transcript_cache_{transcript_id}"
+        # Check if the results are already cached
+        transcript = cache.get(cache_key)
+        if not transcript:
+            # If not cached, fetch the data from the database and cache the result
+            transcript = Transcript.objects.get(pk=transcript_id)
+            cache.set(cache_key, transcript, timeout=60 * 5)  # 5 minutes cache timeout
+
     except Transcript.DoesNotExist:
         return Response(
             {"message": "Transcript doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    start = (int(page) - 1) * int(limit)
+    end = start + int(limit)
+    page_records = transcript.payload["payload"][start:end]
+    records = transcript.payload["payload"]
+
+    total_pages = len(records) // int(limit) + 1
+    next_page = int(page) + 1
+    pre_page = int(page) - 1
+
+    if next_page > total_pages:
+        next_page = None
+
+    if (pre_page <= 0) | (int(page) > total_pages):
+        pre_page = None
+
+    if "id" not in page_records[0].keys():
+        for i in range(len(page_records)):
+            page_records[i]["id"] = start + i
+
+    response = {
+        "payload": [record_object for record_object in page_records],
+        "count": len(records),
+        "current": int(page),
+        "previous": pre_page,
+        "next": next_page,
+    }
+
     return Response(
-        {"payload": transcript.payload, "source_type": transcript.transcript_type},
+        {"payload": response, "source_type": transcript.transcript_type},
         status=status.HTTP_200_OK,
     )
 
@@ -492,6 +543,55 @@ def change_active_status_of_next_tasks(task, transcript_obj):
         print("No change in status")
 
 
+def modify_payload(limit, payload, start_offset, transcript):
+    if len(payload["payload"]) == limit:
+        for i in range(len(payload["payload"])):
+            if "text" in payload["payload"][i].keys():
+                transcript.payload["payload"][start_offset + i] = {
+                    "id": payload["payload"][i]["id"],
+                    "start_time": payload["payload"][i]["start_time"],
+                    "end_time": payload["payload"][i]["end_time"],
+                    "text": payload["payload"][i]["text"],
+                    "unix_end_time": payload["payload"][i]["unix_end_time"],
+                    "unix_start_time": payload["payload"][i]["unix_start_time"],
+                }
+            else:
+                transcript.payload["payload"][start_offset + i] = {}
+    elif len(payload["payload"]) < limit:
+        return Response(
+            {"message": "Invalid Trascript."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    else:
+        for i in range(limit):
+            if "text" in payload["payload"][i].keys():
+                transcript.payload["payload"][start_offset + i] = {
+                    "id": payload["payload"][i]["id"],
+                    "start_time": payload["payload"][i]["start_time"],
+                    "end_time": payload["payload"][i]["end_time"],
+                    "text": payload["payload"][i]["text"],
+                    "unix_end_time": payload["payload"][i]["unix_end_time"],
+                    "unix_start_time": payload["payload"][i]["unix_start_time"],
+                }
+            else:
+                transcript.payload["payload"][start_offset + i] = {}
+        for i in range(len(payload["payload"]) - limit):
+            if "text" in payload["payload"][i].keys():
+                transcript.payload["payload"].insert(
+                    start_offset + i + limit,
+                    {
+                        "id": payload["payload"][limit + i]["id"],
+                        "start_time": payload["payload"][limit + i]["start_time"],
+                        "end_time": payload["payload"][limit + i]["end_time"],
+                        "text": payload["payload"][limit + i]["text"],
+                        "unix_end_time": payload["payload"][i]["unix_end_time"],
+                        "unix_start_time": payload["payload"][i]["unix_start_time"],
+                    },
+                )
+            else:
+                transcript.payload["payload"][start_offset + i] = {}
+
+
 @swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
@@ -533,9 +633,13 @@ def save_transcription(request):
         transcript_id = request.data.get("transcript_id", None)
         task_id = request.data["task_id"]
         payload = request.data["payload"]
+        offset = request.data["offset"]
+        limit = request.data["limit"]
     except KeyError:
         return Response(
-            {"message": "Missing required parameters - payload or task_id"},
+            {
+                "message": "Missing required parameters - payload or task_id or offset or limit"
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -563,6 +667,8 @@ def save_transcription(request):
     else:
         transcript_id = transcript.id
 
+    start_offset = (int(offset) - 1) * int(limit)
+    end_offset = start_offset + int(limit)
     # Retrieve the transcript object
     try:
         transcript = Transcript.objects.get(pk=transcript_id)
@@ -601,11 +707,13 @@ def save_transcription(request):
                         parent_transcript=transcript,
                         video=transcript.video,
                         language=transcript.language,
-                        payload=payload,
+                        payload=transcript.payload,
                         user=request.user,
                         task=task,
                         status=tc_status,
                     )
+                    modify_payload(limit, payload, start_offset, transcript_obj)
+                    transcript_obj.save()
                     task.status = "COMPLETE"
                     task.save()
                     change_active_status_of_next_tasks(task, transcript_obj)
@@ -615,9 +723,16 @@ def save_transcription(request):
                         .filter(video=task.video)
                         .first()
                     )
+
                     tc_status = TRANSCRIPTION_EDIT_INPROGRESS
+                    if type(payload) != dict or "payload" not in payload.keys():
+                        return Response(
+                            {"message": "Invalid Trascript."},
+                            status=status.HTTP_404_NOT_FOUND,
+                        )
                     if transcript_obj is not None:
-                        transcript_obj.payload = payload
+                        modify_payload(limit, payload, start_offset, transcript_obj)
+                        # transcript_obj.payload = payload
                         transcript_obj.transcript_type = transcript_obj.transcript_type
                         transcript_obj.save()
                     else:
@@ -633,16 +748,19 @@ def save_transcription(request):
                                 {"message": "Transcript object does not exist."},
                                 status=status.HTTP_404_NOT_FOUND,
                             )
+
                         transcript_obj = Transcript.objects.create(
                             transcript_type=transcript_obj.transcript_type,
                             parent_transcript=transcript_obj,
                             video=task.video,
                             language=transcript_obj.language,
-                            payload=payload,
+                            payload=transcript_obj.payload,
                             user=request.user,
                             task=task,
                             status=tc_status,
                         )
+                        modify_payload(limit, payload, start_offset, transcript_obj)
+                        transcript_obj.save()
                         task.status = "INPROGRESS"
                         task.save()
             else:
@@ -663,11 +781,13 @@ def save_transcription(request):
                             parent_transcript=transcript,
                             video=transcript.video,
                             language=transcript.language,
-                            payload=payload,
+                            payload=transcript.payload,
                             user=request.user,
                             task=task,
                             status=tc_status,
                         )
+                        modify_payload(limit, payload, start_offset, transcript_obj)
+                        transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
                         change_active_status_of_next_tasks(task, transcript_obj)
@@ -682,7 +802,8 @@ def save_transcription(request):
                         .first()
                     )
                     if transcript_obj is not None:
-                        transcript_obj.payload = payload
+                        modify_payload(limit, payload, start_offset, transcript_obj)
+                        # transcript_obj.payload = payload
                         transcript_obj.transcript_type = transcript_type
                         transcript_obj.save()
                     else:
@@ -691,11 +812,13 @@ def save_transcription(request):
                             parent_transcript=transcript,
                             video=transcript.video,
                             language=transcript.language,
-                            payload=payload,
+                            payload=transcript.payload,
                             user=request.user,
                             task=task,
                             status=tc_status,
                         )
+                        modify_payload(limit, payload, start_offset, transcript_obj)
+                        transcript_obj.save()
                         task.status = "INPROGRESS"
                         task.save()
 
