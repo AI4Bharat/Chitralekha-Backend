@@ -483,18 +483,19 @@ def get_payload(request):
         for i in range(len(page_records)):
             page_records[i]["id"] = start + i
 
-    response = {
-        "payload": [record_object for record_object in page_records],
-        "count": len(records),
-        "current_count": len(page_records),
-        "total_pages": total_pages,
-        "current": int(page),
-        "previous": pre_page,
-        "next": next_page,
-    }
+    response = {"payload": [record_object for record_object in page_records]}
 
     return Response(
-        {"payload": response, "source_type": transcript.transcript_type},
+        {
+            "payload": response,
+            "source_type": transcript.transcript_type,
+            "count": len(records),
+            "current_count": len(page_records),
+            "total_pages": total_pages,
+            "current": int(page),
+            "previous": pre_page,
+            "next": next_page,
+        },
         status=status.HTTP_200_OK,
     )
 
