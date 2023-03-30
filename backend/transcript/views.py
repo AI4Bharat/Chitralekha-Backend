@@ -486,6 +486,8 @@ def get_payload(request):
     response = {
         "payload": [record_object for record_object in page_records],
         "count": len(records),
+        "current_count": len(page_records),
+        "total_pages": total_pages,
         "current": int(page),
         "previous": pre_page,
         "next": next_page,
