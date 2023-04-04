@@ -48,4 +48,14 @@ urlpatterns = [
         views.get_transcription_report,
         name="get_transcription_report",
     ),
+    path(
+        "get_full_payload/",
+        views.get_full_payload,
+        name="get_full_payload",
+    ),
+    path(
+        "get_sentence_from_timeline/",
+        views.get_sentence_from_timeline,
+        name="get_sentence_from_timeline",
+    ),
 ]
