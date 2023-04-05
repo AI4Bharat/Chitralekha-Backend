@@ -520,6 +520,11 @@ def get_full_payload(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    count = 0
+    for sentence in translation.payload["payload"]:
+        sentence["id"] = count
+        count = count + 1
+
     return Response(
         {"payload": translation.payload, "source_type": translation.translation_type},
         status=status.HTTP_200_OK,
