@@ -651,6 +651,11 @@ def get_full_payload(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    count = 0
+    for sentence in transcript.payload["payload"]:
+        sentence["id"] = count
+        count = count + 1
+
     return Response(
         {"payload": transcript.payload, "source_type": transcript.transcript_type},
         status=status.HTTP_200_OK,
