@@ -12,7 +12,7 @@ allowed_roles = {
     "VOICEOVER_REVIEW": ["VOICEOVER_REVIEWER", "UNIVERSAL_EDITOR"],
 }
 
-english_asr_url = "http://216.48.183.5:7001/transcribe"
+english_asr_url = "http://216.48.182.174:5000/transcribe"
 asr_url = "http://216.48.182.174:5000/transcribe"
 tts_url = "https://tts-api.ai4bharat.org/"
 

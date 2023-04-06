@@ -487,7 +487,11 @@ def get_payload(request):
         for i in range(len(page_records)):
             page_records[i]["id"] = start + i
 
-    response = {"payload": [record_object for record_object in page_records]}
+    response = {
+        "payload": [
+            record_object for record_object in page_records if "text" in record_object
+        ]
+    }
 
     return Response(
         {
@@ -774,7 +778,6 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                     else:
                         transcript.payload["payload"][start_offset + i] = {}
         else:
-            logging.info("Limit is greater than length of payload")
             for i in range(length):
                 if "text" in payload["payload"][i].keys():
                     transcript.payload["payload"][start_offset + i] = {
@@ -784,7 +787,14 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                     }
                 else:
                     transcript.payload["payload"][start_offset + i] = {}
+            delete_indices = []
+            for i in range(limit - length):
+                delete_indices.append(start_offset + i + length)
+
+            for ind in delete_indices:
+                transcript.payload["payload"][ind] = {}
     else:
+        logging.info("Limit is greater than length of payload")
         print("length of payload", len(payload["payload"]))
         print("end_offset", end_offset)
         print("count sentences", count_sentences)
