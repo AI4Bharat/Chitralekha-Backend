@@ -791,6 +791,12 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                     }
                 else:
                     translation.payload["payload"][start_offset + i] = {}
+            delete_indices = []
+            for i in range(limit - length):
+                delete_indices.append(start_offset + i + length)
+
+            for ind in delete_indices:
+                translation.payload["payload"][ind] = {}
     else:
         if end_offset > count_sentences:
             length = count_sentences - start_offset
@@ -1100,6 +1106,16 @@ def save_translation(request):
                     full_message = "Translation updated successfully. " + message
                 else:
                     full_message = "Translation updated successfully."
+
+                delete_indices = []
+                for index, sentence in enumerate(translation_obj.payload["payload"]):
+                    if "text" not in sentence.keys():
+                        delete_indices.append(index)
+
+                delete_indices.reverse()
+                for ind in delete_indices:
+                    translation_obj.payload["payload"].pop(ind)
+
                 return Response(
                     {
                         "message": full_message,
