@@ -1056,6 +1056,8 @@ def save_full_transcription(request):
                         task.status = "INPROGRESS"
                         task.save()
 
+            transcription_cache_key = f"transcript_cache_{transcript_obj.id}"
+            cache.delete(transcription_cache_key)
             if request.data.get("final"):
                 return Response(
                     {
