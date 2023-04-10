@@ -1142,6 +1142,251 @@ def save_translation(request):
         )
 
 
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_id", "payload"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the translation instance",
+            ),
+            "payload": openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                description="A string to pass the translated subtitles and metadata",
+            ),
+            "final": openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description="A boolean to complete the task",
+            ),
+        },
+        description="Post request body",
+    ),
+    responses={
+        200: "Translation has been created/updated successfully",
+        400: "Bad request",
+        404: "No translation found for the given transcript_id and target_language",
+    },
+)
+@api_view(["POST"])
+def save_full_translation(request):
+
+    try:
+        # Get the required data from the POST body
+        translation_id = request.data.get("translation_id", None)
+        payload = request.data["payload"]
+        task_id = request.data["task_id"]
+    except KeyError:
+        return Response(
+            {
+                "message": "Missing required parameters - language or payload or task_id or translation_id"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    user = request.user
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not active yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    translation = get_translation_id(task)
+    if translation is not None:
+        translation_id = translation.id
+    else:
+        return Response(
+            {"message": "Translation doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        translation = Translation.objects.get(pk=translation_id)
+        target_language = translation.target_language
+        transcript = translation.transcript
+        message = None
+        # Check if the transcript has a user
+        if task.user != request.user:
+            return Response(
+                {"message": "You are not allowed to update this translation."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        else:
+            if translation.status == TRANSLATION_REVIEW_COMPLETE:
+                return Response(
+                    {
+                        "message": "Translation can't be edited, as the final translation already exists"
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
+
+            if "EDIT" in task.task_type:
+                if request.data.get("final"):
+                    if (
+                        Translation.objects.filter(status=TRANSLATION_EDIT_COMPLETE)
+                        .filter(target_language=target_language)
+                        .filter(transcript=transcript)
+                        .first()
+                        is not None
+                    ):
+                        return Response(
+                            {"message": "Edit Translation already exists."},
+                            status=status.HTTP_201_CREATED,
+                        )
+                    else:
+                        ts_status = TRANSLATION_EDIT_COMPLETE
+                        translation_type = translation.translation_type
+                        translation_obj = Translation.objects.create(
+                            translation_type=translation_type,
+                            parent=translation,
+                            transcript=translation.transcript,
+                            video=translation.video,
+                            target_language=translation.target_language,
+                            user=user,
+                            payload=payload,
+                            status=ts_status,
+                            task=task,
+                        )
+                        task.status = "COMPLETE"
+                        task.save()
+                        message = change_active_status_of_next_tasks(
+                            task, translation_obj
+                        )
+                else:
+                    translation_obj = (
+                        Translation.objects.filter(status=TRANSLATION_EDIT_INPROGRESS)
+                        .filter(target_language=target_language)
+                        .filter(transcript=transcript)
+                        .first()
+                    )
+                    ts_status = TRANSLATION_EDIT_INPROGRESS
+                    translation_type = translation.translation_type
+                    if translation_obj is not None:
+                        translation_obj.payload = payload
+                        translation_obj.translation_type = translation_type
+                        translation_obj.save()
+                    else:
+                        translation_obj = (
+                            Translation.objects.filter(status=TRANSLATION_SELECT_SOURCE)
+                            .filter(target_language=target_language)
+                            .filter(transcript=transcript)
+                            .first()
+                        )
+                        if translation_obj is None:
+                            return Response(
+                                {"message": "Translation object does not exist."},
+                                status=status.HTTP_404_NOT_FOUND,
+                            )
+                        translation_obj = Translation.objects.create(
+                            translation_type=translation_type,
+                            parent=translation_obj,
+                            transcript=translation_obj.transcript,
+                            video=translation_obj.video,
+                            target_language=translation_obj.target_language,
+                            user=user,
+                            payload=payload,
+                            status=ts_status,
+                            task=task,
+                        )
+                        task.status = "INPROGRESS"
+                        task.save()
+            else:
+                if request.data.get("final"):
+                    if (
+                        Translation.objects.filter(status=TRANSLATION_REVIEW_COMPLETE)
+                        .filter(target_language=target_language)
+                        .filter(transcript=transcript)
+                        .first()
+                        is not None
+                    ):
+                        return Response(
+                            {"message": "Reviewed Translation already exists."},
+                            status=status.HTTP_201_CREATED,
+                        )
+                    ts_status = TRANSLATION_REVIEW_COMPLETE
+                    translation_obj = Translation.objects.create(
+                        translation_type=translation.translation_type,
+                        parent=translation,
+                        transcript=translation.transcript,
+                        video=translation.video,
+                        target_language=translation.target_language,
+                        user=user,
+                        payload=payload,
+                        status=ts_status,
+                        task=task,
+                    )
+                    message = change_active_status_of_next_tasks(task, translation_obj)
+                    task.status = "COMPLETE"
+                    task.save()
+                else:
+                    translation_obj = (
+                        Translation.objects.filter(status=TRANSLATION_REVIEW_INPROGRESS)
+                        .filter(target_language=target_language)
+                        .filter(transcript=transcript)
+                        .first()
+                    )
+                    ts_status = TRANSLATION_REVIEW_INPROGRESS
+                    translation_type = translation.translation_type
+                    if translation_obj is not None:
+                        translation_obj.payload = payload
+                        translation_obj.translation_type = translation_type
+                        translation_obj.save()
+                        task.status = "INPROGRESS"
+                        task.save()
+                    else:
+                        ts_status = TRANSLATION_REVIEW_INPROGRESS
+                        translation_obj = Translation.objects.create(
+                            translation_type=translation.translation_type,
+                            parent=translation,
+                            transcript=translation.transcript,
+                            video=translation.video,
+                            target_language=translation.target_language,
+                            user=user,
+                            payload=payload,
+                            status=ts_status,
+                            task=task,
+                        )
+                        task.status = "INPROGRESS"
+                        task.save()
+            if request.data.get("final"):
+                if message is not None:
+                    full_message = "Translation updated successfully. " + message
+                else:
+                    full_message = "Translation updated successfully."
+                return Response(
+                    {
+                        "message": full_message,
+                        "task_id": task.id,
+                        "translation_id": translation_obj.id,
+                        # "data": translation_obj.payload,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            else:
+                return Response(
+                    {
+                        "task_id": task.id,
+                        "translation_id": translation_obj.id,
+                        # "data": translation_obj.payload,
+                        "message": "Saved as draft.",
+                    },
+                    status=status.HTTP_200_OK,
+                )
+    except Translation.DoesNotExist:
+        return Response(
+            {"message": "Translation doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
 @api_view(["GET"])
 @authentication_classes([])
 @permission_classes([])

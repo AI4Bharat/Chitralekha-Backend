@@ -12,6 +12,11 @@ urlpatterns = [
         name="generate_original_transcript",
     ),
     path("save/", views.save_transcription, name="save_transcript"),
+    path(
+        "save_full_transcript/",
+        views.save_full_transcription,
+        name="save_full_transcript",
+    ),
     path("", views.retrieve_transcription, name="retrieve_transcription"),
     path(
         "generate/supported_languages",

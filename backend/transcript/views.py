@@ -807,8 +807,6 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
             length = limit
             length_2 = len(payload["payload"]) - limit
             insert_at = start_offset + length
-        print(">>>>>>>>>>>>", length)
-        print(">>>>>>>>>2222", length_2)
         for i in range(length):
             if "text" in payload["payload"][i].keys():
                 transcript.payload["payload"][start_offset + i] = {
@@ -870,6 +868,242 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
         200: "Transcript has been saved successfully",
     },
 )
+@api_view(["POST"])
+def save_full_transcription(request):
+    """
+    Endpoint to save a transcript for a video
+    Request body:
+    {
+        "transcript_id": "",
+        "payload": "",
+        "task_id" : ""
+    }
+    """
+    # Collect the request parameters
+    try:
+        transcript_id = request.data.get("transcript_id", None)
+        task_id = request.data["task_id"]
+        payload = request.data["payload"]
+    except KeyError:
+        return Response(
+            {"message": "Missing required parameters - payload or task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not ative yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    transcript = get_transcript_id(task)
+
+    if transcript is None:
+        return Response(
+            {"message": "Transcript not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    else:
+        transcript_id = transcript.id
+
+    # Retrieve the transcript object
+    try:
+        transcript = Transcript.objects.get(pk=transcript_id)
+
+        # Check if the transcript has a user
+        if task.user != request.user:
+            return Response(
+                {"message": "You are not allowed to update this transcript."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        else:
+            if transcript.status == TRANSCRIPTION_REVIEW_COMPLETE:
+                return Response(
+                    {
+                        "message": "Transcript can't be edited, as the final transcript already exists"
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
+
+            if "EDIT" in task.task_type:
+                if request.data.get("final"):
+                    if (
+                        Transcript.objects.filter(status=TRANSCRIPTION_EDIT_COMPLETE)
+                        .filter(video=task.video)
+                        .first()
+                        is not None
+                    ):
+                        return Response(
+                            {"message": "Final Edited Transcript already submitted."},
+                            status=status.HTTP_201_CREATED,
+                        )
+                    tc_status = TRANSCRIPTION_EDIT_COMPLETE
+                    transcript_type = transcript.transcript_type
+                    transcript_obj = Transcript.objects.create(
+                        transcript_type=transcript_type,
+                        parent_transcript=transcript,
+                        video=transcript.video,
+                        language=transcript.language,
+                        payload=payload,
+                        user=request.user,
+                        task=task,
+                        status=tc_status,
+                    )
+                    task.status = "COMPLETE"
+                    task.save()
+                    change_active_status_of_next_tasks(task, transcript_obj)
+                else:
+                    transcript_obj = (
+                        Transcript.objects.filter(status=TRANSCRIPTION_EDIT_INPROGRESS)
+                        .filter(video=task.video)
+                        .first()
+                    )
+                    tc_status = TRANSCRIPTION_EDIT_INPROGRESS
+                    if transcript_obj is not None:
+                        transcript_obj.payload = payload
+                        transcript_obj.transcript_type = transcript_obj.transcript_type
+                        transcript_obj.save()
+                    else:
+                        transcript_obj = (
+                            Transcript.objects.filter(
+                                status=TRANSCRIPTION_SELECT_SOURCE
+                            )
+                            .filter(video=task.video)
+                            .first()
+                        )
+                        if transcript_obj is None:
+                            return Response(
+                                {"message": "Transcript object does not exist."},
+                                status=status.HTTP_404_NOT_FOUND,
+                            )
+                        transcript_obj = Transcript.objects.create(
+                            transcript_type=transcript_obj.transcript_type,
+                            parent_transcript=transcript_obj,
+                            video=task.video,
+                            language=transcript_obj.language,
+                            payload=payload,
+                            user=request.user,
+                            task=task,
+                            status=tc_status,
+                        )
+                        task.status = "INPROGRESS"
+                        task.save()
+            else:
+                if request.data.get("final"):
+                    if (
+                        Transcript.objects.filter(status=TRANSCRIPTION_REVIEW_COMPLETE)
+                        .filter(video=task.video)
+                        .first()
+                    ):
+                        return Response(
+                            {"message": "Reviewed Transcription already exists."},
+                            status=status.HTTP_201_CREATED,
+                        )
+                    else:
+                        tc_status = TRANSCRIPTION_REVIEW_COMPLETE
+                        transcript_obj = Transcript.objects.create(
+                            transcript_type=transcript.transcript_type,
+                            parent_transcript=transcript,
+                            video=transcript.video,
+                            language=transcript.language,
+                            payload=payload,
+                            user=request.user,
+                            task=task,
+                            status=tc_status,
+                        )
+                        task.status = "COMPLETE"
+                        task.save()
+                        change_active_status_of_next_tasks(task, transcript_obj)
+                else:
+                    tc_status = TRANSCRIPTION_REVIEW_INPROGRESS
+                    transcript_type = transcript.transcript_type
+                    transcript_obj = (
+                        Transcript.objects.filter(
+                            status=TRANSCRIPTION_REVIEW_INPROGRESS
+                        )
+                        .filter(video=task.video)
+                        .first()
+                    )
+                    if transcript_obj is not None:
+                        transcript_obj.payload = payload
+                        transcript_obj.transcript_type = transcript_type
+                        transcript_obj.save()
+                    else:
+                        transcript_obj = Transcript.objects.create(
+                            transcript_type=transcript_type,
+                            parent_transcript=transcript,
+                            video=transcript.video,
+                            language=transcript.language,
+                            payload=payload,
+                            user=request.user,
+                            task=task,
+                            status=tc_status,
+                        )
+                        task.status = "INPROGRESS"
+                        task.save()
+
+            if request.data.get("final"):
+                return Response(
+                    {
+                        "task_id": task_id,
+                        "transcript_id": transcript_obj.id,
+                        # "data": transcript_obj.payload,
+                        "message": "Transcript is submitted.",
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            else:
+                return Response(
+                    {
+                        "task_id": task_id,
+                        "transcript_id": transcript_obj.id,
+                        # "data": transcript_obj.payload,
+                        "message": "Saved as draft.",
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+    except Transcript.DoesNotExist:
+        return Response(
+            {"message": "Transcript doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["payload", "task_id"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the task instance",
+            ),
+            "payload": openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                description="A string to pass the transcript data",
+            ),
+            "final": openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description="A boolean to complete the task",
+            ),
+        },
+        description="Post request body for projects which have save_type == new_record",
+    ),
+    responses={
+        200: "Transcript has been saved successfully",
+    },
+)
+@permission_classes((IsAuthenticated,))
 @api_view(["POST"])
 def save_transcription(request):
     """
