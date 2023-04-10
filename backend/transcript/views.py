@@ -483,6 +483,12 @@ def get_payload(request):
     if (pre_page <= 0) | (int(page) > total_pages):
         pre_page = None
 
+    if len(page_records) == 0:
+        return Response(
+            {"payload": {"payload": []}, "source_type": transcript.transcript_type},
+            status=status.HTTP_200_OK,
+        )
+
     if "id" not in page_records[0].keys():
         for i in range(len(page_records)):
             page_records[i]["id"] = start + i
@@ -580,12 +586,12 @@ def get_sentence_from_timeline(request):
         unix_start_time = datetime.datetime.timestamp(start_time)
         end_time = datetime.datetime.strptime(sentence["end_time"], "%H:%M:%S.%f")
         unix_end_time = datetime.datetime.timestamp(end_time)
-        if unix_start_time < unix_time and unix_end_time > unix_time:
+        if unix_start_time <= unix_time and unix_end_time > unix_time:
             save_index = ind
             break
 
     length_payload = len(transcript.payload["payload"])
-    sentence_offset = math.ceil(save_index / int(limit))
+    sentence_offset = math.ceil((save_index + 1) / int(limit))
     response = get_payload_request(request, task_id, limit, sentence_offset)
     return Response(
         response.data,
