@@ -27,7 +27,8 @@ from django.db.models import Q
 from datetime import datetime
 from django.conf import settings
 from django.core.mail import send_mail
-
+from task.models import Task
+from task.serializers import TaskSerializer
 
 regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
 
@@ -490,3 +491,40 @@ class LanguageViewSet(viewsets.ViewSet):
         if serialized.is_valid():
             return Response(serialized.data, status=status.HTTP_200_OK)
         return Response(serialized.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class SoftDeleteUserViewSet(UserViewSet):
+    def destroy(self, request, pk=None):
+        try:
+            user = User.objects.get(pk=pk)
+
+            if user.role not in ["PROJECT_MANAGER", "ORG_OWNER", "ADMIN"]:
+                Tasks = Task.objects.filter(user_id=user.id)
+                unComplete_tasks = []
+                for task in Tasks:
+                    if task.status != "complete":
+                        taskSerializer = TaskSerializer(task)
+                        unComplete_tasks.append(taskSerializer.data)
+
+                if len(unComplete_tasks):
+                    return Response(
+                        {"message": "Can not deleted user due to uncomplete task"},
+                        list(unComplete_tasks),
+                        status=status.HTTP_200_OK,
+                    )
+            else:
+                return Response(
+                    {"message": "Can not deleted {role}".format(role=user.role)},
+                    status=status.HTTP_200_OK,
+                )
+
+        except User.DoesNotExist:
+            return Response(
+                {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        user.is_active = False
+        user.save()
+        return Response(
+            {"message": "User deleted successfully"}, status=status.HTTP_200_OK
+        )
