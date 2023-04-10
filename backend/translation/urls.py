@@ -7,6 +7,11 @@ urlpatterns = [
     path("", views.retrieve_translation, name="retrieve_translation"),
     path("save/", views.save_translation, name="save_translation"),
     path(
+        "save_full_translation/",
+        views.save_full_translation,
+        name="save_full_translation",
+    ),
+    path(
         "generate/supported_languages",
         views.get_supported_languages,
         name="supported_languages",
