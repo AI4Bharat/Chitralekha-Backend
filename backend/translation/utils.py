@@ -152,13 +152,15 @@ def translation_mg(transcript, target_language, batch_size=25):
     delete_indices = []
     vtt_output = transcript.payload
     for index, vtt_line in enumerate(vtt_output["payload"]):
-        if "text" in vtt_output.keys():
+        if "text" in vtt_line.keys():
             sentence_list.append(vtt_line["text"])
         else:
             delete_indices.append(index)
 
+    delete_indices.reverse()
     for ind in delete_indices:
         vtt_output["payload"].pop(ind)
+
     all_translated_sentences = []  # List to store all the translated sentences
 
     # Iterate over the sentences in batch format and send them to the Translation API

@@ -12,6 +12,11 @@ urlpatterns = [
         name="generate_original_transcript",
     ),
     path("save/", views.save_transcription, name="save_transcript"),
+    path(
+        "save_full_transcript/",
+        views.save_full_transcription,
+        name="save_full_transcript",
+    ),
     path("", views.retrieve_transcription, name="retrieve_transcription"),
     path(
         "generate/supported_languages",
@@ -47,5 +52,15 @@ urlpatterns = [
         "get_report_transcript/",
         views.get_transcription_report,
         name="get_transcription_report",
+    ),
+    path(
+        "get_full_payload/",
+        views.get_full_payload,
+        name="get_full_payload",
+    ),
+    path(
+        "get_sentence_from_timeline/",
+        views.get_sentence_from_timeline,
+        name="get_sentence_from_timeline",
     ),
 ]

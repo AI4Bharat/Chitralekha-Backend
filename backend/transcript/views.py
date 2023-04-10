@@ -12,6 +12,7 @@ from video.models import Video
 from task.models import Task
 from rest_framework.decorators import action
 from django.http import HttpResponse
+from django.http import HttpRequest
 import requests
 from django.core.files.base import ContentFile
 from json_to_ytt import *
@@ -57,6 +58,9 @@ from django.db.models.functions import Cast
 from operator import itemgetter
 from itertools import groupby
 from django.core.cache import cache
+import datetime
+import math
+import logging
 
 
 @api_view(["GET"])
@@ -469,7 +473,7 @@ def get_payload(request):
     page_records = transcript.payload["payload"][start:end]
     records = transcript.payload["payload"]
 
-    total_pages = len(records) // int(limit) + 1
+    total_pages = math.ceil(len(records) / int(limit))
     next_page = int(page) + 1
     pre_page = int(page) - 1
 
@@ -483,7 +487,11 @@ def get_payload(request):
         for i in range(len(page_records)):
             page_records[i]["id"] = start + i
 
-    response = {"payload": [record_object for record_object in page_records]}
+    response = {
+        "payload": [
+            record_object for record_object in page_records if "text" in record_object
+        ]
+    }
 
     return Response(
         {
@@ -496,6 +504,164 @@ def get_payload(request):
             "previous": pre_page,
             "next": next_page,
         },
+        status=status.HTTP_200_OK,
+    )
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the task id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+        openapi.Parameter(
+            "time",
+            openapi.IN_QUERY,
+            description=("A string to pass the time"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+        openapi.Parameter(
+            "limit",
+            openapi.IN_QUERY,
+            description=("An integer to get the limit of payload"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
+    responses={200: "Returns the sentence after timeline dragging."},
+)
+@api_view(["GET"])
+def get_sentence_from_timeline(request):
+    task_id = request.query_params["task_id"]
+    time = request.query_params["time"]
+    limit = request.query_params["limit"]
+    time = datetime.datetime.strptime(time, "%H:%M:%S.%f")
+    unix_time = datetime.datetime.timestamp(time)
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not active yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    transcript = get_transcript_id(task)
+    if transcript is None:
+        return Response(
+            {"message": "Transcript not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    else:
+        transcript_id = transcript.id
+
+    try:
+        transcript = Transcript.objects.get(pk=transcript_id)
+    except Transcript.DoesNotExist:
+        return Response(
+            {"message": "Transcript not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    save_index = -1
+    for ind, sentence in enumerate(transcript.payload["payload"]):
+        start_time = datetime.datetime.strptime(sentence["start_time"], "%H:%M:%S.%f")
+        unix_start_time = datetime.datetime.timestamp(start_time)
+        end_time = datetime.datetime.strptime(sentence["end_time"], "%H:%M:%S.%f")
+        unix_end_time = datetime.datetime.timestamp(end_time)
+        if unix_start_time < unix_time and unix_end_time > unix_time:
+            save_index = ind
+            break
+
+    length_payload = len(transcript.payload["payload"])
+    sentence_offset = math.ceil(save_index / int(limit))
+    response = get_payload_request(request, task_id, limit, sentence_offset)
+    return Response(
+        response.data,
+        status=status.HTTP_200_OK,
+    )
+
+
+def get_payload_request(request, task_id, limit, offset):
+    new_request = HttpRequest()
+    new_request.method = "GET"
+    new_request.task_id = task_id
+    new_request.limit = limit
+    new_request.offset = offset
+    new_request.GET = request.GET.copy()
+    new_request.GET["task_id"] = task_id
+    new_request.GET["limit"] = limit
+    new_request.GET["offset"] = offset
+    return get_payload(new_request)
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the task id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
+    responses={200: "Returns the initial transcription after source is selected."},
+)
+@api_view(["GET"])
+def get_full_payload(request):
+    try:
+        task_id = request.query_params["task_id"]
+    except KeyError:
+        return Response(
+            {"message": "Missing required parameters - task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    transcript = get_transcript_id(task)
+    if transcript is None:
+        return Response(
+            {"message": "Transcript not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    else:
+        transcript_id = transcript.id
+
+    # Retrieve the transcript object
+    try:
+        transcript = Transcript.objects.get(pk=transcript_id)
+    except Transcript.DoesNotExist:
+        return Response(
+            {"message": "Transcript doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    count = 0
+    for sentence in transcript.payload["payload"]:
+        sentence["id"] = count
+        count = count + 1
+
+    return Response(
+        {"payload": transcript.payload, "source_type": transcript.transcript_type},
         status=status.HTTP_200_OK,
     )
 
@@ -546,53 +712,370 @@ def change_active_status_of_next_tasks(task, transcript_obj):
         print("No change in status")
 
 
-def modify_payload(limit, payload, start_offset, transcript):
+def modify_payload(limit, payload, start_offset, end_offset, transcript):
+    count_sentences = len(transcript.payload["payload"])
     if len(payload["payload"]) == limit:
-        for i in range(len(payload["payload"])):
+        logging.info("Limit is equal to length of payload")
+        length = len(payload["payload"])
+        length_2 = -1
+        if end_offset > count_sentences:
+            length_2 = end_offset - count_sentences
+            length = length - length_2
+        for i in range(length):
             if "text" in payload["payload"][i].keys():
                 transcript.payload["payload"][start_offset + i] = {
-                    "id": payload["payload"][i]["id"],
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
-                    "unix_end_time": payload["payload"][i]["unix_end_time"],
-                    "unix_start_time": payload["payload"][i]["unix_start_time"],
                 }
             else:
                 transcript.payload["payload"][start_offset + i] = {}
+        if length_2 > 0:
+            for i in range(length_2):
+                if "text" in payload["payload"][i].keys():
+                    transcript.payload["payload"].insert(
+                        start_offset + i + length,
+                        {
+                            "start_time": payload["payload"][length + i]["start_time"],
+                            "end_time": payload["payload"][length + i]["end_time"],
+                            "text": payload["payload"][length + i]["text"],
+                        },
+                    )
+                else:
+                    transcript.payload["payload"][start_offset + i] = {}
     elif len(payload["payload"]) < limit:
+        logging.info("Limit is less than length of payload")
+        length = len(payload["payload"])
+        length_2 = -1
+        if end_offset > count_sentences:
+            if length > len(transcript.payload["payload"][start_offset:end_offset]):
+                length_2 = length - len(
+                    transcript.payload["payload"][start_offset:end_offset]
+                )
+                length = length - length_2
+            for i in range(length):
+                if "text" in payload["payload"][i].keys():
+                    transcript.payload["payload"][start_offset + i] = {
+                        "start_time": payload["payload"][i]["start_time"],
+                        "end_time": payload["payload"][i]["end_time"],
+                        "text": payload["payload"][i]["text"],
+                    }
+                else:
+                    transcript.payload["payload"][start_offset + i] = {}
+            if length_2 > 0:
+                for i in range(length_2):
+                    if "text" in payload["payload"][i].keys():
+                        transcript.payload["payload"].insert(
+                            start_offset + i + length,
+                            {
+                                "start_time": payload["payload"][length + i][
+                                    "start_time"
+                                ],
+                                "end_time": payload["payload"][length + i]["end_time"],
+                                "text": payload["payload"][length + i]["text"],
+                            },
+                        )
+                    else:
+                        transcript.payload["payload"][start_offset + i] = {}
+        else:
+            for i in range(length):
+                if "text" in payload["payload"][i].keys():
+                    transcript.payload["payload"][start_offset + i] = {
+                        "start_time": payload["payload"][i]["start_time"],
+                        "end_time": payload["payload"][i]["end_time"],
+                        "text": payload["payload"][i]["text"],
+                    }
+                else:
+                    transcript.payload["payload"][start_offset + i] = {}
+            delete_indices = []
+            for i in range(limit - length):
+                delete_indices.append(start_offset + i + length)
+
+            for ind in delete_indices:
+                transcript.payload["payload"][ind] = {}
+    else:
+        logging.info("Limit is greater than length of payload")
+        print("length of payload", len(payload["payload"]))
+        print("end_offset", end_offset)
+        print("count sentences", count_sentences)
+        print("limit", limit)
+        if end_offset > count_sentences:
+            length = count_sentences - start_offset
+            length_2 = len(payload["payload"]) - length
+            insert_at = start_offset + length
+        else:
+            length = limit
+            length_2 = len(payload["payload"]) - limit
+            insert_at = start_offset + length
+        for i in range(length):
+            if "text" in payload["payload"][i].keys():
+                transcript.payload["payload"][start_offset + i] = {
+                    "start_time": payload["payload"][i]["start_time"],
+                    "end_time": payload["payload"][i]["end_time"],
+                    "text": payload["payload"][i]["text"],
+                }
+            else:
+                transcript.payload["payload"][start_offset + i] = {}
+        for i in range(length_2):
+            if "text" in payload["payload"][i].keys():
+                if (
+                    len(transcript.payload["payload"]) > insert_at + i
+                    and payload["payload"][length + i]["start_time"]
+                    == transcript.payload["payload"][insert_at + i]["start_time"]
+                    and payload["payload"][length + i]["end_time"]
+                    == transcript.payload["payload"][insert_at + i]["end_time"]
+                ):
+                    transcript.payload["payload"][insert_at + i] = {
+                        "start_time": payload["payload"][length + i]["start_time"],
+                        "end_time": payload["payload"][length + i]["end_time"],
+                        "text": payload["payload"][length + i]["text"],
+                    }
+                else:
+                    transcript.payload["payload"].insert(
+                        insert_at + i,
+                        {
+                            "start_time": payload["payload"][length + i]["start_time"],
+                            "end_time": payload["payload"][length + i]["end_time"],
+                            "text": payload["payload"][length + i]["text"],
+                        },
+                    )
+            else:
+                transcript.payload["payload"][start_offset + i] = {}
+
+
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["payload", "task_id"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the task instance",
+            ),
+            "payload": openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                description="A string to pass the transcript data",
+            ),
+            "final": openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description="A boolean to complete the task",
+            ),
+        },
+        description="Post request body for projects which have save_type == new_record",
+    ),
+    responses={
+        200: "Transcript has been saved successfully",
+    },
+)
+@api_view(["POST"])
+def save_full_transcription(request):
+    """
+    Endpoint to save a transcript for a video
+    Request body:
+    {
+        "transcript_id": "",
+        "payload": "",
+        "task_id" : ""
+    }
+    """
+    # Collect the request parameters
+    try:
+        transcript_id = request.data.get("transcript_id", None)
+        task_id = request.data["task_id"]
+        payload = request.data["payload"]
+    except KeyError:
         return Response(
-            {"message": "Invalid Trascript."},
+            {"message": "Missing required parameters - payload or task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not ative yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    transcript = get_transcript_id(task)
+
+    if transcript is None:
+        return Response(
+            {"message": "Transcript not found."},
             status=status.HTTP_404_NOT_FOUND,
         )
     else:
-        for i in range(limit):
-            if "text" in payload["payload"][i].keys():
-                transcript.payload["payload"][start_offset + i] = {
-                    "id": payload["payload"][i]["id"],
-                    "start_time": payload["payload"][i]["start_time"],
-                    "end_time": payload["payload"][i]["end_time"],
-                    "text": payload["payload"][i]["text"],
-                    "unix_end_time": payload["payload"][i]["unix_end_time"],
-                    "unix_start_time": payload["payload"][i]["unix_start_time"],
-                }
-            else:
-                transcript.payload["payload"][start_offset + i] = {}
-        for i in range(len(payload["payload"]) - limit):
-            if "text" in payload["payload"][i].keys():
-                transcript.payload["payload"].insert(
-                    start_offset + i + limit,
+        transcript_id = transcript.id
+
+    # Retrieve the transcript object
+    try:
+        transcript = Transcript.objects.get(pk=transcript_id)
+
+        # Check if the transcript has a user
+        if task.user != request.user:
+            return Response(
+                {"message": "You are not allowed to update this transcript."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        else:
+            if transcript.status == TRANSCRIPTION_REVIEW_COMPLETE:
+                return Response(
                     {
-                        "id": payload["payload"][limit + i]["id"],
-                        "start_time": payload["payload"][limit + i]["start_time"],
-                        "end_time": payload["payload"][limit + i]["end_time"],
-                        "text": payload["payload"][limit + i]["text"],
-                        "unix_end_time": payload["payload"][i]["unix_end_time"],
-                        "unix_start_time": payload["payload"][i]["unix_start_time"],
+                        "message": "Transcript can't be edited, as the final transcript already exists"
                     },
+                    status=status.HTTP_201_CREATED,
+                )
+
+            if "EDIT" in task.task_type:
+                if request.data.get("final"):
+                    if (
+                        Transcript.objects.filter(status=TRANSCRIPTION_EDIT_COMPLETE)
+                        .filter(video=task.video)
+                        .first()
+                        is not None
+                    ):
+                        return Response(
+                            {"message": "Final Edited Transcript already submitted."},
+                            status=status.HTTP_201_CREATED,
+                        )
+                    tc_status = TRANSCRIPTION_EDIT_COMPLETE
+                    transcript_type = transcript.transcript_type
+                    transcript_obj = Transcript.objects.create(
+                        transcript_type=transcript_type,
+                        parent_transcript=transcript,
+                        video=transcript.video,
+                        language=transcript.language,
+                        payload=payload,
+                        user=request.user,
+                        task=task,
+                        status=tc_status,
+                    )
+                    task.status = "COMPLETE"
+                    task.save()
+                    change_active_status_of_next_tasks(task, transcript_obj)
+                else:
+                    transcript_obj = (
+                        Transcript.objects.filter(status=TRANSCRIPTION_EDIT_INPROGRESS)
+                        .filter(video=task.video)
+                        .first()
+                    )
+                    tc_status = TRANSCRIPTION_EDIT_INPROGRESS
+                    if transcript_obj is not None:
+                        transcript_obj.payload = payload
+                        transcript_obj.transcript_type = transcript_obj.transcript_type
+                        transcript_obj.save()
+                    else:
+                        transcript_obj = (
+                            Transcript.objects.filter(
+                                status=TRANSCRIPTION_SELECT_SOURCE
+                            )
+                            .filter(video=task.video)
+                            .first()
+                        )
+                        if transcript_obj is None:
+                            return Response(
+                                {"message": "Transcript object does not exist."},
+                                status=status.HTTP_404_NOT_FOUND,
+                            )
+                        transcript_obj = Transcript.objects.create(
+                            transcript_type=transcript_obj.transcript_type,
+                            parent_transcript=transcript_obj,
+                            video=task.video,
+                            language=transcript_obj.language,
+                            payload=payload,
+                            user=request.user,
+                            task=task,
+                            status=tc_status,
+                        )
+                        task.status = "INPROGRESS"
+                        task.save()
+            else:
+                if request.data.get("final"):
+                    if (
+                        Transcript.objects.filter(status=TRANSCRIPTION_REVIEW_COMPLETE)
+                        .filter(video=task.video)
+                        .first()
+                    ):
+                        return Response(
+                            {"message": "Reviewed Transcription already exists."},
+                            status=status.HTTP_201_CREATED,
+                        )
+                    else:
+                        tc_status = TRANSCRIPTION_REVIEW_COMPLETE
+                        transcript_obj = Transcript.objects.create(
+                            transcript_type=transcript.transcript_type,
+                            parent_transcript=transcript,
+                            video=transcript.video,
+                            language=transcript.language,
+                            payload=payload,
+                            user=request.user,
+                            task=task,
+                            status=tc_status,
+                        )
+                        task.status = "COMPLETE"
+                        task.save()
+                        change_active_status_of_next_tasks(task, transcript_obj)
+                else:
+                    tc_status = TRANSCRIPTION_REVIEW_INPROGRESS
+                    transcript_type = transcript.transcript_type
+                    transcript_obj = (
+                        Transcript.objects.filter(
+                            status=TRANSCRIPTION_REVIEW_INPROGRESS
+                        )
+                        .filter(video=task.video)
+                        .first()
+                    )
+                    if transcript_obj is not None:
+                        transcript_obj.payload = payload
+                        transcript_obj.transcript_type = transcript_type
+                        transcript_obj.save()
+                    else:
+                        transcript_obj = Transcript.objects.create(
+                            transcript_type=transcript_type,
+                            parent_transcript=transcript,
+                            video=transcript.video,
+                            language=transcript.language,
+                            payload=payload,
+                            user=request.user,
+                            task=task,
+                            status=tc_status,
+                        )
+                        task.status = "INPROGRESS"
+                        task.save()
+
+            if request.data.get("final"):
+                return Response(
+                    {
+                        "task_id": task_id,
+                        "transcript_id": transcript_obj.id,
+                        # "data": transcript_obj.payload,
+                        "message": "Transcript is submitted.",
+                    },
+                    status=status.HTTP_200_OK,
                 )
             else:
-                transcript.payload["payload"][start_offset + i] = {}
+                return Response(
+                    {
+                        "task_id": task_id,
+                        "transcript_id": transcript_obj.id,
+                        # "data": transcript_obj.payload,
+                        "message": "Saved as draft.",
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+    except Transcript.DoesNotExist:
+        return Response(
+            {"message": "Transcript doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 @swagger_auto_schema(
@@ -715,7 +1198,9 @@ def save_transcription(request):
                         task=task,
                         status=tc_status,
                     )
-                    modify_payload(limit, payload, start_offset, transcript_obj)
+                    modify_payload(
+                        limit, payload, start_offset, end_offset, transcript_obj
+                    )
                     transcript_obj.save()
                     task.status = "COMPLETE"
                     task.save()
@@ -734,7 +1219,9 @@ def save_transcription(request):
                             status=status.HTTP_404_NOT_FOUND,
                         )
                     if transcript_obj is not None:
-                        modify_payload(limit, payload, start_offset, transcript_obj)
+                        modify_payload(
+                            limit, payload, start_offset, end_offset, transcript_obj
+                        )
                         # transcript_obj.payload = payload
                         transcript_obj.transcript_type = transcript_obj.transcript_type
                         transcript_obj.save()
@@ -762,7 +1249,9 @@ def save_transcription(request):
                             task=task,
                             status=tc_status,
                         )
-                        modify_payload(limit, payload, start_offset, transcript_obj)
+                        modify_payload(
+                            limit, payload, start_offset, end_offset, transcript_obj
+                        )
                         transcript_obj.save()
                         task.status = "INPROGRESS"
                         task.save()
@@ -789,7 +1278,9 @@ def save_transcription(request):
                             task=task,
                             status=tc_status,
                         )
-                        modify_payload(limit, payload, start_offset, transcript_obj)
+                        modify_payload(
+                            limit, payload, start_offset, end_offset, transcript_obj
+                        )
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
@@ -805,7 +1296,9 @@ def save_transcription(request):
                         .first()
                     )
                     if transcript_obj is not None:
-                        modify_payload(limit, payload, start_offset, transcript_obj)
+                        modify_payload(
+                            limit, payload, start_offset, end_offset, transcript_obj
+                        )
                         # transcript_obj.payload = payload
                         transcript_obj.transcript_type = transcript_type
                         transcript_obj.save()
@@ -820,10 +1313,16 @@ def save_transcription(request):
                             task=task,
                             status=tc_status,
                         )
-                        modify_payload(limit, payload, start_offset, transcript_obj)
+                        modify_payload(
+                            limit, payload, start_offset, end_offset, transcript_obj
+                        )
                         transcript_obj.save()
                         task.status = "INPROGRESS"
                         task.save()
+
+            # delete cache by transcription key
+            transcription_cache_key = f"transcript_cache_{transcript_obj.id}"
+            cache.delete(transcription_cache_key)
 
             if request.data.get("final"):
                 return Response(
