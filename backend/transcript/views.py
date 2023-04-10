@@ -1103,7 +1103,6 @@ def save_full_transcription(request):
         200: "Transcript has been saved successfully",
     },
 )
-@permission_classes((IsAuthenticated,))
 @api_view(["POST"])
 def save_transcription(request):
     """
