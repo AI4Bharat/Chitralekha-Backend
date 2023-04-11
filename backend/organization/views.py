@@ -752,3 +752,62 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             }
             org_data.append(org_dict)
         return Response(org_data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        method="DELETE",
+        manual_parameters=[
+            openapi.Parameter(
+                "user_id",
+                openapi.IN_QUERY,
+                description=("A boolean to soft delete user."),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+        ],
+        responses={409: "There are conflicts with this task."},
+    )
+    @action(detail=False, methods=["delete"], url_path="delete_user")
+    @is_particular_organization_owner
+    def delete_user(self, request, pk=None, *args, **kwargs):
+        """
+        API Endpoint to delete parameter of user
+        Endpoint: /organization/delete_user/
+        Method: DELETE
+        """
+
+        try:
+            user_id = request.query_params["user_id"]
+            user = User.objects.get(pk=user_id)
+
+            if user.role not in ["PROJECT_MANAGER", "ORG_OWNER", "ADMIN"]:
+                Tasks = Task.objects.filter(user_id=user.id)
+                unComplete_tasks = []
+                for task in Tasks:
+                    if task.status != "COMPLETE":
+                        taskSerializer = TaskSerializer(task)
+                        unComplete_tasks.append(taskSerializer.data)
+
+                if len(unComplete_tasks):
+                    return Response(
+                        {
+                            "message": "Can not deleted user due to uncomplete task",
+                            "tasks": list(unComplete_tasks),
+                        },
+                        status=status.HTTP_200_OK,
+                    )
+            else:
+                return Response(
+                    {"message": "Can not deleted {role}".format(role=user.role)},
+                    status=status.HTTP_200_OK,
+                )
+
+        except User.DoesNotExist:
+            return Response(
+                {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        user.is_active = False
+        user.save()
+        return Response(
+            {"message": "User deleted successfully"}, status=status.HTTP_200_OK
+        )
