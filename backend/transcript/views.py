@@ -62,6 +62,7 @@ import datetime
 import math
 import logging
 from django.conf import settings
+from django.core.mail import send_mail
 
 
 @api_view(["GET"])
@@ -674,6 +675,7 @@ def get_full_payload(request):
 
 
 def send_mail_to_user(task):
+    logging.info("Send email to user %s", task.user.email)
     send_mail(
         "Task is active",
         f"A {task.get_task_type_label} task for video {task.video.name}({task.video.url}) in project {task.video.project_id.title} assigned to you is active now.",
