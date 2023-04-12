@@ -61,6 +61,7 @@ from django.core.cache import cache
 import datetime
 import math
 import logging
+from django.conf import settings
 
 
 @api_view(["GET"])
