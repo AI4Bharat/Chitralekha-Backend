@@ -672,6 +672,15 @@ def get_full_payload(request):
     )
 
 
+def send_mail_to_user(task):
+    send_mail(
+        "Task is active",
+        f"A {task.get_task_type_label} task for video {task.video.name}({task.video.url}) in project {task.video.project_id.title} assigned to you is active now.",
+        settings.DEFAULT_FROM_EMAIL,
+        [task.user.email],
+    )
+
+
 def change_active_status_of_next_tasks(task, transcript_obj):
     tasks = Task.objects.filter(video=task.video)
     activate_translations = True
@@ -682,6 +691,8 @@ def change_active_status_of_next_tasks(task, transcript_obj):
     ):
         activate_translations = False
         tasks.filter(task_type="TRANSCRIPTION_REVIEW").update(is_active=True)
+        for task in tasks.filter(task_type="TRANSCRIPTION_REVIEW"):
+            send_mail_to_user(task)
         transcript = (
             Transcript.objects.filter(video=task.video)
             .filter(status="TRANSCRIPTION_REVIEWER_ASSIGNED")
@@ -714,6 +725,14 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                 translation.transcript = transcript_obj
                 translation.save()
         tasks.filter(task_type="TRANSLATION_EDIT").update(is_active=True)
+        for task in tasks.filter(task_type="TRANSLATION_EDIT"):
+            try:
+                send_mail_to_user(task)
+            except:
+                Response(
+                    {"message": "Error in sending mail"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
     else:
         print("No change in status")
 

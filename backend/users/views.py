@@ -369,15 +369,36 @@ class UserViewSet(viewsets.ViewSet):
 
         return Response(ret_dict, status=ret_status)
 
+    @swagger_auto_schema(
+        method="post",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "user_id": openapi.Schema(
+                    type=openapi.TYPE_INTEGER, format="user_id", description="User Id"
+                ),
+                "enable_email": openapi.Schema(
+                    type=openapi.TYPE_BOOLEAN,
+                    format="email",
+                    description="Enable Email",
+                ),
+            },
+            required=["user_id"],
+        ),
+        responses={
+            200: "Email enabled for the user",
+            403: "Please enter a valid email!",
+        },
+    )
     @action(
         detail=False, methods=["post"], url_path="enable_email", url_name="enable_email"
     )
     def enable_email(self, request):
         """
-        Update the mail enable service for  any user
+        Update the mail enable service for any user
         """
         requested_id = request.data.get("user_id")
-        enable_mail = request.data.get("enable_mail")
+        enable_mail = request.data.get("enable_email")
 
         if enable_mail == True or enable_mail == False:
             pass
