@@ -676,8 +676,8 @@ def get_full_payload(request):
 
 def send_mail_to_user(task):
     logging.info("Send email to user %s", task.user.email)
-    table_to_send = "<html><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
-    conto = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></html>".format(
+    table_to_send = "<p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+    conto = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></p>".format(
         name=task.video.name,
         url=task.video.url,
         project_name=task.video.project_id.title,
