@@ -23,10 +23,13 @@ from django.utils import timezone
 from django.utils.timezone import localdate, localtime, now
 from users.models import User
 from video.models import Video
+import logging
 
 
 def calculate_reports():
+    logging.info("Calculate Reports...")
     current_time = localtime(now())
+    logging.info("current_time %s", str(current_time))
     three_hours_earlier = current_time - timedelta(hours=6)
     projects = Project.objects.all()
     project_managers = {}
@@ -46,6 +49,7 @@ def calculate_reports():
                 .filter(updated_at__range=(three_hours_earlier, current_time))
             )
             for task in tasks_in_project:
+                logging.info("Task ID %s", str(task.id))
                 tasks_managed.append(
                     {
                         "project_name": task.video.project_id.title,
@@ -67,26 +71,27 @@ def calculate_reports():
                     width="auto",
                     index=False,
                 )
+                message = (
+                    "Dear "
+                    + str(manager.first_name + " " + manager.last_name)
+                    + ",\n Following tasks that are assigned to you are active now "
+                    + " .\n Thanks for contributing on Chitralekha!"
+                )
+
+                email_to_send = (
+                    "<p>"
+                    + message
+                    + "</p><br><h1><b>Tasks Reports</b></h1>"
+                    + html_table_df_tasks
+                )
+                print(email_to_send)
+                logging.info("Sending Mail to %s", manager.email)
+                send_mail(
+                    "Tasks Reports",
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [manager.email],
+                    html_message=email_to_send,
+                )
             else:
                 html_table_df_tasks = ""
-
-            message = (
-                "Dear "
-                + str(manager.first_name + " " + manager.last_name)
-                + ",\n Following tasks that are assigned to you are active now "
-                + " .\n Thanks for contributing on Chitralekha!"
-            )
-
-            email_to_send = (
-                "<p>"
-                + message
-                + "</p><br><h1><b>Tasks Reports</b></h1>"
-                + html_table_df_tasks
-            )
-            send_mail(
-                "Tasks Reports",
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [manager.email],
-                html_message=email_to_send,
-            )
