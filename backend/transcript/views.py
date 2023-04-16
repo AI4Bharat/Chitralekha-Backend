@@ -676,11 +676,20 @@ def get_full_payload(request):
 
 def send_mail_to_user(task):
     logging.info("Send email to user %s", task.user.email)
+    table_to_send = "<html><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+    conto = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></html>".format(
+        name=task.video.name,
+        url=task.video.url,
+        project_name=task.video.project_id.title,
+    )
+    final_table = table_to_send + conto
+    print("table", final_table)
     send_mail(
         "Task is active",
-        f"A {task.get_task_type_label} task for video {task.video.name}({task.video.url}) in project {task.video.project_id.title} assigned to you is active now.",
+        "Dear User, Following task is active.",
         settings.DEFAULT_FROM_EMAIL,
         [task.user.email],
+        html_message=table_to_send,
     )
 
 
