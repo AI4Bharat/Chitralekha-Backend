@@ -467,6 +467,23 @@ def get_sentence_from_timeline(request):
         if unix_start_time <= unix_time and unix_end_time > unix_time:
             save_index = ind
             break
+        if ind == 0:
+            if unix_time < unix_start_time:
+                save_index = ind
+                break
+        if ind < len(translation.payload["payload"]) - 1:
+            end_time_of_next_sentence = datetime.datetime.strptime(
+                translation.payload["payload"][ind + 1]["start_time"], "%H:%M:%S.%f"
+            )
+            unix_end_time_of_next_sentence = datetime.datetime.timestamp(
+                end_time_of_next_sentence
+            )
+            if (
+                unix_end_time <= unix_time
+                and unix_end_time_of_next_sentence > unix_time
+            ):
+                save_index = ind
+                break
 
     length_payload = len(translation.payload["payload"])
     sentence_offset = math.ceil((save_index + 1) / int(limit))
@@ -550,6 +567,24 @@ def get_payload_request(request, task_id, limit, offset):
     return get_payload(new_request)
 
 
+def send_mail_to_user(task):
+    logging.info("Send email to user %s", task.user.email)
+    table_to_send = "<p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+    data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></p>".format(
+        name=task.video.name,
+        url=task.video.url,
+        project_name=task.video.project_id.title,
+    )
+    final_table = table_to_send + data
+    send_mail(
+        "Task is active",
+        "Dear User, Following task is active.",
+        settings.DEFAULT_FROM_EMAIL,
+        [task.user.email],
+        html_message=final_table,
+    )
+
+
 def change_active_status_of_next_tasks(task, translation_obj):
     translation_review_task = (
         Task.objects.filter(video=task.video)
@@ -570,6 +605,7 @@ def change_active_status_of_next_tasks(task, translation_obj):
             translation.payload = translation_obj.payload
             translation.save()
             translation_review_task.save()
+            send_mail_to_user(translation_review_task)
     voice_over_task = (
         Task.objects.filter(task_type="VOICEOVER_EDIT")
         .filter(video=task.video)
@@ -617,6 +653,7 @@ def change_active_status_of_next_tasks(task, translation_obj):
                 voice_over_obj.save()
                 voice_over_task.is_active = True
                 voice_over_task.save()
+                send_mail_to_user(voice_over_task)
             else:
                 (
                     tts_input,
@@ -720,8 +757,8 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
     if len(payload["payload"]) == limit:
         length = len(payload["payload"])
         length_2 = -1
-        if len(payload["payload"]) > count_sentences:
-            length_2 = len(payload["payload"]) - count_sentences
+        if end_offset > count_sentences:
+            length_2 = end_offset - count_sentences
             length = length - length_2
         for i in range(length):
             if "text" in payload["payload"][i].keys():

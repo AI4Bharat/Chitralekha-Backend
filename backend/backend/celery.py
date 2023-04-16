@@ -18,10 +18,15 @@ app.conf.task_default_queue = "default"
 app.conf.task_routes = {"task.tasks.*": {"queue": "task"}}
 
 app.conf.beat_schedule = {
-    "Send_mail_to_Clients": {
-        "task": "send_mail_task",
-        "schedule": crontab(minute="*/15"),  # execute 4 times in a day
-    }
+    "Send_mail_to_managers_completed": {
+        "task": "send_completed_tasks_mail",
+        "schedule": crontab(minute=0, hour="*/6"),  # execute 4 times in a day
+    },
+    "Send_mail_to_managers_new": {
+        "task": "send_new_tasks_mail",
+        "schedule": crontab(minute=0, hour=1),  # execute everyday at 1 am
+    },
 }
+
 
 app.autodiscover_tasks()
