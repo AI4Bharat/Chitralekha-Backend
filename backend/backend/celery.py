@@ -20,7 +20,7 @@ app.conf.task_routes = {"task.tasks.*": {"queue": "task"}}
 app.conf.beat_schedule = {
     "Send_mail_to_Clients": {
         "task": "send_mail_task",
-        "schedule": crontab(minute=0, hour="*/2"),  # execute 4 times in a day
+        "schedule": crontab(minute="*/15"),  # execute 4 times in a day
     }
 }
 
