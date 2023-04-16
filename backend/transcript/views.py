@@ -689,7 +689,7 @@ def send_mail_to_user(task):
         "Dear User, Following task is active.",
         settings.DEFAULT_FROM_EMAIL,
         [task.user.email],
-        html_message=table_to_send,
+        html_message=final_table,
     )
 
 
