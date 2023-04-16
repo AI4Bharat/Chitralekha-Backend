@@ -7,7 +7,7 @@ import json
 import webvtt
 import datetime
 from voiceover.models import VoiceOver
-from voiceover.utils import generate_tts_output
+from voiceover.utils import generate_tts_output, send_mail_to_user
 from translation.models import Translation
 import logging
 
@@ -57,6 +57,7 @@ def celery_tts_call(
     )
     voiceover_obj.save()
     task_obj.is_active = True
+    send_mail_to_user(task_obj)
     task_obj.save()
     if "message" in tts_payload:
         task_obj.is_active = False

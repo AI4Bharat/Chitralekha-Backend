@@ -594,3 +594,21 @@ def integrate_all_audios(file_name, payload, video_duration):
     for fname in audio_file_paths + final_paths:
         if os.path.isfile(fname):
             os.remove(fname)
+
+
+def send_mail_to_user(task):
+    logging.info("Send email to user %s", task.user.email)
+    table_to_send = "<p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+    data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></p>".format(
+        name=task.video.name,
+        url=task.video.url,
+        project_name=task.video.project_id.title,
+    )
+    final_table = table_to_send + data
+    send_mail(
+        "Task is active",
+        "Dear User, Following task is active.",
+        settings.DEFAULT_FROM_EMAIL,
+        [task.user.email],
+        html_message=final_table,
+    )

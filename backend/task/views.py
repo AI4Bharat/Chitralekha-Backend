@@ -49,7 +49,7 @@ from functools import wraps
 from rest_framework import status
 import logging
 import io
-from video.utils import get_export_transcript, get_export_translation
+from video.utils import get_export_transcript, get_export_translation, send_mail_to_user
 import zipfile
 from django.http import HttpResponse
 import datetime
@@ -463,6 +463,8 @@ class TaskViewSet(ModelViewSet):
                         is_active=is_active,
                     )
                     new_task.save()
+                    if is_active:
+                        send_mail_to_user(new_task)
                     tasks.append(new_task)
 
                 new_translations = []
@@ -533,6 +535,8 @@ class TaskViewSet(ModelViewSet):
                         is_active=is_active,
                     )
                     new_task.save()
+                    if is_active:
+                        send_mail_to_user(new_task)
                     tasks.append(new_task)
 
                 new_translations = []
@@ -843,6 +847,7 @@ class TaskViewSet(ModelViewSet):
                         if translation is not None:
                             task.is_active = True
                             task.save()
+                            send_mail_to_user(task)
                     detailed_error.append(
                         {
                             "video_name": task.video.name,
@@ -890,6 +895,8 @@ class TaskViewSet(ModelViewSet):
                         priority=priority,
                         is_active=is_active,
                     )
+                    if is_active == True:
+                        send_mail_to_user(new_task)
                     new_task.save()
                     tasks.append(new_task)
 
@@ -1226,6 +1233,8 @@ class TaskViewSet(ModelViewSet):
                         priority=priority,
                         is_active=is_active,
                     )
+                    if is_active == True:
+                        send_mail_to_user(new_task)
                     new_task.save()
                     tasks.append(new_task)
 

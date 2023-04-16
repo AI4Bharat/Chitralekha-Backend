@@ -574,14 +574,6 @@ def get_sentence_from_timeline(request):
     else:
         transcript_id = transcript.id
 
-    try:
-        transcript = Transcript.objects.get(pk=transcript_id)
-    except Transcript.DoesNotExist:
-        return Response(
-            {"message": "Transcript not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
     save_index = -1
     for ind, sentence in enumerate(transcript.payload["payload"]):
         start_time = datetime.datetime.strptime(sentence["start_time"], "%H:%M:%S.%f")
@@ -591,6 +583,23 @@ def get_sentence_from_timeline(request):
         if unix_start_time <= unix_time and unix_end_time > unix_time:
             save_index = ind
             break
+        if ind == 0:
+            if unix_time < unix_start_time:
+                save_index = ind
+                break
+        if ind < len(transcript.payload["payload"]) - 1:
+            end_time_of_next_sentence = datetime.datetime.strptime(
+                transcript.payload["payload"][ind + 1]["start_time"], "%H:%M:%S.%f"
+            )
+            unix_end_time_of_next_sentence = datetime.datetime.timestamp(
+                end_time_of_next_sentence
+            )
+            if (
+                unix_end_time <= unix_time
+                and unix_end_time_of_next_sentence > unix_time
+            ):
+                save_index = ind
+                break
 
     length_payload = len(transcript.payload["payload"])
     sentence_offset = math.ceil((save_index + 1) / int(limit))
@@ -677,13 +686,12 @@ def get_full_payload(request):
 def send_mail_to_user(task):
     logging.info("Send email to user %s", task.user.email)
     table_to_send = "<p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
-    conto = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></p>".format(
+    data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></p>".format(
         name=task.video.name,
         url=task.video.url,
         project_name=task.video.project_id.title,
     )
-    final_table = table_to_send + conto
-    print("table", final_table)
+    final_table = table_to_send + data
     send_mail(
         "Task is active",
         "Dear User, Following task is active.",
