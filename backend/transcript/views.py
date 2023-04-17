@@ -479,6 +479,7 @@ def get_payload(request):
     pre_page = int(page) - 1
 
     if next_page > total_pages:
+        end = len(transcript.payload["payload"])
         next_page = None
 
     if (pre_page <= 0) | (int(page) > total_pages):
@@ -504,7 +505,6 @@ def get_payload(request):
 
     if count_empty > 0:
         page_new_records = transcript.payload["payload"][end : end + count_empty]
-        print("page", page_new_records)
         for ind, record_object in enumerate(page_new_records):
             record_object["id"] = end + ind
             records.append(record_object)

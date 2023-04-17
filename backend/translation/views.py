@@ -360,6 +360,7 @@ def get_payload(request):
     pre_page = int(page) - 1
 
     if next_page > total_pages:
+        end = len(translation.payload["payload"])
         next_page = None
 
     if (pre_page <= 0) | (int(page) > total_pages):
@@ -388,7 +389,7 @@ def get_payload(request):
             "previous": pre_page,
             "next": next_page,
             "start": start + 1,
-            "end":  end,
+            "end": end,
         },
         status=status.HTTP_200_OK,
     )
