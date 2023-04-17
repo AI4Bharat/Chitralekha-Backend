@@ -473,9 +473,8 @@ def get_payload(request):
     start = (int(page) - 1) * int(limit)
     end = start + int(limit)
     page_records = transcript.payload["payload"][start:end]
-    records = transcript.payload["payload"]
 
-    total_pages = math.ceil(len(records) / int(limit))
+    total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
     next_page = int(page) + 1
     pre_page = int(page) - 1
 
@@ -495,22 +494,35 @@ def get_payload(request):
         for i in range(len(page_records)):
             page_records[i]["id"] = start + i
 
-    response = {
-        "payload": [
-            record_object for record_object in page_records if "text" in record_object
-        ]
-    }
+    count_empty = 0
+    records = []
+    for record_object in page_records:
+        if "text" in record_object:
+            records.append(record_object)
+        else:
+            count_empty += 1
+
+    if count_empty > 0:
+        page_new_records = transcript.payload["payload"][end : end + count_empty]
+        print("page", page_new_records)
+        for ind, record_object in enumerate(page_new_records):
+            record_object["id"] = end + ind
+            records.append(record_object)
+
+    response = {"payload": records}
 
     return Response(
         {
             "payload": response,
             "source_type": transcript.transcript_type,
-            "count": len(records),
-            "current_count": len(page_records),
+            "count": len(transcript.payload["payload"]),
+            "current_count": len(records),
             "total_pages": total_pages,
             "current": int(page),
             "previous": pre_page,
             "next": next_page,
+            "start": start + 1,
+            "end": end,
         },
         status=status.HTTP_200_OK,
     )
@@ -576,6 +588,8 @@ def get_sentence_from_timeline(request):
 
     save_index = -1
     for ind, sentence in enumerate(transcript.payload["payload"]):
+        if "start_time" not in sentence.keys():
+            continue
         start_time = datetime.datetime.strptime(sentence["start_time"], "%H:%M:%S.%f")
         unix_start_time = datetime.datetime.timestamp(start_time)
         end_time = datetime.datetime.strptime(sentence["end_time"], "%H:%M:%S.%f")
@@ -587,7 +601,11 @@ def get_sentence_from_timeline(request):
             if unix_time < unix_start_time:
                 save_index = ind
                 break
-        if ind < len(transcript.payload["payload"]) - 1:
+        if (
+            ind < len(transcript.payload["payload"]) - 1
+            and type(transcript.payload["payload"][ind + 1]) == dict
+            and "text" in transcript.payload["payload"][ind + 1].keys()
+        ):
             end_time_of_next_sentence = datetime.datetime.strptime(
                 transcript.payload["payload"][ind + 1]["start_time"], "%H:%M:%S.%f"
             )
@@ -693,7 +711,7 @@ def send_mail_to_user(task):
     )
     final_table = table_to_send + data
     send_mail(
-        "Task is active",
+        f"{task.get_task_type_label} is active",
         "Dear User, Following task is active.",
         settings.DEFAULT_FROM_EMAIL,
         [task.user.email],
