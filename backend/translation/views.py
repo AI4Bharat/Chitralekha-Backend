@@ -387,6 +387,8 @@ def get_payload(request):
             "current": int(page),
             "previous": pre_page,
             "next": next_page,
+            "start": start + 1,
+            "end":  end,
         },
         status=status.HTTP_200_OK,
     )
@@ -915,7 +917,6 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
 )
 @api_view(["POST"])
 def save_translation(request):
-
     try:
         # Get the required data from the POST body
         translation_id = request.data.get("translation_id", None)
