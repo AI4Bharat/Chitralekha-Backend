@@ -619,6 +619,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     },
                     "assignee": {"value": task.user.email, "label": "Assignee"},
                     "status": {"value": task.get_task_status_label, "label": "Status"},
+                    "completion_time": {
+                        "value": task.updated_at - task.created_at,
+                        "label": "Completion Time",
+                    },
                 }
             )
         return Response(tasks_list, status=status.HTTP_200_OK)
