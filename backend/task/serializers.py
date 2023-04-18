@@ -58,4 +58,5 @@ class TaskSerializer(serializers.ModelSerializer):
             "updated_at",
             "created_by",
             "is_active",
+            "time_spent",
         )
