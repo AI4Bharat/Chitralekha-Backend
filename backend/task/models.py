@@ -108,6 +108,9 @@ class Task(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Task Created At")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Task Updated At")
+    time_spent = models.IntegerField(
+        default=0, null=True, blank=True, verbose_name="Time Spent"
+    )
 
     @property
     def get_src_language_label(self):

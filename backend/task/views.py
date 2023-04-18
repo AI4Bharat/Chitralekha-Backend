@@ -2355,3 +2355,45 @@ class TaskViewSet(ModelViewSet):
                 {"message": "unable to query celery", "data": []},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    @swagger_auto_schema(
+        method="patch",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["time_spent"],
+            properties={
+                "time_spent": openapi.Schema(
+                    type=openapi.TYPE_INTEGER,
+                    description="time spent",
+                ),
+            },
+            description="Post request body for updating time spent.",
+        ),
+        responses={
+            200: "Updated time spent on task.",
+        },
+    )
+    @action(
+        detail=True,
+        methods=["PATCH"],
+        name="Update Time Spent",
+        url_name="update_time_spent",
+    )
+    def update_time_spent(self, request, pk=None):
+        try:
+            task = Task.objects.get(pk=pk)
+        except Task.DoesNotExist:
+            return Response(
+                {"message": "Task does not exist"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        time_spent = request.data.get("time_spent", 0)
+        if task.time_spent == None:
+            task.time_spent = time_spent
+        else:
+            task.time_spent += time_spent
+        task.save()
+        return Response(
+            {"message": "Time spent on task updated successfully."},
+            status=status.HTTP_200_OK,
+        )
