@@ -27,6 +27,8 @@ from transcript.models import Transcript
 from translation.models import Translation
 import json
 from translation.metadata import LANGUAGE_CHOICES
+from project.views import ProjectViewSet
+from django.http import HttpRequest
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -460,6 +462,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    def get_project_report_users(self, project_id, user):
+        data = ProjectViewSet(detail=True)
+        new_request = HttpRequest()
+        new_request.user = user
+        ret = data.get_report_users(new_request, project_id)
+        return ret.data
+
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
         detail=True,
@@ -469,6 +478,32 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     )
     @is_particular_organization_owner
     def get_report_users(self, request, pk=None, *args, **kwargs):
+        try:
+            organization = Organization.objects.get(pk=pk)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        projects_in_org = Project.objects.filter(organization_id=organization).all()
+        all_project_report = []
+        if len(projects_in_org) > 0:
+            for project in projects_in_org:
+                project_report = self.get_project_report_users(project.id, request.user)
+                for report in project_report:
+                    report["project"] = {"value": project.title, "label": "Project"}
+                    all_project_report.append(report)
+        return Response(all_project_report, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="Get Aggregated Report Users",
+        url_name="get_aggregated_report_users",
+    )
+    @is_particular_organization_owner
+    def get_aggregated_report_users(self, request, pk=None, *args, **kwargs):
         try:
             org = Organization.objects.get(pk=pk)
         except Organization.DoesNotExist:
@@ -534,11 +569,69 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=["GET"],
-        name="Get Report Languages",
-        url_name="get_report_langs",
+        name="Get Task report",
+        url_name="get_tasks_report",
     )
     @is_particular_organization_owner
-    def get_report_languages(self, request, pk=None, *args, **kwargs):
+    def get_tasks_report(self, request, pk=None, *args, **kwargs):
+        try:
+            org = Organization.objects.get(pk=pk)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        org_videos = Video.objects.filter(project_id__organization_id=pk)
+        task_orgs = Task.objects.filter(video__in=org_videos)
+        tasks_list = []
+        for task in task_orgs:
+            if task.description is not None:
+                description = task.description
+            elif task.video.description is not None:
+                description = task.video.description
+            else:
+                description = None
+
+            tasks_list.append(
+                {
+                    "project_name": {
+                        "value": task.video.project_id.title,
+                        "label": "Project Name",
+                    },
+                    "video_name": {"value": task.video.name, "label": "Video Name"},
+                    "video_url": {"value": task.video.url, "label": "Video URL"},
+                    "duration": {"value": task.video.duration, "label": "Duration"},
+                    "task_type": {
+                        "value": task.get_task_type_label,
+                        "label": "Task Type",
+                    },
+                    "task_description": {
+                        "value": description,
+                        "label": "Task Description",
+                    },
+                    "source_language": {
+                        "value": task.get_src_language_label,
+                        "label": "Source Langauge",
+                    },
+                    "target_language": {
+                        "value": task.get_target_language_label,
+                        "label": "Target Langauge",
+                    },
+                    "assignee": {"value": task.user.email, "label": "Assignee"},
+                    "status": {"value": task.get_task_status_label, "label": "Status"},
+                }
+            )
+        return Response(tasks_list, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="Get Aggregated Report Languages",
+        url_name="get_aggregated_report_langs",
+    )
+    @is_particular_organization_owner
+    def get_aggregated_report_languages(self, request, pk=None, *args, **kwargs):
         try:
             org = Organization.objects.get(pk=pk)
         except Organization.DoesNotExist:
