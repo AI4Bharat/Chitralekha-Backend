@@ -599,7 +599,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "label": "Project Name",
                     },
                     "video_name": {"value": task.video.name, "label": "Video Name"},
-                    "video_url": {"value": task.video.url, "label": "Video URL"},
+                    "video_url": {
+                        "value": task.video.url,
+                        "label": "Video URL",
+                        "display": "exclude",
+                    },
                     "duration": {"value": task.video.duration, "label": "Duration"},
                     "task_type": {
                         "value": task.get_task_type_label,
@@ -608,6 +612,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "task_description": {
                         "value": description,
                         "label": "Task Description",
+                        "display": "exclude",
                     },
                     "source_language": {
                         "value": task.get_src_language_label,
@@ -622,6 +627,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "completion_time": {
                         "value": task.updated_at - task.created_at,
                         "label": "Completion Time",
+                        "display": "exclude",
                     },
                 }
             )
