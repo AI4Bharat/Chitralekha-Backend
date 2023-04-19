@@ -469,6 +469,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         ret = data.get_report_users(new_request, project_id)
         return ret.data
 
+    def get_project_report_languages(self, project_id, user):
+        data = ProjectViewSet(detail=True)
+        new_request = HttpRequest()
+        new_request.user = user
+        ret = data.get_report_languages(new_request, project_id)
+        return ret.data
+
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
         detail=True,
@@ -632,6 +639,34 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 }
             )
         return Response(tasks_list, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="Get Report Languages",
+        url_name="get_report_langs",
+    )
+    @is_particular_organization_owner
+    def get_report_languages(self, request, pk=None, *args, **kwargs):
+        try:
+            org = Organization.objects.get(pk=pk)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        projects_in_org = Project.objects.filter(organization_id=org).all()
+        all_project_report = []
+        if len(projects_in_org) > 0:
+            for project in projects_in_org:
+                project_report = self.get_project_report_languages(
+                    project.id, request.user
+                )
+                for keys, values in project_report.items():
+                    for report in values:
+                        report["project"] = {"value": project.title, "label": "Project"}
+                all_project_report.append(project_report)
+        return Response(all_project_report, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
