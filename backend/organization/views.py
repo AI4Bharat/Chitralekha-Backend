@@ -666,7 +666,25 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     for report in values:
                         report["project"] = {"value": project.title, "label": "Project"}
                 all_project_report.append(project_report)
-        return Response(all_project_report, status=status.HTTP_200_OK)
+
+        aggregated_project_report = {"transcript_stats": [], "translation_stats": []}
+        for project_report in all_project_report:
+            if type(project_report) == dict:
+                if (
+                    "transcript_stats" in project_report.keys()
+                    and len(project_report["transcript_stats"]) > 0
+                ):
+                    aggregated_project_report["transcript_stats"].extend(
+                        project_report["transcript_stats"]
+                    )
+                if (
+                    "translation_stats" in project_report.keys()
+                    and len(project_report["translation_stats"]) > 0
+                ):
+                    aggregated_project_report["translation_stats"].extend(
+                        project_report["translation_stats"]
+                    )
+        return Response(aggregated_project_report, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
