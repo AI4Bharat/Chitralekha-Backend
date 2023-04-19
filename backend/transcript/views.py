@@ -784,6 +784,11 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
         if end_offset > count_sentences:
             length_2 = end_offset - count_sentences
             length = length - length_2
+            logging.info(
+                "Length of payload {}, end_offset {}, count of sentences {}, after splitting or adding {}".format(
+                    str(length), str(end_offset), str(count_sentences), str(length_2)
+                )
+            )
         for i in range(length):
             if "text" in payload["payload"][i].keys():
                 transcript.payload["payload"][start_offset + i] = {
@@ -810,12 +815,33 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
         logging.info("Limit is less than length of payload")
         length = len(payload["payload"])
         length_2 = -1
+        length_3 = -1
         if end_offset > count_sentences:
             if length > len(transcript.payload["payload"][start_offset:end_offset]):
                 length_2 = length - len(
                     transcript.payload["payload"][start_offset:end_offset]
                 )
                 length = length - length_2
+                logging.info(
+                    "Length of payload {}, end_offset {}, count of sentences {}, after splitting {}".format(
+                        str(length),
+                        str(end_offset),
+                        str(count_sentences),
+                        str(length_2),
+                    )
+                )
+            else:
+                length_3 = (
+                    len(transcript.payload["payload"][start_offset:end_offset]) - length
+                )
+                logging.info(
+                    "Length of payload {}, end_offset {}, count of sentences {}, after merging {}".format(
+                        str(length),
+                        str(end_offset),
+                        str(count_sentences),
+                        str(length_3),
+                    )
+                )
             for i in range(length):
                 if "text" in payload["payload"][i].keys():
                     transcript.payload["payload"][start_offset + i] = {
@@ -840,7 +866,11 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                         )
                     else:
                         transcript.payload["payload"][start_offset + i] = {}
+            if length_3 > 0:
+                for i in range(length_3):
+                    transcript.payload["payload"][start_offset + i + length] = {}
         else:
+            logging.info("length of payload %s", str(length))
             for i in range(length):
                 if "text" in payload["payload"][i].keys():
                     transcript.payload["payload"][start_offset + i] = {
@@ -851,9 +881,13 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                 else:
                     transcript.payload["payload"][start_offset + i] = {}
             delete_indices = []
+            logging.info(
+                "length exceeds limit by limit - length %s", str(limit - length)
+            )
             for i in range(limit - length):
                 delete_indices.append(start_offset + i + length)
 
+            logging.info("delete_indices %s", str(delete_indices))
             for ind in delete_indices:
                 transcript.payload["payload"][ind] = {}
     else:

@@ -790,14 +790,21 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                 else:
                     translation.payload["payload"][start_offset + i] = {}
     elif len(payload["payload"]) < limit:
+        logging.info("Limit is less than length of payload")
         length = len(payload["payload"])
         length_2 = -1
+        length_3 = -1
         if end_offset > count_sentences:
             if length > len(translation.payload["payload"][start_offset:end_offset]):
                 length_2 = length - len(
                     translation.payload["payload"][start_offset:end_offset]
                 )
                 length = length - length_2
+            else:
+                length_3 = (
+                    len(translation.payload["payload"][start_offset:end_offset])
+                    - length
+                )
             for i in range(length):
                 if "text" in payload["payload"][i].keys():
                     translation.payload["payload"][start_offset + i] = {
@@ -826,6 +833,9 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         )
                     else:
                         translation.payload["payload"][start_offset + i] = {}
+            if length_3 > 0:
+                for i in range(length_3):
+                    translation.payload["payload"][start_offset + i + length] = {}
         else:
             for i in range(length):
                 if "text" in payload["payload"][i].keys():
@@ -841,9 +851,11 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
             for i in range(limit - length):
                 delete_indices.append(start_offset + i + length)
 
+            logging.info("delete_indices %s", str(delete_indices))
             for ind in delete_indices:
                 translation.payload["payload"][ind] = {}
     else:
+        logging.info("Limit is greater than length of payload")
         if end_offset > count_sentences:
             length = count_sentences - start_offset
             length_2 = len(payload["payload"]) - length
