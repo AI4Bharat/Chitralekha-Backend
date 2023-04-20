@@ -35,6 +35,10 @@ from project.models import Project
 import logging
 import datetime
 from datetime import timedelta
+import csv
+import re
+from rest_framework.decorators import parser_classes
+from rest_framework.parsers import MultiPartParser
 
 
 @swagger_auto_schema(
@@ -815,3 +819,111 @@ def update_video(request):
         return Response(
             {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
         )
+
+
+@swagger_auto_schema(
+    method="post",
+    manual_parameters=[
+        openapi.Parameter(
+            name="csv",
+            in_=openapi.IN_FORM,
+            type=openapi.TYPE_FILE,
+            required=True,
+            description="CSV File to upload",
+        )
+    ],
+    responses={200: "CSV uploaded successfully"},
+)
+@api_view(["POST"])
+@parser_classes([MultiPartParser])
+def upload_csv(request):
+    """
+    API Endpoint to upload a csv file
+    Endpoint: /video/upload_csv/
+    Method: POST
+    """
+
+    accepted_languages = [
+        "as",
+        "bn",
+        "en",
+        "gu",
+        "hi",
+        "kn",
+        "ml",
+        "mr",
+        "or",
+        "pa",
+        "ta",
+        "te",
+    ]
+    accepted_task_types = [
+        "transcription edit",
+        "transcription review",
+        "translation edit",
+        "translation review",
+        "voiceover edit",
+    ]
+    required_fields = [
+        "Youtube URL",
+        "Project Name",
+        "Language",
+        "Task Types",
+        "Target Languages",
+    ]
+    if not request.FILES["csv"] or not request.FILES["csv"].name.endswith(".csv"):
+        return Response(
+            {"message": "No CSV file uploaded"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    csv_file = request.FILES["csv"]
+    decoded_file = csv_file.read().decode("utf-8").splitlines()
+    csv_reader = csv.DictReader(decoded_file)
+    if not set(required_fields).issubset(csv_reader.fieldnames):
+        return Response(
+            {
+                "message": f"Missing columns: {', '.join(set(required_fields) - set(csv_reader.fieldnames))}"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    errors = []
+    print(csv_reader.fieldnames)
+    row_num = 0
+    for row in csv_reader:
+        row_num += 1
+        if not isinstance(row["Youtube URL"], str) or not re.match(
+            r"^(https?\:\/\/)?(www\.youtube\.com|youtu\.?be)\/.+", row["Youtube URL"]
+        ):
+            errors.append(
+                f"{len(errors) + 1}. Row {row_num}: Invalid YouTube URL: {row['Youtube URL']}"
+            )
+        if not isinstance(row["Project Name"], str):
+            errors.append(
+                f"{len(errors) + 1}. Row {row_num}: Invalid project name: {row['Project name']}"
+            )
+        if (
+            not isinstance(row["Language"], str)
+            or row["Language"] not in accepted_languages
+        ):
+            errors.append(
+                f"{len(errors) + 1}. Row {row_num}: Invalid language: {row['Language']}"
+            )
+        if (
+            not isinstance(row["Task Types"], str)
+            or row["Task Types"].lower() not in accepted_task_types
+        ):
+            errors.append(
+                f"{len(errors) + 1}. Row {row_num}: Invalid task type: {row['Task Types']}"
+            )
+        if (
+            not isinstance(row["Target Languages"], str)
+            or row["Target Languages"] not in accepted_languages
+        ):
+            errors.append(
+                f"{len(errors) + 1}. Row {row_num}: Invalid target language: {row['Target Languages']}"
+            )
+    if len(errors) > 0:
+        return Response(
+            {"message": "\n".join(errors)}, status=status.HTTP_400_BAD_REQUEST
+        )
+    else:
+        return Response({"message": "CSV uploaded successfully"}, status=status.HTTP_200_OK)
