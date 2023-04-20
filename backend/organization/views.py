@@ -566,7 +566,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 },
                 "average_completion_time": {
                     "value": avg_time,
-                    "label": "Avg. Completion Time",
+                    "label": "Avg. Completion Time (in seconds)",
                 },
             }
             user_data.append(user_dict)
@@ -611,7 +611,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "label": "Video URL",
                         "display": "exclude",
                     },
-                    "duration": {"value": task.video.duration, "label": "Duration"},
+                    "duration": {
+                        "value": task.video.duration,
+                        "label": "Duration (Hours)",
+                    },
                     "task_type": {
                         "value": task.get_task_type_label,
                         "label": "Task Type",
@@ -632,8 +635,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "assignee": {"value": task.user.email, "label": "Assignee"},
                     "status": {"value": task.get_task_status_label, "label": "Status"},
                     "completion_time": {
-                        "value": task.updated_at - task.created_at,
-                        "label": "Completion Time",
+                        "value": float(
+                            "{:.2f}".format(task.updated_at - task.created_at)
+                        ),
+                        "label": "Completion Time (Seconds)",
                         "display": "exclude",
                     },
                 }
@@ -674,6 +679,15 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "transcript_stats" in project_report.keys()
                     and len(project_report["transcript_stats"]) > 0
                 ):
+
+                    for i in range(len(project_report["transcript_stats"])):
+                        new_stats = dict(
+                            reversed(
+                                list(project_report["transcript_stats"][i].items())
+                            )
+                        )
+                        project_report["transcript_stats"][i] = new_stats
+                    dict(reversed(list(report.items())))
                     aggregated_project_report["transcript_stats"].extend(
                         project_report["transcript_stats"]
                     )
@@ -681,6 +695,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "translation_stats" in project_report.keys()
                     and len(project_report["translation_stats"]) > 0
                 ):
+                    for i in range(len(project_report["translation_stats"])):
+                        new_stats = dict(
+                            reversed(
+                                list(project_report["translation_stats"][i].items())
+                            )
+                        )
+                        project_report["translation_stats"][i] = new_stats
                     aggregated_project_report["translation_stats"].extend(
                         project_report["translation_stats"]
                     )
