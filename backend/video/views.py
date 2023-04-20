@@ -38,7 +38,7 @@ from datetime import timedelta
 import csv
 import re
 from rest_framework.decorators import parser_classes
-from rest_framework.parsers import MultiPartParser
+from rest_framework.parsers import MultiPartParser, FormParser
 from users.models import User
 
 
@@ -861,7 +861,7 @@ def create_video(
     responses={200: "CSV uploaded successfully"},
 )
 @api_view(["POST"])
-@parser_classes([MultiPartParser])
+@parser_classes([MultiPartParser, FormParser])
 def upload_csv(request):
     """
     API Endpoint to upload a csv file
