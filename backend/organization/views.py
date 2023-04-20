@@ -599,6 +599,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             else:
                 description = None
 
+            if "COMPLETE" in task.status:
+                completion_time = float(
+                    "{:.2f}".format((task.updated_at - task.created_at).total_seconds())
+                )
+            else:
+                completion_time = None
             tasks_list.append(
                 {
                     "project_name": {
