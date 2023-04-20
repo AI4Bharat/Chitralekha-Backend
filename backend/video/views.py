@@ -39,6 +39,7 @@ import csv
 import re
 from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser
+from users.models import User
 
 
 @swagger_auto_schema(
@@ -821,6 +822,24 @@ def update_video(request):
         )
 
 
+def create_video(
+    request, url, project_id, description, gender, assignee=None, lang="en"
+):
+    new_request = HttpRequest()
+    new_request.method = "GET"
+    new_request.user = request.user
+    new_request.GET = request.GET.copy()
+    new_request.GET["multimedia_url"] = url
+    new_request.GET["lang"] = lang
+    new_request.GET["project_id"] = project_id
+    new_request.GET["description"] = description
+    new_request.GET["is_audio_only"] = "true"
+    new_request.GET["create"] = "true"
+    new_request.GET["gender"] = gender
+    new_request.GET["assignee"] = assignee
+    # return get_video(new_request)
+
+
 @swagger_auto_schema(
     method="post",
     manual_parameters=[
@@ -830,7 +849,14 @@ def update_video(request):
             type=openapi.TYPE_FILE,
             required=True,
             description="CSV File to upload",
-        )
+        ),
+        openapi.Parameter(
+            "project_id",
+            openapi.IN_QUERY,
+            description=("Id of the project to which this video belongs"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
     ],
     responses={200: "CSV uploaded successfully"},
 )
@@ -843,6 +869,7 @@ def upload_csv(request):
     Method: POST
     """
 
+    project_id = request.query_params.get("project_id")
     accepted_languages = [
         "as",
         "bn",
@@ -864,13 +891,24 @@ def upload_csv(request):
         "translation review",
         "voiceover edit",
     ]
+    mapped_task_type = {
+        "transcription edit": "TRANSCRIPTION_EDIT",
+        "transcription review": "TRANSCRIPTION_REVIEW",
+        "translation edit": "TRANSLATION_EDIT",
+        "translation review": "TRANSLATION_REVIEW",
+        "voiceover edit": "VOICEOVER_EDIT",
+    }
+    mapped_gender = {"male": "Male", "female": "Female"}
     required_fields = [
         "Youtube URL",
-        "Project Name",
-        "Language",
-        "Task Types",
-        "Target Languages",
+        "Speaker",
+        "Source Language",
+        "Task Type",
+        "Target Language",
+        "Assignee",
+        "Description",
     ]
+    organization = request.user.organization
     if not request.FILES["csv"] or not request.FILES["csv"].name.endswith(".csv"):
         return Response(
             {"message": "No CSV file uploaded"}, status=status.HTTP_400_BAD_REQUEST
@@ -888,42 +926,110 @@ def upload_csv(request):
     errors = []
     print(csv_reader.fieldnames)
     row_num = 0
+    try:
+        project = Project.objects.get(pk=project_id)
+
+    except Project.DoesNotExist:
+        return Response(
+            {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+    valid_rows = []
     for row in csv_reader:
+        valid_row = {}
         row_num += 1
         if not isinstance(row["Youtube URL"], str) or not re.match(
             r"^(https?\:\/\/)?(www\.youtube\.com|youtu\.?be)\/.+", row["Youtube URL"]
         ):
             errors.append(
-                f"{len(errors) + 1}. Row {row_num}: Invalid YouTube URL: {row['Youtube URL']}"
+                {
+                    "row_no": f"Row {row_num}",
+                    "message": f"Invalid YouTube URL: {row['Youtube URL']}",
+                }
             )
-        if not isinstance(row["Project Name"], str):
-            errors.append(
-                f"{len(errors) + 1}. Row {row_num}: Invalid project name: {row['Project name']}"
-            )
+        else:
+            valid_row["url"] = row["Youtube URL"]
         if (
-            not isinstance(row["Language"], str)
-            or row["Language"] not in accepted_languages
+            not isinstance(row["Source Language"], str)
+            or row["Source Language"] not in accepted_languages
         ):
             errors.append(
-                f"{len(errors) + 1}. Row {row_num}: Invalid language: {row['Language']}"
+                {
+                    "row_no": f"Row {row_num}",
+                    "message": f"Invalid language: {row['Source Language']}",
+                }
             )
+        else:
+            valid_row["lang"] = row["Source Language"]
         if (
-            not isinstance(row["Task Types"], str)
-            or row["Task Types"].lower() not in accepted_task_types
+            not isinstance(row["Task Type"], str)
+            or row["Task Type"].lower() not in accepted_task_types
         ):
             errors.append(
-                f"{len(errors) + 1}. Row {row_num}: Invalid task type: {row['Task Types']}"
+                {
+                    "row_no": f"Row {row_num}",
+                    "message": f"Invalid task type: {row['Task Type']}",
+                }
             )
+        if not isinstance(row["Speaker"], str) or row["Speaker"].lower() not in [
+            "male",
+            "female",
+        ]:
+            errors.append(
+                {
+                    "row_no": f"Row {row_num}",
+                    "message": f"Invalid gender: {row['Speaker']}",
+                }
+            )
+        else:
+            valid_row["gender"] = mapped_gender[row["Speaker"].lower()]
         if (
-            not isinstance(row["Target Languages"], str)
-            or row["Target Languages"] not in accepted_languages
+            not isinstance(row["Target Language"], str)
+            and row["Target Language"] not in accepted_languages
+            and "translation" not in row["Task Type"].lower()
+            and "voiceover" not in row["Task Type"].lower()
         ):
             errors.append(
-                f"{len(errors) + 1}. Row {row_num}: Invalid target language: {row['Target Languages']}"
+                {
+                    "row_no": f"Row {row_num}",
+                    "message": f"Invalid target language: {row['Target Language']}",
+                }
             )
+        else:
+            valid_row["target_language"] = row["Target Language"]
+        if row["Assignee"] not in project.members.all().values_list("email", flat=True):
+            if row["Assignee"] is None or len(row["Assignee"]) == 0:
+                valid_row["assignee"] = None
+            else:
+                errors.append(
+                    {
+                        "row_no": f"Row {row_num}",
+                        "message": f"Invalid Assignee: {row['Assignee']}",
+                    }
+                )
+        else:
+            valid_row["assignee"] = User.objects.get(email=row["Assignee"])
+
+        valid_row["description"] = row["Description"]
+        if len(errors) == 0:
+            valid_rows.append(valid_row)
     if len(errors) > 0:
         return Response(
-            {"message": "\n".join(errors)}, status=status.HTTP_400_BAD_REQUEST
+            {"message": "Invalid CSV", "response": errors},
+            status=status.HTTP_400_BAD_REQUEST,
         )
     else:
-        return Response({"message": "CSV uploaded successfully"}, status=status.HTTP_200_OK)
+        """
+        for row in valid_rows:
+            create_video(
+                request,
+                row["url"],
+                project.id,
+                row["description"],
+                row["gender"],
+                row["assignee"],
+                row["lang"],
+            )
+        """
+        return Response(
+            {"message": "CSV uploaded successfully"}, status=status.HTTP_200_OK
+        )
