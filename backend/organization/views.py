@@ -641,9 +641,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "assignee": {"value": task.user.email, "label": "Assignee"},
                     "status": {"value": task.get_task_status_label, "label": "Status"},
                     "completion_time": {
-                        "value": float(
-                            "{:.2f}".format(task.updated_at - task.created_at)
-                        ),
+                        "value": completion_time,
                         "label": "Completion Time (Seconds)",
                         "display": "exclude",
                     },
