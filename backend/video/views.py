@@ -869,6 +869,7 @@ def upload_csv(request):
     Method: POST
     """
 
+    logging.info("Calling Upload API...")
     project_id = request.query_params.get("project_id")
     accepted_languages = [
         "as",
