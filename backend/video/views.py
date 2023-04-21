@@ -881,6 +881,8 @@ def upload_csv_data(request):
                     "message": f"Invalid target language: {row['Target Language']}",
                 }
             )
+        elif len(row["Target Language"]) == 0:
+            valid_row["target_language"] = None
         else:
             valid_row["target_language"] = row["Target Language"]
 
