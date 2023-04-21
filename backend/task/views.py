@@ -13,7 +13,11 @@ from transcript.views import generate_transcription
 from rest_framework.decorators import action
 from users.models import User
 from transcript.utils.asr import get_asr_supported_languages, make_asr_api_call
-from voiceover.utils import generate_voiceover_payload, process_translation_payload
+from voiceover.utils import (
+    generate_voiceover_payload,
+    process_translation_payload,
+    send_mail_to_user,
+)
 from transcript.models import Transcript
 from translation.models import Translation
 from django.db.models import Count
