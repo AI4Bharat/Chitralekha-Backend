@@ -826,7 +826,7 @@ def upload_csv_data(request):
             errors.append(
                 {
                     "row_no": f"Row {row_num}",
-                    "message": f"Invalid language: {row['Source Language']}",
+                    "message": f"Invalid source language: {row['Source Language']}",
                 }
             )
         else:
