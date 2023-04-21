@@ -769,6 +769,9 @@ def change_active_status_of_next_tasks(task, transcript_obj):
 
 
 def modify_payload(limit, payload, start_offset, end_offset, transcript):
+    print("start_offset", start_offset)
+    print("end_offset", end_offset)
+    print("limit", limit)
     count_sentences = len(transcript.payload["payload"])
     if len(payload["payload"]) == limit:
         logging.info("Limit is equal to length of payload")
