@@ -384,13 +384,6 @@ def get_payload(request):
         else:
             count_empty += 1
 
-    if count_empty > 0:
-        page_new_records = translation.payload["payload"][end : end + count_empty]
-        for ind, record_object in enumerate(page_new_records):
-            if "text" in record_object:
-                record_object["id"] = end + ind
-                records.append(record_object)
-
     response = {"payload": records}
 
     return Response(

@@ -497,13 +497,6 @@ def get_payload(request):
         else:
             count_empty += 1
 
-    if count_empty > 0:
-        page_new_records = transcript.payload["payload"][end : end + count_empty]
-        for ind, record_object in enumerate(page_new_records):
-            if "text" in record_object:
-                record_object["id"] = end + ind
-                records.append(record_object)
-
     response = {"payload": records}
 
     return Response(
@@ -931,6 +924,8 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
             if "text" in payload["payload"][i].keys():
                 if (
                     len(transcript.payload["payload"]) > insert_at + i
+                    and "text" in payload["payload"][length + i].keys()
+                    and "text" in transcript.payload["payload"][insert_at + i].keys()
                     and payload["payload"][length + i]["start_time"]
                     == transcript.payload["payload"][insert_at + i]["start_time"]
                     and payload["payload"][length + i]["end_time"]
