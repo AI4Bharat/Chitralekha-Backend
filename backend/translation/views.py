@@ -355,7 +355,7 @@ def get_payload(request):
     page_records = translation.payload["payload"][start:end]
     records = translation.payload["payload"]
 
-    total_pages = math.ceil(len(records) // int(limit))
+    total_pages = math.ceil(len(translation.payload["payload"]) / int(limit))
     next_page = int(page) + 1
     pre_page = int(page) - 1
 
