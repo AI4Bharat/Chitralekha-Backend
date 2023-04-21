@@ -783,7 +783,10 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                 )
             )
         for i in range(length):
-            if "text" in payload["payload"][i].keys():
+            if (
+                "text" in payload["payload"][i].keys()
+                and "text" in transcript.payload["payload"][start_offset + i]
+            ):
                 transcript.payload["payload"][start_offset + i] = {
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
@@ -836,7 +839,10 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                     )
                 )
             for i in range(length):
-                if "text" in payload["payload"][i].keys():
+                if (
+                    "text" in payload["payload"][i].keys()
+                    and "text" in transcript.payload["payload"][start_offset + i]
+                ):
                     transcript.payload["payload"][start_offset + i] = {
                         "start_time": payload["payload"][i]["start_time"],
                         "end_time": payload["payload"][i]["end_time"],
@@ -865,7 +871,10 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
         else:
             logging.info("length of payload %s", str(length))
             for i in range(length):
-                if "text" in payload["payload"][i].keys():
+                if (
+                    "text" in payload["payload"][i].keys()
+                    and "text" in transcript.payload["payload"][start_offset + i]
+                ):
                     transcript.payload["payload"][start_offset + i] = {
                         "start_time": payload["payload"][i]["start_time"],
                         "end_time": payload["payload"][i]["end_time"],
@@ -898,7 +907,10 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
             length_2 = len(payload["payload"]) - limit
             insert_at = start_offset + length
         for i in range(length):
-            if "text" in payload["payload"][i].keys():
+            if (
+                "text" in payload["payload"][i].keys()
+                and "text" in transcript.payload["payload"][start_offset + i]
+            ):
                 transcript.payload["payload"][start_offset + i] = {
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
