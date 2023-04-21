@@ -376,7 +376,22 @@ def get_payload(request):
         for i in range(len(page_records)):
             page_records[i]["id"] = start + i
 
-    response = {"payload": [record_object for record_object in page_records]}
+    count_empty = 0
+    records = []
+    for record_object in page_records:
+        if "text" in record_object:
+            records.append(record_object)
+        else:
+            count_empty += 1
+
+    if count_empty > 0:
+        page_new_records = translation.payload["payload"][end : end + count_empty]
+        for ind, record_object in enumerate(page_new_records):
+            if "text" in record_object:
+                record_object["id"] = end + ind
+                records.append(record_object)
+
+    response = {"payload": records}
 
     return Response(
         {
@@ -571,21 +586,27 @@ def get_payload_request(request, task_id, limit, offset):
 
 
 def send_mail_to_user(task):
-    logging.info("Send email to user %s", task.user.email)
-    table_to_send = "<p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
-    data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></p>".format(
-        name=task.video.name,
-        url=task.video.url,
-        project_name=task.video.project_id.title,
-    )
-    final_table = table_to_send + data
-    send_mail(
-        "Task is active",
-        "Dear User, Following task is active.",
-        settings.DEFAULT_FROM_EMAIL,
-        [task.user.email],
-        html_message=final_table,
-    )
+    if task.user.enable_mail:
+        logging.info("Send email to user %s", task.user.email)
+        table_to_send = "<p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+        data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></p>".format(
+            name=task.video.name,
+            url=task.video.url,
+            project_name=task.video.project_id.title,
+        )
+        final_table = table_to_send + data
+        try:
+            send_mail(
+                "Task is active",
+                "Dear User, Following task is active.",
+                settings.DEFAULT_FROM_EMAIL,
+                [task.user.email],
+                html_message=final_table,
+            )
+        except:
+            logging.info("Error in sending Email")
+    else:
+        logging.info("Email is not enabled %s", task.user.email)
 
 
 def change_active_status_of_next_tasks(task, translation_obj):
@@ -1119,9 +1140,9 @@ def save_translation(request):
                     for ind in delete_indices:
                         translation_obj.payload["payload"].pop(ind)
                     translation_obj.save()
-                    message = change_active_status_of_next_tasks(task, translation_obj)
                     task.status = "COMPLETE"
                     task.save()
+                    message = change_active_status_of_next_tasks(task, translation_obj)
                 else:
                     translation_obj = (
                         Translation.objects.filter(status=TRANSLATION_REVIEW_INPROGRESS)
@@ -1380,9 +1401,9 @@ def save_full_translation(request):
                         status=ts_status,
                         task=task,
                     )
-                    message = change_active_status_of_next_tasks(task, translation_obj)
                     task.status = "COMPLETE"
                     task.save()
+                    message = change_active_status_of_next_tasks(task, translation_obj)
                 else:
                     translation_obj = (
                         Translation.objects.filter(status=TRANSLATION_REVIEW_INPROGRESS)

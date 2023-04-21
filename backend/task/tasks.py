@@ -57,12 +57,12 @@ def celery_tts_call(
     )
     voiceover_obj.save()
     task_obj.is_active = True
-    send_mail_to_user(task_obj)
     task_obj.save()
     if "message" in tts_payload:
         task_obj.is_active = False
         task_obj.status = "FAILED"
         task_obj.save()
+    send_mail_to_user(task_obj)
 
 
 @shared_task()
@@ -83,3 +83,4 @@ def celery_asr_call(task_id):
         task_obj.is_active = True
         task_obj.save()
         transcript_obj.save()
+        send_mail_to_user(task_obj)

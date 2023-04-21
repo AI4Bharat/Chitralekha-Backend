@@ -23,7 +23,6 @@ from translation.utils import (
     translation_mg,
 )
 from voiceover.models import VoiceOver
-from video.utils import get_subtitles_from_google_video
 from rest_framework.permissions import IsAuthenticated
 import webvtt
 from io import StringIO
@@ -49,7 +48,6 @@ from functools import wraps
 from rest_framework import status
 import logging
 import io
-from video.utils import get_export_transcript, get_export_translation, send_mail_to_user
 import zipfile
 from django.http import HttpResponse
 import datetime
@@ -57,6 +55,29 @@ from task.tasks import celery_asr_call, celery_tts_call
 import requests
 from django.db.models.functions import Concat
 from django.db.models import Value
+from django.http import HttpRequest
+from transcript.views import export_transcript
+from translation.views import export_translation
+
+
+def get_export_translation(request, task_id, export_type):
+    new_request = HttpRequest()
+    new_request.method = "GET"
+    new_request.user = request.user
+    new_request.GET = request.GET.copy()
+    new_request.GET["task_id"] = task_id
+    new_request.GET["export_type"] = export_type
+    return export_translation(new_request)
+
+
+def get_export_transcript(request, task_id, export_type):
+    new_request = HttpRequest()
+    new_request.method = "GET"
+    new_request.user = request.user
+    new_request.GET = request.GET.copy()
+    new_request.GET["task_id"] = task_id
+    new_request.GET["export_type"] = export_type
+    return export_transcript(new_request)
 
 
 class TaskViewSet(ModelViewSet):
@@ -1339,11 +1360,13 @@ class TaskViewSet(ModelViewSet):
     def generate_transcript_payload(self, task, list_compare_sources, is_async=False):
         payloads = {}
         if "MACHINE_GENERATED" in list_compare_sources:
-            if is_async==True:
+            if is_async == True:
                 celery_asr_call.delay(task_id=task.id)
                 payloads["MACHINE_GENERATED"] = {"payload": []}
             else:
-                transcribed_data = make_asr_api_call(task.video.url, task.video.language)
+                transcribed_data = make_asr_api_call(
+                    task.video.url, task.video.language
+                )
                 if transcribed_data is not None:
                     data = self.convert_payload_format(transcribed_data)
                     payloads["MACHINE_GENERATED"] = data

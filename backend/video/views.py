@@ -16,17 +16,8 @@ from transcript.models import ORIGINAL_SOURCE, Transcript
 from translation.models import Translation
 from project.decorators import is_project_owner
 from .models import Video, GENDER
-from task.views import TaskViewSet
-from task.serializers import TaskStatusSerializer
 from .serializers import VideoSerializer
-from .utils import (
-    get_data_from_google_video,
-    get_subtitles_from_google_video,
-    drive_info_extractor,
-    DownloadError,
-    get_export_transcript,
-    get_export_translation,
-)
+from .utils import *
 from django.utils import timezone
 from django.http import HttpResponse
 import io
@@ -42,7 +33,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from users.models import User
 import base64
 import io
-import csv
+from video.tasks import create_videos_async
 
 
 @swagger_auto_schema(
@@ -151,348 +142,8 @@ def get_video(request):
     Method: GET
     Query Params: multimedia_url (required)
     """
-
+    return get_video_func(request)
     # Get the video URL from the query params
-    url = request.query_params.get("multimedia_url")
-    lang = request.query_params.get("lang", "en")
-    project_id = request.query_params.get("project_id")
-    description = request.query_params.get("description", "")
-    is_audio_only = request.query_params.get("is_audio_only", "false")
-    create = request.query_params.get("create", "false")
-    gender = request.query_params.get("gender", "MALE")
-
-    create = create.lower() == "true"
-    if create:
-        video = Video.objects.filter(url=url).first()
-        if video is not None:
-            return Response(
-                {
-                    "message": "Video is already a part of project -> {}.".format(
-                        video.project_id.title
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-    # Convert audio only to boolean
-    is_audio_only = is_audio_only.lower() == "true"
-    if not url:
-        return Response(
-            {"message": "Video URL not provided in query params."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    if gender is not None:
-        gender_list = [gender[0] for gender in GENDER]
-        if gender.upper() in gender_list:
-            gender = gender.upper()
-        else:
-            gender = "MALE"
-
-    project = Project.objects.filter(pk=project_id).first()
-    if project is None:
-        return Response(
-            {"message": "Project is not found. "},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    organization = project.organization_id
-    default_task_eta = project.default_eta
-    default_task_priority = project.default_priority
-    default_task_description = project.default_description
-    consolidated_report = []
-    detailed_report = []
-    message = ""
-    fail_count = 0
-    success_count = 0
-    ## PATCH: Handle audio_only files separately for google drive links
-    ## TODO: Move it to an util function
-    if "drive.google.com" in url and is_audio_only:
-
-        # Construct a direct download link from the google drive url
-        # get the id from the drive link
-        try:
-            file_id = drive_info_extractor._match_id(url)
-        except Exception:
-            return Response(
-                {"message": "Invalid Google Drive URL."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        url = f"https://drive.google.com/uc?export=download&confirm=yTib&id={file_id}"
-
-        # Get the video metadata
-        title = (
-            urllib.request.urlopen(urllib.request.Request(url)).info().get_filename()
-        )
-        direct_audio_url = url
-
-        # Calculate the duration
-        filename, headers = urllib.request.urlretrieve(url)
-        audio = MP3(filename)
-        duration = timedelta(seconds=int(audio.info.length))
-
-        # Create a new DB entry if URL does not exist, else return the existing entry
-        video, created = Video.objects.get_or_create(
-            url=url,
-            defaults={
-                "name": title,
-                "duration": duration,
-                "project_id": project,
-                "audio_only": is_audio_only,
-                "language": lang,
-                "description": description,
-                "gender": gender,
-            },
-        )
-        serializer = VideoSerializer(video)
-        response_data = {
-            "video": serializer.data,
-        }
-
-        if is_audio_only:
-            response_data["direct_audio_url"] = direct_audio_url
-        else:
-            response_data["direct_video_url"] = direct_video_url
-
-        if created:
-            video.save()
-            logging.info("Video is created.")
-            default_task_types = (
-                project.default_task_types or organization.default_task_types
-            )
-            default_target_languages = (
-                project.default_target_languages
-                or organization.default_target_languages
-            )
-
-            if default_task_types is not None:
-                for task_type in default_task_types:
-                    if (
-                        default_target_languages is not None
-                        and "TRANSCRIPTION" not in task_type
-                    ):
-                        for target_language in default_target_languages:
-                            task_response = create_tasks(
-                                video.id,
-                                task_type,
-                                request.user,
-                                default_task_eta,
-                                default_task_priority,
-                                default_task_description,
-                                target_language,
-                            )
-                            detailed_report.extend(
-                                task_response["response"]["detailed_report"]
-                            )
-                            if (
-                                task_response["response"]["detailed_report"][0][
-                                    "status"
-                                ]
-                                == "Fail"
-                            ):
-                                fail_count += 1
-                            else:
-                                success_count += 1
-                    else:
-                        task_response = create_tasks(
-                            video.id,
-                            task_type,
-                            request.user,
-                            default_task_eta,
-                            default_task_priority,
-                            default_task_description,
-                        )
-                        detailed_report.extend(
-                            task_response["response"]["detailed_report"]
-                        )
-                        if (
-                            task_response["response"]["detailed_report"][0]["status"]
-                            == "Fail"
-                        ):
-                            fail_count += 1
-                        else:
-                            success_count += 1
-                if fail_count > 0:
-                    message = "{0} Tasks creation failed.".format(fail_count)
-                    consolidated_report.append(
-                        {"message": "Tasks creation failed.", "count": fail_count}
-                    )
-                if success_count > 0:
-                    message = (
-                        "{0} Tasks created successfully.".format(success_count)
-                        + message
-                    )
-                    consolidated_report.append(
-                        {
-                            "message": "Tasks created successfully.",
-                            "count": success_count,
-                        }
-                    )
-            response_data["consolidated_report"] = consolidated_report
-            response_data["detailed_report"] = detailed_report
-            response_data["message"] = "Video created successfully." + message
-
-            return Response(
-                response_data,
-                status=status.HTTP_200_OK,
-            )
-        else:
-            return Response(
-                response_data,
-                status=status.HTTP_200_OK,
-            )
-
-    try:
-        # Get the video info from the YouTube API
-        (
-            direct_video_url,
-            normalized_url,
-            title,
-            duration,
-            direct_audio_url,
-        ) = get_data_from_google_video(url)
-    except DownloadError:
-        return Response(
-            {"message": "This is an invalid video URL."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    # Create a new DB entry if URL does not exist, else return the existing entry
-    video, created = Video.objects.get_or_create(
-        url=normalized_url,
-        defaults={
-            "name": title,
-            "duration": duration,
-            "project_id": project,
-            "audio_only": is_audio_only,
-            "language": lang,
-            "description": description,
-            "gender": gender,
-        },
-    )
-    if created:
-        video.save()
-        subtitle_payload, is_machine_generated = get_subtitles_from_google_video(
-            url, lang
-        )
-        if subtitle_payload:
-            # Save the subtitles to the video object
-            video.subtitles = {
-                # "status": "SUCCESS",
-                "output": subtitle_payload,
-            }
-            video.save()
-
-    # Create the response data to be returned
-    video.audio_only = is_audio_only
-    serializer = VideoSerializer(video)
-    response_data = {
-        "video": serializer.data,
-    }
-
-    # Check if it's audio only
-    if is_audio_only:
-        response_data["direct_audio_url"] = direct_audio_url
-    else:
-        response_data["direct_video_url"] = direct_video_url
-
-    if created:
-        default_task_types = (
-            project.default_task_types or organization.default_task_types
-        )
-        default_target_languages = (
-            project.default_target_languages or organization.default_target_languages
-        )
-
-        if default_task_types is not None:
-            for task_type in default_task_types:
-                if (
-                    default_target_languages is not None
-                    and "TRANSCRIPTION" not in task_type
-                ):
-                    for target_language in default_target_languages:
-                        task_response = create_tasks(
-                            video.id,
-                            task_type,
-                            request.user,
-                            default_task_eta,
-                            default_task_priority,
-                            default_task_description,
-                            target_language,
-                        )
-                        detailed_report.extend(
-                            task_response["response"]["detailed_report"]
-                        )
-                        if (
-                            task_response["response"]["detailed_report"][0]["status"]
-                            == "Fail"
-                        ):
-                            fail_count += 1
-                        else:
-                            success_count += 1
-                else:
-                    task_response = create_tasks(
-                        video.id,
-                        task_type,
-                        request.user,
-                        default_task_eta,
-                        default_task_priority,
-                        default_task_description,
-                    )
-                    detailed_report.extend(task_response["response"]["detailed_report"])
-
-                    if (
-                        task_response["response"]["detailed_report"][0]["status"]
-                        == "Fail"
-                    ):
-                        fail_count += 1
-                    else:
-                        success_count += 1
-
-            if fail_count > 0:
-                message = "{0} Tasks creation failed.".format(fail_count)
-                consolidated_report.append(
-                    {"message": "Tasks creation failed.", "count": fail_count}
-                )
-            if success_count > 0:
-                message = (
-                    "{0} Tasks created successfully.".format(success_count) + message
-                )
-                consolidated_report.append(
-                    {"message": "Tasks created successfully.", "count": success_count}
-                )
-            response_data["consolidated_report"] = consolidated_report
-            response_data["detailed_report"] = detailed_report
-
-        response_data["message"] = "Video created successfully." + message
-        return Response(
-            response_data,
-            status=status.HTTP_200_OK,
-        )
-    else:
-        return Response(
-            response_data,
-            status=status.HTTP_200_OK,
-        )
-
-
-def create_tasks(
-    video_id, task_type, user, eta, priority, description, target_language=None
-):
-    data = TaskViewSet(detail=True)
-    new_request = HttpRequest()
-    new_request.user = user
-    new_request.data = {
-        "task_type": task_type,
-        "video_ids": [video_id],
-        "target_language": target_language,
-        "eta": eta,
-        "priority": priority,
-        "description": description,
-    }
-    logging.info("Creation of task started for %s", task_type)
-    ret = data.create(new_request)
-    return ret.data
 
 
 @swagger_auto_schema(
@@ -825,24 +476,6 @@ def update_video(request):
         )
 
 
-def create_video(
-    request, url, project_id, description, gender, assignee=None, lang="en"
-):
-    new_request = HttpRequest()
-    new_request.method = "GET"
-    new_request.user = request.user
-    new_request.GET = request.GET.copy()
-    new_request.GET["multimedia_url"] = url
-    new_request.GET["lang"] = lang
-    new_request.GET["project_id"] = project_id
-    new_request.GET["description"] = description
-    new_request.GET["is_audio_only"] = "true"
-    new_request.GET["create"] = "true"
-    new_request.GET["gender"] = gender
-    new_request.GET["assignee"] = assignee
-    # return get_video(new_request)
-
-
 @swagger_auto_schema(
     method="post",
     manual_parameters=[
@@ -912,7 +545,7 @@ def upload_csv(request):
         "Assignee",
         "Description",
     ]
-    organization = request.user.organization
+
     if not request.FILES["csv"] or not request.FILES["csv"].name.endswith(".csv"):
         return Response(
             {"message": "No CSV file uploaded"}, status=status.HTTP_400_BAD_REQUEST
@@ -1023,7 +656,7 @@ def upload_csv(request):
                     }
                 )
         else:
-            valid_row["assignee"] = User.objects.get(email=row["Assignee"])
+            valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
 
         valid_row["description"] = row["Description"]
         video = Video.objects.filter(url=row["Youtube URL"]).first()
@@ -1062,6 +695,11 @@ def upload_csv(request):
         return Response(
             {"message": "CSV uploaded successfully"}, status=status.HTTP_200_OK
         )
+
+
+def call_async_video(user_id, valid_rows, existing_videos, project_id):
+    print(valid_rows)
+    create_videos_async.delay(user_id, valid_rows, existing_videos, project_id)
 
 
 @swagger_auto_schema(
@@ -1142,6 +780,12 @@ def upload_csv_data(request):
         for row in reader:
             new_row = ",".join(row)
             csv_data.append(new_row)
+
+    if len(csv_data) > 30:
+        return Response(
+            {"message": "Number of rows is greater than 30."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     csv_reader = csv.DictReader(csv_data)
     if not set(required_fields).issubset(csv_reader.fieldnames):
         return Response(
@@ -1209,6 +853,10 @@ def upload_csv_data(request):
                             "message": f"Empty or Invalid target language: {row['Target Language']}",
                         }
                     )
+                else:
+                    valid_row["target_language"] = row["Target Language"]
+            valid_row["task_type"] = mapped_task_type[row["Task Type"].lower()]
+
         if not isinstance(row["Speaker"], str) or row["Speaker"].lower() not in [
             "male",
             "female",
@@ -1247,42 +895,33 @@ def upload_csv_data(request):
                     }
                 )
         else:
-            valid_row["assignee"] = User.objects.get(email=row["Assignee"])
+            valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
 
         valid_row["description"] = row["Description"]
         video = Video.objects.filter(url=row["Youtube URL"]).first()
         existing_videos = []
-        if video is not None:
-            if video.project_id.id != project.id:
-                errors.append(
-                    {
-                        "row_no": f"Row {row_num}",
-                        "message": f"Video {row['Youtube URL']} exists in another Project: {video.project_id.title}",
-                    }
-                )
-            else:
-                existing_videos.append(video)
         if len(errors) == 0:
-            valid_rows.append(valid_row)
+            if video is not None:
+                if video.project_id.id != project.id:
+                    errors.append(
+                        {
+                            "row_no": f"Row {row_num}",
+                            "message": f"Video {row['Youtube URL']} exists in another Project: {video.project_id.title}",
+                        }
+                    )
+                else:
+                    existing_videos.append({"video": video.id, "row": valid_row})
+                    valid_rows.append(valid_row)
+            else:
+                valid_rows.append(valid_row)
+
     if len(errors) > 0:
         return Response(
             {"message": "Invalid CSV", "response": errors},
             status=status.HTTP_400_BAD_REQUEST,
         )
     else:
-        """
-        for row in valid_rows:
-            create_video(
-                request,
-                row["url"],
-                project.id,
-                existing_videos,
-                row["description"],
-                row["gender"],
-                row["assignee"],
-                row["lang"],
-            )
-        """
+        call_async_video(request.user.id, valid_rows, existing_videos, project_id)
         return Response(
             {"message": "CSV uploaded successfully"}, status=status.HTTP_200_OK
         )
