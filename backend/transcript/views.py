@@ -63,6 +63,7 @@ import math
 import logging
 from django.conf import settings
 from django.core.mail import send_mail
+import logging
 
 
 @api_view(["GET"])
@@ -456,14 +457,7 @@ def get_payload(request):
 
     # Retrieve the transcript object
     try:
-        cache_key = f"transcript_cache_{transcript_id}"
-        # Check if the results are already cached
-        transcript = cache.get(cache_key)
-        if not transcript:
-            # If not cached, fetch the data from the database and cache the result
-            transcript = Transcript.objects.get(pk=transcript_id)
-            cache.set(cache_key, transcript, timeout=60 * 5)  # 5 minutes cache timeout
-
+        transcript = Transcript.objects.get(pk=transcript_id)
     except Transcript.DoesNotExist:
         return Response(
             {"message": "Transcript doesn't exist."},
@@ -506,8 +500,9 @@ def get_payload(request):
     if count_empty > 0:
         page_new_records = transcript.payload["payload"][end : end + count_empty]
         for ind, record_object in enumerate(page_new_records):
-            record_object["id"] = end + ind
-            records.append(record_object)
+            if "text" in record_object:
+                record_object["id"] = end + ind
+                records.append(record_object)
 
     response = {"payload": records}
 
@@ -702,21 +697,24 @@ def get_full_payload(request):
 
 
 def send_mail_to_user(task):
-    logging.info("Send email to user %s", task.user.email)
-    table_to_send = "<p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
-    data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></p>".format(
-        name=task.video.name,
-        url=task.video.url,
-        project_name=task.video.project_id.title,
-    )
-    final_table = table_to_send + data
-    send_mail(
-        f"{task.get_task_type_label} is active",
-        "Dear User, Following task is active.",
-        settings.DEFAULT_FROM_EMAIL,
-        [task.user.email],
-        html_message=final_table,
-    )
+    if task.user.enable_mail:
+        logging.info("Send email to user %s", task.user.email)
+        table_to_send = "<p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+        data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></p>".format(
+            name=task.video.name,
+            url=task.video.url,
+            project_name=task.video.project_id.title,
+        )
+        final_table = table_to_send + data
+        send_mail(
+            f"{task.get_task_type_label} is active",
+            "Dear User, Following task is active.",
+            settings.DEFAULT_FROM_EMAIL,
+            [task.user.email],
+            html_message=final_table,
+        )
+    else:
+        logging.info("Email is not enabled %s", task.user.email)
 
 
 def change_active_status_of_next_tasks(task, transcript_obj):
@@ -764,13 +762,8 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                 translation.save()
         tasks.filter(task_type="TRANSLATION_EDIT").update(is_active=True)
         for task in tasks.filter(task_type="TRANSLATION_EDIT"):
-            try:
-                send_mail_to_user(task)
-            except:
-                Response(
-                    {"message": "Error in sending mail"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            print("Send Email to User")
+            send_mail_to_user(task)
     else:
         print("No change in status")
 
@@ -1147,8 +1140,6 @@ def save_full_transcription(request):
                         task.status = "INPROGRESS"
                         task.save()
 
-            transcription_cache_key = f"transcript_cache_{transcript_obj.id}"
-            cache.delete(transcription_cache_key)
             if request.data.get("final"):
                 return Response(
                     {
@@ -1418,10 +1409,6 @@ def save_transcription(request):
                         transcript_obj.save()
                         task.status = "INPROGRESS"
                         task.save()
-
-            # delete cache by transcription key
-            transcription_cache_key = f"transcript_cache_{transcript_obj.id}"
-            cache.delete(transcription_cache_key)
 
             if request.data.get("final"):
                 return Response(

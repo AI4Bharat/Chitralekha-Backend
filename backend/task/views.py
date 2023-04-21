@@ -1360,11 +1360,13 @@ class TaskViewSet(ModelViewSet):
     def generate_transcript_payload(self, task, list_compare_sources, is_async=False):
         payloads = {}
         if "MACHINE_GENERATED" in list_compare_sources:
-            if is_async==True:
+            if is_async == True:
                 celery_asr_call.delay(task_id=task.id)
                 payloads["MACHINE_GENERATED"] = {"payload": []}
             else:
-                transcribed_data = make_asr_api_call(task.video.url, task.video.language)
+                transcribed_data = make_asr_api_call(
+                    task.video.url, task.video.language
+                )
                 if transcribed_data is not None:
                     data = self.convert_payload_format(transcribed_data)
                     payloads["MACHINE_GENERATED"] = data
