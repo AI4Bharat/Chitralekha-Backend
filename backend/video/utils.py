@@ -204,7 +204,11 @@ def create_tasks(
         "priority": priority,
         "description": description,
     }
-    logging.info("Creation of task started for %s", task_type)
+    logging.info(
+        "Creation of task started for task type{}, {}, {}, {}".format(
+            task_type, video_id, target_language, user_id
+        )
+    )
     ret = data.create(new_request)
     return ret.data
 

@@ -1984,6 +1984,7 @@ class TaskViewSet(ModelViewSet):
         if "TRANSLATION" in task_type or "VOICEOVER" in task_type:
             target_language = request.data.get("target_language")
             if target_language is None:
+                logging.info("Target language is missing")
                 return Response(
                     {
                         "message": "missing param : target language can't be None for translation tasks"
