@@ -601,7 +601,7 @@ def integrate_all_audios(file_name, payload, video_duration):
 def send_mail_to_user(task):
     if task.user.enable_mail:
         logging.info("Send email to user %s", task.user.email)
-        table_to_send = "<p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+        table_to_send = "<p>Dear User, Following task is active.</p><p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
         data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></p>".format(
             name=task.video.name,
             url=task.video.url,
@@ -609,7 +609,7 @@ def send_mail_to_user(task):
         )
         final_table = table_to_send + data
         send_mail(
-            "Task is active",
+            f"{task.get_task_type_label} is active",
             "Dear User, Following task is active.",
             settings.DEFAULT_FROM_EMAIL,
             [task.user.email],
