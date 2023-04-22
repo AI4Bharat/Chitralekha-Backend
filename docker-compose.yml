@@ -1,0 +1,98 @@
+version: "3"
+
+services:
+  backend:
+    container_name: backend
+    image: server_image
+    build:
+      context: ./backend
+    volumes: 
+      - ./backend/logs:/home/backend/logs
+    env_file:
+      - backend/.env
+    ports:
+      - "8000:8000"
+    # command: uvicorn main:app --workers $BACKEND_WORKERS --port $BACKEND_PORT --host 0.0.0.0
+    restart: unless-stopped
+  
+  redis:
+    image: redis:latest
+    container_name: redis
+    expose:
+      - 6379
+    # ports:
+    #   - "6379:6379"
+    volumes: 
+      - redis:/data
+    command: redis-server --save 20 1 --loglevel warning
+    restart: unless-stopped
+  
+  celery_default:
+    container_name: celery_default
+    image: server_image
+    working_dir: /home/backend
+    volumes:
+      - ./backend:/home/backend
+    depends_on:
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+    command: python3 -m celery -A backend worker -Q default -n default_worker@%h --concurrency=1 -l DEBUG
+    restart: unless-stopped
+
+  celery_tasks:
+    container_name: celery_tasks
+    image: server_image
+    working_dir: /home/backend
+    volumes:
+      - ./backend:/home/backend
+    depends_on:
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+    command: python3 -m celery -A backend worker -Q task -n task_worker@%h --concurrency=1 -l DEBUG
+    restart: unless-stopped
+  
+  celery_voiceover:
+    container_name: celery_voiceover
+    image: server_image
+    working_dir: /home/backend
+    volumes:
+      - ./backend:/home/backend
+    depends_on:
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+    command: python3 -m celery -A backend worker -Q voiceover -n voiceover_worker@%h --concurrency=1 -l DEBUG
+    restart: unless-stopped
+  
+  flower:
+    container_name: flower
+    image: server_image
+    env_file:
+      - backend/.env
+    working_dir: /home/backend
+    volumes:
+      - ./backend:/home/backend
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+      celery_default:
+        condition: service_started
+      celery_tasks:
+        condition: service_started
+      celery_voiceover:
+        condition: service_started
+    command: python3 -m celery -A backend flower --loglevel=info
+    restart: unless-stopped
+
+volumes:
+  redis:
+    driver: local

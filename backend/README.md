@@ -20,8 +20,8 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
-## Run Server
+## Run Debug-Server
 
 ```
-python manage.py runserver 0:8080 --noreload
+python manage.py runserver 0:8080 --noreload --insecure
 ```

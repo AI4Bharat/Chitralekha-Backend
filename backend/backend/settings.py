@@ -20,10 +20,6 @@ from datetime import timedelta
 
 load_dotenv()
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800
@@ -287,4 +283,4 @@ LOGGING = {
 }
 
 # Celery settings
-CELERY_BROKER_URL = "redis://localhost:6379"
+CELERY_BROKER_URL = os.getenv("DEBUG", "redis://localhost:6379")
