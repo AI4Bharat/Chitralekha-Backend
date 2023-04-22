@@ -16,6 +16,7 @@ from video.models import Video
 from task.models import Task
 from rest_framework.decorators import action
 from django.http import HttpResponse
+from django.http import HttpRequest
 from django.core.files.base import ContentFile
 import requests
 from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES, LANGUAGE_CHOICES
@@ -52,6 +53,8 @@ from project.models import Project
 import config
 from task.tasks import celery_tts_call
 import logging
+import datetime
+import math
 
 
 @api_view(["GET"])
@@ -292,11 +295,231 @@ def get_translation_id(task):
             type=openapi.TYPE_INTEGER,
             required=True,
         ),
+        openapi.Parameter(
+            "offset",
+            openapi.IN_QUERY,
+            description=("An integer to pass the offset"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+        openapi.Parameter(
+            "limit",
+            openapi.IN_QUERY,
+            description=("An integer to pass the limit"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
     ],
     responses={200: "Returns the translation script."},
 )
 @api_view(["GET"])
 def get_payload(request):
+    try:
+        task_id = request.query_params["task_id"]
+        page = request.query_params["offset"]
+        limit = request.query_params["limit"]
+    except KeyError:
+        return Response(
+            {"message": "Missing required parameters - task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    translation = get_translation_id(task)
+    if translation is not None:
+        translation_id = translation.id
+    else:
+        return Response(
+            {"message": "Translation doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Retrieve the transcript object
+    try:
+        translation = Translation.objects.get(pk=translation_id)
+    except Translation.DoesNotExist:
+        return Response(
+            {"message": "Translation doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    start = (int(page) - 1) * int(limit)
+    end = start + int(limit)
+    page_records = translation.payload["payload"][start:end]
+    records = translation.payload["payload"]
+
+    total_pages = math.ceil(len(translation.payload["payload"]) / int(limit))
+    next_page = int(page) + 1
+    pre_page = int(page) - 1
+
+    if next_page > total_pages:
+        end = len(translation.payload["payload"])
+        next_page = None
+
+    if (pre_page <= 0) | (int(page) > total_pages):
+        pre_page = None
+
+    if len(page_records) == 0:
+        return Response(
+            {"payload": {"payload": []}, "source_type": translation.translation_type},
+            status=status.HTTP_200_OK,
+        )
+
+    if "id" not in page_records[0].keys():
+        for i in range(len(page_records)):
+            page_records[i]["id"] = start + i
+
+    count_empty = 0
+    records = []
+    for record_object in page_records:
+        if "text" in record_object:
+            records.append(record_object)
+        else:
+            count_empty += 1
+
+    response = {"payload": records}
+
+    return Response(
+        {
+            "payload": response,
+            "source_type": translation.translation_type,
+            "count": len(translation.payload["payload"]),
+            "current_count": len(records),
+            "total_pages": total_pages,
+            "current": int(page),
+            "previous": pre_page,
+            "next": next_page,
+            "start": start + 1,
+            "end": end,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the task id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+        openapi.Parameter(
+            "time",
+            openapi.IN_QUERY,
+            description=("A string to pass the time"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+        openapi.Parameter(
+            "limit",
+            openapi.IN_QUERY,
+            description=("An integer to get the limit of payload"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
+    responses={200: "Returns the sentence after timeline dragging."},
+)
+@api_view(["GET"])
+def get_sentence_from_timeline(request):
+    task_id = request.query_params["task_id"]
+    time = request.query_params["time"]
+    limit = request.query_params["limit"]
+    time = datetime.datetime.strptime(time, "%H:%M:%S.%f")
+    unix_time = datetime.datetime.timestamp(time)
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not active yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    translation = get_translation_id(task)
+    if translation is None:
+        return Response(
+            {"message": "Translation not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    else:
+        translation_id = translation.id
+
+    try:
+        translation = Translation.objects.get(pk=translation_id)
+    except Translation.DoesNotExist:
+        return Response(
+            {"message": "Translation not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    save_index = -1
+    for ind, sentence in enumerate(translation.payload["payload"]):
+        start_time = datetime.datetime.strptime(sentence["start_time"], "%H:%M:%S.%f")
+        unix_start_time = datetime.datetime.timestamp(start_time)
+        end_time = datetime.datetime.strptime(sentence["end_time"], "%H:%M:%S.%f")
+        unix_end_time = datetime.datetime.timestamp(end_time)
+        if unix_start_time <= unix_time and unix_end_time > unix_time:
+            save_index = ind
+            break
+        if ind == 0:
+            if unix_time < unix_start_time:
+                save_index = ind
+                break
+        if ind < len(translation.payload["payload"]) - 1:
+            end_time_of_next_sentence = datetime.datetime.strptime(
+                translation.payload["payload"][ind + 1]["start_time"], "%H:%M:%S.%f"
+            )
+            unix_end_time_of_next_sentence = datetime.datetime.timestamp(
+                end_time_of_next_sentence
+            )
+            if (
+                unix_end_time <= unix_time
+                and unix_end_time_of_next_sentence > unix_time
+            ):
+                save_index = ind
+                break
+
+    length_payload = len(translation.payload["payload"])
+    sentence_offset = math.ceil((save_index + 1) / int(limit))
+    response = get_payload_request(request, task_id, limit, sentence_offset)
+    return Response(
+        response.data,
+        status=status.HTTP_200_OK,
+    )
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the task id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
+    responses={200: "Returns the initial transcription after source is selected."},
+)
+@api_view(["GET"])
+def get_full_payload(request):
     try:
         task_id = request.query_params["task_id"]
     except KeyError:
@@ -331,10 +554,52 @@ def get_payload(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    count = 0
+    for sentence in translation.payload["payload"]:
+        sentence["id"] = count
+        count = count + 1
+
     return Response(
         {"payload": translation.payload, "source_type": translation.translation_type},
         status=status.HTTP_200_OK,
     )
+
+
+def get_payload_request(request, task_id, limit, offset):
+    new_request = HttpRequest()
+    new_request.method = "GET"
+    new_request.task_id = task_id
+    new_request.limit = limit
+    new_request.offset = offset
+    new_request.GET = request.GET.copy()
+    new_request.GET["task_id"] = task_id
+    new_request.GET["limit"] = limit
+    new_request.GET["offset"] = offset
+    return get_payload(new_request)
+
+
+def send_mail_to_user(task):
+    if task.user.enable_mail:
+        logging.info("Send email to user %s", task.user.email)
+        table_to_send = "<p>Dear User, Following task is active.</p><p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+        data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></p>".format(
+            name=task.video.name,
+            url=task.video.url,
+            project_name=task.video.project_id.title,
+        )
+        final_table = table_to_send + data
+        try:
+            send_mail(
+                f"{task.get_task_type_label} is active",
+                "Dear User, Following task is active.",
+                settings.DEFAULT_FROM_EMAIL,
+                [task.user.email],
+                html_message=final_table,
+            )
+        except:
+            logging.info("Error in sending Email")
+    else:
+        logging.info("Email is not enabled %s", task.user.email)
 
 
 def change_active_status_of_next_tasks(task, translation_obj):
@@ -357,6 +622,7 @@ def change_active_status_of_next_tasks(task, translation_obj):
             translation.payload = translation_obj.payload
             translation.save()
             translation_review_task.save()
+            send_mail_to_user(translation_review_task)
     voice_over_task = (
         Task.objects.filter(task_type="VOICEOVER_EDIT")
         .filter(video=task.video)
@@ -395,6 +661,7 @@ def change_active_status_of_next_tasks(task, translation_obj):
             )
             if type(tts_payload) == dict and "message" in tts_payload.keys():
                 message = tts_payload["message"]
+                logging.info("Error from TTS API")
                 voice_over_task.status = "FAILED"
                 voice_over_task.save()
                 return message
@@ -403,6 +670,7 @@ def change_active_status_of_next_tasks(task, translation_obj):
                 voice_over_obj.save()
                 voice_over_task.is_active = True
                 voice_over_task.save()
+                send_mail_to_user(voice_over_task)
             else:
                 (
                     tts_input,
@@ -421,7 +689,7 @@ def change_active_status_of_next_tasks(task, translation_obj):
                     empty_sentences,
                 )
     else:
-        print("No change in status")
+        logging.info("No change in status")
     return None
 
 
@@ -445,7 +713,6 @@ def change_active_status_of_next_tasks(task, translation_obj):
 @api_view(["POST"])
 def generate_translation_output(request):
     task_id = request.data.get("task_id")
-
     if task_id is None:
         return Response(
             {"message": "Missing required parameters - task_id"},
@@ -464,7 +731,7 @@ def generate_translation_output(request):
 
     if not task.is_active:
         return Response(
-            {"message": "This task is not ative yet."},
+            {"message": "This task is not active yet."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -502,6 +769,156 @@ def generate_translation_output(request):
     )
 
 
+def modify_payload(limit, payload, start_offset, end_offset, translation):
+    count_sentences = len(translation.payload["payload"])
+    if len(payload["payload"]) == limit:
+        length = len(payload["payload"])
+        length_2 = -1
+        if end_offset > count_sentences:
+            length_2 = end_offset - count_sentences
+            length = length - length_2
+        for i in range(length):
+            if "text" in payload["payload"][i].keys():
+                translation.payload["payload"][start_offset + i] = {
+                    "start_time": payload["payload"][i]["start_time"],
+                    "end_time": payload["payload"][i]["end_time"],
+                    "text": payload["payload"][i]["text"],
+                    "target_text": payload["payload"][i]["target_text"],
+                }
+            else:
+                translation.payload["payload"][start_offset + i] = {}
+        if length_2 > 0:
+            for i in range(length_2):
+                if "text" in payload["payload"][i].keys():
+                    translation.payload["payload"].insert(
+                        start_offset + i + length,
+                        {
+                            "start_time": payload["payload"][length + i]["start_time"],
+                            "end_time": payload["payload"][length + i]["end_time"],
+                            "text": payload["payload"][length + i]["text"],
+                            "target_text": payload["payload"][length + i][
+                                "target_text"
+                            ],
+                        },
+                    )
+                else:
+                    translation.payload["payload"][start_offset + i] = {}
+    elif len(payload["payload"]) < limit:
+        logging.info("Limit is less than length of payload")
+        length = len(payload["payload"])
+        length_2 = -1
+        length_3 = -1
+        if end_offset > count_sentences:
+            if length > len(translation.payload["payload"][start_offset:end_offset]):
+                length_2 = length - len(
+                    translation.payload["payload"][start_offset:end_offset]
+                )
+                length = length - length_2
+            else:
+                length_3 = (
+                    len(translation.payload["payload"][start_offset:end_offset])
+                    - length
+                )
+            for i in range(length):
+                if "text" in payload["payload"][i].keys():
+                    translation.payload["payload"][start_offset + i] = {
+                        "start_time": payload["payload"][i]["start_time"],
+                        "end_time": payload["payload"][i]["end_time"],
+                        "text": payload["payload"][i]["text"],
+                        "target_text": payload["payload"][i]["target_text"],
+                    }
+                else:
+                    translation.payload["payload"][start_offset + i] = {}
+            if length_2 > 0:
+                for i in range(length_2):
+                    if "text" in payload["payload"][i].keys():
+                        translation.payload["payload"].insert(
+                            start_offset + i + length,
+                            {
+                                "start_time": payload["payload"][length + i][
+                                    "start_time"
+                                ],
+                                "end_time": payload["payload"][length + i]["end_time"],
+                                "text": payload["payload"][length + i]["text"],
+                                "target_text": payload["payload"][length + i][
+                                    "target_text"
+                                ],
+                            },
+                        )
+                    else:
+                        translation.payload["payload"][start_offset + i] = {}
+            if length_3 > 0:
+                for i in range(length_3):
+                    translation.payload["payload"][start_offset + i + length] = {}
+        else:
+            for i in range(length):
+                if "text" in payload["payload"][i].keys():
+                    translation.payload["payload"][start_offset + i] = {
+                        "start_time": payload["payload"][i]["start_time"],
+                        "end_time": payload["payload"][i]["end_time"],
+                        "text": payload["payload"][i]["text"],
+                        "target_text": payload["payload"][i]["target_text"],
+                    }
+                else:
+                    translation.payload["payload"][start_offset + i] = {}
+            delete_indices = []
+            for i in range(limit - length):
+                delete_indices.append(start_offset + i + length)
+
+            logging.info("delete_indices %s", str(delete_indices))
+            for ind in delete_indices:
+                translation.payload["payload"][ind] = {}
+    else:
+        logging.info("Limit is greater than length of payload")
+        if end_offset > count_sentences:
+            length = count_sentences - start_offset
+            length_2 = len(payload["payload"]) - length
+            insert_at = start_offset + length
+        else:
+            length = limit
+            length_2 = len(payload["payload"]) - limit
+            insert_at = start_offset + length
+        for i in range(length):
+            if "text" in payload["payload"][i].keys():
+                translation.payload["payload"][start_offset + i] = {
+                    "start_time": payload["payload"][i]["start_time"],
+                    "end_time": payload["payload"][i]["end_time"],
+                    "text": payload["payload"][i]["text"],
+                    "target_text": payload["payload"][i]["target_text"],
+                }
+            else:
+                translation.payload["payload"][start_offset + i] = {}
+        for i in range(length_2):
+            if "text" in payload["payload"][i].keys():
+                if (
+                    len(translation.payload["payload"]) > insert_at + i
+                    and payload["payload"][length + i]["start_time"]
+                    == translation.payload["payload"][insert_at + i]["start_time"]
+                    and payload["payload"][length + i]["end_time"]
+                    == translation.payload["payload"][insert_at + i]["end_time"]
+                ):
+                    translation.payload["payload"][insert_at + i] = {
+                        "start_time": payload["payload"][length + i]["start_time"],
+                        "end_time": payload["payload"][length + i]["end_time"],
+                        "text": payload["payload"][length + i]["text"],
+                        "target_text": payload["payload"][length + i]["target_text"],
+                    }
+                else:
+                    translation.payload["payload"].insert(
+                        insert_at + i,
+                        {
+                            "start_time": payload["payload"][length + i]["start_time"],
+                            "end_time": payload["payload"][length + i]["end_time"],
+                            "text": payload["payload"][length + i]["text"],
+                            "target_text": payload["payload"][length + i][
+                                "target_text"
+                            ],
+                        },
+                    )
+            else:
+                translation.payload["payload"][start_offset + i] = {}
+
+
 @swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
@@ -527,6 +944,304 @@ def generate_translation_output(request):
 )
 @api_view(["POST"])
 def save_translation(request):
+    try:
+        # Get the required data from the POST body
+        translation_id = request.data.get("translation_id", None)
+        payload = request.data["payload"]
+        task_id = request.data["task_id"]
+        offset = request.data["offset"]
+        limit = request.data["limit"]
+    except KeyError:
+        return Response(
+            {
+                "message": "Missing required parameters - language or payload or task_id or translation_id"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    user = request.user
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not ative yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    translation = get_translation_id(task)
+    start_offset = (int(offset) - 1) * int(limit)
+    end_offset = start_offset + int(limit)
+    if translation is not None:
+        translation_id = translation.id
+    else:
+        return Response(
+            {"message": "Translation doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        translation = Translation.objects.get(pk=translation_id)
+        target_language = translation.target_language
+        transcript = translation.transcript
+        message = None
+        # Check if the transcript has a user
+        if task.user != request.user:
+            return Response(
+                {"message": "You are not allowed to update this translation."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        else:
+            if translation.status == TRANSLATION_REVIEW_COMPLETE:
+                return Response(
+                    {
+                        "message": "Translation can't be edited, as the final translation already exists"
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
+
+            if "EDIT" in task.task_type:
+                if request.data.get("final"):
+                    if (
+                        Translation.objects.filter(status=TRANSLATION_EDIT_COMPLETE)
+                        .filter(target_language=target_language)
+                        .filter(transcript=transcript)
+                        .first()
+                        is not None
+                    ):
+                        return Response(
+                            {"message": "Edit Translation already exists."},
+                            status=status.HTTP_201_CREATED,
+                        )
+                    else:
+                        ts_status = TRANSLATION_EDIT_COMPLETE
+                        translation_type = translation.translation_type
+                        translation_obj = Translation.objects.create(
+                            translation_type=translation_type,
+                            parent=translation,
+                            transcript=translation.transcript,
+                            video=translation.video,
+                            target_language=translation.target_language,
+                            user=user,
+                            payload=translation.payload,
+                            status=ts_status,
+                            task=task,
+                        )
+                        modify_payload(
+                            limit, payload, start_offset, end_offset, translation_obj
+                        )
+                        translation_obj.save()
+                        task.status = "COMPLETE"
+                        task.save()
+                        delete_indices = []
+                        for index, sentence in enumerate(
+                            translation_obj.payload["payload"]
+                        ):
+                            if "text" not in sentence.keys():
+                                delete_indices.append(index)
+
+                        for ind in delete_indices:
+                            translation_obj.payload["payload"].pop(ind)
+                        translation_obj.save()
+                        message = change_active_status_of_next_tasks(
+                            task, translation_obj
+                        )
+                else:
+                    translation_obj = (
+                        Translation.objects.filter(status=TRANSLATION_EDIT_INPROGRESS)
+                        .filter(target_language=target_language)
+                        .filter(transcript=transcript)
+                        .first()
+                    )
+                    ts_status = TRANSLATION_EDIT_INPROGRESS
+                    translation_type = translation.translation_type
+                    if translation_obj is not None:
+                        modify_payload(
+                            limit, payload, start_offset, end_offset, translation_obj
+                        )
+                        translation_obj.translation_type = translation_type
+                        translation_obj.save()
+                    else:
+                        translation_obj = (
+                            Translation.objects.filter(status=TRANSLATION_SELECT_SOURCE)
+                            .filter(target_language=target_language)
+                            .filter(transcript=transcript)
+                            .first()
+                        )
+                        if translation_obj is None:
+                            return Response(
+                                {"message": "Translation object does not exist."},
+                                status=status.HTTP_404_NOT_FOUND,
+                            )
+                        translation_obj = Translation.objects.create(
+                            translation_type=translation_type,
+                            parent=translation_obj,
+                            transcript=translation_obj.transcript,
+                            video=translation_obj.video,
+                            target_language=translation_obj.target_language,
+                            user=user,
+                            payload=translation_obj.payload,
+                            status=ts_status,
+                            task=task,
+                        )
+                        modify_payload(
+                            limit, payload, start_offset, end_offset, translation_obj
+                        )
+                        translation_obj.save()
+                        task.status = "INPROGRESS"
+                        task.save()
+            else:
+                if request.data.get("final"):
+                    if (
+                        Translation.objects.filter(status=TRANSLATION_REVIEW_COMPLETE)
+                        .filter(target_language=target_language)
+                        .filter(transcript=transcript)
+                        .first()
+                        is not None
+                    ):
+                        return Response(
+                            {"message": "Reviewed Translation already exists."},
+                            status=status.HTTP_201_CREATED,
+                        )
+                    ts_status = TRANSLATION_REVIEW_COMPLETE
+                    translation_obj = Translation.objects.create(
+                        translation_type=translation.translation_type,
+                        parent=translation,
+                        transcript=translation.transcript,
+                        video=translation.video,
+                        target_language=translation.target_language,
+                        user=user,
+                        payload=translation.payload,
+                        status=ts_status,
+                        task=task,
+                    )
+                    modify_payload(
+                        limit, payload, start_offset, end_offset, translation_obj
+                    )
+                    translation_obj.save()
+                    delete_indices = []
+                    for index, sentence in enumerate(
+                        translation_obj.payload["payload"]
+                    ):
+                        if "text" not in sentence.keys():
+                            delete_indices.append(index)
+
+                    for ind in delete_indices:
+                        translation_obj.payload["payload"].pop(ind)
+                    translation_obj.save()
+                    task.status = "COMPLETE"
+                    task.save()
+                    message = change_active_status_of_next_tasks(task, translation_obj)
+                else:
+                    translation_obj = (
+                        Translation.objects.filter(status=TRANSLATION_REVIEW_INPROGRESS)
+                        .filter(target_language=target_language)
+                        .filter(transcript=transcript)
+                        .first()
+                    )
+                    ts_status = TRANSLATION_REVIEW_INPROGRESS
+                    translation_type = translation.translation_type
+                    if translation_obj is not None:
+                        modify_payload(
+                            limit, payload, start_offset, end_offset, translation_obj
+                        )
+                        translation_obj.translation_type = translation_type
+                        translation_obj.save()
+                        task.status = "INPROGRESS"
+                        task.save()
+                    else:
+                        ts_status = TRANSLATION_REVIEW_INPROGRESS
+                        translation_obj = Translation.objects.create(
+                            translation_type=translation.translation_type,
+                            parent=translation,
+                            transcript=translation.transcript,
+                            video=translation.video,
+                            target_language=translation.target_language,
+                            user=user,
+                            payload=translation.payload,
+                            status=ts_status,
+                            task=task,
+                        )
+                        modify_payload(
+                            limit, payload, start_offset, end_offset, translation_obj
+                        )
+                        translation_obj.save()
+                        task.status = "INPROGRESS"
+                        task.save()
+            if request.data.get("final"):
+                if message is not None:
+                    full_message = "Translation updated successfully. " + message
+                else:
+                    full_message = "Translation updated successfully."
+
+                delete_indices = []
+                for index, sentence in enumerate(translation_obj.payload["payload"]):
+                    if "text" not in sentence.keys():
+                        delete_indices.append(index)
+
+                delete_indices.reverse()
+                for ind in delete_indices:
+                    translation_obj.payload["payload"].pop(ind)
+
+                return Response(
+                    {
+                        "message": full_message,
+                        "task_id": task.id,
+                        "translation_id": translation_obj.id,
+                        # "data": translation_obj.payload,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            else:
+                return Response(
+                    {
+                        "task_id": task.id,
+                        "translation_id": translation_obj.id,
+                        # "data": translation_obj.payload,
+                        "message": "Saved as draft.",
+                    },
+                    status=status.HTTP_200_OK,
+                )
+    except Translation.DoesNotExist:
+        return Response(
+            {"message": "Translation doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_id", "payload"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the translation instance",
+            ),
+            "payload": openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                description="A string to pass the translated subtitles and metadata",
+            ),
+            "final": openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description="A boolean to complete the task",
+            ),
+        },
+        description="Post request body",
+    ),
+    responses={
+        200: "Translation has been created/updated successfully",
+        400: "Bad request",
+        404: "No translation found for the given transcript_id and target_language",
+    },
+)
+@api_view(["POST"])
+def save_full_translation(request):
 
     try:
         # Get the required data from the POST body
@@ -552,7 +1267,7 @@ def save_translation(request):
 
     if not task.is_active:
         return Response(
-            {"message": "This task is not ative yet."},
+            {"message": "This task is not active yet."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -679,9 +1394,9 @@ def save_translation(request):
                         status=ts_status,
                         task=task,
                     )
-                    message = change_active_status_of_next_tasks(task, translation_obj)
                     task.status = "COMPLETE"
                     task.save()
+                    message = change_active_status_of_next_tasks(task, translation_obj)
                 else:
                     translation_obj = (
                         Translation.objects.filter(status=TRANSLATION_REVIEW_INPROGRESS)

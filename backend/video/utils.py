@@ -5,9 +5,22 @@ from io import StringIO
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 from yt_dlp.extractor import get_info_extractor
-from django.http import HttpRequest
+from django.http import HttpRequest, QueryDict
 from transcript.views import export_transcript
 from translation.views import export_translation
+import logging
+from django.conf import settings
+from django.core.mail import send_mail
+from video.models import Video, GENDER
+from project.models import Project
+from video.serializers import VideoSerializer
+from task.views import TaskViewSet
+from task.serializers import TaskStatusSerializer
+from rest_framework.response import Response
+from rest_framework import status
+from users.models import User
+from rest_framework import request
+
 
 ydl = YoutubeDL({"format": "best"})
 
@@ -143,3 +156,476 @@ def get_export_transcript(request, task_id, export_type):
     new_request.GET["task_id"] = task_id
     new_request.GET["export_type"] = export_type
     return export_transcript(new_request)
+
+
+def send_mail_to_user(task):
+    if task.user.enable_mail:
+        logging.info("Send email to user %s", task.user.email)
+        table_to_send = "<p>Dear User, Following task is active.</p><p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+        data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr></table></body></p>".format(
+            name=task.video.name,
+            url=task.video.url,
+            project_name=task.video.project_id.title,
+        )
+        final_table = table_to_send + data
+        try:
+            send_mail(
+                f"{task.get_task_type_label} is active",
+                "Dear User, Following task is active.",
+                settings.DEFAULT_FROM_EMAIL,
+                [task.user.email],
+                html_message=final_table,
+            )
+        except:
+            logging.info("Error in sending Email.")
+    else:
+        logging.info("Email is not enabled %s", task.user.email)
+
+
+def create_tasks(
+    video_id,
+    task_type,
+    user,
+    eta,
+    priority,
+    description,
+    target_language=None,
+    user_id=None,
+):
+    data = TaskViewSet(detail=True)
+    new_request = HttpRequest()
+    new_request.user = user
+    new_request.data = {
+        "task_type": task_type,
+        "video_ids": [video_id],
+        "target_language": target_language,
+        "eta": eta,
+        "user_id": user_id,
+        "priority": priority,
+        "description": description,
+    }
+    logging.info(
+        "Creation of task started for task type{}, {}, {}, {}".format(
+            task_type, video_id, target_language, user_id
+        )
+    )
+    ret = data.create(new_request)
+    return ret.data
+
+
+def get_video_func(request):
+    url = request.GET.get("multimedia_url")
+    lang = request.GET.get("lang", "en")
+    project_id = request.GET.get("project_id")
+    description = request.GET.get("description", "")
+    is_audio_only = request.GET.get("is_audio_only", "false")
+    create = request.GET.get("create", "false")
+    gender = request.GET.get("gender", "MALE")
+    upload_task_type = request.GET.get("task_type")
+    upload_target_language = request.GET.get("target_language")
+    assignee = request.GET.get("assignee")
+
+    create = create.lower() == "true"
+    if create:
+        video = Video.objects.filter(url=url).first()
+        if video is not None:
+            if upload_task_type is None:
+                return Response(
+                    {
+                        "message": "Video is already a part of project -> {}.".format(
+                            video.project_id.title
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+    # Convert audio only to boolean
+    is_audio_only = is_audio_only.lower() == "true"
+    if not url:
+        return Response(
+            {"message": "Video URL not provided in query params."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if gender is not None:
+        gender_list = [gender[0] for gender in GENDER]
+        if gender.upper() in gender_list:
+            gender = gender.upper()
+        else:
+            gender = "MALE"
+
+    project = Project.objects.filter(pk=project_id).first()
+    if project is None:
+        return Response(
+            {"message": "Project is not found. "},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    organization = project.organization_id
+    default_task_eta = project.default_eta
+    default_task_priority = project.default_priority
+    default_task_description = project.default_description
+    consolidated_report = []
+    detailed_report = []
+    message = ""
+    fail_count = 0
+    success_count = 0
+    ## PATCH: Handle audio_only files separately for google drive links
+    ## TODO: Move it to an util function
+    if "drive.google.com" in url and is_audio_only:
+
+        # Construct a direct download link from the google drive url
+        # get the id from the drive link
+        try:
+            file_id = drive_info_extractor._match_id(url)
+        except Exception:
+            return Response(
+                {"message": "Invalid Google Drive URL."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        url = f"https://drive.google.com/uc?export=download&confirm=yTib&id={file_id}"
+
+        # Get the video metadata
+        title = (
+            urllib.request.urlopen(urllib.request.Request(url)).info().get_filename()
+        )
+        direct_audio_url = url
+
+        # Calculate the duration
+        filename, headers = urllib.request.urlretrieve(url)
+        audio = MP3(filename)
+        duration = timedelta(seconds=int(audio.info.length))
+
+        # Create a new DB entry if URL does not exist, else return the existing entry
+        video, created = Video.objects.get_or_create(
+            url=url,
+            defaults={
+                "name": title,
+                "duration": duration,
+                "project_id": project,
+                "audio_only": is_audio_only,
+                "language": lang,
+                "description": description,
+                "gender": gender,
+            },
+        )
+        serializer = VideoSerializer(video)
+        response_data = {
+            "video": serializer.data,
+        }
+
+        if is_audio_only:
+            response_data["direct_audio_url"] = direct_audio_url
+        else:
+            response_data["direct_video_url"] = direct_video_url
+
+        if created:
+            video.save()
+            logging.info("Video is created.")
+            default_task_types = (
+                project.default_task_types or organization.default_task_types
+            )
+            default_target_languages = (
+                project.default_target_languages
+                or organization.default_target_languages
+            )
+            if (
+                upload_task_type is not None
+                and upload_task_type not in default_task_types
+            ):
+                default_task_types.append(upload_task_type)
+            if (
+                upload_target_langauge is not None
+                and upload_target_langauge not in default_target_languages
+            ):
+                default_target_languages.append(upload_target_langauge)
+            if assignee is not None:
+                user_id = assignee
+            else:
+                user_id = None
+
+            if default_task_types is not None:
+                for task_type in default_task_types:
+                    if (
+                        default_target_languages is not None
+                        and "TRANSCRIPTION" not in task_type
+                    ):
+                        for target_language in default_target_languages:
+                            task_response = create_tasks(
+                                video.id,
+                                task_type,
+                                request.user,
+                                default_task_eta,
+                                default_task_priority,
+                                default_task_description,
+                                target_language,
+                                user_id,
+                            )
+                            detailed_report.extend(
+                                task_response["response"]["detailed_report"]
+                            )
+                            if (
+                                task_response["response"]["detailed_report"][0][
+                                    "status"
+                                ]
+                                == "Fail"
+                            ):
+                                fail_count += 1
+                            else:
+                                success_count += 1
+                    else:
+                        task_response = create_tasks(
+                            video.id,
+                            task_type,
+                            request.user,
+                            default_task_eta,
+                            default_task_priority,
+                            default_task_description,
+                            user_id,
+                        )
+                        detailed_report.extend(
+                            task_response["response"]["detailed_report"]
+                        )
+                        if (
+                            task_response["response"]["detailed_report"][0]["status"]
+                            == "Fail"
+                        ):
+                            fail_count += 1
+                        else:
+                            success_count += 1
+                if fail_count > 0:
+                    message = "{0} Tasks creation failed.".format(fail_count)
+                    consolidated_report.append(
+                        {"message": "Tasks creation failed.", "count": fail_count}
+                    )
+                if success_count > 0:
+                    message = (
+                        "{0} Tasks created successfully.".format(success_count)
+                        + message
+                    )
+                    consolidated_report.append(
+                        {
+                            "message": "Tasks created successfully.",
+                            "count": success_count,
+                        }
+                    )
+            response_data["consolidated_report"] = consolidated_report
+            response_data["detailed_report"] = detailed_report
+            response_data["message"] = "Video created successfully." + message
+
+            return Response(
+                response_data,
+                status=status.HTTP_200_OK,
+            )
+        else:
+            if assignee is not None:
+                user_id = assignee
+            else:
+                user_id = None
+
+            return Response(
+                response_data,
+                status=status.HTTP_200_OK,
+            )
+
+    try:
+        # Get the video info from the YouTube API
+        (
+            direct_video_url,
+            normalized_url,
+            title,
+            duration,
+            direct_audio_url,
+        ) = get_data_from_google_video(url)
+    except DownloadError:
+        return Response(
+            {"message": "This is an invalid video URL."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Create a new DB entry if URL does not exist, else return the existing entry
+    video, created = Video.objects.get_or_create(
+        url=normalized_url,
+        defaults={
+            "name": title,
+            "duration": duration,
+            "project_id": project,
+            "audio_only": is_audio_only,
+            "language": lang,
+            "description": description,
+            "gender": gender,
+        },
+    )
+    if created:
+        video.save()
+        subtitle_payload, is_machine_generated = get_subtitles_from_google_video(
+            url, lang
+        )
+        if subtitle_payload:
+            # Save the subtitles to the video object
+            video.subtitles = {
+                # "status": "SUCCESS",
+                "output": subtitle_payload,
+            }
+            video.save()
+
+    # Create the response data to be returned
+    video.audio_only = is_audio_only
+    serializer = VideoSerializer(video)
+    response_data = {
+        "video": serializer.data,
+    }
+
+    # Check if it's audio only
+    if is_audio_only:
+        response_data["direct_audio_url"] = direct_audio_url
+    else:
+        response_data["direct_video_url"] = direct_video_url
+
+    if created:
+        default_task_types = (
+            project.default_task_types or organization.default_task_types
+        )
+        default_target_languages = (
+            project.default_target_languages or organization.default_target_languages
+        )
+        if upload_task_type is not None and upload_task_type not in default_task_types:
+            default_task_types.append(upload_task_type)
+        if (
+            upload_target_language is not None
+            and upload_target_language not in default_target_languages
+        ):
+            default_target_languages.append(upload_target_language)
+        if assignee is not None:
+            user_id = assignee
+        else:
+            user_id = None
+
+        if default_task_types is not None:
+            for task_type in default_task_types:
+                if (
+                    default_target_languages is not None
+                    and "TRANSCRIPTION" not in task_type
+                ):
+                    for target_language in default_target_languages:
+                        task_response = create_tasks(
+                            video.id,
+                            task_type,
+                            request.user,
+                            default_task_eta,
+                            default_task_priority,
+                            default_task_description,
+                            target_language,
+                            user_id,
+                        )
+                        detailed_report.extend(
+                            task_response["response"]["detailed_report"]
+                        )
+                        if (
+                            task_response["response"]["detailed_report"][0]["status"]
+                            == "Fail"
+                        ):
+                            fail_count += 1
+                        else:
+                            success_count += 1
+                else:
+                    task_response = create_tasks(
+                        video.id,
+                        task_type,
+                        request.user,
+                        default_task_eta,
+                        default_task_priority,
+                        default_task_description,
+                        user_id,
+                    )
+                    detailed_report.extend(task_response["response"]["detailed_report"])
+
+                    if (
+                        task_response["response"]["detailed_report"][0]["status"]
+                        == "Fail"
+                    ):
+                        fail_count += 1
+                    else:
+                        success_count += 1
+
+            if fail_count > 0:
+                message = "{0} Tasks creation failed.".format(fail_count)
+                consolidated_report.append(
+                    {"message": "Tasks creation failed.", "count": fail_count}
+                )
+            if success_count > 0:
+                message = (
+                    "{0} Tasks created successfully.".format(success_count) + message
+                )
+                consolidated_report.append(
+                    {"message": "Tasks created successfully.", "count": success_count}
+                )
+            response_data["consolidated_report"] = consolidated_report
+            response_data["detailed_report"] = detailed_report
+
+        response_data["message"] = "Video created successfully." + message
+        return Response(
+            response_data,
+            status=status.HTTP_200_OK,
+        )
+    else:
+        print("Video already exist", url)
+        if assignee is not None:
+            user_id = assignee
+        else:
+            user_id = None
+        if upload_task_type is not None:
+            if "TRANSCRIPTION" in upload_task_type:
+                task_response = create_tasks(
+                    video.id,
+                    upload_task_type,
+                    request.user,
+                    default_task_eta,
+                    default_task_priority,
+                    default_task_description,
+                    user_id,
+                )
+            else:
+                task_response = create_tasks(
+                    video.id,
+                    upload_task_type,
+                    request.user,
+                    default_task_eta,
+                    default_task_priority,
+                    default_task_description,
+                    upload_target_language,
+                    user_id,
+                )
+
+        return Response(
+            response_data,
+            status=status.HTTP_200_OK,
+        )
+
+
+def create_video(
+    user_id,
+    url,
+    project_id,
+    description,
+    gender,
+    task_type=None,
+    target_language=None,
+    assignee=None,
+    lang="en",
+):
+    new_request = HttpRequest()
+    new_request.method = "GET"
+    user = User.objects.get(id=user_id)
+    new_request.user = user
+    new_request.GET["multimedia_url"] = url
+    new_request.GET["lang"] = lang
+    new_request.GET["project_id"] = project_id
+    new_request.GET["description"] = description
+    new_request.GET["is_audio_only"] = "true"
+    new_request.GET["create"] = "true"
+    new_request.GET["gender"] = gender
+    new_request.GET["assignee"] = assignee
+    new_request.GET["task_type"] = task_type
+    new_request.GET["target_language"] = target_language
+    return get_video_func(new_request)

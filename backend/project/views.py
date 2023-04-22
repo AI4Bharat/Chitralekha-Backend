@@ -1050,9 +1050,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
             .order_by("mail")
         )
         user_statistics = (
-            project_members.annotate(tasks_assigned_count=Count("task"))
+            project_members.annotate(
+                tasks_assigned_count=Count(
+                    "task", filter=Q(task__video__project_id=prj.id)
+                )
+            )
             .annotate(
-                tasks_completed_count=Count("task", filter=Q(task__status="COMPLETE"))
+                tasks_completed_count=Count(
+                    "task",
+                    filter=Q(task__status="COMPLETE")
+                    & Q(task__video__project_id=prj.id),
+                )
             )
             .annotate(
                 task_completion_percentage=Cast(
@@ -1091,7 +1099,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     "value": round(elem["task_completion_percentage"], 2),
                     "label": "Task Completion Index(%)",
                 },
-                "avg_comp_time": {"value": avg_time, "label": "Avg. Completion Time"},
+                "avg_comp_time": {
+                    "value": float("{:.2f}".format(avg_time)),
+                    "label": "Avg. Completion Time (Seconds)",
+                },
             }
             user_data.append(user_dict)
         return Response(user_data, status=status.HTTP_200_OK)

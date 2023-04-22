@@ -7,7 +7,7 @@ import json
 import webvtt
 import datetime
 from voiceover.models import VoiceOver
-from voiceover.utils import generate_tts_output
+from voiceover.utils import generate_tts_output, send_mail_to_user
 from translation.models import Translation
 import logging
 
@@ -62,6 +62,7 @@ def celery_tts_call(
         task_obj.is_active = False
         task_obj.status = "FAILED"
         task_obj.save()
+    send_mail_to_user(task_obj)
 
 
 @shared_task()
@@ -82,3 +83,4 @@ def celery_asr_call(task_id):
         task_obj.is_active = True
         task_obj.save()
         transcript_obj.save()
+        send_mail_to_user(task_obj)

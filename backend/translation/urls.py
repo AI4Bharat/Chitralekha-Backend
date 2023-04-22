@@ -7,6 +7,11 @@ urlpatterns = [
     path("", views.retrieve_translation, name="retrieve_translation"),
     path("save/", views.save_translation, name="save_translation"),
     path(
+        "save_full_translation/",
+        views.save_full_translation,
+        name="save_full_translation",
+    ),
+    path(
         "generate/supported_languages",
         views.get_supported_languages,
         name="supported_languages",
@@ -28,6 +33,11 @@ urlpatterns = [
         name="get_payload",
     ),
     path(
+        "get_full_payload/",
+        views.get_full_payload,
+        name="get_full_payload",
+    ),
+    path(
         "get_translation_export_types/",
         views.get_translation_export_types,
         name="get_translation_export_types",
@@ -41,5 +51,10 @@ urlpatterns = [
         "get_report_translation/",
         views.get_translation_report,
         name="get_translation_report",
+    ),
+    path(
+        "get_sentence_from_timeline/",
+        views.get_sentence_from_timeline,
+        name="get_sentence_from_timeline",
     ),
 ]
