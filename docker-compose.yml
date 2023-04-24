@@ -55,8 +55,22 @@ services:
     command: python3 -m celery -A backend worker -Q task -n task_worker@%h --concurrency=1 -l DEBUG
     restart: unless-stopped
   
-  celery_voiceover:
-    container_name: celery_voiceover
+  # celery_voiceover:
+  #   container_name: celery_voiceover
+  #   image: server_image
+  #   working_dir: /home/backend
+  #   volumes:
+  #     - ./backend:/home/backend
+  #   depends_on:
+  #     redis:
+  #       condition: service_started
+  #     backend:
+  #       condition: service_started
+  #   command: python3 -m celery -A backend worker -Q voiceover -n voiceover_worker@%h --concurrency=1 -l DEBUG
+  #   restart: unless-stopped
+
+  celery_beat:
+    container_name: celery_beat
     image: server_image
     working_dir: /home/backend
     volumes:
@@ -66,7 +80,7 @@ services:
         condition: service_started
       backend:
         condition: service_started
-    command: python3 -m celery -A backend worker -Q voiceover -n voiceover_worker@%h --concurrency=1 -l DEBUG
+    command: python3 -m celery -A backend beat -l DEBUG
     restart: unless-stopped
   
   flower:
@@ -88,8 +102,8 @@ services:
         condition: service_started
       celery_tasks:
         condition: service_started
-      celery_voiceover:
-        condition: service_started
+      # celery_voiceover:
+      #   condition: service_started
     command: python3 -m celery -A backend flower --loglevel=info
     restart: unless-stopped
 
