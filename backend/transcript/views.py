@@ -788,6 +788,12 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
                 }
+            elif "text" not in transcript.payload["payload"][start_offset + i]:
+                transcript.payload["payload"][start_offset + i] = {
+                    "start_time": payload["payload"][i]["start_time"],
+                    "end_time": payload["payload"][i]["end_time"],
+                    "text": payload["payload"][i]["text"],
+                }
             else:
                 transcript.payload["payload"][start_offset + i] = {}
         if length_2 > 0:

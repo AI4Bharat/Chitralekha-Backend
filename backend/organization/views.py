@@ -618,7 +618,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "display": "exclude",
                     },
                     "duration": {
-                        "value": task.video.duration,
+                        "value": str(task.video.duration),
                         "label": "Duration (Hours)",
                     },
                     "task_type": {
