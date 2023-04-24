@@ -785,6 +785,12 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                     "text": payload["payload"][i]["text"],
                     "target_text": payload["payload"][i]["target_text"],
                 }
+            elif "text" not in translation.payload["payload"][start_offset + i]:
+                translation.payload["payload"][start_offset + i] = {
+                    "start_time": payload["payload"][i]["start_time"],
+                    "end_time": payload["payload"][i]["end_time"],
+                    "text": payload["payload"][i]["text"],
+                }
             else:
                 translation.payload["payload"][start_offset + i] = {}
         if length_2 > 0:
