@@ -464,13 +464,13 @@ def get_payload(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
+    if total_pages < int(page):
+        page = 1
     start = (int(page) - 1) * int(limit)
     end = start + int(limit)
     page_records = transcript.payload["payload"][start:end]
 
-    total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
-    if total_pages < int(page):
-        page = 1
     next_page = int(page) + 1
     pre_page = int(page) - 1
 
