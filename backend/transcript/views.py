@@ -469,7 +469,7 @@ def get_payload(request):
     page_records = transcript.payload["payload"][start:end]
 
     total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
-    if total_pages < page:
+    if total_pages < int(page):
         page = 1
     next_page = int(page) + 1
     pre_page = int(page) - 1
