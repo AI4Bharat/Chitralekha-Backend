@@ -601,7 +601,10 @@ def integrate_all_audios(file_name, payload, video_duration):
 def send_mail_to_user(task):
     if task.user.enable_mail:
         if task.eta is not None:
-            task_eta = str(task.eta.strftime("%Y-%m-%d"))
+            try:
+                task_eta = str(task.eta.strftime("%Y-%m-%d"))
+            except:
+                task_eta = str(task.eta)
         else:
             task_eta = "-"
         logging.info("Send email to user %s", task.user.email)
