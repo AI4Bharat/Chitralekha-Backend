@@ -161,7 +161,7 @@ def get_export_transcript(request, task_id, export_type):
 def send_mail_to_user(task):
     if task.user.enable_mail:
         if task.eta is not None:
-            task_eta = str(task.eta)
+            task_eta = str(task.eta.strftime("%Y-%m-%d"))
         else:
             task_eta = "-"
         logging.info("Send email to user %s", task.user.email)
