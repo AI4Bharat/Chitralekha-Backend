@@ -469,6 +469,8 @@ def get_payload(request):
     page_records = transcript.payload["payload"][start:end]
 
     total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
+    if total_pages < page:
+        page = 1
     next_page = int(page) + 1
     pre_page = int(page) - 1
 
@@ -607,6 +609,8 @@ def get_sentence_from_timeline(request):
                 save_index = ind
                 break
 
+    if save_index == -1:
+        save_index = 0
     length_payload = len(transcript.payload["payload"])
     sentence_offset = math.ceil((save_index + 1) / int(limit))
     response = get_payload_request(request, task_id, limit, sentence_offset)
@@ -761,13 +765,23 @@ def change_active_status_of_next_tasks(task, transcript_obj):
         print("No change in status")
 
 
-def modify_payload(limit, payload, start_offset, end_offset, transcript):
+def modify_payload(offset, limit, payload, start_offset, end_offset, transcript):
     print("start_offset", start_offset)
     print("end_offset", end_offset)
     print("limit", limit)
     count_sentences = len(transcript.payload["payload"])
+    total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
+    if (
+        offset != total_pages
+        and type(payload) == dict
+        and "payload" in payload.keys()
+        and len(payload["payload"]) == 0
+    ):
+        return
     if len(payload["payload"]) == limit:
-        logging.info("Limit is equal to length of payload")
+        logging.info(
+            "Limit is equal to length of payload %s", str(len(payload["payload"]))
+        )
         length = len(payload["payload"])
         length_2 = -1
         if end_offset > count_sentences:
@@ -788,14 +802,17 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
                 }
-            elif "text" not in transcript.payload["payload"][start_offset + i]:
+            elif (
+                "text" in payload["payload"][i].keys()
+                and "text" not in transcript.payload["payload"][start_offset + i]
+            ):
                 transcript.payload["payload"][start_offset + i] = {
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
                 }
             else:
-                transcript.payload["payload"][start_offset + i] = {}
+                logging.info("Text missing in payload")
         if length_2 > 0:
             for i in range(length_2):
                 if "text" in payload["payload"][i].keys():
@@ -808,9 +825,11 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                         },
                     )
                 else:
-                    transcript.payload["payload"][start_offset + i] = {}
+                    logging.info("Text missing in payload")
     elif len(payload["payload"]) < limit:
-        logging.info("Limit is less than length of payload")
+        logging.info(
+            "Limit is less than length of payload, %s", str(len(payload["payload"]))
+        )
         length = len(payload["payload"])
         length_2 = -1
         length_3 = -1
@@ -850,8 +869,17 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                         "end_time": payload["payload"][i]["end_time"],
                         "text": payload["payload"][i]["text"],
                     }
+                elif (
+                    "text" in payload["payload"][i].keys()
+                    and "text" not in transcript.payload["payload"][start_offset + i]
+                ):
+                    transcript.payload["payload"][start_offset + i] = {
+                        "start_time": payload["payload"][i]["start_time"],
+                        "end_time": payload["payload"][i]["end_time"],
+                        "text": payload["payload"][i]["text"],
+                    }
                 else:
-                    transcript.payload["payload"][start_offset + i] = {}
+                    logging.info("Text missing in payload")
             if length_2 > 0:
                 for i in range(length_2):
                     if "text" in payload["payload"][i].keys():
@@ -866,7 +894,7 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                             },
                         )
                     else:
-                        transcript.payload["payload"][start_offset + i] = {}
+                        logging.info("Text missing in payload")
             if length_3 > 0:
                 for i in range(length_3):
                     transcript.payload["payload"][start_offset + i + length] = {}
@@ -883,7 +911,7 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                         "text": payload["payload"][i]["text"],
                     }
                 else:
-                    transcript.payload["payload"][start_offset + i] = {}
+                    logging.info("Text missing in payload")
             delete_indices = []
             logging.info(
                 "length exceeds limit by limit - length %s", str(limit - length)
@@ -925,7 +953,7 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                     "text": payload["payload"][i]["text"],
                 }
             else:
-                transcript.payload["payload"][start_offset + i] = {}
+                logging.info("Text missing in payload")
         for i in range(length_2):
             if "text" in payload["payload"][i].keys():
                 if (
@@ -952,7 +980,7 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                         },
                     )
             else:
-                transcript.payload["payload"][start_offset + i] = {}
+                logging.info("Text missing in payload")
 
 
 @swagger_auto_schema(
@@ -1251,12 +1279,11 @@ def save_transcription(request):
 
     if not task.is_active:
         return Response(
-            {"message": "This task is not ative yet."},
+            {"message": "This task is not active yet."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     transcript = get_transcript_id(task)
-
     if transcript is None:
         return Response(
             {"message": "Transcript not found."},
@@ -1270,7 +1297,6 @@ def save_transcription(request):
     # Retrieve the transcript object
     try:
         transcript = Transcript.objects.get(pk=transcript_id)
-
         # Check if the transcript has a user
         if task.user != request.user:
             return Response(
@@ -1311,7 +1337,7 @@ def save_transcription(request):
                         status=tc_status,
                     )
                     modify_payload(
-                        limit, payload, start_offset, end_offset, transcript_obj
+                        offset, limit, payload, start_offset, end_offset, transcript_obj
                     )
                     transcript_obj.save()
                     task.status = "COMPLETE"
@@ -1332,7 +1358,12 @@ def save_transcription(request):
                         )
                     if transcript_obj is not None:
                         modify_payload(
-                            limit, payload, start_offset, end_offset, transcript_obj
+                            offset,
+                            limit,
+                            payload,
+                            start_offset,
+                            end_offset,
+                            transcript_obj,
                         )
                         # transcript_obj.payload = payload
                         transcript_obj.transcript_type = transcript_obj.transcript_type
@@ -1362,7 +1393,12 @@ def save_transcription(request):
                             status=tc_status,
                         )
                         modify_payload(
-                            limit, payload, start_offset, end_offset, transcript_obj
+                            offset,
+                            limit,
+                            payload,
+                            start_offset,
+                            end_offset,
+                            transcript_obj,
                         )
                         transcript_obj.save()
                         task.status = "INPROGRESS"
@@ -1391,7 +1427,12 @@ def save_transcription(request):
                             status=tc_status,
                         )
                         modify_payload(
-                            limit, payload, start_offset, end_offset, transcript_obj
+                            offset,
+                            limit,
+                            payload,
+                            start_offset,
+                            end_offset,
+                            transcript_obj,
                         )
                         transcript_obj.save()
                         task.status = "COMPLETE"
@@ -1409,7 +1450,12 @@ def save_transcription(request):
                     )
                     if transcript_obj is not None:
                         modify_payload(
-                            limit, payload, start_offset, end_offset, transcript_obj
+                            offset,
+                            limit,
+                            payload,
+                            start_offset,
+                            end_offset,
+                            transcript_obj,
                         )
                         # transcript_obj.payload = payload
                         transcript_obj.transcript_type = transcript_type
@@ -1426,7 +1472,12 @@ def save_transcription(request):
                             status=tc_status,
                         )
                         modify_payload(
-                            limit, payload, start_offset, end_offset, transcript_obj
+                            offset,
+                            limit,
+                            payload,
+                            start_offset,
+                            end_offset,
+                            transcript_obj,
                         )
                         transcript_obj.save()
                         task.status = "INPROGRESS"
