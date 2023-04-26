@@ -1,4 +1,3 @@
-import urllib
 import requests
 from drf_yasg import openapi
 from rest_framework.decorators import action
@@ -6,7 +5,6 @@ from drf_yasg.utils import swagger_auto_schema
 from django.http import HttpRequest
 from task.models import Task
 from task.serializers import TaskSerializer
-from mutagen.mp3 import MP3
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
