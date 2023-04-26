@@ -20,6 +20,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from users.models import User
 from rest_framework import request
+import urllib
+from mutagen.mp3 import MP3
 
 
 ydl = YoutubeDL({"format": "best"})
@@ -344,10 +346,10 @@ def get_video_func(request):
             ):
                 default_task_types.append(upload_task_type)
             if (
-                upload_target_langauge is not None
-                and upload_target_langauge not in default_target_languages
+                upload_target_language is not None
+                and upload_target_language not in default_target_languages
             ):
-                default_target_languages.append(upload_target_langauge)
+                default_target_languages.append(upload_target_language)
             if assignee is not None:
                 user_id = assignee
             else:
