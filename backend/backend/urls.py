@@ -67,6 +67,7 @@ urlpatterns = [
     path("translation/", include("translation.urls")),
     path("transcript/", include("transcript.urls")),
     path("voiceover/", include("voiceover.urls")),
+    path("youtube/", include("youtube.urls")),
     re_path(
         r"^swagger(?P<format>\.json|\.yaml)$",
         schema_view.without_ui(cache_timeout=0),

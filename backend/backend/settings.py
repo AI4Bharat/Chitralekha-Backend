@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "translation",
     "users",
     "voiceover",
+    "youtube",
 ]
 
 MIDDLEWARE = [
