@@ -61,6 +61,9 @@ from django.core.cache import cache
 import datetime
 import math
 import logging
+from django.conf import settings
+from django.core.mail import send_mail
+import logging
 
 
 @api_view(["GET"])
@@ -454,30 +457,25 @@ def get_payload(request):
 
     # Retrieve the transcript object
     try:
-        cache_key = f"transcript_cache_{transcript_id}"
-        # Check if the results are already cached
-        transcript = cache.get(cache_key)
-        if not transcript:
-            # If not cached, fetch the data from the database and cache the result
-            transcript = Transcript.objects.get(pk=transcript_id)
-            cache.set(cache_key, transcript, timeout=60 * 5)  # 5 minutes cache timeout
-
+        transcript = Transcript.objects.get(pk=transcript_id)
     except Transcript.DoesNotExist:
         return Response(
             {"message": "Transcript doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
+    if total_pages < int(page):
+        page = 1
     start = (int(page) - 1) * int(limit)
     end = start + int(limit)
     page_records = transcript.payload["payload"][start:end]
-    records = transcript.payload["payload"]
 
-    total_pages = math.ceil(len(records) / int(limit))
     next_page = int(page) + 1
     pre_page = int(page) - 1
 
     if next_page > total_pages:
+        end = len(transcript.payload["payload"])
         next_page = None
 
     if (pre_page <= 0) | (int(page) > total_pages):
@@ -493,22 +491,28 @@ def get_payload(request):
         for i in range(len(page_records)):
             page_records[i]["id"] = start + i
 
-    response = {
-        "payload": [
-            record_object for record_object in page_records if "text" in record_object
-        ]
-    }
+    count_empty = 0
+    records = []
+    for record_object in page_records:
+        if "text" in record_object:
+            records.append(record_object)
+        else:
+            count_empty += 1
+
+    response = {"payload": records}
 
     return Response(
         {
             "payload": response,
             "source_type": transcript.transcript_type,
-            "count": len(records),
-            "current_count": len(page_records),
+            "count": len(transcript.payload["payload"]),
+            "current_count": len(records),
             "total_pages": total_pages,
             "current": int(page),
             "previous": pre_page,
             "next": next_page,
+            "start": start + 1,
+            "end": end,
         },
         status=status.HTTP_200_OK,
     )
@@ -572,16 +576,10 @@ def get_sentence_from_timeline(request):
     else:
         transcript_id = transcript.id
 
-    try:
-        transcript = Transcript.objects.get(pk=transcript_id)
-    except Transcript.DoesNotExist:
-        return Response(
-            {"message": "Transcript not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
     save_index = -1
     for ind, sentence in enumerate(transcript.payload["payload"]):
+        if "start_time" not in sentence.keys():
+            continue
         start_time = datetime.datetime.strptime(sentence["start_time"], "%H:%M:%S.%f")
         unix_start_time = datetime.datetime.timestamp(start_time)
         end_time = datetime.datetime.strptime(sentence["end_time"], "%H:%M:%S.%f")
@@ -589,7 +587,30 @@ def get_sentence_from_timeline(request):
         if unix_start_time <= unix_time and unix_end_time > unix_time:
             save_index = ind
             break
+        if ind == 0:
+            if unix_time < unix_start_time:
+                save_index = ind
+                break
+        if (
+            ind < len(transcript.payload["payload"]) - 1
+            and type(transcript.payload["payload"][ind + 1]) == dict
+            and "text" in transcript.payload["payload"][ind + 1].keys()
+        ):
+            end_time_of_next_sentence = datetime.datetime.strptime(
+                transcript.payload["payload"][ind + 1]["start_time"], "%H:%M:%S.%f"
+            )
+            unix_end_time_of_next_sentence = datetime.datetime.timestamp(
+                end_time_of_next_sentence
+            )
+            if (
+                unix_end_time <= unix_time
+                and unix_end_time_of_next_sentence > unix_time
+            ):
+                save_index = ind
+                break
 
+    if save_index == -1:
+        save_index = 0
     length_payload = len(transcript.payload["payload"])
     sentence_offset = math.ceil((save_index + 1) / int(limit))
     response = get_payload_request(request, task_id, limit, sentence_offset)
@@ -672,6 +693,36 @@ def get_full_payload(request):
     )
 
 
+def send_mail_to_user(task):
+    if task.user.enable_mail:
+        if task.eta is not None:
+            try:
+                task_eta = str(task.eta.strftime("%Y-%m-%d"))
+            except:
+                task_eta = str(task.eta)
+        else:
+            task_eta = "-"
+        logging.info("Send email to user %s", task.user.email)
+        table_to_send = "<p>Dear User, Following task is active.</p><p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+        data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr><tr><th>ETA</th><td>{eta}</td></tr><tr><th>Description</th><td>{description}</td></tr></table></body></p>".format(
+            name=task.video.name,
+            url=task.video.url,
+            project_name=task.video.project_id.title,
+            eta=task_eta,
+            description=task.description,
+        )
+        final_table = table_to_send + data
+        send_mail(
+            f"{task.get_task_type_label} is active",
+            "Dear User, Following task is active.",
+            settings.DEFAULT_FROM_EMAIL,
+            [task.user.email],
+            html_message=final_table,
+        )
+    else:
+        logging.info("Email is not enabled %s", task.user.email)
+
+
 def change_active_status_of_next_tasks(task, transcript_obj):
     tasks = Task.objects.filter(video=task.video)
     activate_translations = True
@@ -682,6 +733,8 @@ def change_active_status_of_next_tasks(task, transcript_obj):
     ):
         activate_translations = False
         tasks.filter(task_type="TRANSCRIPTION_REVIEW").update(is_active=True)
+        for task in tasks.filter(task_type="TRANSCRIPTION_REVIEW"):
+            send_mail_to_user(task)
         transcript = (
             Transcript.objects.filter(video=task.video)
             .filter(status="TRANSCRIPTION_REVIEWER_ASSIGNED")
@@ -714,28 +767,61 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                 translation.transcript = transcript_obj
                 translation.save()
         tasks.filter(task_type="TRANSLATION_EDIT").update(is_active=True)
+        for task in tasks.filter(task_type="TRANSLATION_EDIT"):
+            print("Send Email to User")
+            send_mail_to_user(task)
     else:
         print("No change in status")
 
 
-def modify_payload(limit, payload, start_offset, end_offset, transcript):
+def modify_payload(offset, limit, payload, start_offset, end_offset, transcript):
+    print("start_offset", start_offset)
+    print("end_offset", end_offset)
+    print("limit", limit)
     count_sentences = len(transcript.payload["payload"])
+    total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
+    if (
+        offset != total_pages
+        and type(payload) == dict
+        and "payload" in payload.keys()
+        and len(payload["payload"]) == 0
+    ):
+        return
     if len(payload["payload"]) == limit:
-        logging.info("Limit is equal to length of payload")
+        logging.info(
+            "Limit is equal to length of payload %s", str(len(payload["payload"]))
+        )
         length = len(payload["payload"])
         length_2 = -1
         if end_offset > count_sentences:
             length_2 = end_offset - count_sentences
             length = length - length_2
+            logging.info(
+                "Length of payload {}, end_offset {}, count of sentences {}, after splitting or adding {}".format(
+                    str(length), str(end_offset), str(count_sentences), str(length_2)
+                )
+            )
         for i in range(length):
-            if "text" in payload["payload"][i].keys():
+            if (
+                "text" in payload["payload"][i].keys()
+                and "text" in transcript.payload["payload"][start_offset + i]
+            ):
+                transcript.payload["payload"][start_offset + i] = {
+                    "start_time": payload["payload"][i]["start_time"],
+                    "end_time": payload["payload"][i]["end_time"],
+                    "text": payload["payload"][i]["text"],
+                }
+            elif (
+                "text" in payload["payload"][i].keys()
+                and "text" not in transcript.payload["payload"][start_offset + i]
+            ):
                 transcript.payload["payload"][start_offset + i] = {
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
                 }
             else:
-                transcript.payload["payload"][start_offset + i] = {}
+                logging.info("Text missing in payload")
         if length_2 > 0:
             for i in range(length_2):
                 if "text" in payload["payload"][i].keys():
@@ -748,26 +834,61 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                         },
                     )
                 else:
-                    transcript.payload["payload"][start_offset + i] = {}
+                    logging.info("Text missing in payload")
     elif len(payload["payload"]) < limit:
-        logging.info("Limit is less than length of payload")
+        logging.info(
+            "Limit is less than length of payload, %s", str(len(payload["payload"]))
+        )
         length = len(payload["payload"])
         length_2 = -1
+        length_3 = -1
         if end_offset > count_sentences:
             if length > len(transcript.payload["payload"][start_offset:end_offset]):
                 length_2 = length - len(
                     transcript.payload["payload"][start_offset:end_offset]
                 )
                 length = length - length_2
+                logging.info(
+                    "Length of payload {}, end_offset {}, count of sentences {}, after splitting {}".format(
+                        str(length),
+                        str(end_offset),
+                        str(count_sentences),
+                        str(length_2),
+                    )
+                )
+            else:
+                length_3 = (
+                    len(transcript.payload["payload"][start_offset:end_offset]) - length
+                )
+                logging.info(
+                    "Length of payload {}, end_offset {}, count of sentences {}, after merging {}".format(
+                        str(length),
+                        str(end_offset),
+                        str(count_sentences),
+                        str(length_3),
+                    )
+                )
             for i in range(length):
-                if "text" in payload["payload"][i].keys():
+                if (
+                    "text" in payload["payload"][i].keys()
+                    and "text" in transcript.payload["payload"][start_offset + i]
+                ):
+                    transcript.payload["payload"][start_offset + i] = {
+                        "start_time": payload["payload"][i]["start_time"],
+                        "end_time": payload["payload"][i]["end_time"],
+                        "text": payload["payload"][i]["text"],
+                    }
+                elif (
+                    "text" in payload["payload"][i].keys()
+                    and "text" not in transcript.payload["payload"][start_offset + i]
+                ):
                     transcript.payload["payload"][start_offset + i] = {
                         "start_time": payload["payload"][i]["start_time"],
                         "end_time": payload["payload"][i]["end_time"],
                         "text": payload["payload"][i]["text"],
                     }
                 else:
-                    transcript.payload["payload"][start_offset + i] = {}
+                    logging.info("Text missing in payload")
             if length_2 > 0:
                 for i in range(length_2):
                     if "text" in payload["payload"][i].keys():
@@ -782,21 +903,32 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                             },
                         )
                     else:
-                        transcript.payload["payload"][start_offset + i] = {}
+                        logging.info("Text missing in payload")
+            if length_3 > 0:
+                for i in range(length_3):
+                    transcript.payload["payload"][start_offset + i + length] = {}
         else:
+            logging.info("length of payload %s", str(length))
             for i in range(length):
-                if "text" in payload["payload"][i].keys():
+                if (
+                    "text" in payload["payload"][i].keys()
+                    and "text" in transcript.payload["payload"][start_offset + i]
+                ):
                     transcript.payload["payload"][start_offset + i] = {
                         "start_time": payload["payload"][i]["start_time"],
                         "end_time": payload["payload"][i]["end_time"],
                         "text": payload["payload"][i]["text"],
                     }
                 else:
-                    transcript.payload["payload"][start_offset + i] = {}
+                    logging.info("Text missing in payload")
             delete_indices = []
+            logging.info(
+                "length exceeds limit by limit - length %s", str(limit - length)
+            )
             for i in range(limit - length):
                 delete_indices.append(start_offset + i + length)
 
+            logging.info("delete_indices %s", str(delete_indices))
             for ind in delete_indices:
                 transcript.payload["payload"][ind] = {}
     else:
@@ -814,18 +946,29 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
             length_2 = len(payload["payload"]) - limit
             insert_at = start_offset + length
         for i in range(length):
-            if "text" in payload["payload"][i].keys():
+            if (
+                "text" in payload["payload"][i].keys()
+                and "text" in transcript.payload["payload"][start_offset + i]
+            ):
+                transcript.payload["payload"][start_offset + i] = {
+                    "start_time": payload["payload"][i]["start_time"],
+                    "end_time": payload["payload"][i]["end_time"],
+                    "text": payload["payload"][i]["text"],
+                }
+            elif "text" not in transcript.payload["payload"][start_offset + i]:
                 transcript.payload["payload"][start_offset + i] = {
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
                 }
             else:
-                transcript.payload["payload"][start_offset + i] = {}
+                logging.info("Text missing in payload")
         for i in range(length_2):
             if "text" in payload["payload"][i].keys():
                 if (
                     len(transcript.payload["payload"]) > insert_at + i
+                    and "text" in payload["payload"][length + i].keys()
+                    and "text" in transcript.payload["payload"][insert_at + i].keys()
                     and payload["payload"][length + i]["start_time"]
                     == transcript.payload["payload"][insert_at + i]["start_time"]
                     and payload["payload"][length + i]["end_time"]
@@ -846,7 +989,7 @@ def modify_payload(limit, payload, start_offset, end_offset, transcript):
                         },
                     )
             else:
-                transcript.payload["payload"][start_offset + i] = {}
+                logging.info("Text missing in payload")
 
 
 @swagger_auto_schema(
@@ -1056,8 +1199,6 @@ def save_full_transcription(request):
                         task.status = "INPROGRESS"
                         task.save()
 
-            transcription_cache_key = f"transcript_cache_{transcript_obj.id}"
-            cache.delete(transcription_cache_key)
             if request.data.get("final"):
                 return Response(
                     {
@@ -1147,12 +1288,11 @@ def save_transcription(request):
 
     if not task.is_active:
         return Response(
-            {"message": "This task is not ative yet."},
+            {"message": "This task is not active yet."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     transcript = get_transcript_id(task)
-
     if transcript is None:
         return Response(
             {"message": "Transcript not found."},
@@ -1166,7 +1306,6 @@ def save_transcription(request):
     # Retrieve the transcript object
     try:
         transcript = Transcript.objects.get(pk=transcript_id)
-
         # Check if the transcript has a user
         if task.user != request.user:
             return Response(
@@ -1207,7 +1346,7 @@ def save_transcription(request):
                         status=tc_status,
                     )
                     modify_payload(
-                        limit, payload, start_offset, end_offset, transcript_obj
+                        offset, limit, payload, start_offset, end_offset, transcript_obj
                     )
                     transcript_obj.save()
                     task.status = "COMPLETE"
@@ -1228,7 +1367,12 @@ def save_transcription(request):
                         )
                     if transcript_obj is not None:
                         modify_payload(
-                            limit, payload, start_offset, end_offset, transcript_obj
+                            offset,
+                            limit,
+                            payload,
+                            start_offset,
+                            end_offset,
+                            transcript_obj,
                         )
                         # transcript_obj.payload = payload
                         transcript_obj.transcript_type = transcript_obj.transcript_type
@@ -1258,7 +1402,12 @@ def save_transcription(request):
                             status=tc_status,
                         )
                         modify_payload(
-                            limit, payload, start_offset, end_offset, transcript_obj
+                            offset,
+                            limit,
+                            payload,
+                            start_offset,
+                            end_offset,
+                            transcript_obj,
                         )
                         transcript_obj.save()
                         task.status = "INPROGRESS"
@@ -1287,7 +1436,12 @@ def save_transcription(request):
                             status=tc_status,
                         )
                         modify_payload(
-                            limit, payload, start_offset, end_offset, transcript_obj
+                            offset,
+                            limit,
+                            payload,
+                            start_offset,
+                            end_offset,
+                            transcript_obj,
                         )
                         transcript_obj.save()
                         task.status = "COMPLETE"
@@ -1305,7 +1459,12 @@ def save_transcription(request):
                     )
                     if transcript_obj is not None:
                         modify_payload(
-                            limit, payload, start_offset, end_offset, transcript_obj
+                            offset,
+                            limit,
+                            payload,
+                            start_offset,
+                            end_offset,
+                            transcript_obj,
                         )
                         # transcript_obj.payload = payload
                         transcript_obj.transcript_type = transcript_type
@@ -1322,15 +1481,16 @@ def save_transcription(request):
                             status=tc_status,
                         )
                         modify_payload(
-                            limit, payload, start_offset, end_offset, transcript_obj
+                            offset,
+                            limit,
+                            payload,
+                            start_offset,
+                            end_offset,
+                            transcript_obj,
                         )
                         transcript_obj.save()
                         task.status = "INPROGRESS"
                         task.save()
-
-            # delete cache by transcription key
-            transcription_cache_key = f"transcript_cache_{transcript_obj.id}"
-            cache.delete(transcription_cache_key)
 
             if request.data.get("final"):
                 return Response(

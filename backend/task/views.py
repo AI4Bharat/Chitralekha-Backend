@@ -13,7 +13,11 @@ from transcript.views import generate_transcription
 from rest_framework.decorators import action
 from users.models import User
 from transcript.utils.asr import get_asr_supported_languages, make_asr_api_call
-from voiceover.utils import generate_voiceover_payload, process_translation_payload
+from voiceover.utils import (
+    generate_voiceover_payload,
+    process_translation_payload,
+    send_mail_to_user,
+)
 from transcript.models import Transcript
 from translation.models import Translation
 from django.db.models import Count
@@ -23,7 +27,6 @@ from translation.utils import (
     translation_mg,
 )
 from voiceover.models import VoiceOver
-from video.utils import get_subtitles_from_google_video
 from rest_framework.permissions import IsAuthenticated
 import webvtt
 from io import StringIO
@@ -49,7 +52,6 @@ from functools import wraps
 from rest_framework import status
 import logging
 import io
-from video.utils import get_export_transcript, get_export_translation
 import zipfile
 from django.http import HttpResponse
 import datetime
@@ -57,6 +59,29 @@ from task.tasks import celery_asr_call, celery_tts_call
 import requests
 from django.db.models.functions import Concat
 from django.db.models import Value
+from django.http import HttpRequest
+from transcript.views import export_transcript
+from translation.views import export_translation
+
+
+def get_export_translation(request, task_id, export_type):
+    new_request = HttpRequest()
+    new_request.method = "GET"
+    new_request.user = request.user
+    new_request.GET = request.GET.copy()
+    new_request.GET["task_id"] = task_id
+    new_request.GET["export_type"] = export_type
+    return export_translation(new_request)
+
+
+def get_export_transcript(request, task_id, export_type):
+    new_request = HttpRequest()
+    new_request.method = "GET"
+    new_request.user = request.user
+    new_request.GET = request.GET.copy()
+    new_request.GET["task_id"] = task_id
+    new_request.GET["export_type"] = export_type
+    return export_transcript(new_request)
 
 
 class TaskViewSet(ModelViewSet):
@@ -463,6 +488,8 @@ class TaskViewSet(ModelViewSet):
                         is_active=is_active,
                     )
                     new_task.save()
+                    if is_active:
+                        send_mail_to_user(new_task)
                     tasks.append(new_task)
 
                 new_translations = []
@@ -533,6 +560,8 @@ class TaskViewSet(ModelViewSet):
                         is_active=is_active,
                     )
                     new_task.save()
+                    if is_active:
+                        send_mail_to_user(new_task)
                     tasks.append(new_task)
 
                 new_translations = []
@@ -843,6 +872,7 @@ class TaskViewSet(ModelViewSet):
                         if translation is not None:
                             task.is_active = True
                             task.save()
+                            send_mail_to_user(task)
                     detailed_error.append(
                         {
                             "video_name": task.video.name,
@@ -890,6 +920,8 @@ class TaskViewSet(ModelViewSet):
                         priority=priority,
                         is_active=is_active,
                     )
+                    if is_active == True:
+                        send_mail_to_user(new_task)
                     new_task.save()
                     tasks.append(new_task)
 
@@ -1226,6 +1258,8 @@ class TaskViewSet(ModelViewSet):
                         priority=priority,
                         is_active=is_active,
                     )
+                    if is_active == True:
+                        send_mail_to_user(new_task)
                     new_task.save()
                     tasks.append(new_task)
 
@@ -1330,11 +1364,13 @@ class TaskViewSet(ModelViewSet):
     def generate_transcript_payload(self, task, list_compare_sources, is_async=False):
         payloads = {}
         if "MACHINE_GENERATED" in list_compare_sources:
-            if is_async==True:
+            if is_async == True:
                 celery_asr_call.delay(task_id=task.id)
                 payloads["MACHINE_GENERATED"] = {"payload": []}
             else:
-                transcribed_data = make_asr_api_call(task.video.url, task.video.language)
+                transcribed_data = make_asr_api_call(
+                    task.video.url, task.video.language
+                )
                 if transcribed_data is not None:
                     data = self.convert_payload_format(transcribed_data)
                     payloads["MACHINE_GENERATED"] = data
@@ -1948,6 +1984,7 @@ class TaskViewSet(ModelViewSet):
         if "TRANSLATION" in task_type or "VOICEOVER" in task_type:
             target_language = request.data.get("target_language")
             if target_language is None:
+                logging.info("Target language is missing")
                 return Response(
                     {
                         "message": "missing param : target language can't be None for translation tasks"
@@ -2296,13 +2333,16 @@ class TaskViewSet(ModelViewSet):
     def inspect_asr_queue(self, request):
         try:
             task_list = []
-            url = "http://localhost:5555/api/tasks"
+            url = f"{flower_url}/api/tasks"
             params = {
                 "state": "STARTED",
                 "sort_by": "received",
                 "name": "task.tasks.celery_asr_call",
             }
-            res = requests.get(url, params=params)
+            if flower_username and flower_password:
+                res = requests.get(url, params=params, auth=(flower_username, flower_password))
+            else:
+                res = requests.get(url, params=params)
             data = res.json()
             task_data = list(data.values())
             for elem in task_data:
@@ -2346,3 +2386,45 @@ class TaskViewSet(ModelViewSet):
                 {"message": "unable to query celery", "data": []},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+    @swagger_auto_schema(
+        method="patch",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["time_spent"],
+            properties={
+                "time_spent": openapi.Schema(
+                    type=openapi.TYPE_INTEGER,
+                    description="time spent",
+                ),
+            },
+            description="Post request body for updating time spent.",
+        ),
+        responses={
+            200: "Updated time spent on task.",
+        },
+    )
+    @action(
+        detail=True,
+        methods=["PATCH"],
+        name="Update Time Spent",
+        url_name="update_time_spent",
+    )
+    def update_time_spent(self, request, pk=None):
+        try:
+            task = Task.objects.get(pk=pk)
+        except Task.DoesNotExist:
+            return Response(
+                {"message": "Task does not exist"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        time_spent = request.data.get("time_spent", 0)
+        if task.time_spent == None:
+            task.time_spent = time_spent
+        else:
+            task.time_spent += time_spent
+        task.save()
+        return Response(
+            {"message": "Time spent on task updated successfully."},
+            status=status.HTTP_200_OK,
+        )

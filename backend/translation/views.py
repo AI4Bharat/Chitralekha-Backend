@@ -355,11 +355,12 @@ def get_payload(request):
     page_records = translation.payload["payload"][start:end]
     records = translation.payload["payload"]
 
-    total_pages = math.ceil(len(records) // int(limit))
+    total_pages = math.ceil(len(translation.payload["payload"]) / int(limit))
     next_page = int(page) + 1
     pre_page = int(page) - 1
 
     if next_page > total_pages:
+        end = len(translation.payload["payload"])
         next_page = None
 
     if (pre_page <= 0) | (int(page) > total_pages):
@@ -375,18 +376,28 @@ def get_payload(request):
         for i in range(len(page_records)):
             page_records[i]["id"] = start + i
 
-    response = {"payload": [record_object for record_object in page_records]}
+    count_empty = 0
+    records = []
+    for record_object in page_records:
+        if "text" in record_object:
+            records.append(record_object)
+        else:
+            count_empty += 1
+
+    response = {"payload": records}
 
     return Response(
         {
             "payload": response,
             "source_type": translation.translation_type,
-            "count": len(records),
-            "current_count": len(page_records),
+            "count": len(translation.payload["payload"]),
+            "current_count": len(records),
             "total_pages": total_pages,
             "current": int(page),
             "previous": pre_page,
             "next": next_page,
+            "start": start + 1,
+            "end": end,
         },
         status=status.HTTP_200_OK,
     )
@@ -467,6 +478,23 @@ def get_sentence_from_timeline(request):
         if unix_start_time <= unix_time and unix_end_time > unix_time:
             save_index = ind
             break
+        if ind == 0:
+            if unix_time < unix_start_time:
+                save_index = ind
+                break
+        if ind < len(translation.payload["payload"]) - 1:
+            end_time_of_next_sentence = datetime.datetime.strptime(
+                translation.payload["payload"][ind + 1]["start_time"], "%H:%M:%S.%f"
+            )
+            unix_end_time_of_next_sentence = datetime.datetime.timestamp(
+                end_time_of_next_sentence
+            )
+            if (
+                unix_end_time <= unix_time
+                and unix_end_time_of_next_sentence > unix_time
+            ):
+                save_index = ind
+                break
 
     length_payload = len(translation.payload["payload"])
     sentence_offset = math.ceil((save_index + 1) / int(limit))
@@ -550,6 +578,39 @@ def get_payload_request(request, task_id, limit, offset):
     return get_payload(new_request)
 
 
+def send_mail_to_user(task):
+    if task.user.enable_mail:
+        if task.eta is not None:
+            try:
+                task_eta = str(task.eta.strftime("%Y-%m-%d"))
+            except:
+                task_eta = str(task.eta)
+        else:
+            task_eta = "-"
+        logging.info("Send email to user %s", task.user.email)
+        table_to_send = "<p>Dear User, Following task is active.</p><p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+        data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr><tr><th>ETA</th><td>{eta}</td></tr><tr><th>Description</th><td>{description}</td></tr></table></body></p>".format(
+            name=task.video.name,
+            url=task.video.url,
+            project_name=task.video.project_id.title,
+            eta=task_eta,
+            description=task.description,
+        )
+        final_table = table_to_send + data
+        try:
+            send_mail(
+                f"{task.get_task_type_label} is active",
+                "Dear User, Following task is active.",
+                settings.DEFAULT_FROM_EMAIL,
+                [task.user.email],
+                html_message=final_table,
+            )
+        except:
+            logging.info("Error in sending Email")
+    else:
+        logging.info("Email is not enabled %s", task.user.email)
+
+
 def change_active_status_of_next_tasks(task, translation_obj):
     translation_review_task = (
         Task.objects.filter(video=task.video)
@@ -570,6 +631,7 @@ def change_active_status_of_next_tasks(task, translation_obj):
             translation.payload = translation_obj.payload
             translation.save()
             translation_review_task.save()
+            send_mail_to_user(translation_review_task)
     voice_over_task = (
         Task.objects.filter(task_type="VOICEOVER_EDIT")
         .filter(video=task.video)
@@ -617,6 +679,7 @@ def change_active_status_of_next_tasks(task, translation_obj):
                 voice_over_obj.save()
                 voice_over_task.is_active = True
                 voice_over_task.save()
+                send_mail_to_user(voice_over_task)
             else:
                 (
                     tts_input,
@@ -720,8 +783,8 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
     if len(payload["payload"]) == limit:
         length = len(payload["payload"])
         length_2 = -1
-        if len(payload["payload"]) > count_sentences:
-            length_2 = len(payload["payload"]) - count_sentences
+        if end_offset > count_sentences:
+            length_2 = end_offset - count_sentences
             length = length - length_2
         for i in range(length):
             if "text" in payload["payload"][i].keys():
@@ -730,6 +793,12 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
                     "target_text": payload["payload"][i]["target_text"],
+                }
+            elif "text" not in translation.payload["payload"][start_offset + i]:
+                translation.payload["payload"][start_offset + i] = {
+                    "start_time": payload["payload"][i]["start_time"],
+                    "end_time": payload["payload"][i]["end_time"],
+                    "text": payload["payload"][i]["text"],
                 }
             else:
                 translation.payload["payload"][start_offset + i] = {}
@@ -750,14 +819,21 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                 else:
                     translation.payload["payload"][start_offset + i] = {}
     elif len(payload["payload"]) < limit:
+        logging.info("Limit is less than length of payload")
         length = len(payload["payload"])
         length_2 = -1
+        length_3 = -1
         if end_offset > count_sentences:
             if length > len(translation.payload["payload"][start_offset:end_offset]):
                 length_2 = length - len(
                     translation.payload["payload"][start_offset:end_offset]
                 )
                 length = length - length_2
+            else:
+                length_3 = (
+                    len(translation.payload["payload"][start_offset:end_offset])
+                    - length
+                )
             for i in range(length):
                 if "text" in payload["payload"][i].keys():
                     translation.payload["payload"][start_offset + i] = {
@@ -786,6 +862,9 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         )
                     else:
                         translation.payload["payload"][start_offset + i] = {}
+            if length_3 > 0:
+                for i in range(length_3):
+                    translation.payload["payload"][start_offset + i + length] = {}
         else:
             for i in range(length):
                 if "text" in payload["payload"][i].keys():
@@ -801,9 +880,11 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
             for i in range(limit - length):
                 delete_indices.append(start_offset + i + length)
 
+            logging.info("delete_indices %s", str(delete_indices))
             for ind in delete_indices:
                 translation.payload["payload"][ind] = {}
     else:
+        logging.info("Limit is greater than length of payload")
         if end_offset > count_sentences:
             length = count_sentences - start_offset
             length_2 = len(payload["payload"]) - length
@@ -878,7 +959,6 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
 )
 @api_view(["POST"])
 def save_translation(request):
-
     try:
         # Get the required data from the POST body
         translation_id = request.data.get("translation_id", None)
@@ -1068,9 +1148,9 @@ def save_translation(request):
                     for ind in delete_indices:
                         translation_obj.payload["payload"].pop(ind)
                     translation_obj.save()
-                    message = change_active_status_of_next_tasks(task, translation_obj)
                     task.status = "COMPLETE"
                     task.save()
+                    message = change_active_status_of_next_tasks(task, translation_obj)
                 else:
                     translation_obj = (
                         Translation.objects.filter(status=TRANSLATION_REVIEW_INPROGRESS)
@@ -1329,9 +1409,9 @@ def save_full_translation(request):
                         status=ts_status,
                         task=task,
                     )
-                    message = change_active_status_of_next_tasks(task, translation_obj)
                     task.status = "COMPLETE"
                     task.save()
+                    message = change_active_status_of_next_tasks(task, translation_obj)
                 else:
                     translation_obj = (
                         Translation.objects.filter(status=TRANSLATION_REVIEW_INPROGRESS)

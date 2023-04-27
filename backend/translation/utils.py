@@ -4,12 +4,6 @@ import json
 from rest_framework.response import Response
 from rest_framework import status
 import logging
-
-from .metadata import (
-    LANG_TRANS_MODEL_CODES,
-    DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID,
-    LANG_CODE_TO_NAME_ULCA,
-)
 from docx import *
 from docx.shared import Inches
 from django.http import HttpResponse
@@ -17,6 +11,12 @@ from io import StringIO, BytesIO
 import os
 import datetime
 
+from config import anuvaad_url
+from .metadata import (
+    LANG_TRANS_MODEL_CODES,
+    DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID,
+    LANG_CODE_TO_NAME_ULCA,
+)
 
 ### Utility Functions ###
 def validate_uuid4(val):
@@ -120,7 +120,7 @@ def get_batch_translations_using_indictrans_nmt_api(
 
     try:
         response = requests.post(
-            "https://nmt-models.ulcacontrib.org/aai4b-nmt-inference/v0/translate",
+            anuvaad_url,
             json=json_data,
         )
         translations_output = response.json()["output"]
