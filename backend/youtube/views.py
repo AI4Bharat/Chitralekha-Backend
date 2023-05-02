@@ -226,26 +226,8 @@ def upload_to_youtube(request):
     # Define the language of the subtitle file (ISO 639-1 language code)
     LANGUAGE = task_obj.target_language
 
-    # Define the YouTube API service object
-    creds = None
-
-    # if (CREDENTIALS_FILE):
-    #     creds = Credentials.from_authorized_user_info(CREDENTIALS_FILE, scopes=['https://www.googleapis.com/auth/youtube.force-ssl'])
-
-    # Define the path to your credentials file
-    CREDENTIALS_FILE = '/home/vipul/Documents/projects/chitralekha_backend/Chitralekha-Backend/google-desktop.json'
-
-    if os.path.exists(CREDENTIALS_FILE):
-        creds = Credentials.from_authorized_user_file(CREDENTIALS_FILE, scopes=['https://www.googleapis.com/auth/youtubepartner'])
-
-    #Define the path to your client secret file
-    CLIENT_SECRET_FILE = '/home/vipul/Documents/projects/chitralekha_backend/Chitralekha-Backend/google-web.json'
-    scopes = ['https://www.googleapis.com/auth/youtube.force-ssl']
-    if not creds or not creds.valid:
-        flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, scopes=scopes)
-        creds = flow.run_local_server(port=0)
-        with open(CREDENTIALS_FILE, 'w') as f:
-            f.write(creds.to_json())
+    if (CREDENTIALS_FILE):
+        creds = Credentials.from_authorized_user_info(CREDENTIALS_FILE, scopes=['https://www.googleapis.com/auth/youtubepartner'])
 
     youtube = build('youtube', 'v3', credentials=creds)
 
