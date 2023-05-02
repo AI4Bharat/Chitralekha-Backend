@@ -178,7 +178,8 @@ def upload_to_youtube(request):
     )
 
     serialized_data = json.loads(translation.content.decode('utf-8'))
-    azure_url = uploadToBlobStorage(serialized_data)
+    file_name = str(task_obj.id)+"_"+task_obj.target_language+".srt"
+    azure_url = uploadToBlobStorage(file_name, serialized_data)
 
     video = Video.objects.get(pk=video_id)
 
@@ -219,8 +220,6 @@ def upload_to_youtube(request):
     VIDEO_ID = video_id
 
     # Define the path to the subtitle file you want to upload
-    # DOWNLOAD completed file, extract and upload to azure
-    file_name = "Chitralekha_Video"    
     SUBTITLE_FILE = os.path.join(BASE_DIR / "temporary_video_audio_storage", file_name+".srt")         
 
     # Define the language of the subtitle file (ISO 639-1 language code)

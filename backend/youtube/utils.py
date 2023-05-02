@@ -36,9 +36,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 
-def uploadToBlobStorage(payload):
-
-    file_name = "Chitralekha_Video"
+def uploadToBlobStorage(file_name, payload):
     
     completeName = os.path.join(BASE_DIR / "temporary_video_audio_storage", file_name+".srt")         
 
