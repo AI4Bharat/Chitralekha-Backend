@@ -55,6 +55,7 @@ from task.tasks import celery_tts_call
 import logging
 import datetime
 import math
+import json
 
 
 @api_view(["GET"])
@@ -88,6 +89,7 @@ def get_translation_export_types(request):
 def export_translation(request):
     task_id = request.query_params.get("task_id")
     export_type = request.query_params.get("export_type")
+    return_json_content = request.query_params.get("return_json_content")
 
     if task_id is None or export_type is None:
         return Response(
@@ -156,6 +158,11 @@ def export_translation(request):
     content_type = "application/json"
     if len(content) == 0:
         content = " "
+    if(return_json_content):
+        response = HttpResponse(json.dumps(content), content_type='application/json')
+        return response
+
+    
     response = HttpResponse(content, content_type=content_type)
     response["Content-Disposition"] = 'attachment; filename="%s"' % filename
     response["filename"] = filename

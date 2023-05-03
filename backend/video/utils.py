@@ -147,6 +147,7 @@ def get_export_translation(request, task_id, export_type):
     new_request.GET = request.GET.copy()
     new_request.GET["task_id"] = task_id
     new_request.GET["export_type"] = export_type
+    new_request.GET["return_json_content"] = request.data['return_json_content']
     return export_translation(new_request)
 
 
