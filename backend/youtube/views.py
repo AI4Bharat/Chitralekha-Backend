@@ -94,10 +94,9 @@ def revoke_access_token(request):
         type=openapi.TYPE_OBJECT,
         properties={
             "project_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-            "channel_id": openapi.Schema(type=openapi.TYPE_STRING),
             "auth_token": openapi.Schema(type=openapi.TYPE_OBJECT),
         },
-        required=["project_id", "channel_id", "auth_token"],
+        required=["project_id", "auth_token"],
     ),
     responses={
         204: "Access token stored successfully.",
@@ -111,7 +110,6 @@ def store_access_token(request):
     Method: POST
     """
     project_id = request.data.get("project_id")
-    channel_id = request.data.get("channel_id")
     auth_token = request.data.get("auth_token")
 
     try:
@@ -122,34 +120,47 @@ def store_access_token(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    authExist = (
-        Youtube.objects.filter(project_id=project_id)
-        .filter(channel_id=channel_id)
-        .first()
-    )
+    # Get the authenticated user's credentials from the Django session
+    credentials = Credentials.from_authorized_user_info(auth_token)
 
-    if authExist:
-        Youtube.objects.filter(pk=authExist.id).update(auth_token=auth_token)
+    # Create a YouTube API client
+    youtube = build("youtube", "v3", credentials=credentials)
+
+    try:
+        # Call the 'channels.list' method to retrieve the list of channels
+        channels_response = youtube.channels().list(part="snippet", mine=True).execute()
+
+        # Extract the channel information from the API response
+        channels = channels_response["items"]
+
+        for channel in channels:
+            channel_id = channel["id"]
+
+            authExist = (
+                Youtube.objects.filter(project_id=project_id)
+                .filter(channel_id=channel_id)
+                .first()
+            )
+
+            if authExist:
+                Youtube.objects.filter(pk=authExist.id).update(auth_token=auth_token)
+            else:
+                new_youtube_auth = Youtube(
+                    project_id=project,
+                    channel_id=channel_id,
+                    auth_token=auth_token,
+                )
+                new_youtube_auth.save()
+
         return Response(
             {
                 "message": "Youtube auth token saved successfully.",
             },
             status=status.HTTP_200_OK,
         )
-    else:
-        new_youtube_auth = Youtube(
-            project_id=project,
-            channel_id=channel_id,
-            auth_token=auth_token,
-        )
-        new_youtube_auth.save()
-
-        return Response(
-            {
-                "message": "Youtube auth token saved successfully.",
-            },
-            status=status.HTTP_200_OK,
-        )
+    except HttpError as e:
+        logging.info("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))
+        return Response({"message": e.reason}, status=e.resp.status)
 
 
 @swagger_auto_schema(
@@ -267,4 +278,4 @@ def upload_to_youtube(request):
         )
     except HttpError as e:
         logging.info("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))
-        return Response({"message": e.reason}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"message": e.reason}, status=e.resp.status)
