@@ -192,15 +192,15 @@ def upload_to_youtube(request):
         return Response({"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
 
     video_id = task_obj.video_id
-    task_type = task_obj.task_type
 
-    request.data["return_json_content"] = True
+    request.data["return_file_content"] = True
     translation = get_export_translation(request, get_task_id, "srt")
 
     serialized_data = json.loads(translation.content.decode("utf-8"))
     file_name = str(task_obj.id) + "_" + task_obj.target_language + ".srt"
     azure_url = uploadToBlobStorage(file_name, serialized_data)
 
+    # get channel id of video for requested taks
     video = Video.objects.get(pk=video_id)
 
     video_url = video.url
