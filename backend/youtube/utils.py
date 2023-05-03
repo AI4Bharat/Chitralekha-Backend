@@ -32,19 +32,17 @@ from pydub.effects import speedup
 from pydub import AudioSegment
 import re
 from pathlib import Path
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-
 def uploadToBlobStorage(file_name, payload):
-    
-    completeName = os.path.join(BASE_DIR / "temporary_video_audio_storage", file_name+".srt")         
+    file_temp_name = os.path.join(BASE_DIR / "temporary_video_audio_storage", file_name)
 
-    #blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-
-    with open(completeName, "w") as outfile:
+    with open(file_temp_name, "w") as outfile:
         outfile.write(payload)
 
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     # blob_client_json = blob_service_client.get_blob_client(
     #     container=container_name, blob=file_path.split("/")[-1] + ".json"
     # )
