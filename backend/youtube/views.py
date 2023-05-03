@@ -183,7 +183,7 @@ def upload_to_youtube(request):
     video_id = task_obj.video_id
     task_type = task_obj.task_type
 
-    request.data["return_json_content"] = True
+    request.data["return_file_content"] = True
     translation = get_export_translation(request, get_task_id, "srt")
 
     serialized_data = json.loads(translation.content.decode("utf-8"))
