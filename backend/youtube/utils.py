@@ -43,19 +43,35 @@ def uploadToBlobStorage(file_name, payload):
         outfile.write(payload)
 
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-    # blob_client_json = blob_service_client.get_blob_client(
-    #     container=container_name, blob=file_path.split("/")[-1] + ".json"
-    # )
-    # with open(file_path.split("/")[-1] + ".json", "rb") as data:
-    #     try:
-    #         if not blob_client_json.exists():
-    #             blob_client_json.upload_blob(data)
-    #             logging.info("Srt payload uploaded successfully!")
-    #             logging.info(blob_client_json.url)
-    #         else:
-    #             blob_client_json.delete_blob()
-    #             logging.info("Old srt payload deleted successfully!")
-    #             blob_client_json.upload_blob(data)
-    #             logging.info("New srt payload successfully!")
-    #     except Exception as e:
-    #         logging.info("This srt payload can't be uploaded")
+
+    blob_client_json = blob_service_client.get_blob_client(
+        container=container_name, blob=file_temp_name.split("/")[-1]
+    )
+    with open(file_temp_name, "rb") as data:
+        try:
+            blob_client_json.delete_blob()
+            logging.info("Old srt payload deleted successfully!")
+            blob_client_json.upload_blob(data)
+            logging.info("New srt payload successfully!")
+            blob_url = blob_client_json.url
+            return blob_url
+
+        except Exception as e:
+            logging.info("This srt payload can't be uploaded")
+
+
+def deleteFromBlobStorage(file_name):
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+
+    blob_client_json = blob_service_client.get_blob_client(
+        container=container_name, blob=file_name
+    )
+
+    try:
+        blob_client_json.delete_blob()
+        logging.info("Old srt payload deleted successfully!")
+        return True
+
+    except Exception as e:
+        logging.info("This srt payload can't be deleted")
+        return False

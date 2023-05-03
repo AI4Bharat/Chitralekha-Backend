@@ -159,6 +159,8 @@ def get_export_transcript(request, task_id, export_type):
     new_request.GET = request.GET.copy()
     new_request.GET["task_id"] = task_id
     new_request.GET["export_type"] = export_type
+    if "return_file_content" in request.data:
+        new_request.GET["return_file_content"] = request.data["return_file_content"]
     return export_transcript(new_request)
 
 

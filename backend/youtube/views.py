@@ -191,66 +191,133 @@ def upload_to_youtube(request):
     except Task.DoesNotExist:
         return Response({"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
 
+    # get video_id from task
     video_id = task_obj.video_id
 
-    request.data["return_file_content"] = True
-    translation = get_export_translation(request, get_task_id, "srt")
+    # Get translation/transcript and generate srt file, upload to blob storage
+    try:
+        request.data["return_file_content"] = True
+        file_is_exportable = False
 
-    serialized_data = json.loads(translation.content.decode("utf-8"))
-    file_name = str(task_obj.id) + "_" + task_obj.target_language + ".srt"
-    azure_url = uploadToBlobStorage(file_name, serialized_data)
+        # check transcript is exportable or not
+        if (
+            task_obj.task_type == "TRANSCRIPTION_REVIEW"
+            and task_obj.status == "COMPLETE"
+        ):
+            file_is_exportable = True
+        elif (
+            task_obj.task_type == "TRANSCRIPTION_EDIT" and task_obj.status == "COMPLETE"
+        ):
+            review_exist = (
+                Task.objects.filter(video_id=video_id)
+                .filter(task_type="TRANSCRIPTION_REVIEW")
+                .first()
+            )
+            if review_exist:
+                if review_exist.status == "COMPLETE":
+                    file_is_exportable = True
+            elif review_exist is None:
+                file_is_exportable = True
 
-    # get channel id of video for requested taks
-    video = Video.objects.get(pk=video_id)
+        # check transcript is exportable or not
+        if task_obj.task_type == "TRANSLATION_REVIEW" and task_obj.status == "COMPLETE":
+            file_is_exportable = True
+        elif task_obj.task_type == "TRANSLATION_EDIT" and task_obj.status == "COMPLETE":
+            review_exist = (
+                Task.objects.filter(video_id=video_id)
+                .filter(task_type="TRANSLATION_REVIEW")
+                .first()
+            )
+            if review_exist:
+                if review_exist.status == "COMPLETE":
+                    file_is_exportable = True
+            elif review_exist is None:
+                file_is_exportable = True
 
-    video_url = video.url
-    parsed_url = urlparse(video_url)
-    video_id = parse_qs(parsed_url.query)["v"][0]
+        if file_is_exportable:
+            if task_obj.task_type in ["TRANSLATION_REVIEW", "TRANSLATION_EDIT"]:
+                target_lang_content = get_export_translation(
+                    request, get_task_id, "srt"
+                )
+            elif task_obj.task_type in ["TRANSCRIPTION_REVIEW", "TRANSCRIPTION_EDIT"]:
+                target_lang_content = get_export_transcript(request, get_task_id, "srt")
 
-    # Replace with your API key or OAuth 2.0 credentials
-    API_KEY = youtube_api_key
+            serialized_data = json.loads(target_lang_content.content.decode("utf-8"))
+            file_name = str(task_obj.id) + "_" + task_obj.target_language + ".srt"
+            azure_url = uploadToBlobStorage(file_name, serialized_data)
+        else:
+            return Response(
+                {"message": "Please complete related task type to generate file"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-    # Create a YouTube API client
-    youtube = build("youtube", "v3", developerKey=API_KEY)
+    except Exception as e:
+        logging.info("There is a issue with file srt file creation or azur upload")
+        return Response({"message": e.args[0]}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Call the "videos.list" method to retrieve video information
-    videos_response = youtube.videos().list(part="snippet", id=video_id).execute()
+    try:
+        # get channel id of video for requested taks
+        video = Video.objects.get(pk=video_id)
+        video_url = video.url
+        parsed_url = urlparse(video_url)
+        video_id = parse_qs(parsed_url.query)["v"][0]
 
-    # Extract the channel ID from the response
-    video = videos_response.get("items", [])[0]
-    channel_id = video["snippet"]["channelId"]
+        # Replace with your API key or OAuth 2.0 credentials
+        API_KEY = youtube_api_key
 
-    # By channel id, get auth token from database
-    youtube_auth = Youtube.objects.filter(channel_id=channel_id).first()
-    if youtube_auth is None:
-        return Response(
-            {"message": "Youtube auth not found."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        # Create a YouTube API client
+        youtube = build("youtube", "v3", developerKey=API_KEY)
 
-    # Define the path to your credentials file
-    CREDENTIALS_FILE = youtube_auth.auth_token
+        # Call the "videos.list" method to retrieve video information
+        videos_response = youtube.videos().list(part="snippet", id=video_id).execute()
 
-    # Define the ID of the YouTube video you want to upload a subtitle file for
-    VIDEO_ID = video_id
+        # Extract the channel ID from the response
+        video = videos_response.get("items", [])[0]
+        if video is not None:
+            channel_id = video["snippet"]["channelId"]
 
-    # Define the path to the subtitle file you want to upload
-    SUBTITLE_FILE = os.path.join(
-        BASE_DIR / "temporary_video_audio_storage", file_name + ".srt"
-    )
-
-    # Define the language of the subtitle file (ISO 639-1 language code)
-    LANGUAGE = task_obj.target_language
-
-    if CREDENTIALS_FILE:
-        creds = Credentials.from_authorized_user_info(
-            CREDENTIALS_FILE, scopes=["https://www.googleapis.com/auth/youtubepartner"]
-        )
-
-    youtube = build("youtube", "v3", credentials=creds)
+            # By channel id, get auth token from database
+            youtube_auth = Youtube.objects.filter(channel_id=channel_id).first()
+            if youtube_auth is None:
+                return Response(
+                    {"message": "Youtube auth not found."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            return Response(
+                {"message": "Task's video is get deleted or not accessible"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    except Exception as e:
+        return Response({"message": e.args[0]}, status=status.HTTP_400_BAD_REQUEST)
 
     # Upload the caption file
     try:
+        # Define the path to your credentials file
+        CREDENTIALS_FILE = youtube_auth.auth_token
+
+        # Define the ID of the YouTube video you want to upload a subtitle file for
+        VIDEO_ID = video_id
+
+        # Define the path to the subtitle file you want to upload
+        SUBTITLE_FILE = azure_url
+
+        # Define the language of the subtitle file (ISO 639-1 language code)
+        LANGUAGE = task_obj.target_language
+
+        # CREDENTIALS_FILE = {
+        #     "refresh_token": "AJDLj6JUa8yxXrhHdWRHIV0S13cAFTHkYgCS-znYzRobXi6H8SBYWFIE_AlxiSaaE2eCYf6Jtn4v2oQKh05-WU_HtPEEx2NOfw",
+        #     "client_id": "874354657793-vjglkmnn18d872tps5m9vlfeu4f3e20s.apps.googleusercontent.com",
+        #     "client_secret": "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"
+        # }
+
+        if CREDENTIALS_FILE:
+            creds = Credentials.from_authorized_user_info(
+                CREDENTIALS_FILE,
+                scopes=["https://www.googleapis.com/auth/youtubepartner"],
+            )
+
+        youtube = build("youtube", "v3", credentials=creds)
         insert_request = (
             youtube.captions()
             .insert(
@@ -267,6 +334,14 @@ def upload_to_youtube(request):
             .execute()
         )
 
+        # Delete file from azure blob storage after caption uploaded to youtube
+        deleteFromBlobStorage(azure_url)
+        # Delete file from local directory
+        file_temp_name = os.path.join(
+            BASE_DIR / "temporary_video_audio_storage", file_name
+        )
+        os.remove(file_temp_name)
+
         logging.info(
             "The caption track has been added with ID %s." % insert_request["id"]
         )
@@ -279,3 +354,5 @@ def upload_to_youtube(request):
     except HttpError as e:
         logging.info("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))
         return Response({"message": e.reason}, status=e.resp.status)
+    except Exception as e:
+        return Response({"message": e.args}, status=status.HTTP_400_BAD_REQUEST)
