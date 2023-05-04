@@ -193,6 +193,7 @@ def upload_to_youtube(request):
 
     # get video_id from task
     video_id = task_obj.video_id
+    video = Video.objects.get(pk=video_id)
 
     # Get translation/transcript and generate srt file, upload to blob storage
     try:
@@ -223,7 +224,7 @@ def upload_to_youtube(request):
             review_exist = (
                 Task.objects.filter(video_id=video_id)
                 .filter(task_type="TRANSLATION_REVIEW")
-                .filter(target_language=task_obj.target_language)
+                .filter(target_language=SUBTITLE_LANG)
                 .first()
             )
             if review_exist is None:
@@ -234,11 +235,13 @@ def upload_to_youtube(request):
                 target_lang_content = get_export_translation(
                     request, get_task_id, "srt"
                 )
+                SUBTITLE_LANG = task_obj.target_language
             elif task_obj.task_type in ["TRANSCRIPTION_REVIEW", "TRANSCRIPTION_EDIT"]:
                 target_lang_content = get_export_transcript(request, get_task_id, "srt")
+                SUBTITLE_LANG = video.language
 
             serialized_data = json.loads(target_lang_content.content.decode("utf-8"))
-            file_name = str(task_obj.id) + "_" + task_obj.target_language + ".srt"
+            file_name = str(task_obj.id) + "_" + SUBTITLE_LANG + ".srt"
             caption_file = uploadToLocalDir(file_name, serialized_data)
         else:
             return Response(
@@ -252,7 +255,6 @@ def upload_to_youtube(request):
 
     try:
         # get channel id of video for requested taks
-        video = Video.objects.get(pk=video_id)
         video_url = video.url
         parsed_url = urlparse(video_url)
         video_id = parse_qs(parsed_url.query)["v"][0]
@@ -298,7 +300,7 @@ def upload_to_youtube(request):
         SUBTITLE_FILE = caption_file
 
         # Define the language of the subtitle file (ISO 639-1 language code)
-        LANGUAGE = task_obj.target_language
+        LANGUAGE = SUBTITLE_LANG
 
         if CREDENTIALS_FILE:
             creds = Credentials.from_authorized_user_info(
