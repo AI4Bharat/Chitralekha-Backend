@@ -933,3 +933,61 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             }
             org_data.append(org_dict)
         return Response(org_data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        method="post",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "org_id": openapi.Schema(
+                    type=openapi.TYPE_INTEGER, format="org_id", description="Org Id"
+                ),
+                "enable_upload": openapi.Schema(
+                    type=openapi.TYPE_BOOLEAN,
+                    format="boolean",
+                    description="Enable CSV Upload",
+                ),
+            },
+            required=["org_id"],
+        ),
+        responses={
+            200: "CSV upload enabled.",
+            403: "Please enter a valid organization!",
+        },
+    )
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="enable_org_csv_upload",
+        url_name="enable_org_csv_upload",
+    )
+    def enable_org_csv_upload(self, request):
+        """
+        Update the mail enable service for any user
+        """
+        requested_id = request.data.get("org_id")
+        enable_upload = request.data.get("enable_upload")
+
+        if enable_upload == True or enable_upload == False:
+            pass
+        else:
+            return Response(
+                {
+                    "message": "please enter valid  input(True/False) for enable_upload field"
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            org = Organization.objects.get(id=requested_id)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        org.enable_upload = enable_upload
+        org.save()
+        return Response(
+            {"message": "CSV Upload is enabled."},
+            status=status.HTTP_200_OK,
+        )
