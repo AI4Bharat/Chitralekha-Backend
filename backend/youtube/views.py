@@ -186,6 +186,7 @@ def upload_to_youtube(request):
 
     # get request parameters
     get_task_id = request.data.get("task_id")
+    global SUBTITLE_LANG
     try:
         task_obj = Task.objects.get(pk=get_task_id)
     except Task.DoesNotExist:
