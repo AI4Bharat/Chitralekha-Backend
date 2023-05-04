@@ -213,10 +213,7 @@ def upload_to_youtube(request):
                 .filter(task_type="TRANSCRIPTION_REVIEW")
                 .first()
             )
-            if review_exist:
-                if review_exist.status == "COMPLETE":
-                    file_is_exportable = True
-            elif review_exist is None:
+            if review_exist is None:
                 file_is_exportable = True
 
         # check transcript is exportable or not
@@ -226,12 +223,10 @@ def upload_to_youtube(request):
             review_exist = (
                 Task.objects.filter(video_id=video_id)
                 .filter(task_type="TRANSLATION_REVIEW")
+                .filter(target_language=task_obj.target_language)
                 .first()
             )
-            if review_exist:
-                if review_exist.status == "COMPLETE":
-                    file_is_exportable = True
-            elif review_exist is None:
+            if review_exist is None:
                 file_is_exportable = True
 
         if file_is_exportable:
@@ -244,7 +239,7 @@ def upload_to_youtube(request):
 
             serialized_data = json.loads(target_lang_content.content.decode("utf-8"))
             file_name = str(task_obj.id) + "_" + task_obj.target_language + ".srt"
-            azure_url = uploadToBlobStorage(file_name, serialized_data)
+            caption_file = uploadToLocalDir(file_name, serialized_data)
         else:
             return Response(
                 {"message": "Please complete related task type to generate file"},
@@ -300,16 +295,10 @@ def upload_to_youtube(request):
         VIDEO_ID = video_id
 
         # Define the path to the subtitle file you want to upload
-        SUBTITLE_FILE = azure_url
+        SUBTITLE_FILE = caption_file
 
         # Define the language of the subtitle file (ISO 639-1 language code)
         LANGUAGE = task_obj.target_language
-
-        # CREDENTIALS_FILE = {
-        #     "refresh_token": "AJDLj6JUa8yxXrhHdWRHIV0S13cAFTHkYgCS-znYzRobXi6H8SBYWFIE_AlxiSaaE2eCYf6Jtn4v2oQKh05-WU_HtPEEx2NOfw",
-        #     "client_id": "874354657793-vjglkmnn18d872tps5m9vlfeu4f3e20s.apps.googleusercontent.com",
-        #     "client_secret": "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"
-        # }
 
         if CREDENTIALS_FILE:
             creds = Credentials.from_authorized_user_info(
@@ -334,8 +323,6 @@ def upload_to_youtube(request):
             .execute()
         )
 
-        # Delete file from azure blob storage after caption uploaded to youtube
-        deleteFromBlobStorage(azure_url)
         # Delete file from local directory
         file_temp_name = os.path.join(
             BASE_DIR / "temporary_video_audio_storage", file_name
