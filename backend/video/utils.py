@@ -614,27 +614,29 @@ def get_video_func(request):
                     user_id,
                 )
 
-        detailed_report.extend(task_response["response"]["detailed_report"])
+            detailed_report.extend(task_response["response"]["detailed_report"])
 
-        if task_response["response"]["detailed_report"][0]["status"] == "Fail":
-            fail_count += 1
-        else:
-            success_count += 1
+            if task_response["response"]["detailed_report"][0]["status"] == "Fail":
+                fail_count += 1
+            else:
+                success_count += 1
 
-        if fail_count > 0:
-            message = "{0} Tasks creation failed.".format(fail_count)
-            consolidated_report.append(
-                {"message": "Tasks creation failed.", "count": fail_count}
-            )
-        if success_count > 0:
-            message = "{0} Tasks created successfully.".format(success_count) + message
-            consolidated_report.append(
-                {"message": "Tasks created successfully.", "count": success_count}
-            )
-        response_data["consolidated_report"] = consolidated_report
-        response_data["detailed_report"] = detailed_report
+            if fail_count > 0:
+                message = "{0} Tasks creation failed.".format(fail_count)
+                consolidated_report.append(
+                    {"message": "Tasks creation failed.", "count": fail_count}
+                )
+            if success_count > 0:
+                message = (
+                    "{0} Tasks created successfully.".format(success_count) + message
+                )
+                consolidated_report.append(
+                    {"message": "Tasks created successfully.", "count": success_count}
+                )
+            response_data["consolidated_report"] = consolidated_report
+            response_data["detailed_report"] = detailed_report
 
-        response_data["message"] = message
+            response_data["message"] = message
         return Response(
             response_data,
             status=status.HTTP_200_OK,
