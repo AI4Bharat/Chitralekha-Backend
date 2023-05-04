@@ -393,6 +393,7 @@ def get_video_func(request):
                             default_task_eta,
                             default_task_priority,
                             default_task_description,
+                            None,
                             user_id,
                         )
                         detailed_report.extend(
@@ -548,6 +549,7 @@ def get_video_func(request):
                         default_task_eta,
                         default_task_priority,
                         default_task_description,
+                        None,
                         user_id,
                     )
                     detailed_report.extend(task_response["response"]["detailed_report"])
@@ -595,6 +597,7 @@ def get_video_func(request):
                     default_task_eta,
                     default_task_priority,
                     default_task_description,
+                    None,
                     user_id,
                 )
             else:
