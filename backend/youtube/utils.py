@@ -36,26 +36,12 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-def uploadToBlobStorage(file_name, payload):
+def uploadToLocalDir(file_name, payload):
     file_temp_name = os.path.join(BASE_DIR / "temporary_video_audio_storage", file_name)
 
-    with open(file_temp_name, "w") as outfile:
-        outfile.write(payload)
-
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-    # blob_client_json = blob_service_client.get_blob_client(
-    #     container=container_name, blob=file_path.split("/")[-1] + ".json"
-    # )
-    # with open(file_path.split("/")[-1] + ".json", "rb") as data:
-    #     try:
-    #         if not blob_client_json.exists():
-    #             blob_client_json.upload_blob(data)
-    #             logging.info("Srt payload uploaded successfully!")
-    #             logging.info(blob_client_json.url)
-    #         else:
-    #             blob_client_json.delete_blob()
-    #             logging.info("Old srt payload deleted successfully!")
-    #             blob_client_json.upload_blob(data)
-    #             logging.info("New srt payload successfully!")
-    #     except Exception as e:
-    #         logging.info("This srt payload can't be uploaded")
+    try:
+        with open(file_temp_name, "w") as outfile:
+            outfile.write(payload)
+            return file_temp_name
+    except Exception as e:
+        logging.info("There is issue with srt file creation")
