@@ -930,7 +930,7 @@ def upload_csv_org(request):
     Method: POST
     """
 
-    logging.info("Calling Upload API...")
+    logging.info("Calling Upload API for Org...")
     org_id = request.data.get("org_id")
     csv_content = request.data.get("csv")
 
@@ -961,9 +961,9 @@ def upload_csv_org(request):
             new_row = ",".join(row)
             csv_data.append(new_row)
 
-    if len(csv_data) > 30:
+    if len(csv_data) > 100:
         return Response(
-            {"message": "Number of rows is greater than 30."},
+            {"message": "Number of rows is greater than 100."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     csv_reader = csv.DictReader(csv_data)

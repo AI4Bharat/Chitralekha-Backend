@@ -19,6 +19,17 @@ from django.conf import settings
 def send_mail_csv_upload(user_id, email_data):
     user = User.objects.get(pk=user_id)
     df = pd.DataFrame.from_records(email_data)
+    df.rename(
+        columns={
+            "video_name": "Video Name",
+            "video_url": "Video URL",
+            "task_type": "Task Type",
+            "language_pair": "Language Pair",
+            "status": "Status",
+            "message": "Message",
+        },
+        inplace=True,
+    )
     blankIndex = [""] * len(df)
     df.index = blankIndex
     html_table_df_tasks = build_table(
@@ -42,9 +53,8 @@ def send_mail_csv_upload(user_id, email_data):
         + html_table_df_tasks
     )
     logging.info("Sending Mail to %s", user.email)
-    print(email_to_send)
     send_mail(
-        "CSV Upload Reports",
+        "Chitralekha - CSV Upload Reports",
         message,
         settings.DEFAULT_FROM_EMAIL,
         [user.email],

@@ -86,7 +86,7 @@ def get_completed_tasks():
                 print(email_to_send)
                 logging.info("Sending Mail to %s", manager.email)
                 send_mail(
-                    "Completed Tasks Report",
+                    "Chitralekha - Completed Tasks Report",
                     message,
                     settings.DEFAULT_FROM_EMAIL,
                     [manager.email],
@@ -155,7 +155,7 @@ def get_new_tasks():
                 )
                 logging.info("Sending Mail to %s", manager.email)
                 send_mail(
-                    "Tasks Assignment Status Report",
+                    "Chitralekha - Tasks Assignment Status Report",
                     message,
                     settings.DEFAULT_FROM_EMAIL,
                     [manager.email],
