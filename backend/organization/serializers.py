@@ -41,6 +41,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "default_transcript_type",
             "default_translation_type",
             "default_voiceover_type",
+            "enable_upload",
         ]
         read_only_fields = ["id", "created_by", "created_at"]
 
