@@ -12,4 +12,5 @@ urlpatterns = [
     path("update_video", views.update_video, name="update_video"),
     path("upload_csv", views.upload_csv, name="upload_csv"),
     path("upload_csv_data", views.upload_csv_data, name="upload_csv_data"),
+    path("upload_csv_org", views.upload_csv_org, name="upload_csv_org"),
 ]
