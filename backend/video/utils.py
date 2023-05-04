@@ -235,6 +235,7 @@ def get_video_func(request):
     upload_task_type = request.GET.get("task_type")
     upload_target_language = request.GET.get("target_language")
     assignee = request.GET.get("assignee")
+    upload_task_description = request.GET.get("task_description", "")
 
     create = create.lower() == "true"
     if create:
@@ -274,7 +275,7 @@ def get_video_func(request):
     organization = project.organization_id
     default_task_eta = project.default_eta
     default_task_priority = project.default_priority
-    default_task_description = project.default_description
+    default_task_description = upload_task_description or project.default_description
     consolidated_report = []
     detailed_report = []
     message = ""
@@ -392,6 +393,7 @@ def get_video_func(request):
                             default_task_eta,
                             default_task_priority,
                             default_task_description,
+                            None,
                             user_id,
                         )
                         detailed_report.extend(
@@ -547,6 +549,7 @@ def get_video_func(request):
                         default_task_eta,
                         default_task_priority,
                         default_task_description,
+                        None,
                         user_id,
                     )
                     detailed_report.extend(task_response["response"]["detailed_report"])
@@ -594,6 +597,7 @@ def get_video_func(request):
                     default_task_eta,
                     default_task_priority,
                     default_task_description,
+                    None,
                     user_id,
                 )
             else:
@@ -608,6 +612,27 @@ def get_video_func(request):
                     user_id,
                 )
 
+        detailed_report.extend(task_response["response"]["detailed_report"])
+
+        if task_response["response"]["detailed_report"][0]["status"] == "Fail":
+            fail_count += 1
+        else:
+            success_count += 1
+
+        if fail_count > 0:
+            message = "{0} Tasks creation failed.".format(fail_count)
+            consolidated_report.append(
+                {"message": "Tasks creation failed.", "count": fail_count}
+            )
+        if success_count > 0:
+            message = "{0} Tasks created successfully.".format(success_count) + message
+            consolidated_report.append(
+                {"message": "Tasks created successfully.", "count": success_count}
+            )
+        response_data["consolidated_report"] = consolidated_report
+        response_data["detailed_report"] = detailed_report
+
+        response_data["message"] = message
         return Response(
             response_data,
             status=status.HTTP_200_OK,
@@ -632,7 +657,7 @@ def create_video(
     new_request.GET["multimedia_url"] = url
     new_request.GET["lang"] = lang
     new_request.GET["project_id"] = project_id
-    new_request.GET["description"] = description
+    new_request.GET["task_description"] = description
     new_request.GET["is_audio_only"] = "true"
     new_request.GET["create"] = "true"
     new_request.GET["gender"] = gender

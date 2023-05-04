@@ -33,7 +33,7 @@ class Organization(models.Model):
     """
 
     title = models.CharField(
-        verbose_name="organization_title", max_length=512, null=False
+        verbose_name="organization_title", max_length=512, null=False, unique=True
     )
 
     email_domain_name = models.CharField(
@@ -160,6 +160,11 @@ class Organization(models.Model):
     )
     description = models.TextField(
         max_length=1000, null=True, blank=True, help_text=("Organization Description")
+    )
+    enable_upload = models.BooleanField(
+        verbose_name="enable_upload",
+        default=False,
+        help_text=("Indicates whether CSV upload is enable or not."),
     )
 
     def __str__(self):

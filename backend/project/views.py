@@ -775,6 +775,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
+        titles = Project.objects.filter(organization_id=organization).values_list(
+            "title", flat=True
+        )
+
+        if title in titles:
+            return Response(
+                {
+                    "message": "Can't create project as this project name already exists."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if default_task_types is not None and (
             "TRANSLATION_EDIT" or "TRANSLATION_REVIEW" in default_task_types
         ):
