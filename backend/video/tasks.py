@@ -53,13 +53,16 @@ def send_mail_csv_upload(user_id, email_data):
         + html_table_df_tasks
     )
     logging.info("Sending Mail to %s", user.email)
-    send_mail(
-        "Chitralekha - CSV Upload Reports",
-        message,
-        settings.DEFAULT_FROM_EMAIL,
-        [user.email],
-        html_message=email_to_send,
-    )
+    try:
+        send_mail(
+            "Chitralekha - CSV Upload Reports",
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            html_message=email_to_send,
+        )
+    except:
+        logging.info("Error in sending mail")
 
 
 @shared_task()
