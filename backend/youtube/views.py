@@ -186,7 +186,6 @@ def upload_to_youtube(request):
 
     # get request parameters
     get_task_id = request.data.get("task_id")
-    global SUBTITLE_LANG
     try:
         task_obj = Task.objects.get(pk=get_task_id)
     except Task.DoesNotExist:
@@ -222,6 +221,7 @@ def upload_to_youtube(request):
         if task_obj.task_type == "TRANSLATION_REVIEW" and task_obj.status == "COMPLETE":
             file_is_exportable = True
         elif task_obj.task_type == "TRANSLATION_EDIT" and task_obj.status == "COMPLETE":
+            SUBTITLE_LANG = task_obj.target_language
             review_exist = (
                 Task.objects.filter(video_id=video_id)
                 .filter(task_type="TRANSLATION_REVIEW")
@@ -240,6 +240,11 @@ def upload_to_youtube(request):
             elif task_obj.task_type in ["TRANSCRIPTION_REVIEW", "TRANSCRIPTION_EDIT"]:
                 target_lang_content = get_export_transcript(request, get_task_id, "srt")
                 SUBTITLE_LANG = video.language
+            else:
+                return Response(
+                    {"message": "Invalid task type"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             serialized_data = json.loads(target_lang_content.content.decode("utf-8"))
             file_name = str(task_obj.id) + "_" + SUBTITLE_LANG + ".srt"
@@ -251,7 +256,7 @@ def upload_to_youtube(request):
             )
 
     except Exception as e:
-        logging.info("There is a issue with file srt file creation or azur upload")
+        logging.info("There is a issue with file srt file creation")
         return Response({"message": e.args[0]}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
