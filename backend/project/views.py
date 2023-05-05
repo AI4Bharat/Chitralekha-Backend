@@ -1091,7 +1091,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         user_data = []
         for elem in user_statistics:
             avg_time = (
-                None
+                0
                 if elem["average_completion_time"] is None
                 else round(elem["average_completion_time"].total_seconds() / 3600, 3)
             )
