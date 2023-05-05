@@ -66,7 +66,7 @@ mapped_task_type = {
 mapped_gender = {"male": "Male", "female": "Female"}
 required_fields_project = [
     "Youtube URL",
-    "Speaker",
+    "Gender",
     "Source Language",
     "Task Type",
     "Target Language",
@@ -79,7 +79,7 @@ required_fields_org = [
     "Project Id",
     "Youtube URL",
     "Source Language",
-    "Speaker",
+    "Gender",
     "Task Type",
     "Target Language",
     "Assignee",
@@ -632,7 +632,7 @@ def upload_csv(request):
                             "message": f"Empty or Invalid target language: {row['Target Language']}",
                         }
                     )
-        if not isinstance(row["Speaker"], str) or row["Speaker"].lower() not in [
+        if not isinstance(row["Gender"], str) or row["Gender"].lower() not in [
             "male",
             "female",
         ]:
@@ -643,7 +643,7 @@ def upload_csv(request):
                 }
             )
         else:
-            valid_row["gender"] = mapped_gender[row["Speaker"].lower()]
+            valid_row["gender"] = mapped_gender[row["Gender"].lower()]
         if (
             not isinstance(row["Target Language"], str)
             and row["Target Language"] not in accepted_languages
@@ -772,7 +772,6 @@ def upload_csv_data(request):
     row_num = 0
     try:
         project = Project.objects.get(pk=project_id)
-
     except Project.DoesNotExist:
         return Response(
             {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
@@ -830,7 +829,7 @@ def upload_csv_data(request):
                     valid_row["target_language"] = row["Target Language"]
             valid_row["task_type"] = mapped_task_type[row["Task Type"].lower()]
 
-        if not isinstance(row["Speaker"], str) or row["Speaker"].lower() not in [
+        if not isinstance(row["Gender"], str) or row["Gender"].lower() not in [
             "male",
             "female",
         ]:
@@ -841,7 +840,7 @@ def upload_csv_data(request):
                 }
             )
         else:
-            valid_row["gender"] = mapped_gender[row["Speaker"].lower()]
+            valid_row["gender"] = mapped_gender[row["Gender"].lower()]
         if (
             not isinstance(row["Target Language"], str)
             and row["Target Language"] not in accepted_languages
@@ -1068,7 +1067,7 @@ def upload_csv_org(request):
                     valid_row["target_language"] = row["Target Language"]
             valid_row["task_type"] = mapped_task_type[row["Task Type"].lower()]
 
-        if not isinstance(row["Speaker"], str) or row["Speaker"].lower() not in [
+        if not isinstance(row["Gender"], str) or row["Gender"].lower() not in [
             "male",
             "female",
         ]:
@@ -1079,7 +1078,7 @@ def upload_csv_org(request):
                 }
             )
         else:
-            valid_row["gender"] = mapped_gender[row["Speaker"].lower()]
+            valid_row["gender"] = mapped_gender[row["Gender"].lower()]
         if (
             not isinstance(row["Target Language"], str)
             and row["Target Language"] not in accepted_languages
