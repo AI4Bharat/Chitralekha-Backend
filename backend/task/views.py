@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
 from project.decorators import is_project_owner, is_particular_project_owner
-from task.decorators import has_task_edit_permission, has_task_create_permission
+from task.decorators import has_task_edit_permission, has_task_create_permission, has_task_edit_permission_individual
 from project.models import Project
 from organization.models import Organization
 from transcript.views import generate_transcription
@@ -18,8 +18,8 @@ from voiceover.utils import (
     process_translation_payload,
     send_mail_to_user,
 )
-from transcript.models import Transcript
-from translation.models import Translation
+from transcript.models import Transcript, MANUALLY_UPLOADED
+from translation.models import Translation, MANUALLY_UPLOADED
 from django.db.models import Count
 from translation.utils import (
     get_batch_translations_using_indictrans_nmt_api,
@@ -55,13 +55,15 @@ import io
 import zipfile
 from django.http import HttpResponse
 import datetime
-from task.tasks import celery_asr_call, celery_tts_call
+from task.tasks import celery_asr_call, celery_tts_call, convert_srt_to_payload, convert_vtt_to_payload
 import requests
 from django.db.models.functions import Concat
 from django.db.models import Value
 from django.http import HttpRequest
 from transcript.views import export_transcript
 from translation.views import export_translation
+from rest_framework.decorators import parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
 
 
 def get_export_translation(request, task_id, export_type):
@@ -2340,7 +2342,9 @@ class TaskViewSet(ModelViewSet):
                 "name": "task.tasks.celery_asr_call",
             }
             if flower_username and flower_password:
-                res = requests.get(url, params=params, auth=(flower_username, flower_password))
+                res = requests.get(
+                    url, params=params, auth=(flower_username, flower_password)
+                )
             else:
                 res = requests.get(url, params=params)
             data = res.json()
@@ -2428,3 +2432,65 @@ class TaskViewSet(ModelViewSet):
             {"message": "Time spent on task updated successfully."},
             status=status.HTTP_200_OK,
         )
+
+@swagger_auto_schema(
+    method="post",
+    manual_parameters=[
+        openapi.Parameter(
+            name="subtitles",
+            in_=openapi.IN_FORM,
+            type=openapi.TYPE_FILE,
+            required=True,
+            description="SRT/VTT File to upload",
+        ),
+    ],
+    responses={200: "Subtitles imported successfully"},
+)
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser])
+@has_task_edit_permission_individual
+def import_subtitles(request, pk=None):
+    task = Task.objects.get(pk=pk)
+    subtitles = request.data.get("subtitles")
+    if subtitles is None:
+        return Response(
+            {"message": "Subtitles not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+    if request.FILES["subtitles"].name.split(".")[-1] not in ["srt", "vtt"]:
+        print(subtitles.content_type)
+        return Response(
+            {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if request.FILES["subtitles"].name.endswith("vtt"):
+        subtitles = subtitles.read().decode("utf-8")
+        try:
+            subtitles = convert_vtt_to_payload(subtitles)
+        except Exception as e:
+            print(e)
+            return Response(
+                {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        print(subtitles)
+        if task.task_type == TRANSCRIPTION_EDIT:
+            pass
+        elif task.task_type == TRANSLATION_EDIT:
+            pass
+    else:
+        subtitles = subtitles.read().decode("utf-8")
+        try:
+            subtitles = convert_srt_to_payload(subtitles)
+        except Exception as e:
+            print(e)
+            return Response(
+                {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        print(subtitles)
+        if task.task_type == TRANSCRIPTION_EDIT:
+            pass
+        elif task.task_type == TRANSLATION_EDIT:
+            pass
+    task.is_active = True
+    task.save()
+    return Response(
+        {"message": "Subtitles imported successfully"}, status=status.HTTP_200_OK
+    )

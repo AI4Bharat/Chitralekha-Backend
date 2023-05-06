@@ -7,4 +7,7 @@ router = routers.DefaultRouter()
 
 router.register(r"", views.TaskViewSet, basename="task")
 
-urlpatterns = router.urls
+urlpatterns = [
+    path("", include(router.urls)),
+    path("<pk>/import_subtitles", views.import_subtitles, name="import_subtitles"),
+]
