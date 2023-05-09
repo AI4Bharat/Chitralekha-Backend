@@ -18,8 +18,8 @@ from voiceover.utils import (
     process_translation_payload,
     send_mail_to_user,
 )
-from transcript.models import Transcript, MANUALLY_UPLOADED
-from translation.models import Translation, MANUALLY_UPLOADED
+from transcript.models import Transcript, MANUALLY_UPLOADED, TRANSCRIPTION_SELECT_SOURCE, TRANSCRIPTION_EDIT_COMPLETE
+from translation.models import Translation, MANUALLY_UPLOADED, TRANSLATION_SELECT_SOURCE
 from django.db.models import Count
 from translation.utils import (
     get_batch_translations_using_indictrans_nmt_api,
@@ -2486,9 +2486,30 @@ def import_subtitles(request, pk=None):
             )
         print(subtitles)
         if task.task_type == TRANSCRIPTION_EDIT:
-            pass
+            Transcript.objects.create(
+                transcript_type = MANUALLY_UPLOADED,
+                video = task.video,
+                language = task.video.language,
+                user = request.user,
+                task = task,
+                status = TRANSCRIPTION_SELECT_SOURCE,
+                payload = subtitles,
+            );
         elif task.task_type == TRANSLATION_EDIT:
-            pass
+            Translation.objects.create(
+                translation_type = MANUALLY_UPLOADED,
+                transcript = Transcript.objects.get(video = task.video, status = TRANSCRIPTION_EDIT_COMPLETE),
+                target_language = task.target_language,
+                user = request.user,
+                status = TRANSLATION_SELECT_SOURCE,
+                payload = subtitles,
+                video = task.video,
+                task = task,
+            );
+        else:
+            return Response(
+                {"message": "Invalid task type"}, status=status.HTTP_400_BAD_REQUEST
+            )
     task.is_active = True
     task.save()
     return Response(
