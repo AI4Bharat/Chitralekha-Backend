@@ -51,6 +51,29 @@ def has_task_edit_permission(f):
 
     return wrapper
 
+def has_task_edit_permission_individual(f):
+    @wraps(f)
+    def wrapper(request, pk=None, *args, **kwargs):
+        task = Task.objects.filter(pk=pk).first()
+        if task is not None:
+            project = Project.objects.filter(pk=task.video.project_id.id).first()
+            if project is None:
+                return Response(NO_PROJECT_FOUND, status=404)
+            elif (
+                request.user not in project.managers.all()
+                and not request.user.is_superuser
+                and request.user.role != User.ADMIN
+                and request.user.role != User.ORG_OWNER
+            ):
+                return Response(NO_PROJECT_MANAGER_ERROR, status=403)
+            else:
+                print("Permission granted")
+        else:
+            return Response({"message": "Task not found."}, status=404)
+        return f(request, pk, *args, **kwargs)
+
+    return wrapper
+
 
 def has_task_create_permission(video, user):
     project = Project.objects.filter(pk=video.project_id.id).first()
