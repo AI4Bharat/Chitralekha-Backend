@@ -192,10 +192,12 @@ def upload_to_youtube(request):
         # Iterating over task ids
         for get_task_id in get_task_ids:
             response_obj = {
+                "task_id": get_task_id,
                 "video_name": "",
                 "video_url": "",
                 "task_type": "",
-                "language_pair": "",
+                "source_language": "",
+                "target_language": "",
                 "status": "",
                 "message": "",
             }
@@ -220,7 +222,8 @@ def upload_to_youtube(request):
                 response_obj["video_name"] = video.name
                 response_obj["video_url"] = video.url
                 response_obj["task_type"] = task_obj.task_type
-                response_obj["language_pair"] = task_obj.get_language_pair_label
+                response_obj["source_language"] = task_obj.get_src_language_label
+                response_obj["target_language"] = task_obj.get_target_language_label
 
                 # check transcript is exportable or not
                 if (
@@ -325,24 +328,20 @@ def upload_to_youtube(request):
                     # By channel id, get auth token from database
                     youtube_auth = Youtube.objects.filter(channel_id=channel_id).first()
                     if youtube_auth is None:
-                        return Response(
-                            {"message": "Youtube auth not found."},
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
+                        response_obj["status"] = "Fail"
+                        response_obj["message"] = "Youtube auth not found."
+                        continue
+
                 else:
-                    return Response(
-                        {"message": "Task's video is get deleted or not accessible"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                    response_obj["status"] = "Fail"
+                    response_obj[
+                        "message"
+                    ] = "Task's video is get deleted or not accessible"
+                    continue
+
             except Exception as e:
-                response_obj = {
-                    "video_name": video.name,
-                    "video_url": video.url,
-                    "task_type": task_obj.task_type,
-                    "language_pair": task_obj.get_language_pair_label,
-                    "status": "Fail",
-                    "message": e.args[0],
-                }
+                response_obj["status"] = "Fail"
+                response_obj["message"] = e.args[0]
                 task_responses.append(response_obj)
                 continue
 
