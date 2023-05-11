@@ -152,6 +152,57 @@ class Task(models.Model):
         return "-"
 
     @property
+    def format_time_spent(self):
+        if self.time_spent == None or self.time_spent == 0:
+            full_time = 0
+        elif self.time_spent < 60:
+            full_time = str(self.time_spent) + "s"
+        elif self.time_spent < 60 * 60:
+            full_time = (
+                str(int(self.time_spent // 60))
+                + "m "
+                + str(int(self.time_spent % 60))
+                + "s"
+            )
+        elif self.time_spent >= 60 * 60 and self.time_spent < 24 * 60 * 60:
+            full_time = (
+                str(int(self.time_spent // (60 * 60)))
+                + "h "
+                + str(int((self.time_spent % (60 * 60)) // 60))
+                + "m"
+            )
+        elif self.time_spent >= 24 * 60 * 60 and self.time_spent < 30 * 24 * 60 * 60:
+            full_time = (
+                str(int(self.time_spent // (24 * 60 * 60)))
+                + "d "
+                + str(int((self.time_spent % (24 * 60 * 60)) // (60 * 60)))
+                + "h"
+            )
+        elif (
+            self.time_spent >= 30 * 24 * 60 * 60
+            and self.time_spent < 12 * 30 * 24 * 60 * 60
+        ):
+            full_time = (
+                str(int(self.time_spent // (30 * 24 * 60 * 60)))
+                + "m "
+                + str(int((self.time_spent % (30 * 24 * 60 * 60)) // (24 * 60 * 60)))
+                + "d"
+            )
+        else:
+            full_time = (
+                str(int(self.time_spent // (12 * 30 * 24 * 60 * 60)))
+                + "y "
+                + str(
+                    int(
+                        (self.time_spent % (12 * 30 * 24 * 60 * 60))
+                        // (30 * 24 * 60 * 60)
+                    )
+                )
+                + "m"
+            )
+        return full_time
+
+    @property
     def get_source_type(self):
         source_mapping = {
             "TRANSCRIPTION_EDIT": "self.transcript_tasks.values('transcript_type').first()",

@@ -21,7 +21,7 @@ from project.models import Project
 from config import *
 from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum, Value
 from django.db.models.functions import Cast, Concat
-from datetime import timedelta
+from datetime import timedelta, datetime
 from video.models import Video
 from transcript.models import Transcript
 from translation.models import Translation
@@ -572,6 +572,52 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             user_data.append(user_dict)
         return Response(user_data, status=status.HTTP_200_OK)
 
+    def format_completion_time(self, completion_time):
+        if completion_time < 60 * 60:
+            full_time = (
+                str(int(completion_time // 60))
+                + "m "
+                + str(int(completion_time % 60))
+                + "s"
+            )
+        elif completion_time >= 60 * 60 and completion_time < 24 * 60 * 60:
+            full_time = (
+                str(int(completion_time // (60 * 60)))
+                + "h "
+                + str(int((completion_time % (60 * 60)) // 60))
+                + "m"
+            )
+        elif completion_time >= 24 * 60 * 60 and completion_time < 30 * 24 * 60 * 60:
+            full_time = (
+                str(int(completion_time // (24 * 60 * 60)))
+                + "d "
+                + str(int((completion_time % (24 * 60 * 60)) // (60 * 60)))
+                + "h"
+            )
+        elif (
+            completion_time >= 30 * 24 * 60 * 60
+            and completion_time < 12 * 30 * 24 * 60 * 60
+        ):
+            full_time = (
+                str(int(completion_time // (30 * 24 * 60 * 60)))
+                + "m "
+                + str(int((completion_time % (30 * 24 * 60 * 60)) // (24 * 60 * 60)))
+                + "d"
+            )
+        else:
+            full_time = (
+                str(int(completion_time // (12 * 30 * 24 * 60 * 60)))
+                + "y "
+                + str(
+                    int(
+                        (completion_time % (12 * 30 * 24 * 60 * 60))
+                        // (30 * 24 * 60 * 60)
+                    )
+                )
+                + "m"
+            )
+        return full_time
+
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
         detail=True,
@@ -600,11 +646,28 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 description = None
 
             if "COMPLETE" in task.status:
-                completion_time = float(
-                    "{:.2f}".format((task.updated_at - task.created_at).total_seconds())
+                datetime_str = task.updated_at
+                updated_at_str = task.updated_at.strftime("%m-%d-%Y %H:%M:%S.%f")
+                updated_at_datetime_object = datetime.strptime(
+                    updated_at_str, "%m-%d-%Y %H:%M:%S.%f"
                 )
+                compare_with = "05-04-2023 17:00:00.000"
+                compare_with_datetime_object = datetime.strptime(
+                    compare_with, "%m-%d-%Y %H:%M:%S.%f"
+                )
+
+                if updated_at_datetime_object < compare_with_datetime_object:
+                    time_spent = float(
+                        "{:.2f}".format(
+                            (task.updated_at - task.created_at).total_seconds()
+                        )
+                    )
+                else:
+                    time_spent = task.time_spent
+                completion_time = self.format_completion_time(time_spent)
             else:
                 completion_time = None
+
             tasks_list.append(
                 {
                     "project_name": {
@@ -619,7 +682,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     },
                     "duration": {
                         "value": str(task.video.duration),
-                        "label": "Duration (Hours)",
+                        "label": "Duration",
                     },
                     "task_type": {
                         "value": task.get_task_type_label,
@@ -642,7 +705,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "status": {"value": task.get_task_status_label, "label": "Status"},
                     "completion_time": {
                         "value": completion_time,
-                        "label": "Completion Time (Seconds)",
+                        "label": "Completion Time",
                         "display": "exclude",
                     },
                 }
