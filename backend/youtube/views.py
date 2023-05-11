@@ -9,6 +9,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.oauth2.credentials import Credentials
 from googleapiclient.http import MediaFileUpload, MediaIoBaseUpload
+from google.auth.transport.requests import Request
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 
@@ -313,6 +314,33 @@ def upload_to_youtube(request):
                 CREDENTIALS_FILE,
                 scopes=["https://www.googleapis.com/auth/youtubepartner"],
             )
+
+            # Check if the stored access token has expired
+            if creds.expired:
+                # Use the refresh token to obtain a new access token
+                url = "https://oauth2.googleapis.com/token"
+                headers = {"Content-Type": "application/json"}
+                data = {
+                    "grant_type": "refresh_token",
+                    "refresh_token": creds.refresh_token,
+                    "client_id": creds.client_id,
+                    "client_secret": creds.client_secret,
+                }
+
+                response = requests.post(url=url, headers=headers, json=data)
+                auth_content = response.content
+                auth_content_decode = auth_content.decode("utf-8")
+                auth_content_json = json.loads(auth_content_decode)
+
+                youtube_auth_reeuset_data = {
+                    "client_id": creds.client_id,
+                    "client_secret": creds.client_secret,
+                    "refresh_token": auth_content_json["access_token"],
+                }
+                creds = Credentials.from_authorized_user_info(
+                    youtube_auth_reeuset_data,
+                    scopes=["https://www.googleapis.com/auth/youtubepartner"],
+                )
 
         youtube = build("youtube", "v3", credentials=creds)
         insert_request = (
