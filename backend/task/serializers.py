@@ -30,6 +30,7 @@ class TaskSerializer(serializers.ModelSerializer):
     status_label = serializers.CharField(source="get_task_status_label")
     user = UserFetchSerializer(read_only=True)
     created_by = UserFetchSerializer(read_only=True)
+    time_spent = serializers.CharField(source="format_time_spent", read_only=True)
 
     class Meta:
         model = Task

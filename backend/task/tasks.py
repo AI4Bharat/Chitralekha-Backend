@@ -9,7 +9,45 @@ import datetime
 from voiceover.models import VoiceOver
 from voiceover.utils import generate_tts_output, send_mail_to_user
 from translation.models import Translation
+import pysrt
 import logging
+
+
+def convert_vtt_to_payload(vtt_content):
+    sentences_list = []
+    for vtt_line in webvtt.read_buffer(StringIO(vtt_content)):
+        start_time = datetime.datetime.strptime(vtt_line.start, "%H:%M:%S.%f")
+        unix_start_time = datetime.datetime.timestamp(start_time)
+        end_time = datetime.datetime.strptime(vtt_line.end, "%H:%M:%S.%f")
+        unix_end_time = datetime.datetime.timestamp(end_time)
+
+        sentences_list.append(
+            {
+                "start_time": vtt_line.start,
+                "end_time": vtt_line.end,
+                "text": vtt_line.text,
+                "unix_start_time": unix_start_time,
+                "unix_end_time": unix_end_time,
+            }
+        )
+    return json.loads(json.dumps({"payload": sentences_list}))
+
+
+def convert_srt_to_payload(srt_content):
+    subs = pysrt.from_string(srt_content)
+    sentences_list = []
+    for srt_line in subs:
+        start_time = datetime.datetime.fromtimestamp(srt_line.start.ordinal / 1000.0).strftime('%H:%M:%S.%f')
+        end_time = datetime.datetime.fromtimestamp(srt_line.end.ordinal / 1000.0).strftime('%H:%M:%S.%f')
+
+        sentences_list.append({
+            "start_time": start_time,
+            "end_time": end_time,
+            "text": srt_line.text,
+            "unix_start_time": srt_line.start.ordinal / 1000.0,
+            "unix_end_time": srt_line.end.ordinal / 1000.0,
+        })
+    return json.loads(json.dumps({"payload": sentences_list}))
 
 
 def convert_payload_format(data):

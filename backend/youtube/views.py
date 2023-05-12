@@ -221,7 +221,7 @@ def upload_to_youtube(request):
 
                 response_obj["video_name"] = video.name
                 response_obj["video_url"] = video.url
-                response_obj["task_type"] = task_obj.task_type
+                response_obj["task_type"] = task_obj.get_task_type_label
                 response_obj["source_language"] = task_obj.get_src_language_label
                 response_obj["target_language"] = task_obj.get_target_language_label
 
@@ -336,7 +336,7 @@ def upload_to_youtube(request):
                     response_obj["status"] = "Fail"
                     response_obj[
                         "message"
-                    ] = "Task's video is get deleted or not accessible"
+                    ] = "Task's video is either deleted or not accessible"
                     continue
 
             except Exception as e:
@@ -434,11 +434,15 @@ def upload_to_youtube(request):
                     "An HTTP error %d occurred:\n%s" % (e.resp.status, e.reason)
                 )
                 response_obj["status"] = "Fail"
+                logging.info("e.reason")
+                logging.info(e.reason)
                 response_obj["message"] = e.reason
                 task_responses.append(response_obj)
                 continue
             except Exception as e:
                 response_obj["status"] = "Fail"
+                logging.info("e args")
+                logging.info(e.args[0])
                 response_obj["message"] = e.args[0]
                 task_responses.append(response_obj)
                 continue

@@ -345,16 +345,10 @@ def get_video_func(request):
                 project.default_target_languages
                 or organization.default_target_languages
             )
-            if (
-                upload_task_type is not None
-                and upload_task_type not in default_task_types
-            ):
-                default_task_types.append(upload_task_type)
-            if (
-                upload_target_language is not None
-                and upload_target_language not in default_target_languages
-            ):
-                default_target_languages.append(upload_target_language)
+            if upload_task_type is not None:
+                default_task_types = [upload_task_type]
+            if upload_target_language is not None:
+                default_target_languages = [upload_target_language]
             if assignee is not None:
                 user_id = assignee
             else:
@@ -506,13 +500,10 @@ def get_video_func(request):
         default_target_languages = (
             project.default_target_languages or organization.default_target_languages
         )
-        if upload_task_type is not None and upload_task_type not in default_task_types:
-            default_task_types.append(upload_task_type)
-        if (
-            upload_target_language is not None
-            and upload_target_language not in default_target_languages
-        ):
-            default_target_languages.append(upload_target_language)
+        if upload_task_type is not None:
+            default_task_types = [upload_task_type]
+        if upload_target_language is not None:
+            default_target_languages = [upload_target_language]
         if assignee is not None:
             user_id = assignee
         else:

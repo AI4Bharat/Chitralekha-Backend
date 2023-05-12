@@ -665,6 +665,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Update": False,
                         "View": False,
                         "Delete": False,
+                        "Upload": False,
                     }
                     buttons["Update"] = True
                     buttons["Delete"] = True
@@ -673,6 +674,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Preview"] = True
                         buttons["Edit"] = False
                         buttons["Update"] = False
+                        if data["task_type"] != "VOICEOVER_EDIT":
+                            buttons["Upload"] = True
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
@@ -700,6 +703,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Update": False,
                         "Create": False,
                         "Delete": False,
+                        "Upload": True,
                     }
                     if data["status"] == "COMPLETE":
                         buttons["Edit"] = False
@@ -1091,7 +1095,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         user_data = []
         for elem in user_statistics:
             avg_time = (
-                None
+                0
                 if elem["average_completion_time"] is None
                 else round(elem["average_completion_time"].total_seconds() / 3600, 3)
             )
