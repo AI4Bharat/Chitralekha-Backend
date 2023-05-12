@@ -431,7 +431,7 @@ def upload_to_youtube(request):
 
             except HttpError as e:
                 logging.info(
-                    "An HTTP error %d occurred:\n%s" % (e.resp.status, e.content)
+                    "An HTTP error %d occurred:\n%s" % (e.resp.status, e.reason)
                 )
                 response_obj["status"] = "Fail"
                 response_obj["message"] = e.reason
@@ -439,7 +439,7 @@ def upload_to_youtube(request):
                 continue
             except Exception as e:
                 response_obj["status"] = "Fail"
-                response_obj["message"] = e.args
+                response_obj["message"] = e.args[0]
                 task_responses.append(response_obj)
                 continue
 
