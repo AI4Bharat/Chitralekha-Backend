@@ -106,19 +106,25 @@ def celery_tts_call(
 @shared_task()
 def celery_asr_call(task_id):
     task_obj = Task.objects.get(pk=task_id)
-    transcribed_data = make_asr_api_call(task_obj.video.url, task_obj.video.language)
-    if transcribed_data is not None:
-        data = convert_payload_format(transcribed_data)
-        transcript_obj = Transcript(
-            video=task_obj.video,
-            user=task_obj.user,
-            payload=data,
-            language=task_obj.video.language,
-            task=task_obj,
-            transcript_type="MACHINE_GENERATED",
-            status="TRANSCRIPTION_SELECT_SOURCE",
+    transcript_obj = Transcript.objects.filter(task=task_obj).first()
+    if transcript_obj is None:
+        transcribed_data = make_asr_api_call(
+            task_obj.video.url, task_obj.video.language
         )
-        task_obj.is_active = True
-        task_obj.save()
-        transcript_obj.save()
-        send_mail_to_user(task_obj)
+        if transcribed_data is not None:
+            data = convert_payload_format(transcribed_data)
+            transcript_obj = Transcript(
+                video=task_obj.video,
+                user=task_obj.user,
+                payload=data,
+                language=task_obj.video.language,
+                task=task_obj,
+                transcript_type="MACHINE_GENERATED",
+                status="TRANSCRIPTION_SELECT_SOURCE",
+            )
+            task_obj.is_active = True
+            task_obj.save()
+            transcript_obj.save()
+            send_mail_to_user(task_obj)
+    else:
+        logging.info("Transcript already exists")

@@ -11,6 +11,7 @@ from rest_framework.decorators import permission_classes
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .serializers import (
+    ChangePasswordSerializer,
     UserProfileSerializer,
     UserSignUpSerializer,
     UserUpdateSerializer,
@@ -27,6 +28,7 @@ from django.db.models import Q
 from datetime import datetime
 from django.conf import settings
 from django.core.mail import send_mail
+from rest_framework.generics import UpdateAPIView
 
 
 regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
@@ -183,6 +185,40 @@ class UserViewSet(viewsets.ViewSet):
             return Response(
                 {"message": "User profile edited"}, status=status.HTTP_200_OK
             )
+
+    @swagger_auto_schema(request_body=ChangePasswordSerializer)
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path="update_my_password",
+        url_name="update_my_password",
+    )
+    def update_password(self, request, pk=None, *args, **kwargs):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response(
+                {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = ChangePasswordSerializer(user, request.data)
+
+        if not serializer.match_old_password(user, request.data):
+            return Response(
+                {
+                    "message": "Your old password was entered incorrectly. Please enter it again."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not serializer.validate(user, request.data):
+            return Response(
+                {"message": "The two password fields didn't match."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = serializer.save(user, request.data)
+        return Response(
+            {"message": "User password changed."}, status=status.HTTP_200_OK
+        )
 
     @is_admin
     @swagger_auto_schema(request_body=UpdateUserPasswordSerializer)
@@ -456,7 +492,7 @@ class UserViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["GET"], name="Get all members", url_name="all_users")
     @is_admin
     def get_all_users(self, request):
-        users = User.objects.all()
+        users = User.objects.filter(has_accepted_invite=True).all()
         serializer = UserProfileSerializer(users, many=True)
         if "role" in request.query_params:
             role = request.query_params["role"]
