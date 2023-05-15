@@ -11,9 +11,6 @@ class ChangePasswordSerializer(serializers.Serializer):
     new_password1 = serializers.CharField(
         max_length=128, write_only=True, required=True
     )
-    new_password2 = serializers.CharField(
-        max_length=128, write_only=True, required=True
-    )
 
     def match_old_password(self, instance, value):
         if not instance.check_password(value["old_password"]):
