@@ -37,16 +37,18 @@ def convert_srt_to_payload(srt_content):
     subs = pysrt.from_string(srt_content)
     sentences_list = []
     for srt_line in subs:
-        start_time = datetime.datetime.fromtimestamp(srt_line.start.ordinal / 1000.0).strftime('%H:%M:%S.%f')
-        end_time = datetime.datetime.fromtimestamp(srt_line.end.ordinal / 1000.0).strftime('%H:%M:%S.%f')
+        start_time = srt_line.start.to_time().strftime("%H:%M:%S.%f")[:-3]
+        end_time = srt_line.end.to_time().strftime("%H:%M:%S.%f")[:-3]
 
-        sentences_list.append({
-            "start_time": start_time,
-            "end_time": end_time,
-            "text": srt_line.text,
-            "unix_start_time": srt_line.start.ordinal / 1000.0,
-            "unix_end_time": srt_line.end.ordinal / 1000.0,
-        })
+        sentences_list.append(
+            {
+                "start_time": start_time,
+                "end_time": end_time,
+                "text": srt_line.text,
+                "unix_start_time": srt_line.start.ordinal / 1000.0,
+                "unix_end_time": srt_line.end.ordinal / 1000.0,
+            }
+        )
     return json.loads(json.dumps({"payload": sentences_list}))
 
 

@@ -27,3 +27,5 @@ pympler
 soundfile
 pandas
 pretty-html-table
+pysrt
+google-api-python-client
