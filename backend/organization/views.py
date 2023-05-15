@@ -223,7 +223,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        users = User.objects.filter(organization=organization)
+        users = User.objects.filter(organization=organization).filter(
+            has_accepted_invite=True
+        )
         serializer = UserFetchSerializer(users, many=True)
         if "role" in request.query_params:
             role = request.query_params["role"]
@@ -519,6 +521,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             )
         org_members = (
             User.objects.filter(organization=pk)
+            .filter(has_accepted_invite=True)
             .values(name=Concat("first_name", Value(" "), "last_name"), mail=F("email"))
             .order_by("mail")
         )

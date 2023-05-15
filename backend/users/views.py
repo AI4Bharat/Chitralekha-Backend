@@ -456,7 +456,7 @@ class UserViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["GET"], name="Get all members", url_name="all_users")
     @is_admin
     def get_all_users(self, request):
-        users = User.objects.all()
+        users = User.objects.filter(has_accepted_invite=True).all()
         serializer = UserProfileSerializer(users, many=True)
         if "role" in request.query_params:
             role = request.query_params["role"]

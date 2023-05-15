@@ -1943,6 +1943,7 @@ class TaskViewSet(ModelViewSet):
         roles = allowed_roles[task_type]
         users = (
             User.objects.filter(id__in=project.members.all())
+            .filter(has_accepted_invite=True)
             .filter(role__in=roles)
             .values_list("id", flat=True)
         )
