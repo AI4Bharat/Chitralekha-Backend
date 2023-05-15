@@ -6,7 +6,11 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
 from project.decorators import is_project_owner, is_particular_project_owner
-from task.decorators import has_task_edit_permission, has_task_create_permission, has_task_edit_permission_individual
+from task.decorators import (
+    has_task_edit_permission,
+    has_task_create_permission,
+    has_task_edit_permission_individual,
+)
 from project.models import Project
 from organization.models import Organization
 from transcript.views import generate_transcription
@@ -18,7 +22,12 @@ from voiceover.utils import (
     process_translation_payload,
     send_mail_to_user,
 )
-from transcript.models import Transcript, MANUALLY_UPLOADED, TRANSCRIPTION_SELECT_SOURCE, TRANSCRIPTION_EDIT_COMPLETE
+from transcript.models import (
+    Transcript,
+    MANUALLY_UPLOADED,
+    TRANSCRIPTION_SELECT_SOURCE,
+    TRANSCRIPTION_EDIT_COMPLETE,
+)
 from translation.models import Translation, MANUALLY_UPLOADED, TRANSLATION_SELECT_SOURCE
 from django.db.models import Count
 from translation.utils import (
@@ -55,7 +64,12 @@ import io
 import zipfile
 from django.http import HttpResponse
 import datetime
-from task.tasks import celery_asr_call, celery_tts_call, convert_srt_to_payload, convert_vtt_to_payload
+from task.tasks import (
+    celery_asr_call,
+    celery_tts_call,
+    convert_srt_to_payload,
+    convert_vtt_to_payload,
+)
 import requests
 from django.db.models.functions import Concat
 from django.db.models import Value
@@ -2435,6 +2449,7 @@ class TaskViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+
 @swagger_auto_schema(
     method="post",
     manual_parameters=[
@@ -2459,7 +2474,7 @@ def import_subtitles(request, pk=None):
             {"message": "Subtitles not found"}, status=status.HTTP_404_NOT_FOUND
         )
     if request.FILES["subtitles"].name.split(".")[-1] not in ["srt", "vtt"]:
-        print(subtitles.content_type)
+        logging.info(subtitles.content_type)
         return Response(
             {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
         )
@@ -2468,11 +2483,10 @@ def import_subtitles(request, pk=None):
         try:
             subtitles = convert_vtt_to_payload(subtitles)
         except Exception as e:
-            print(e)
+            logging.info(e)
             return Response(
                 {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
             )
-        print(subtitles)
         if task.task_type == TRANSCRIPTION_EDIT:
             pass
         elif task.task_type == TRANSLATION_EDIT:
@@ -2486,28 +2500,29 @@ def import_subtitles(request, pk=None):
             return Response(
                 {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
             )
-        print(subtitles)
         if task.task_type == TRANSCRIPTION_EDIT:
             Transcript.objects.create(
-                transcript_type = MANUALLY_UPLOADED,
-                video = task.video,
-                language = task.video.language,
-                user = request.user,
-                task = task,
-                status = TRANSCRIPTION_SELECT_SOURCE,
-                payload = subtitles,
-            );
+                transcript_type=MANUALLY_UPLOADED,
+                video=task.video,
+                language=task.video.language,
+                user=request.user,
+                task=task,
+                status=TRANSCRIPTION_SELECT_SOURCE,
+                payload=subtitles,
+            )
         elif task.task_type == TRANSLATION_EDIT:
             Translation.objects.create(
-                translation_type = MANUALLY_UPLOADED,
-                transcript = Transcript.objects.get(video = task.video, status = TRANSCRIPTION_EDIT_COMPLETE),
-                target_language = task.target_language,
-                user = request.user,
-                status = TRANSLATION_SELECT_SOURCE,
-                payload = subtitles,
-                video = task.video,
-                task = task,
-            );
+                translation_type=MANUALLY_UPLOADED,
+                transcript=Transcript.objects.get(
+                    video=task.video, status=TRANSCRIPTION_EDIT_COMPLETE
+                ),
+                target_language=task.target_language,
+                user=request.user,
+                status=TRANSLATION_SELECT_SOURCE,
+                payload=subtitles,
+                video=task.video,
+                task=task,
+            )
         else:
             return Response(
                 {"message": "Invalid task type"}, status=status.HTTP_400_BAD_REQUEST
