@@ -1385,6 +1385,8 @@ class TaskViewSet(ModelViewSet):
 
         if "MANUALLY_CREATED" in list_compare_sources:
             payloads["MANUALLY_CREATED"] = {"payload": []}
+        if "MANUALLY_UPLOADED" in list_compare_sources:
+            payloads["MANUALLY_UPLOADED"] = {"payload": []}
         return payloads
 
     @swagger_auto_schema(
