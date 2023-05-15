@@ -470,6 +470,8 @@ class TaskViewSet(ModelViewSet):
 
                     if type(transcript) == dict:
                         is_active = False
+                    elif source_type == "MANUALLY_UPLOADED":
+                        is_active = False
                     else:
                         is_active = True
 
@@ -1215,11 +1217,12 @@ class TaskViewSet(ModelViewSet):
                         transcript_type=source_type,
                         status="TRANSCRIPTION_SELECT_SOURCE",
                     )
-                    task.is_active = True
-                    task.save()
-                    logging.info(
-                        "Transcript generated from ASR API and Task is active now."
-                    )
+                    if source_type != "MANUALLY_UPLOADED":
+                        task.is_active = True
+                        task.save()
+                        logging.info(
+                            "Transcript generated from ASR API and Task is active now."
+                        )
                     new_transcripts.append(transcript_obj)
                 transcripts = Transcript.objects.bulk_create(new_transcripts)
             else:
