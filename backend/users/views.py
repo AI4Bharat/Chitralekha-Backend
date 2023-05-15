@@ -209,11 +209,6 @@ class UserViewSet(viewsets.ViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if not serializer.validate(user, request.data):
-            return Response(
-                {"message": "The two password fields didn't match."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
 
         user = serializer.save(user, request.data)
         return Response(
