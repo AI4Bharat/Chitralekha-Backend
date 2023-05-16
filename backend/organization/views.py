@@ -282,6 +282,26 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
+    @swagger_auto_schema(
+        method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description=("Limit parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "offset",
+                openapi.IN_QUERY,
+                description=("Offset parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+        ],
+        responses={200: "List of org tasks"},
+    )
     @action(
         detail=True,
         methods=["GET"],
@@ -291,6 +311,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     def list_org_tasks(self, request, pk=None, *args, **kwargs):
         try:
             organization = Organization.objects.get(pk=pk)
+
+            limit = int(request.query_params["limit"])
+            offset = int(request.query_params["offset"])
         except Organization.DoesNotExist:
             return Response(
                 {"message": "Project does not exist"},
@@ -306,7 +329,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         ):
             projects = Project.objects.filter(organization_id=organization)
             videos = Video.objects.filter(project_id__in=projects)
-            tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
+            tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")[
+                offset : offset + limit
+            ]
             tasks_serializer = TaskSerializer(tasks, many=True)
             tasks_list = json.loads(json.dumps(tasks_serializer.data))
             for task in tasks_list:
@@ -422,7 +447,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     }.values()
                 )
             else:
-                tasks = Task.objects.filter(user=user).order_by("-updated_at")
+                tasks = Task.objects.filter(user=user).order_by("-updated_at")[
+                    offset : offset + limit
+                ]
                 tasks_serializer = TaskSerializer(tasks, many=True)
                 tasks_list = json.loads(json.dumps(tasks_serializer.data))
                 for task in tasks_list:
