@@ -2465,9 +2465,15 @@ class TaskViewSet(ModelViewSet):
 )
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
-@has_task_edit_permission_individual
 def import_subtitles(request, pk=None):
     task = Task.objects.get(pk=pk)
+    if request.user != task.user:
+        return Response(
+            {
+                "message": "You are not allowed to import subtitle. Only task assignee can import it."
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
     subtitles = request.data.get("subtitles")
     if subtitles is None:
         return Response(
