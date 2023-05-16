@@ -2485,10 +2485,7 @@ def import_subtitles(request, pk=None):
             return Response(
                 {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
             )
-        if task.task_type == TRANSCRIPTION_EDIT:
-            pass
-        elif task.task_type == TRANSLATION_EDIT:
-            pass
+        print("subtitles", subtitles)
     else:
         subtitles = subtitles.read().decode("utf-8")
         try:
@@ -2498,52 +2495,29 @@ def import_subtitles(request, pk=None):
             return Response(
                 {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
             )
-        if task.task_type == TRANSCRIPTION_EDIT:
-            transcript_obj = (
-                Transcript.objects.filter(video=task.video)
-                .filter(status=TRANSCRIPTION_SELECT_SOURCE)
-                .first()
-            )
-            if transcript_obj is not None:
-                transcript_obj.payload = subtitles
-                transcript_obj.save()
-            else:
-                Transcript.objects.create(
-                    transcript_type=MANUALLY_UPLOADED,
-                    video=task.video,
-                    language=task.video.language,
-                    user=request.user,
-                    task=task,
-                    status=TRANSCRIPTION_SELECT_SOURCE,
-                    payload=subtitles,
-                )
-        elif task.task_type == TRANSLATION_EDIT:
-            translation_obj = (
-                Translation.objects.filter(video=task.video)
-                .filter(status=TRANSCRIPTION_SELECT_SOURCE)
-                .filter(target_language=task.target_language)
-                .first()
-            )
-            if translation_obj is not None:
-                translation_obj.payload = subtitles
-                translation_obj.save()
-            else:
-                Translation.objects.create(
-                    translation_type=MANUALLY_UPLOADED,
-                    transcript=Transcript.objects.get(
-                        video=task.video, status=TRANSCRIPTION_EDIT_COMPLETE
-                    ),
-                    target_language=task.target_language,
-                    user=request.user,
-                    status=TRANSLATION_SELECT_SOURCE,
-                    payload=subtitles,
-                    video=task.video,
-                    task=task,
-                )
+    if task.task_type == TRANSCRIPTION_EDIT:
+        transcript_obj = (
+            Transcript.objects.filter(video=task.video)
+            .filter(status=TRANSCRIPTION_SELECT_SOURCE)
+            .first()
+        )
+        if transcript_obj is not None:
+            transcript_obj.payload = subtitles
+            transcript_obj.save()
         else:
-            return Response(
-                {"message": "Invalid task type"}, status=status.HTTP_400_BAD_REQUEST
+            Transcript.objects.create(
+                transcript_type=MANUALLY_UPLOADED,
+                video=task.video,
+                language=task.video.language,
+                user=request.user,
+                task=task,
+                status=TRANSCRIPTION_SELECT_SOURCE,
+                payload=subtitles,
             )
+    else:
+        return Response(
+            {"message": "Invalid task type"}, status=status.HTTP_400_BAD_REQUEST
+        )
     task.is_active = True
     task.save()
     return Response(
