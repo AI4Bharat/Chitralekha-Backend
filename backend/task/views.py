@@ -28,7 +28,7 @@ from transcript.models import (
     TRANSCRIPTION_SELECT_SOURCE,
     TRANSCRIPTION_EDIT_COMPLETE,
 )
-from translation.models import Translation, MANUALLY_UPLOADED, TRANSLATION_SELECT_SOURCE
+from translation.models import Translation, TRANSLATION_SELECT_SOURCE
 from django.db.models import Count
 from translation.utils import (
     get_batch_translations_using_indictrans_nmt_api,
