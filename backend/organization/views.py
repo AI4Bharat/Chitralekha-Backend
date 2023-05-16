@@ -314,6 +314,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
             limit = int(request.query_params["limit"])
             offset = int(request.query_params["offset"])
+            offset -= 1
         except Organization.DoesNotExist:
             return Response(
                 {"message": "Project does not exist"},
@@ -322,6 +323,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         user = request.user
         src_languages = set()
         target_languages = set()
+        total_count = 0
         if (
             organization.organization_owner == user
             or user.role == "ADMIN"
@@ -329,9 +331,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         ):
             projects = Project.objects.filter(organization_id=organization)
             videos = Video.objects.filter(project_id__in=projects)
-            tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")[
-                offset : offset + limit
-            ]
+            all_tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
+            total_count = len(all_tasks)
+            tasks = all_tasks[offset : offset + limit]
             tasks_serializer = TaskSerializer(tasks, many=True)
             tasks_list = json.loads(json.dumps(tasks_serializer.data))
             for task in tasks_list:
@@ -368,13 +370,17 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 managers__in=[user.id]
             )
             if len(projects) > 0:
+                all_tasks_in_projects_count = 0
+                all_assigned_tasks_count = 0
                 projects = Project.objects.filter(organization_id=organization).filter(
                     managers__in=[user.id]
                 )
                 videos = Video.objects.filter(project_id__in=projects)
-                tasks_in_projects = Task.objects.filter(video__in=videos).order_by(
+                all_tasks_in_projects = Task.objects.filter(video__in=videos).order_by(
                     "-updated_at"
                 )
+                all_tasks_in_projects_count = len(all_tasks_in_projects)
+                tasks_in_projects = all_tasks_in_projects[offset : offset + limit]
                 task_serializer = TaskSerializer(tasks_in_projects, many=True)
                 tasks_in_projects_list = json.loads(json.dumps(task_serializer.data))
                 for task in tasks_in_projects_list:
@@ -407,7 +413,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             buttons["View"] = True
                     task["buttons"] = buttons
 
-                assigned_tasks = Task.objects.filter(user=user).order_by("-updated_at")
+                all_assigned_tasks = Task.objects.filter(user=user).order_by(
+                    "-updated_at"
+                )
+                assigned_tasks = all_assigned_tasks[offset : offset + limit]
+                all_assigned_tasks_count = len(all_assigned_tasks)
                 assigned_tasks_serializer = TaskSerializer(assigned_tasks, many=True)
                 assigned_tasks_list = json.loads(
                     json.dumps(assigned_tasks_serializer.data)
@@ -441,15 +451,16 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         ):
                             buttons["View"] = True
                     task["buttons"] = buttons
+                total_count = len(all_tasks_in_projects.union(all_assigned_tasks))
                 tasks_list = list(
                     {
                         v["id"]: v for v in tasks_in_projects_list + assigned_tasks_list
                     }.values()
-                )
+                )[offset : offset + limit]
             else:
-                tasks = Task.objects.filter(user=user).order_by("-updated_at")[
-                    offset : offset + limit
-                ]
+                all_tasks = Task.objects.filter(user=user).order_by("-updated_at")
+                total_count = len(all_tasks)
+                tasks = all_tasks[offset : offset + limit]
                 tasks_serializer = TaskSerializer(tasks, many=True)
                 tasks_list = json.loads(json.dumps(tasks_serializer.data))
                 for task in tasks_list:
@@ -484,6 +495,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             target_languages_list.remove("-")
         return Response(
             {
+                "total_count": total_count,
                 "tasks_list": tasks_list,
                 "src_languages_list": sorted(list(src_languages)),
                 "target_languages_list": sorted(target_languages_list),
