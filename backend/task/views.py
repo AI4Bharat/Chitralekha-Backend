@@ -2467,6 +2467,8 @@ class TaskViewSet(ModelViewSet):
 @parser_classes([MultiPartParser, FormParser])
 def import_subtitles(request, pk=None):
     task = Task.objects.get(pk=pk)
+    logging.info(request.user.email)
+    logging.info(task.user.email)
     if request.user.email != task.user.email:
         return Response(
             {
