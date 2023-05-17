@@ -705,7 +705,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Update": False,
                         "Create": False,
                         "Delete": False,
-                        "Upload": True,
+                        "Upload": False,
                     }
                     if data["status"] == "COMPLETE":
                         buttons["Edit"] = False
