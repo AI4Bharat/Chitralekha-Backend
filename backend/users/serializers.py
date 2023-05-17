@@ -1,6 +1,32 @@
 from rest_framework import serializers
 from organization.serializers import OrganizationSerializer
 from .models import User
+from django.contrib.auth import password_validation
+from django.utils.translation import gettext_lazy as _
+from rest_framework import serializers
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(max_length=128, write_only=True, required=True)
+    new_password1 = serializers.CharField(
+        max_length=128, write_only=True, required=True
+    )
+
+    def match_old_password(self, instance, value):
+        if not instance.check_password(value["old_password"]):
+            return False
+        return True
+
+    def validate(self, instance, data):
+        if data["new_password1"] != data["new_password2"]:
+            return False
+        password_validation.validate_password(data["new_password1"], instance)
+        return True
+
+    def save(self, instance, validated_data):
+        instance.set_password(validated_data.get("new_password1"))
+        instance.save()
+        return instance
 
 
 class UserSignUpSerializer(serializers.ModelSerializer):

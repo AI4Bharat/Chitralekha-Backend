@@ -70,7 +70,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     {"message": "key doesnot match"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            user = User.objects.filter(id__in=ids)
+            user = User.objects.filter(id__in=ids).filter(has_accepted_invite=True)
             if user and user.count() == len(ids):
                 if project.members:
                     for member in project.members.all():
@@ -434,7 +434,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def list_project_managers(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
-            managers = User.objects.filter(role="PROJECT_MANAGER")
+            managers = User.objects.filter(role="PROJECT_MANAGER").filter(
+                has_accepted_invite=True
+            )
             serializer = UserProfileSerializer(managers, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
@@ -703,7 +705,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Update": False,
                         "Create": False,
                         "Delete": False,
-                        "Upload": True,
+                        "Upload": False,
                     }
                     if data["status"] == "COMPLETE":
                         buttons["Edit"] = False
@@ -1038,8 +1040,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        users = User.objects.filter(organization_id=project.organization_id).exclude(
-            pk__in=project.members.all()
+        users = (
+            User.objects.filter(organization_id=project.organization_id)
+            .filter(has_accepted_invite=True)
+            .exclude(pk__in=project.members.all())
         )
         serializer = UserFetchSerializer(users, many=True)
         return Response(serializer.data)
@@ -1061,6 +1065,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
         project_members = (
             User.objects.filter(projects__pk=pk)
+            .filter(has_accepted_invite=True)
             .values(name=Concat("first_name", Value(" "), "last_name"), mail=F("email"))
             .order_by("mail")
         )
