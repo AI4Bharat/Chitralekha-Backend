@@ -542,3 +542,17 @@ class LanguageViewSet(viewsets.ViewSet):
         if serialized.is_valid():
             return Response(serialized.data, status=status.HTTP_200_OK)
         return Response(serialized.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="modify_user_info",
+        url_name="modify_user_info",
+    )
+    def temp_user_modify(self, request):
+        users = User.objects.all()
+        for user in users:
+            if user.phone == "":
+                user.phone = None
+                user.save()
+        return Response([], status=status.HTTP_200_OK)

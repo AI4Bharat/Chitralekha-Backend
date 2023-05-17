@@ -68,15 +68,14 @@ class User(AbstractBaseUser, PermissionsMixin):
         (ORG_OWNER, "Organization Owner"),
         (ADMIN, "Admin"),
     )
-
     username = models.CharField(verbose_name="username", max_length=265)
     email = models.EmailField(verbose_name="email_address", unique=True, blank=False)
-
     first_name = models.CharField(verbose_name="first_name", max_length=265, blank=True)
     last_name = models.CharField(verbose_name="last_name", max_length=265, blank=True)
-    phone = models.CharField(verbose_name="phone", max_length=256, blank=True)
+    phone = models.CharField(
+        verbose_name="phone", max_length=256, null=True, blank=True
+    )
     role = models.CharField(choices=ROLE_CHOICES, max_length=25)
-
     is_staff = models.BooleanField(
         verbose_name="staff status",
         default=False,
