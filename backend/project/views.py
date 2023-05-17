@@ -962,13 +962,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        users = project.members.all()
+        users = project.members.filter(has_accepted_invite=True).all()
         serializer = UserFetchSerializer(users, many=True)
 
         if "task_type" in request.query_params:
             task_type = request.query_params["task_type"]
             try:
-                users = project.members.all()
+                users_in_project = project.members.all()
+                users = users_in_project.filter(has_accepted_invite=True)
                 if task_type == "TRANSCRIPTION_EDIT":
                     user_by_roles = users.filter(
                         Q(role="PROJECT_MANAGER")
