@@ -305,6 +305,11 @@ def get_video_func(request):
         title = (
             urllib.request.urlopen(urllib.request.Request(url)).info().get_filename()
         )
+        if title[-4:] == ".mp4":
+            return Response(
+                {"message": "Invalid file type. Mp4 is not supported"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         direct_audio_url = url
 
         # Calculate the duration
@@ -454,6 +459,11 @@ def get_video_func(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    if title[-4:] == ".mp4":
+        return Response(
+            {"message": "Invalid file type. Mp4 is not supported"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     # Create a new DB entry if URL does not exist, else return the existing entry
     video, created = Video.objects.get_or_create(
         url=normalized_url,
