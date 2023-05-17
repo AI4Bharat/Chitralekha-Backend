@@ -38,6 +38,7 @@ class UserSignUpSerializer(serializers.ModelSerializer):
             "email",
             "first_name",
             "last_name",
+            "phone",
             "languages",
         ]
 
