@@ -98,6 +98,7 @@ def get_transcript_export_types(request):
 def export_transcript(request):
     task_id = request.query_params.get("task_id")
     export_type = request.query_params.get("export_type")
+    return_file_content = request.query_params.get("return_file_content")
 
     if task_id is None or export_type is None:
         return Response(
@@ -189,6 +190,11 @@ def export_transcript(request):
         )
     if len(content) == 0:
         content = " "
+
+    if return_file_content:
+        response = HttpResponse(json.dumps(content), content_type="application/json")
+        return response
+
     content_type = "application/json"
     response = HttpResponse(content, content_type=content_type)
     response["Content-Disposition"] = 'attachment; filename="%s"' % filename

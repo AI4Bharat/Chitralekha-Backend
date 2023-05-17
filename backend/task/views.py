@@ -6,7 +6,11 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
 from project.decorators import is_project_owner, is_particular_project_owner
-from task.decorators import has_task_edit_permission, has_task_create_permission
+from task.decorators import (
+    has_task_edit_permission,
+    has_task_create_permission,
+    has_task_edit_permission_individual,
+)
 from project.models import Project
 from organization.models import Organization
 from transcript.views import generate_transcription
@@ -18,8 +22,13 @@ from voiceover.utils import (
     process_translation_payload,
     send_mail_to_user,
 )
-from transcript.models import Transcript
-from translation.models import Translation
+from transcript.models import (
+    Transcript,
+    MANUALLY_UPLOADED,
+    TRANSCRIPTION_SELECT_SOURCE,
+    TRANSCRIPTION_EDIT_COMPLETE,
+)
+from translation.models import Translation, TRANSLATION_SELECT_SOURCE
 from django.db.models import Count
 from translation.utils import (
     get_batch_translations_using_indictrans_nmt_api,
@@ -55,13 +64,20 @@ import io
 import zipfile
 from django.http import HttpResponse
 import datetime
-from task.tasks import celery_asr_call, celery_tts_call
+from task.tasks import (
+    celery_asr_call,
+    celery_tts_call,
+    convert_srt_to_payload,
+    convert_vtt_to_payload,
+)
 import requests
 from django.db.models.functions import Concat
 from django.db.models import Value
 from django.http import HttpRequest
 from transcript.views import export_transcript
 from translation.views import export_translation
+from rest_framework.decorators import parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
 
 
 def get_export_translation(request, task_id, export_type):
@@ -377,9 +393,8 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": self.get_language_pair_label(
-                            task["video"], target_language
-                        ),
+                        "target_language": target_language,
+                        "source_language": task["video"].get_language_label,
                         "status": "Fail",
                         "message": "This task creation failed since Editor and Reviewer can't be same.",
                     }
@@ -398,9 +413,8 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": self.get_language_pair_label(
-                            task["video"], target_language
-                        ),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": target_language,
                         "status": "Fail",
                         "message": "Task creation failed as target language is same as source language.",
                     }
@@ -419,9 +433,8 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": self.get_language_pair_label(
-                            task["video"], target_language
-                        ),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": target_language,
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
@@ -440,9 +453,8 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": self.get_language_pair_label(
-                            task["video"], ""
-                        ),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": target_language,
                         "status": "Fail",
                         "message": "Task creation for Translation Review failed as Voice Over task already exists.",
                     }
@@ -472,6 +484,8 @@ class TaskViewSet(ModelViewSet):
 
                     if type(transcript) == dict:
                         is_active = False
+                    elif source_type == "MANUALLY_UPLOADED":
+                        is_active = False
                     else:
                         is_active = True
 
@@ -499,9 +513,8 @@ class TaskViewSet(ModelViewSet):
                             "video_name": task.video.name,
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
-                            "language_pair": self.get_language_pair_label(
-                                task.video, target_language
-                            ),
+                            "target_language": task.get_target_language_label,
+                            "source_language": task.get_src_language_label,
                             "status": "Successful",
                             "message": "Task is successfully created.",
                         }
@@ -571,7 +584,8 @@ class TaskViewSet(ModelViewSet):
                             "video_name": task.video.name,
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
-                            "language_pair": task.get_language_pair_label,
+                            "target_language": task.get_target_language_label,
+                            "source_language": task.get_src_language_label,
                             "status": "Successful",
                             "message": "Task is successfully created.",
                         }
@@ -710,9 +724,8 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": self.get_language_pair_label(
-                            task["video"], target_language
-                        ),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": target_language,
                         "status": "Fail",
                         "message": "This task creation failed since Editor and Reviewer can't be same.",
                     }
@@ -731,9 +744,8 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": self.get_language_pair_label(
-                            task["video"], target_language
-                        ),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": target_language,
                         "status": "Fail",
                         "message": "Task creation failed as target language is same as source language.",
                     }
@@ -752,9 +764,8 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": self.get_language_pair_label(
-                            task["video"], target_language
-                        ),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": target_language,
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
@@ -823,7 +834,8 @@ class TaskViewSet(ModelViewSet):
                                     "task_type": self.get_task_type_label(
                                         task.task_type
                                     ),
-                                    "language_pair": task.get_language_pair_label,
+                                    "target_language": task.get_target_language_label,
+                                    "source_language": task.get_src_language_label,
                                     "status": "Fail",
                                     "message": message,
                                 }
@@ -878,9 +890,8 @@ class TaskViewSet(ModelViewSet):
                             "video_name": task.video.name,
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
-                            "language_pair": self.get_language_pair_label(
-                                task.video, target_language
-                            ),
+                            "target_language": task.get_target_language_label,
+                            "source_language": task.get_src_language_label,
                             "status": "Successful",
                             "message": "Task is successfully created.",
                         }
@@ -932,7 +943,8 @@ class TaskViewSet(ModelViewSet):
                             "video_name": task.video.name,
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
-                            "language_pair": task.get_language_pair_label,
+                            "target_language": task.get_target_language_label,
+                            "source_language": task.get_src_language_label,
                             "status": "Successful",
                             "message": "Task is successfully created.",
                         }
@@ -1034,6 +1046,7 @@ class TaskViewSet(ModelViewSet):
         error_duplicate_tasks = []
         error_user_tasks = []
         error_review_tasks = []
+        target_language = "-"
 
         if len(duplicate_tasks) > 0:
             for task in duplicate_tasks:
@@ -1071,9 +1084,8 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": self.get_language_pair_label(
-                            task["video"], ""
-                        ),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": target_language,
                         "status": "Fail",
                         "message": "This task creation failed since Editor and Reviewer can't be same.",
                     }
@@ -1092,9 +1104,8 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": self.get_language_pair_label(
-                            task["video"], ""
-                        ),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": target_language,
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
@@ -1113,9 +1124,8 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "language_pair": self.get_language_pair_label(
-                            task["video"], ""
-                        ),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": "-",
                         "status": "Fail",
                         "message": "Task creation for Transcription Review failed as Translation tasks already exists.",
                     }
@@ -1170,7 +1180,8 @@ class TaskViewSet(ModelViewSet):
                                 "video_name": task.video.name,
                                 "video_url": task.video.url,
                                 "task_type": self.get_task_type_label(task.task_type),
-                                "language_pair": task.get_language_pair_label,
+                                "target_language": task.get_target_language_label,
+                                "source_language": task.get_src_language_label,
                                 "status": "Successful",
                                 "message": "Task is successfully created.",
                             }
@@ -1183,7 +1194,8 @@ class TaskViewSet(ModelViewSet):
                                 "video_name": task.video.name,
                                 "video_url": task.video.url,
                                 "task_type": self.get_task_type_label(task.task_type),
-                                "language_pair": task.get_language_pair_label,
+                                "target_language": task.get_target_language_label,
+                                "source_language": task.get_src_language_label,
                                 "status": "Fail",
                                 "message": "Error while calling ASR API.",
                             }
@@ -1204,7 +1216,8 @@ class TaskViewSet(ModelViewSet):
                             "video_name": task.video.name,
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
-                            "language_pair": task.get_language_pair_label,
+                            "target_language": task.get_target_language_label,
+                            "source_language": task.get_src_language_label,
                             "status": "Successful",
                             "message": "Task is successfully created.",
                         }
@@ -1218,11 +1231,12 @@ class TaskViewSet(ModelViewSet):
                         transcript_type=source_type,
                         status="TRANSCRIPTION_SELECT_SOURCE",
                     )
-                    task.is_active = True
-                    task.save()
-                    logging.info(
-                        "Transcript generated from ASR API and Task is active now."
-                    )
+                    if source_type != "MANUALLY_UPLOADED":
+                        task.is_active = True
+                        task.save()
+                        logging.info(
+                            "Transcript generated from ASR API and Task is active now."
+                        )
                     new_transcripts.append(transcript_obj)
                 transcripts = Transcript.objects.bulk_create(new_transcripts)
             else:
@@ -1271,7 +1285,8 @@ class TaskViewSet(ModelViewSet):
                             "video_url": task.video.url,
                             "task_type": self.get_task_type_label(task.task_type),
                             "status": "Successful",
-                            "language_pair": task.get_language_pair_label,
+                            "target_language": task.get_target_language_label,
+                            "source_language": task.get_src_language_label,
                             "message": "Task is successfully created.",
                         }
                     )
@@ -1389,6 +1404,8 @@ class TaskViewSet(ModelViewSet):
 
         if "MANUALLY_CREATED" in list_compare_sources:
             payloads["MANUALLY_CREATED"] = {"payload": []}
+        if "MANUALLY_UPLOADED" in list_compare_sources:
+            payloads["MANUALLY_UPLOADED"] = {"payload": []}
         return payloads
 
     @swagger_auto_schema(
@@ -1943,6 +1960,7 @@ class TaskViewSet(ModelViewSet):
         roles = allowed_roles[task_type]
         users = (
             User.objects.filter(id__in=project.members.all())
+            .filter(has_accepted_invite=True)
             .filter(role__in=roles)
             .values_list("id", flat=True)
         )
@@ -2340,7 +2358,9 @@ class TaskViewSet(ModelViewSet):
                 "name": "task.tasks.celery_asr_call",
             }
             if flower_username and flower_password:
-                res = requests.get(url, params=params, auth=(flower_username, flower_password))
+                res = requests.get(
+                    url, params=params, auth=(flower_username, flower_password)
+                )
             else:
                 res = requests.get(url, params=params)
             data = res.json()
@@ -2428,3 +2448,90 @@ class TaskViewSet(ModelViewSet):
             {"message": "Time spent on task updated successfully."},
             status=status.HTTP_200_OK,
         )
+
+
+@swagger_auto_schema(
+    method="post",
+    manual_parameters=[
+        openapi.Parameter(
+            name="subtitles",
+            in_=openapi.IN_FORM,
+            type=openapi.TYPE_FILE,
+            required=True,
+            description="SRT/VTT File to upload",
+        ),
+    ],
+    responses={200: "Subtitles imported successfully"},
+)
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser])
+def import_subtitles(request, pk=None):
+    task = Task.objects.get(pk=pk)
+    logging.info(request)
+    logging.info(request.user)
+    logging.info(request.user.email)
+    logging.info(task.user.email)
+    if request.user.email != task.user.email:
+        return Response(
+            {
+                "message": "You are not allowed to import subtitle. Only task assignee can import it."
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    subtitles = request.data.get("subtitles")
+    if subtitles is None:
+        return Response(
+            {"message": "Subtitles not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+    if request.FILES["subtitles"].name.split(".")[-1] not in ["srt", "vtt"]:
+        logging.info(subtitles.content_type)
+        return Response(
+            {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if request.FILES["subtitles"].name.endswith("vtt"):
+        subtitles = subtitles.read().decode("utf-8")
+        try:
+            subtitles = convert_vtt_to_payload(subtitles)
+        except Exception as e:
+            logging.info(e)
+            return Response(
+                {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        print("subtitles", subtitles)
+    else:
+        subtitles = subtitles.read().decode("utf-8")
+        try:
+            subtitles = convert_srt_to_payload(subtitles)
+        except Exception as e:
+            print(e)
+            return Response(
+                {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
+            )
+    if task.task_type == TRANSCRIPTION_EDIT:
+        transcript_obj = (
+            Transcript.objects.filter(video=task.video)
+            .filter(status=TRANSCRIPTION_SELECT_SOURCE)
+            .first()
+        )
+        if transcript_obj is not None:
+            transcript_obj.payload = subtitles
+            transcript_obj.save()
+        else:
+            Transcript.objects.create(
+                transcript_type=MANUALLY_UPLOADED,
+                video=task.video,
+                language=task.video.language,
+                user=request.user,
+                task=task,
+                status=TRANSCRIPTION_SELECT_SOURCE,
+                payload=subtitles,
+            )
+    else:
+        return Response(
+            {"message": "Invalid task type"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    task.is_active = True
+    task.save()
+    return Response(
+        {"message": "Subtitles imported successfully"}, status=status.HTTP_200_OK
+    )

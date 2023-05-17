@@ -8,11 +8,13 @@ TRANSCRIPT_TYPE = (
     ("ORIGINAL_SOURCE", "Original Source"),
     ("MACHINE_GENERATED", "Machine Generated"),
     ("MANUALLY_CREATED", "Manually Created"),
+    ("MANUALLY_UPLOADED", "Manually Uploaded"),
 )
 
 TRANSLATION_TYPE_CHOICES = (
     ("MACHINE_GENERATED", "Machine Generated"),
     ("MANUALLY_CREATED", "Manually Created"),
+    ("MANUALLY_UPLOADED", "Manually Uploaded"),
 )
 
 TASK_TYPE = (
