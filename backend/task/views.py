@@ -2465,7 +2465,7 @@ class TaskViewSet(ModelViewSet):
 @parser_classes([MultiPartParser, FormParser])
 def import_subtitles(request, pk=None):
     task = Task.objects.get(pk=pk)
-    if request.user != task.user:
+    if request.user.email != task.user.email:
         return Response(
             {
                 "message": "You are not allowed to import subtitle. Only task assignee can import it."
