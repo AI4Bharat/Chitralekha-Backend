@@ -125,27 +125,31 @@ def export_translation(request):
         )
     if export_type == "srt":
         for index, segment in enumerate(payload):
-            lines.append(str(index + 1))
-            lines.append(segment["start_time"] + " --> " + segment["end_time"])
-            lines.append(segment["target_text"] + "\n")
+            if "text" in segment.keys():
+                lines.append(str(index + 1))
+                lines.append(segment["start_time"] + " --> " + segment["end_time"])
+                lines.append(segment["target_text"] + "\n")
         filename = "translation.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
         lines.append("WEBVTT\n")
         for index, segment in enumerate(payload):
-            lines.append(str(index + 1))
-            lines.append(segment["start_time"] + " --> " + segment["end_time"])
-            lines.append(segment["target_text"] + "\n")
+            if "text" in segment.keys():
+                lines.append(str(index + 1))
+                lines.append(segment["start_time"] + " --> " + segment["end_time"])
+                lines.append(segment["target_text"] + "\n")
         filename = "translation.vtt"
         content = "\n".join(lines)
     elif export_type == "txt":
         for index, segment in enumerate(payload):
-            lines.append(segment["target_text"])
+            if "text" in segment.keys():
+                lines.append(segment["target_text"])
         filename = "translation.txt"
         content = convert_to_paragraph(lines)
     elif export_type == "docx":
         for index, segment in enumerate(payload):
-            lines.append(segment["target_text"])
+            if "text" in segment.keys():
+                lines.append(segment["target_text"])
         filename = "translation.docx"
         content = convert_to_paragraph(lines)
         return convert_to_docx(content)
