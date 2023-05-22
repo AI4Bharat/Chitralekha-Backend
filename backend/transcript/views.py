@@ -133,27 +133,31 @@ def export_transcript(request):
 
     if export_type == "srt":
         for index, segment in enumerate(payload):
-            lines.append(str(index + 1))
-            lines.append(segment["start_time"] + " --> " + segment["end_time"])
-            lines.append(segment["text"] + "\n")
+            if "text" in segment.keys():
+                lines.append(str(index + 1))
+                lines.append(segment["start_time"] + " --> " + segment["end_time"])
+                lines.append(segment["text"] + "\n")
         filename = "transcript.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
         lines.append("WEBVTT\n")
         for index, segment in enumerate(payload):
-            lines.append(str(index + 1))
-            lines.append(segment["start_time"] + " --> " + segment["end_time"])
-            lines.append(segment["text"] + "\n")
+            if "text" in segment.keys():
+                lines.append(str(index + 1))
+                lines.append(segment["start_time"] + " --> " + segment["end_time"])
+                lines.append(segment["text"] + "\n")
         filename = "transcript.vtt"
         content = "\n".join(lines)
     elif export_type == "txt":
         for index, segment in enumerate(payload):
-            lines.append(segment["text"])
+            if "text" in segment.keys():
+                lines.append(segment["text"])
         filename = "transcript.txt"
         content = convert_to_paragraph(lines)
     elif export_type == "docx":
         for index, segment in enumerate(payload):
-            lines.append(segment["text"])
+            if "text" in segment.keys():
+                lines.append(segment["text"])
         filename = "transcript.txt"
         content = convert_to_paragraph(lines)
         return convert_to_docx(content)
