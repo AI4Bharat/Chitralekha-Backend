@@ -16,7 +16,9 @@ class Youtube(models.Model):
         verbose_name="Youtube UUID",
         primary_key=False,
     )
-    channel_id = models.URLField(verbose_name="Youtube channel", db_index=True)
+    channel_id = models.CharField(
+        verbose_name="Youtube channel", max_length=200, db_index=True
+    )
     project_id = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
