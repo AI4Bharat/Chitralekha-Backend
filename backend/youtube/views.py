@@ -371,6 +371,8 @@ def upload_to_youtube(request):
                     )
 
                     # Check if the stored access token has expired
+                    logging.info("creds.expired")
+                    logging.info(creds.expired)
                     if creds.expired:
                         # Use the refresh token to obtain a new access token
                         url = "https://oauth2.googleapis.com/token"
@@ -383,9 +385,14 @@ def upload_to_youtube(request):
                         }
 
                         response = requests.post(url=url, headers=headers, json=data)
+                        logging.info("response.status_code")
+                        logging.info(response.status_code)
                         auth_content = response.content
                         auth_content_decode = auth_content.decode("utf-8")
                         auth_content_json = json.loads(auth_content_decode)
+
+                        logging.info("auth_content_json.access_token")
+                        logging.info(auth_content_json["access_token"])
 
                         youtube_auth_reeuset_data = {
                             "client_id": creds.client_id,
@@ -396,6 +403,7 @@ def upload_to_youtube(request):
                             youtube_auth_reeuset_data,
                             scopes=["https://www.googleapis.com/auth/youtubepartner"],
                         )
+                        logging.info("Re-Generated credential")
 
                 youtube = build("youtube", "v3", credentials=creds)
                 insert_request = (
