@@ -29,3 +29,4 @@ pandas
 pretty-html-table
 pysrt
 google-api-python-client
+html2text
