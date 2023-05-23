@@ -25,4 +25,4 @@ class Youtube(models.Model):
     auth_token = models.JSONField(verbose_name="Auth token", null=False, blank=False)
 
     def __str__(self):
-        return str(self.youtube_uuid) + " : " + self.name
+        return str(self.youtube_uuid)
