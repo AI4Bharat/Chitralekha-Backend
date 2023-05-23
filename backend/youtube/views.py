@@ -387,6 +387,8 @@ def upload_to_youtube(request):
                         logging.info(data)
 
                         response = requests.post(url=url, headers=headers, json=data)
+                        logging.info("response")
+                        logging.info(response)
                         logging.info("response.status_code")
                         logging.info(response.status_code)
                         auth_content = response.content
