@@ -383,6 +383,8 @@ def upload_to_youtube(request):
                             "client_id": creds.client_id,
                             "client_secret": creds.client_secret,
                         }
+                        logging.info("Data for refresh token")
+                        logging.info(data)
 
                         response = requests.post(url=url, headers=headers, json=data)
                         logging.info("response.status_code")
