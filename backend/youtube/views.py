@@ -330,6 +330,7 @@ def upload_to_youtube(request):
                     if youtube_auth is None:
                         response_obj["status"] = "Fail"
                         response_obj["message"] = "Youtube auth not found."
+                        task_responses.append(response_obj)
                         continue
 
                 else:
