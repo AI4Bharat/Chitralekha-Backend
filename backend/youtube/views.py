@@ -376,7 +376,7 @@ def upload_to_youtube(request):
                     if creds.expired:
                         # Use the refresh token to obtain a new access token
                         url = "https://oauth2.googleapis.com/token"
-                        headers = {"Content-Type": "application/json"}
+                        headers = {"Content-Type": "x-www-form-urlencoded"}
                         data = {
                             "grant_type": "refresh_token",
                             "refresh_token": creds.refresh_token,
