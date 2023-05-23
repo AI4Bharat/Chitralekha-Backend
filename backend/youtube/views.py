@@ -48,6 +48,7 @@ from .utils import *
 from video.utils import *
 
 from pathlib import Path
+import html2text
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -299,7 +300,8 @@ def upload_to_youtube(request):
             except Exception as e:
                 logging.info("There is a issue with file srt file creation")
                 response_obj["status"] = "Fail"
-                response_obj["message"] = e.args[0]
+                error = html2text.html2text(e.args[0])
+                response_obj["message"] = error
                 task_responses.append(response_obj)
                 continue
 
@@ -342,7 +344,9 @@ def upload_to_youtube(request):
 
             except Exception as e:
                 response_obj["status"] = "Fail"
-                response_obj["message"] = e.args[0]
+                error = html2text.html2text(e.args[0])
+                logging.info(error)
+                response_obj["message"] = error
                 task_responses.append(response_obj)
                 continue
 
@@ -436,15 +440,17 @@ def upload_to_youtube(request):
                 )
                 response_obj["status"] = "Fail"
                 logging.info("e.reason")
-                logging.info(e.reason)
-                response_obj["message"] = e.reason
+                error = html2text.html2text(e.reason)
+                logging.info(error)
+                response_obj["message"] = error
                 task_responses.append(response_obj)
                 continue
             except Exception as e:
                 response_obj["status"] = "Fail"
                 logging.info("e args")
-                logging.info(e.args[0])
-                response_obj["message"] = e.args[0]
+                error = html2text.html2text(e.args[0])
+                logging.info(error)
+                response_obj["message"] = error
                 task_responses.append(response_obj)
                 continue
 
