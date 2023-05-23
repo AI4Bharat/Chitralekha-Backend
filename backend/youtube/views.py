@@ -387,10 +387,10 @@ def upload_to_youtube(request):
                         logging.info(data)
 
                         response = requests.post(url=url, headers=headers, json=data)
-                        logging.info("response")
-                        logging.info(response)
-                        logging.info("response.status_code")
-                        logging.info(response.status_code)
+                        logging.info("response.content %s", str(response.content))
+                        logging.info(
+                            "response.status_code %s", str(response.status_code)
+                        )
                         auth_content = response.content
                         auth_content_decode = auth_content.decode("utf-8")
                         auth_content_json = json.loads(auth_content_decode)
