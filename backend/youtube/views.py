@@ -114,6 +114,7 @@ def store_access_token(request):
     project_id = request.data.get("project_id")
     auth_token = request.data.get("auth_token")
 
+
     try:
         project = Project.objects.get(pk=project_id)
     except Project.DoesNotExist:
@@ -124,6 +125,19 @@ def store_access_token(request):
 
     logging.info("Auth Token")
     logging.info(auth_token)
+
+    url = "https://oauth2.googleapis.com/token"
+    data = {
+        "code": auth_token["refresh_token"],
+        "client_id": auth_token["client_id"],
+        "client_secret": auth_token["client_secret"],
+        "redirect_uri": "https://dev.chitralekha.ai4bharat.org",
+        "grant_type": "authorization_code"
+    }
+    response = requests.post(url=url, json=data)
+
+    logging.info("response %s", response.content)
+
     # Get the authenticated user's credentials from the Django session
     credentials = Credentials.from_authorized_user_info(auth_token)
 
