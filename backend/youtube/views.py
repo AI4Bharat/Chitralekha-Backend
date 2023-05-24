@@ -122,6 +122,8 @@ def store_access_token(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    logging.info("Auth Token")
+    logging.info(auth_token)
     # Get the authenticated user's credentials from the Django session
     credentials = Credentials.from_authorized_user_info(auth_token)
 
