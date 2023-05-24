@@ -138,8 +138,9 @@ def store_access_token(request):
 
     if response.status_code == 200:
         logging.info("response %s", response.content)
-        auth_token["refresh_token"] = response.content["refresh_token"]
-        auth_token["access_token"] = response.content["access_token"]
+        response_token = json.loads(response.content.decode("utf-8"))
+        auth_token["refresh_token"] = response_token["refresh_token"]
+        auth_token["access_token"] = response_token["access_token"]
         auth_token["code"] = auth_code
 
         # Get the authenticated user's credentials from the Django session
