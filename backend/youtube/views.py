@@ -114,7 +114,6 @@ def store_access_token(request):
     project_id = request.data.get("project_id")
     auth_token = request.data.get("auth_token")
 
-
     try:
         project = Project.objects.get(pk=project_id)
     except Project.DoesNotExist:
@@ -127,58 +126,71 @@ def store_access_token(request):
     logging.info(auth_token)
 
     url = "https://oauth2.googleapis.com/token"
+    auth_code = auth_token["refresh_token"]
     data = {
-        "code": auth_token["refresh_token"],
+        "code": auth_code,
         "client_id": auth_token["client_id"],
         "client_secret": auth_token["client_secret"],
         "redirect_uri": "https://dev.chitralekha.ai4bharat.org",
-        "grant_type": "authorization_code"
+        "grant_type": "authorization_code",
     }
     response = requests.post(url=url, json=data)
 
-    logging.info("response %s", response.content)
+    if response.status_code == 200:
+        logging.info("response %s", response.content)
+        response_token = json.loads(response.content.decode("utf-8"))
+        auth_token["refresh_token"] = response_token["refresh_token"]
+        auth_token["access_token"] = response_token["access_token"]
+        auth_token["code"] = auth_code
 
-    # Get the authenticated user's credentials from the Django session
-    credentials = Credentials.from_authorized_user_info(auth_token)
+        # Get the authenticated user's credentials from the Django session
+        credentials = Credentials.from_authorized_user_info(auth_token)
 
-    # Create a YouTube API client
-    youtube = build("youtube", "v3", credentials=credentials)
+        # Create a YouTube API client
+        youtube = build("youtube", "v3", credentials=credentials)
 
-    try:
-        # Call the 'channels.list' method to retrieve the list of channels
-        channels_response = youtube.channels().list(part="snippet", mine=True).execute()
-
-        # Extract the channel information from the API response
-        channels = channels_response["items"]
-
-        for channel in channels:
-            channel_id = channel["id"]
-
-            authExist = (
-                Youtube.objects.filter(project_id=project_id)
-                .filter(channel_id=channel_id)
-                .first()
+        try:
+            # Call the 'channels.list' method to retrieve the list of channels
+            channels_response = (
+                youtube.channels().list(part="snippet", mine=True).execute()
             )
 
-            if authExist:
-                Youtube.objects.filter(pk=authExist.id).update(auth_token=auth_token)
-            else:
-                new_youtube_auth = Youtube(
-                    project_id=project,
-                    channel_id=channel_id,
-                    auth_token=auth_token,
-                )
-                new_youtube_auth.save()
+            # Extract the channel information from the API response
+            channels = channels_response["items"]
 
-        return Response(
-            {
-                "message": "Youtube auth token saved successfully.",
-            },
-            status=status.HTTP_200_OK,
-        )
-    except HttpError as e:
-        logging.info("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))
-        return Response({"message": e.reason}, status=e.resp.status)
+            for channel in channels:
+                channel_id = channel["id"]
+
+                authExist = (
+                    Youtube.objects.filter(project_id=project_id)
+                    .filter(channel_id=channel_id)
+                    .first()
+                )
+
+                if authExist:
+                    Youtube.objects.filter(pk=authExist.id).update(
+                        auth_token=auth_token
+                    )
+                else:
+                    new_youtube_auth = Youtube(
+                        project_id=project,
+                        channel_id=channel_id,
+                        auth_token=auth_token,
+                    )
+                    new_youtube_auth.save()
+
+            return Response(
+                {
+                    "message": "Youtube auth token saved successfully.",
+                },
+                status=status.HTTP_200_OK,
+            )
+        except HttpError as e:
+            logging.info("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))
+            return Response({"message": e.reason}, status=e.resp.status)
+
+    else:
+        return Response({"message": response.content}, status=response.status_code)
 
 
 @swagger_auto_schema(
