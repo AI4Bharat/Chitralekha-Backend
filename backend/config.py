@@ -18,6 +18,7 @@ flower_username, flower_password = None, None
 if flower_auth:
     flower_username, flower_password = flower_auth.split(':')
 
+frontend_url = os.getenv("FRONTEND_URL")
 ## CONSTANTS ##
 
 backend_default_translation_type = "MACHINE_GENERATED"

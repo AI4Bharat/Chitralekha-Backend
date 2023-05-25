@@ -43,11 +43,12 @@ import logging
 import datetime
 from datetime import timedelta
 from urllib.parse import urlparse, parse_qs
-from config import youtube_api_key
+from config import youtube_api_key, frontend_url
 from .utils import *
 from video.utils import *
 
 from pathlib import Path
+import html2text
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -121,47 +122,75 @@ def store_access_token(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    # Get the authenticated user's credentials from the Django session
-    credentials = Credentials.from_authorized_user_info(auth_token)
+    logging.info("Auth Token")
+    logging.info(auth_token)
 
-    # Create a YouTube API client
-    youtube = build("youtube", "v3", credentials=credentials)
+    url = "https://oauth2.googleapis.com/token"
+    auth_code = auth_token["refresh_token"]
+    data = {
+        "code": auth_code,
+        "client_id": auth_token["client_id"],
+        "client_secret": auth_token["client_secret"],
+        "redirect_uri": frontend_url,
+        "grant_type": "authorization_code",
+    }
+    response = requests.post(url=url, json=data)
 
-    try:
-        # Call the 'channels.list' method to retrieve the list of channels
-        channels_response = youtube.channels().list(part="snippet", mine=True).execute()
+    if response.status_code == 200:
+        logging.info("response %s", response.content)
+        response_token = json.loads(response.content.decode("utf-8"))
+        auth_token["refresh_token"] = response_token["refresh_token"]
+        auth_token["access_token"] = response_token["access_token"]
+        auth_token["code"] = auth_code
 
-        # Extract the channel information from the API response
-        channels = channels_response["items"]
+        # Get the authenticated user's credentials from the Django session
+        credentials = Credentials.from_authorized_user_info(auth_token)
 
-        for channel in channels:
-            channel_id = channel["id"]
+        # Create a YouTube API client
+        youtube = build("youtube", "v3", credentials=credentials)
 
-            authExist = (
-                Youtube.objects.filter(project_id=project_id)
-                .filter(channel_id=channel_id)
-                .first()
+        try:
+            # Call the 'channels.list' method to retrieve the list of channels
+            channels_response = (
+                youtube.channels().list(part="snippet", mine=True).execute()
             )
 
-            if authExist:
-                Youtube.objects.filter(pk=authExist.id).update(auth_token=auth_token)
-            else:
-                new_youtube_auth = Youtube(
-                    project_id=project,
-                    channel_id=channel_id,
-                    auth_token=auth_token,
-                )
-                new_youtube_auth.save()
+            # Extract the channel information from the API response
+            channels = channels_response["items"]
 
-        return Response(
-            {
-                "message": "Youtube auth token saved successfully.",
-            },
-            status=status.HTTP_200_OK,
-        )
-    except HttpError as e:
-        logging.info("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))
-        return Response({"message": e.reason}, status=e.resp.status)
+            for channel in channels:
+                channel_id = channel["id"]
+
+                authExist = (
+                    Youtube.objects.filter(project_id=project_id)
+                    .filter(channel_id=channel_id)
+                    .first()
+                )
+
+                if authExist:
+                    Youtube.objects.filter(pk=authExist.id).update(
+                        auth_token=auth_token
+                    )
+                else:
+                    new_youtube_auth = Youtube(
+                        project_id=project,
+                        channel_id=channel_id,
+                        auth_token=auth_token,
+                    )
+                    new_youtube_auth.save()
+
+            return Response(
+                {
+                    "message": "Youtube auth token saved successfully.",
+                },
+                status=status.HTTP_200_OK,
+            )
+        except HttpError as e:
+            logging.info("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))
+            return Response({"message": e.reason}, status=e.resp.status)
+
+    else:
+        return Response({"message": response.content}, status=response.status_code)
 
 
 @swagger_auto_schema(
@@ -299,7 +328,8 @@ def upload_to_youtube(request):
             except Exception as e:
                 logging.info("There is a issue with file srt file creation")
                 response_obj["status"] = "Fail"
-                response_obj["message"] = e.args[0]
+                error = html2text.html2text(e.args[0])
+                response_obj["message"] = error
                 task_responses.append(response_obj)
                 continue
 
@@ -330,6 +360,7 @@ def upload_to_youtube(request):
                     if youtube_auth is None:
                         response_obj["status"] = "Fail"
                         response_obj["message"] = "Youtube auth not found."
+                        task_responses.append(response_obj)
                         continue
 
                 else:
@@ -341,7 +372,9 @@ def upload_to_youtube(request):
 
             except Exception as e:
                 response_obj["status"] = "Fail"
-                response_obj["message"] = e.args[0]
+                error = html2text.html2text(e.args[0])
+                logging.info(error)
+                response_obj["message"] = error
                 task_responses.append(response_obj)
                 continue
 
@@ -366,21 +399,32 @@ def upload_to_youtube(request):
                     )
 
                     # Check if the stored access token has expired
+                    logging.info("creds.expired")
+                    logging.info(creds.expired)
                     if creds.expired:
                         # Use the refresh token to obtain a new access token
                         url = "https://oauth2.googleapis.com/token"
-                        headers = {"Content-Type": "application/json"}
+                        headers = {"Content-Type": "x-www-form-urlencoded"}
                         data = {
                             "grant_type": "refresh_token",
                             "refresh_token": creds.refresh_token,
                             "client_id": creds.client_id,
                             "client_secret": creds.client_secret,
                         }
+                        logging.info("Data for refresh token")
+                        logging.info(data)
 
                         response = requests.post(url=url, headers=headers, json=data)
+                        logging.info("response.content %s", str(response.content))
+                        logging.info(
+                            "response.status_code %s", str(response.status_code)
+                        )
                         auth_content = response.content
                         auth_content_decode = auth_content.decode("utf-8")
                         auth_content_json = json.loads(auth_content_decode)
+
+                        logging.info("auth_content_json.access_token")
+                        logging.info(auth_content_json["access_token"])
 
                         youtube_auth_reeuset_data = {
                             "client_id": creds.client_id,
@@ -391,6 +435,7 @@ def upload_to_youtube(request):
                             youtube_auth_reeuset_data,
                             scopes=["https://www.googleapis.com/auth/youtubepartner"],
                         )
+                        logging.info("Re-Generated credential")
 
                 youtube = build("youtube", "v3", credentials=creds)
                 insert_request = (
@@ -435,15 +480,17 @@ def upload_to_youtube(request):
                 )
                 response_obj["status"] = "Fail"
                 logging.info("e.reason")
-                logging.info(e.reason)
-                response_obj["message"] = e.reason
+                error = html2text.html2text(e.reason)
+                logging.info(error)
+                response_obj["message"] = error
                 task_responses.append(response_obj)
                 continue
             except Exception as e:
                 response_obj["status"] = "Fail"
                 logging.info("e args")
-                logging.info(e.args[0])
-                response_obj["message"] = e.args[0]
+                error = html2text.html2text(e.args[0])
+                logging.info(error)
+                response_obj["message"] = error
                 task_responses.append(response_obj)
                 continue
 
