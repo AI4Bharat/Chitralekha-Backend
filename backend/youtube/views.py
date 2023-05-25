@@ -356,7 +356,11 @@ def upload_to_youtube(request):
                     channel_id = video_obj_for_channel["snippet"]["channelId"]
 
                     # By channel id, get auth token from database
-                    youtube_auth = Youtube.objects.filter(channel_id=channel_id).first()
+                    youtube_auth = (
+                        Youtube.objects.filter(channel_id=channel_id)
+                        .filter(project_id=video.project_id.id)
+                        .first()
+                    )
                     if youtube_auth is None:
                         response_obj["status"] = "Fail"
                         response_obj["message"] = "Youtube auth not found."
