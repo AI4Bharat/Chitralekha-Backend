@@ -488,13 +488,15 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         }.values()
                     )
                 else:
-                    total_count = len(all_tasks_in_projects)
+                    total_count = len(all_tasks_in_projects) + len(
+                        Task.objects.filter(user=user)
+                    )
                     tasks_list = list(
                         {v["id"]: v for v in tasks_in_projects_list}.values()
                     )
             else:
                 all_tasks = Task.objects.filter(user=user).order_by("-updated_at")
-                total_count = len(all_tasks)
+                total_count = len(all_tasks) + len(all_tasks_in_projects)
                 start = offset * int(limit)
                 end = start + int(limit)
                 tasks = all_tasks[start:end]
