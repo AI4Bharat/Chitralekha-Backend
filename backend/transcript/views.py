@@ -164,16 +164,7 @@ def export_transcript(request):
         return convert_to_docx(content)
     elif export_type == "ytt":
         try:
-            json_data = {
-                "srt": transcript.payload,
-                "url": task.video.url,
-                "language": task.video.language,
-            }
-            response = requests.post(
-                "http://216.48.183.5:7000/align_json",
-                json=json_data,
-            )
-            data = response.json()
+            data = align_json_api(transcript)
             ytt_genorator(data, "transcript_local.ytt", prev_line_in=0, mode="data")
             file_location = "transcript_local.ytt"
         except:
@@ -1530,6 +1521,25 @@ def save_transcription(request):
         )
 
 
+def align_json_api(transcript_obj):
+    final_payload = []
+    payload = transcript_obj.payload
+    for index in range(len(transcript_obj.payload["payload"])):
+        if "text" in transcript_obj.payload["payload"][index]:
+            final_payload.append(transcript_obj.payload["payload"][index])
+    json_data = {
+        "srt": {"payload": final_payload},
+        "url": transcript_obj.video.url,
+        "language": transcript_obj.video.language,
+    }
+    response = requests.post(
+        "http://216.48.183.5:7000/align_json",
+        json=json_data,
+    )
+    data = response.json()
+    return data
+
+
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
@@ -1592,23 +1602,12 @@ def get_word_aligned_json(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    print("Transcript Object", transcript_obj)
     try:
-        payload = transcript_obj.payload
-        json_data = {
-            "srt": transcript_obj.payload,
-            "url": video.url,
-            "language": video.language,
-        }
-        response = requests.post(
-            "http://216.48.183.5:7000/align_json",
-            json=json_data,
-        )
-        data = response.json()
-        print("Response data", type(data))
+        data = align_json_api(trancript_obj)
         for i in range(len(payload["payload"])):
-            data[str(i + 1)]["start_time"] = payload["payload"][i]["start_time"]
-            data[str(i + 1)]["end_time"] = payload["payload"][i]["end_time"]
+            if "text" in payload["payload"][i].keys():
+                data[str(i + 1)]["start_time"] = payload["payload"][i]["start_time"]
+                data[str(i + 1)]["end_time"] = payload["payload"][i]["end_time"]
 
         if len(data) == 0:
             data = {}
