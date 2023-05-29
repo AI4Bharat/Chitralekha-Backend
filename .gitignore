@@ -1,12 +1,17 @@
 */models/
 */media/
 */downloads/
-*/placeholder.vtt
 */flashlight/
 */fairseq/
 */kenlm/
 */indic-punct/
 */indicTrans/
+
+*.json
+*.vtt
+*.ytt
+*.wav
+backend/temp*
 
 *.db
 *.rdb
