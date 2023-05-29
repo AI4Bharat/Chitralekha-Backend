@@ -1580,7 +1580,12 @@ def get_word_aligned_json(request):
         transcript_obj = transcript.filter(
             status="TRANSCRIPTION_REVIEW_INPROGRESS"
         ).first()
-    elif transcript.filter(status="TRANSCRIPTION_REVIEWER_ASSIGNED").first() != None:
+    elif (
+        transcript.filter(status="TRANSCRIPTION_REVIEWER_ASSIGNED")
+        .filter(task__is_active=True)
+        .first()
+        != None
+    ):
         transcript_obj = transcript.filter(
             status="TRANSCRIPTION_REVIEWER_ASSIGNED"
         ).first()
@@ -1603,11 +1608,15 @@ def get_word_aligned_json(request):
         )
 
     try:
-        data = align_json_api(trancript_obj)
-        for i in range(len(payload["payload"])):
-            if "text" in payload["payload"][i].keys():
-                data[str(i + 1)]["start_time"] = payload["payload"][i]["start_time"]
-                data[str(i + 1)]["end_time"] = payload["payload"][i]["end_time"]
+        data = align_json_api(transcript_obj)
+        for i in range(len(transcript_obj.payload["payload"])):
+            if "text" in transcript_obj.payload["payload"][i].keys():
+                data[str(i + 1)]["start_time"] = transcript_obj.payload["payload"][i][
+                    "start_time"
+                ]
+                data[str(i + 1)]["end_time"] = transcript_obj.payload["payload"][i][
+                    "end_time"
+                ]
 
         if len(data) == 0:
             data = {}
