@@ -77,6 +77,8 @@ def ytt_genorator(json_data, ytt_file_name, prev_line_in=0, mode="file"):
             end_timestamp_words = []
 
             if j < len(data) - 1:
+                if data[str(j + 1)]["timestamps"] == None:
+                    continue
                 # next sentence start time stamp for the end of the chunck
                 dict_next = data[str(j + 1)]["timestamps"][0]
                 word_next = str((list(dict_next.keys())[0]))
