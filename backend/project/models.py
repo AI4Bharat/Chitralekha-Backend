@@ -14,7 +14,6 @@ TRANSCRIPT_TYPE = (
 TRANSLATION_TYPE_CHOICES = (
     ("MACHINE_GENERATED", "Machine Generated"),
     ("MANUALLY_CREATED", "Manually Created"),
-    ("MANUALLY_UPLOADED", "Manually Uploaded"),
 )
 
 TASK_TYPE = (
