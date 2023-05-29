@@ -1586,6 +1586,7 @@ def get_word_aligned_json(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    print("Transcript Object", transcript_obj)
     try:
         payload = transcript_obj.payload
         json_data = {
@@ -1598,7 +1599,7 @@ def get_word_aligned_json(request):
             json=json_data,
         )
         data = response.json()
-
+        print("Response data", type(data))
         for i in range(len(payload["payload"])):
             data[str(i + 1)]["start_time"] = payload["payload"][i]["start_time"]
             data[str(i + 1)]["end_time"] = payload["payload"][i]["end_time"]
