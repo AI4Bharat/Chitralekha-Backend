@@ -29,6 +29,7 @@ import json
 from translation.metadata import LANGUAGE_CHOICES
 from project.views import ProjectViewSet
 from django.http import HttpRequest
+from django.db.models import Q
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -299,6 +300,20 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 type=openapi.TYPE_INTEGER,
                 required=True,
             ),
+            openapi.Parameter(
+                "filter",
+                openapi.IN_QUERY,
+                description=("Offset parameter"),
+                type=openapi.TYPE_OBJECT,
+                required=False,
+            ),
+            openapi.Parameter(
+                "search",
+                openapi.IN_QUERY,
+                description=("Search parameter"),
+                type=openapi.TYPE_OBJECT,
+                required=False,
+            ),
         ],
         responses={200: "List of org tasks"},
     )
@@ -314,11 +329,18 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             limit = int(request.query_params["limit"])
             offset = int(request.query_params["offset"])
             offset -= 1
+            if "filter" in request.query_params:
+                filter_dict = json.loads(request.query_params["filter"])
+
+            if "search" in request.query_params:
+                search_dict = json.loads(request.query_params["search"])
+
         except Organization.DoesNotExist:
             return Response(
                 {"message": "Project does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
         user = request.user
         src_languages = set()
         target_languages = set()
@@ -330,7 +352,15 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         ):
             projects = Project.objects.filter(organization_id=organization)
             videos = Video.objects.filter(project_id__in=projects)
+            # filter data based on search parameters
+            videos = self.search_filter(videos, search_dict, filter_dict)
+
             all_tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
+            # all_tasks = Task.objects.all()
+
+            # filter data based on filter parameters
+            all_tasks = self.filter_query(all_tasks, filter_dict)
+
             total_count = len(all_tasks)
             start = offset * int(limit)
             end = start + int(limit)
@@ -379,10 +409,17 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     managers__in=[user.id]
                 )
                 videos = Video.objects.filter(project_id__in=projects)
+                # filter data based on search parameters
+                videos = self.search_filter(videos, search_dict, filter_dict)
+
                 all_tasks_in_projects = (
                     Task.objects.filter(video__in=videos)
                     .exclude(user=user)
                     .order_by("-updated_at")
+                )
+                # filter data based on filter parameters
+                all_tasks_in_projects = self.filter_query(
+                    all_tasks_in_projects, filter_dict
                 )
                 all_tasks_in_projects_count = len(all_tasks_in_projects)
                 start = offset * int(limit)
@@ -434,8 +471,14 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             buttons["View"] = True
                     task["buttons"] = buttons
                 if start_assigned != -1:
-                    all_assigned_tasks = Task.objects.filter(user=user).order_by(
-                        "-updated_at"
+                    videos = Video.objects.all()
+                    # filter data based on search parameters
+                    videos = self.search_filter(videos, search_dict, filter_dict)
+
+                    all_assigned_tasks = (
+                        Task.objects.filter(user=user)
+                        .filter(video__in=videos)
+                        .order_by("-updated_at")
                     )
                     assigned_tasks = all_assigned_tasks[start_assigned:end_assigned]
                     all_assigned_tasks_count = len(all_assigned_tasks)
@@ -495,7 +538,18 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         {v["id"]: v for v in tasks_in_projects_list}.values()
                     )
             else:
-                all_tasks = Task.objects.filter(user=user).order_by("-updated_at")
+                videos = Video.objects.all()
+                # filter data based on search parameters
+                videos = self.search_filter(videos, search_dict, filter_dict)
+
+                all_tasks = (
+                    Task.objects.filter(user=user)
+                    .filter(video__in=videos)
+                    .order_by("-updated_at")
+                )
+                # filter data based on filter parameters
+                all_tasks = self.filter_query(all_tasks, filter_dict)
+
                 total_count = len(all_tasks) + len(all_tasks_in_projects)
                 start = offset * int(limit)
                 end = start + int(limit)
@@ -541,6 +595,32 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+
+    def search_filter(self, videos, search_dict, filter_dict):
+        if search_dict is not None:
+            if "video_name" in search_dict:
+                videos = videos.filter(Q(name__contains=search_dict["video_name"]))
+            if "description" in search_dict:
+                videos = videos.filter(
+                    Q(description__contains=search_dict["description"])
+                )
+
+        if "src_language" in filter_dict:
+            videos = videos.filter(language__in=filter_dict["src_language"])
+
+        return videos
+
+    def filter_query(self, all_tasks, filter_dict):
+        if "task_type" in filter_dict:
+            all_tasks = all_tasks.filter(task_type__in=filter_dict["task_type"])
+        if "target_language" in filter_dict:
+            all_tasks = all_tasks.filter(
+                target_language__in=filter_dict["target_language"]
+            )
+        if "status" in filter_dict:
+            all_tasks = all_tasks.filter(status__in=filter_dict["status"])
+
+        return all_tasks
 
     def get_project_report_users(self, project_id, user):
         data = ProjectViewSet(detail=True)
