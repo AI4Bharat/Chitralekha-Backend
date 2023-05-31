@@ -140,6 +140,7 @@ class UserFetchSerializer(serializers.ModelSerializer):
             "last_name",
             "role",
             "has_accepted_invite",
+            "languages",
         ]
         read_only_fields = [
             "id",
