@@ -131,7 +131,7 @@ def store_access_token(request):
         "code": auth_code,
         "client_id": auth_token["client_id"],
         "client_secret": auth_token["client_secret"],
-        "redirect_uri": frontend_url,
+        "redirect_uri": "https://dev.chitralekha.ai4bharat.org",
         "grant_type": "authorization_code",
     }
     response = requests.post(url=url, json=data)

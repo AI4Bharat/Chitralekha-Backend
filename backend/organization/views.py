@@ -282,15 +282,38 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
+    @swagger_auto_schema(
+        method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description=("Limit parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "offset",
+                openapi.IN_QUERY,
+                description=("Offset parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+        ],
+        responses={200: "List of org tasks"},
+    )
     @action(
         detail=True,
         methods=["GET"],
-        name="List Projects in Organization",
-        url_name="list_projects",
+        name="List Tasks in Organization",
+        url_name="list_tasks",
     )
     def list_org_tasks(self, request, pk=None, *args, **kwargs):
         try:
             organization = Organization.objects.get(pk=pk)
+            limit = int(request.query_params["limit"])
+            offset = int(request.query_params["offset"])
+            offset -= 1
         except Organization.DoesNotExist:
             return Response(
                 {"message": "Project does not exist"},
@@ -299,6 +322,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         user = request.user
         src_languages = set()
         target_languages = set()
+        total_count = 0
         if (
             organization.organization_owner == user
             or user.role == "ADMIN"
@@ -306,7 +330,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         ):
             projects = Project.objects.filter(organization_id=organization)
             videos = Video.objects.filter(project_id__in=projects)
-            tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
+            all_tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
+            total_count = len(all_tasks)
+            start = offset * int(limit)
+            end = start + int(limit)
+            tasks = all_tasks[start:end]
             tasks_serializer = TaskSerializer(tasks, many=True)
             tasks_list = json.loads(json.dumps(tasks_serializer.data))
             for task in tasks_list:
@@ -343,13 +371,37 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 managers__in=[user.id]
             )
             if len(projects) > 0:
+                all_tasks_in_projects_count = 0
+                all_assigned_tasks_count = 0
+                start_assigned = -1
+                end_assigned = -1
                 projects = Project.objects.filter(organization_id=organization).filter(
                     managers__in=[user.id]
                 )
                 videos = Video.objects.filter(project_id__in=projects)
-                tasks_in_projects = Task.objects.filter(video__in=videos).order_by(
-                    "-updated_at"
+                all_tasks_in_projects = (
+                    Task.objects.filter(video__in=videos)
+                    .exclude(user=user)
+                    .order_by("-updated_at")
                 )
+                all_tasks_in_projects_count = len(all_tasks_in_projects)
+                start = offset * int(limit)
+                end = start + int(limit)
+                if all_tasks_in_projects_count > start:
+                    start = offset * int(limit)
+                    end = start + int(limit)
+                elif (
+                    all_tasks_in_projects_count > start
+                    and all_tasks_in_projects_count < end
+                ):
+                    start = offset * int(limit)
+                    end = all_tasks_in_projects_count
+                    start_assigned = all_tasks_in_projects_count
+                    end_assigned = start + int(limit)
+                else:
+                    start_assigned = start
+                    end_assigned = end
+                tasks_in_projects = all_tasks_in_projects[start:end]
                 task_serializer = TaskSerializer(tasks_in_projects, many=True)
                 tasks_in_projects_list = json.loads(json.dumps(task_serializer.data))
                 for task in tasks_in_projects_list:
@@ -381,48 +433,73 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         ):
                             buttons["View"] = True
                     task["buttons"] = buttons
-
-                assigned_tasks = Task.objects.filter(user=user).order_by("-updated_at")
-                assigned_tasks_serializer = TaskSerializer(assigned_tasks, many=True)
-                assigned_tasks_list = json.loads(
-                    json.dumps(assigned_tasks_serializer.data)
-                )
-                for task in assigned_tasks_list:
-                    src_languages.add(task["src_language_label"])
-                    target_languages.add(task["target_language_label"])
-                    buttons = {
-                        "Edit": False,
-                        "Preview": False,
-                        "Export": False,
-                        "Update": False,
-                        "View": False,
-                        "Delete": False,
-                    }
-                    buttons["Update"] = True
-                    buttons["Delete"] = True
-                    if task["status"] == "COMPLETE":
-                        buttons["Export"] = True
-                        buttons["Preview"] = True
-                        buttons["Update"] = False
-                        buttons["Edit"] = False
-                    if task["status"] == "POST_PROCESS":
+                if start_assigned != -1:
+                    all_assigned_tasks = Task.objects.filter(user=user).order_by(
+                        "-updated_at"
+                    )
+                    assigned_tasks = all_assigned_tasks[start_assigned:end_assigned]
+                    all_assigned_tasks_count = len(all_assigned_tasks)
+                    assigned_tasks_serializer = TaskSerializer(
+                        assigned_tasks, many=True
+                    )
+                    assigned_tasks_list = json.loads(
+                        json.dumps(assigned_tasks_serializer.data)
+                    )
+                    for task in assigned_tasks_list:
+                        src_languages.add(task["src_language_label"])
+                        target_languages.add(task["target_language_label"])
+                        buttons = {
+                            "Edit": False,
+                            "Preview": False,
+                            "Export": False,
+                            "Update": False,
+                            "View": False,
+                            "Delete": False,
+                        }
                         buttons["Update"] = True
-                    if task["user"]["email"] == request.user.email:
-                        if task["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
-                            buttons["Edit"] = True
-                        if (
-                            task["status"] == "SELECTED_SOURCE"
-                            and task["task_type"] != "VOICEOVER_EDIT"
-                        ):
-                            buttons["View"] = True
-                    task["buttons"] = buttons
-                tasks_list = list(
-                    {
-                        v["id"]: v for v in tasks_in_projects_list + assigned_tasks_list
-                    }.values()
-                )
+                        buttons["Delete"] = True
+                        if task["status"] == "COMPLETE":
+                            buttons["Export"] = True
+                            buttons["Preview"] = True
+                            buttons["Update"] = False
+                            buttons["Edit"] = False
+                        if task["status"] == "POST_PROCESS":
+                            buttons["Update"] = True
+                        if task["user"]["email"] == request.user.email:
+                            if task["status"] not in [
+                                "COMPLETE",
+                                "POST_PROCESS",
+                                "FAILED",
+                            ]:
+                                buttons["Edit"] = True
+                            if (
+                                task["status"] == "SELECTED_SOURCE"
+                                and task["task_type"] != "VOICEOVER_EDIT"
+                            ):
+                                buttons["View"] = True
+                        task["buttons"] = buttons
+                        total_count = len(
+                            all_tasks_in_projects.union(all_assigned_tasks)
+                        )
+                    tasks_list = list(
+                        {
+                            v["id"]: v
+                            for v in tasks_in_projects_list + assigned_tasks_list
+                        }.values()
+                    )
+                else:
+                    total_count = len(all_tasks_in_projects) + len(
+                        Task.objects.filter(user=user)
+                    )
+                    tasks_list = list(
+                        {v["id"]: v for v in tasks_in_projects_list}.values()
+                    )
             else:
-                tasks = Task.objects.filter(user=user).order_by("-updated_at")
+                all_tasks = Task.objects.filter(user=user).order_by("-updated_at")
+                total_count = len(all_tasks) + len(all_tasks_in_projects)
+                start = offset * int(limit)
+                end = start + int(limit)
+                tasks = all_tasks[start:end]
                 tasks_serializer = TaskSerializer(tasks, many=True)
                 tasks_list = json.loads(json.dumps(tasks_serializer.data))
                 for task in tasks_list:
@@ -457,6 +534,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             target_languages_list.remove("-")
         return Response(
             {
+                "total_count": total_count,
                 "tasks_list": tasks_list,
                 "src_languages_list": sorted(list(src_languages)),
                 "target_languages_list": sorted(target_languages_list),
