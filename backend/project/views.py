@@ -1074,6 +1074,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 return Response(
                     {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
                 )
+
+        if len(serializer.data) == 0:
+            users = User.objects.filter(
+                id=request.user.id,
+            )
+            serializer = UserFetchSerializer(users, many=True)
+
         return Response(serializer.data)
 
     @action(
