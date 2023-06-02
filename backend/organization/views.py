@@ -30,6 +30,7 @@ from translation.metadata import LANGUAGE_CHOICES
 from project.views import ProjectViewSet
 from django.http import HttpRequest
 from django.db.models import Q
+from utils import *
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -605,19 +606,27 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     Q(description__contains=search_dict["description"])
                 )
 
-        if "src_language" in filter_dict:
-            videos = videos.filter(language__in=filter_dict["src_language"])
+        if "src_language" in filter_dict and len(filter_dict["src_language"]):
+            src_lang_list = []
+            for lang in filter_dict["src_language"]:
+                lang_shortcode = get_language_label(lang)
+                src_lang_list.append(lang_shortcode)
+            if len(src_lang_list):
+                videos = videos.filter(language__in=src_lang_list)
 
         return videos
 
     def filter_query(self, all_tasks, filter_dict):
-        if "task_type" in filter_dict:
+        if "task_type" in filter_dict and len(filter_dict["task_type"]):
             all_tasks = all_tasks.filter(task_type__in=filter_dict["task_type"])
-        if "target_language" in filter_dict:
-            all_tasks = all_tasks.filter(
-                target_language__in=filter_dict["target_language"]
-            )
-        if "status" in filter_dict:
+        if "target_language" in filter_dict and len(filter_dict["target_language"]):
+            target_lang_list = []
+            for lang in filter_dict["target_language"]:
+                lang_shortcode = get_language_label(lang)
+                target_lang_list.append(lang_shortcode)
+            if len(target_lang_list):
+                all_tasks = all_tasks.filter(target_language__in=target_lang_list)
+        if "status" in filter_dict and len(filter_dict["status"]):
             all_tasks = all_tasks.filter(status__in=filter_dict["status"])
 
         return all_tasks
