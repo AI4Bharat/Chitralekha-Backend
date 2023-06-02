@@ -338,7 +338,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
         except Organization.DoesNotExist:
             return Response(
-                {"message": "Project does not exist"},
+                {"message": "Organization does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -357,7 +357,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             videos = self.search_filter(videos, search_dict, filter_dict)
 
             all_tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
-            # all_tasks = Task.objects.all()
 
             # filter data based on filter parameters
             all_tasks = self.filter_query(all_tasks, filter_dict)
@@ -551,7 +550,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 # filter data based on filter parameters
                 all_tasks = self.filter_query(all_tasks, filter_dict)
 
-                total_count = len(all_tasks) + len(all_tasks_in_projects)
+                total_count = len(all_tasks)
                 start = offset * int(limit)
                 end = start + int(limit)
                 tasks = all_tasks[start:end]
