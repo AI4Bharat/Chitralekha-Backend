@@ -426,6 +426,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 all_tasks_in_projects = self.filter_query(
                     all_tasks_in_projects, filter_dict
                 )
+                all_assigned_tasks = self.filter_query(all_assigned_tasks, filter_dict)
                 all_tasks_in_projects_count = len(all_tasks_in_projects)
                 start = offset * int(limit)
                 end = start + int(limit)
