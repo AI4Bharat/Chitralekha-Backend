@@ -417,6 +417,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     .exclude(user=user)
                     .order_by("-updated_at")
                 )
+                all_assigned_tasks = (
+                    Task.objects.filter(user=user)
+                    .filter(video__in=videos)
+                    .order_by("-updated_at")
+                )
                 # filter data based on filter parameters
                 all_tasks_in_projects = self.filter_query(
                     all_tasks_in_projects, filter_dict
@@ -441,6 +446,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 tasks_in_projects = all_tasks_in_projects[start:end]
                 task_serializer = TaskSerializer(tasks_in_projects, many=True)
                 tasks_in_projects_list = json.loads(json.dumps(task_serializer.data))
+
                 for task in tasks_in_projects_list:
                     src_languages.add(task["src_language_label"])
                     target_languages.add(task["target_language_label"])
@@ -471,15 +477,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             buttons["View"] = True
                     task["buttons"] = buttons
                 if start_assigned != -1:
-                    videos = Video.objects.all()
-                    # filter data based on search parameters
-                    videos = self.search_filter(videos, search_dict, filter_dict)
-
-                    all_assigned_tasks = (
-                        Task.objects.filter(user=user)
-                        .filter(video__in=videos)
-                        .order_by("-updated_at")
-                    )
                     assigned_tasks = all_assigned_tasks[start_assigned:end_assigned]
                     all_assigned_tasks_count = len(all_assigned_tasks)
                     assigned_tasks_serializer = TaskSerializer(
@@ -531,9 +528,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         }.values()
                     )
                 else:
-                    total_count = len(all_tasks_in_projects) + len(
-                        Task.objects.filter(user=user)
-                    )
+                    total_count = len(all_tasks_in_projects) + len(all_assigned_tasks)
                     tasks_list = list(
                         {v["id"]: v for v in tasks_in_projects_list}.values()
                     )
