@@ -1212,6 +1212,12 @@ def save_translation(request):
                 for ind in delete_indices:
                     translation_obj.payload["payload"].pop(ind)
 
+                num_words = 0
+                for idv_translation in translation_obj.payload["payload"]:
+                    if "text" in idv_translation.keys():
+                        num_words += len(idv_translation["text"].split(" "))
+                translation_obj.payload["num_words"] = num_words
+                translation_obj.save()
                 return Response(
                     {
                         "message": full_message,

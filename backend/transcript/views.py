@@ -1495,6 +1495,12 @@ def save_transcription(request):
                         task.save()
 
             if request.data.get("final"):
+                num_words = 0
+                for idv_transcription in transcript_obj.payload['payload']:
+                    if "text" in idv_transcription.keys():
+                        num_words += len(idv_transcription["text"].split(" "))
+                transcript_obj.payload["num_words"] = num_words
+                transcript_obj.save()
                 return Response(
                     {
                         "task_id": task_id,
