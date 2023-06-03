@@ -358,6 +358,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             videos = self.search_filter(videos, search_dict, filter_dict)
 
             all_tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
+
+            if "description" in search_dict and len(search_dict["description"]):
+                all_tasks = all_tasks.filter(
+                    Q(description__contains=search_dict["description"])
+                    | Q(description__contains=search_dict["description"])
+                )
             if "assignee" in search_dict and len(search_dict["assignee"]):
                 all_tasks = all_tasks.filter(
                     Q(user__first_name__contains=search_dict["assignee"])
@@ -434,8 +440,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         .filter(user=user)
                         .order_by("-updated_at")
                     )
-                    all_tasks_in_projects = all_tasks_in_projects.union(
-                        all_tasks_in_projects_assigned
+                    all_tasks_in_projects = (
+                        all_tasks_in_projects | all_tasks_in_projects_assigned
                     )
 
                 if "assignee" in search_dict and len(search_dict["assignee"]):
@@ -443,19 +449,19 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         Q(user__first_name__contains=search_dict["assignee"])
                         | Q(user__last_name__contains=search_dict["assignee"])
                     )
+                if "description" in search_dict and len(search_dict["description"]):
+                    all_tasks_in_projects = all_tasks_in_projects.filter(
+                        Q(description__contains=search_dict["description"])
+                        | Q(description__contains=search_dict["description"])
+                    )
 
                 # filter data based on filter parameters
                 all_tasks_in_projects = self.filter_query(
                     all_tasks_in_projects, filter_dict
                 )
                 all_tasks_in_projects_count = len(all_tasks_in_projects)
-                logging.info(
-                    "all_tasks_in_projects_count %s", str(all_tasks_in_projects_count)
-                )
                 start = offset * int(limit)
                 end = start + int(limit)
-                logging.info("Start Offset %s", str(start))
-                logging.info("End Offset %s", str(end))
                 tasks_in_projects = all_tasks_in_projects[start:end]
                 total_count = len(all_tasks_in_projects)
                 tasks_list = []
@@ -502,12 +508,18 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     .filter(video__in=videos)
                     .order_by("-updated_at")
                 )
+
                 if "assignee" in search_dict and len(search_dict["assignee"]):
                     all_tasks = all_tasks.filter(
                         Q(user__first_name__contains=search_dict["assignee"])
                         | Q(user__last_name__contains=search_dict["assignee"])
                     )
 
+                if "description" in search_dict and len(search_dict["description"]):
+                    all_tasks = all_tasks.filter(
+                        Q(description__contains=search_dict["description"])
+                        | Q(description__contains=search_dict["description"])
+                    )
                 # filter data based on filter parameters
                 all_tasks = self.filter_query(all_tasks, filter_dict)
                 total_count = len(all_tasks)
@@ -556,10 +568,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         if search_dict is not None:
             if "video_name" in search_dict:
                 videos = videos.filter(Q(name__contains=search_dict["video_name"]))
-            if "description" in search_dict:
-                videos = videos.filter(
-                    Q(description__contains=search_dict["description"])
-                )
 
         if "src_language" in filter_dict and len(filter_dict["src_language"]):
             src_lang_list = []
