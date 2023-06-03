@@ -428,6 +428,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
                 all_assigned_tasks = self.filter_query(all_assigned_tasks, filter_dict)
                 all_tasks_in_projects_count = len(all_tasks_in_projects)
+                logging.info(
+                    "all_tasks_in_projects_count %s", str(all_tasks_in_projects_count)
+                )
                 start = offset * int(limit)
                 end = start + int(limit)
                 if all_tasks_in_projects_count > start:
@@ -444,10 +447,14 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 else:
                     start_assigned = start
                     end_assigned = end
+                logging.info("Start Offset %s", str(start))
+                logging.info("End Offset %s", str(end))
+                logging.info("Assigned Start Offset %s", str(start_assigned))
+                logging.info("Assigned End Offset %s", str(end_assigned))
                 tasks_in_projects = all_tasks_in_projects[start:end]
                 task_serializer = TaskSerializer(tasks_in_projects, many=True)
                 tasks_in_projects_list = json.loads(json.dumps(task_serializer.data))
-
+                logging.info("Tasks in Projects list %s", len(tasks_in_projects_list))
                 for task in tasks_in_projects_list:
                     src_languages.add(task["src_language_label"])
                     target_languages.add(task["target_language_label"])
@@ -485,6 +492,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     )
                     assigned_tasks_list = json.loads(
                         json.dumps(assigned_tasks_serializer.data)
+                    )
+                    logging.info(
+                        "Assigned tasks count %s", str(all_assigned_tasks_count)
+                    )
+                    logging.info(
+                        "Tasks in Projects list %s", str(len(assigned_tasks_list))
                     )
                     for task in assigned_tasks_list:
                         src_languages.add(task["src_language_label"])
@@ -529,7 +542,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         }.values()
                     )
                 else:
-                    total_count = len(all_tasks_in_projects) + len(all_assigned_tasks)
+                    total_count = len(all_tasks_in_projects.union(all_assigned_tasks))
                     tasks_list = list(
                         {v["id"]: v for v in tasks_in_projects_list}.values()
                     )
