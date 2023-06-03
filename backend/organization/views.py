@@ -369,7 +369,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
             total_count = len(all_tasks)
             start = offset * int(limit)
-            end = start + int(limit)
+            end = start + int(limit) - 1
             tasks = all_tasks[start:end]
             tasks_serializer = TaskSerializer(tasks, many=True)
             tasks_list = json.loads(json.dumps(tasks_serializer.data))
@@ -450,11 +450,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "all_tasks_in_projects_count %s", str(all_tasks_in_projects_count)
                 )
                 start = offset * int(limit)
-                end = start + int(limit)
-                if all_tasks_in_projects_count > start:
-                    start = offset * int(limit)
-                    end = start + int(limit)
-                elif (
+                end = start + int(limit) - 1
+                if (
                     all_tasks_in_projects_count > start
                     and all_tasks_in_projects_count < end
                 ):
@@ -462,6 +459,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     end = all_tasks_in_projects_count
                     start_assigned = all_tasks_in_projects_count
                     end_assigned = start + int(limit)
+                elif all_tasks_in_projects_count > start:
+                    start = offset * int(limit)
+                    end = start + int(limit) - 1
                 else:
                     start_assigned = start
                     end_assigned = end
@@ -585,7 +585,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
                 total_count = len(all_tasks)
                 start = offset * int(limit)
-                end = start + int(limit)
+                end = start + int(limit) - 1
                 tasks = all_tasks[start:end]
                 tasks_serializer = TaskSerializer(tasks, many=True)
                 tasks_list = json.loads(json.dumps(tasks_serializer.data))
