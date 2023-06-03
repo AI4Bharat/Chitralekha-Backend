@@ -357,6 +357,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             videos = self.search_filter(videos, search_dict, filter_dict)
 
             all_tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
+            if "assignee" in search_dict and len(search_dict["assignee"]):
+                all_tasks = all_tasks.filter(
+                    Q(user__first_name__contains=search_dict["assignee"])
+                    | Q(user__last_name__contains=search_dict["assignee"])
+                )
 
             # filter data based on filter parameters
             all_tasks = self.filter_query(all_tasks, filter_dict)
@@ -417,11 +422,23 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     .exclude(user=user)
                     .order_by("-updated_at")
                 )
+                if "assignee" in search_dict and len(search_dict["assignee"]):
+                    all_tasks_in_projects = all_tasks_in_projects.filter(
+                        Q(user__first_name__contains=search_dict["assignee"])
+                        | Q(user__last_name__contains=search_dict["assignee"])
+                    )
+
                 all_assigned_tasks = (
                     Task.objects.filter(user=user)
                     .filter(video__in=videos)
                     .order_by("-updated_at")
                 )
+                if "assignee" in search_dict and len(search_dict["assignee"]):
+                    all_assigned_tasks = all_assigned_tasks.filter(
+                        Q(user__first_name__contains=search_dict["assignee"])
+                        | Q(user__last_name__contains=search_dict["assignee"])
+                    )
+
                 # filter data based on filter parameters
                 all_tasks_in_projects = self.filter_query(
                     all_tasks_in_projects, filter_dict
@@ -556,6 +573,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     .filter(video__in=videos)
                     .order_by("-updated_at")
                 )
+                if "assignee" in search_dict and len(search_dict["assignee"]):
+                    all_tasks = all_tasks.filter(
+                        Q(user__first_name__contains=search_dict["assignee"])
+                        | Q(user__last_name__contains=search_dict["assignee"])
+                    )
+
                 # filter data based on filter parameters
                 all_tasks = self.filter_query(all_tasks, filter_dict)
 
