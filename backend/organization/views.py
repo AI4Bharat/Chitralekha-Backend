@@ -31,6 +31,7 @@ from project.views import ProjectViewSet
 from django.http import HttpRequest
 from django.db.models import Q
 from utils import *
+import logging
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
