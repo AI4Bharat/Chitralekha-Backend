@@ -193,6 +193,9 @@ def export_transcript(request):
             file_data = f.read()
         response = HttpResponse(file_data, content_type="application/xml")
         response["Content-Disposition"] = 'attachment; filename="transcript.ytt"'
+        if return_file_content:
+            logging.info("Return File location")
+            return file_location
         os.remove(file_location)
         return response
     else:
