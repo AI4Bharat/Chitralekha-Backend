@@ -985,7 +985,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     id=video_id,
                 ).first()
                 users = users.filter(
-                    languages__contains=[dict(LANGUAGE_CHOICES)[video.language]],   # filtering of users based on video language
+                    languages__contains=[
+                        dict(LANGUAGE_CHOICES)[video.language]
+                    ],  # filtering of users based on video language
                 )
             except:
                 return Response(
@@ -1051,7 +1053,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         Q(role="PROJECT_MANAGER")
                         | Q(role="ORG_OWNER")
                         | Q(role="UNIVERSAL_EDITOR")
-                        | Q(role="VOICEOVER_REVIEWER")
                         | Q(is_superuser=True)
                     )
 
@@ -1066,9 +1067,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     and target_language
                 ):
                     user_by_roles = user_by_roles.filter(
-                        languages__contains=[dict(LANGUAGE_CHOICES)[target_language]],   # filtering of users based on target language
+                        languages__contains=[
+                            dict(LANGUAGE_CHOICES)[target_language]
+                        ],  # filtering of users based on target language
                     )
-
+                    users = User.objects.filter(
+                        id=request.user.id,
+                    )
+                    user_by_roles = user_by_roles.union(users)
                 serializer = UserFetchSerializer(user_by_roles, many=True)
             except Task.DoesNotExist:
                 return Response(
@@ -1080,7 +1086,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 id=request.user.id,
             )
             serializer = UserFetchSerializer(users, many=True)
-
         return Response(serializer.data)
 
     @action(

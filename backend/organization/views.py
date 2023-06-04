@@ -32,6 +32,7 @@ from django.http import HttpRequest
 from django.db.models import Q
 from utils import *
 import logging
+import math
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -372,8 +373,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
             # filter data based on filter parameters
             all_tasks = self.filter_query(all_tasks, filter_dict)
-
             total_count = len(all_tasks)
+            total_pages = math.ceil(total_count / int(limit))
+            if offset > total_pages - 1:
+                offset = 0
             start = offset * int(limit)
             end = start + int(limit) - 1
             tasks = all_tasks[start:end]
@@ -421,7 +424,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     .filter(members__in=[user.id])
                     .values_list("id", flat=True)
                 )
-                all_tasks_in_projects_count = 0
                 videos = Video.objects.filter(project_id__in=projects)
                 # filter data based on search parameters
                 videos = self.search_filter(videos, search_dict, filter_dict)
@@ -459,11 +461,14 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 all_tasks_in_projects = self.filter_query(
                     all_tasks_in_projects, filter_dict
                 )
-                all_tasks_in_projects_count = len(all_tasks_in_projects)
+                total_count = len(all_tasks_in_projects)
+                total_pages = math.ceil(total_count / int(limit))
+                if offset > total_pages:
+                    offset = 0
                 start = offset * int(limit)
                 end = start + int(limit)
                 tasks_in_projects = all_tasks_in_projects[start:end]
-                total_count = len(all_tasks_in_projects)
+
                 tasks_list = []
                 for task_o in tasks_in_projects:
                     task_serializer = TaskSerializer(task_o)
@@ -523,6 +528,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 # filter data based on filter parameters
                 all_tasks = self.filter_query(all_tasks, filter_dict)
                 total_count = len(all_tasks)
+                total_pages = math.ceil(total_count / int(limit))
+                if offset > total_pages:
+                    offset = 0
                 start = offset * int(limit)
                 end = start + int(limit)
                 tasks = all_tasks[start:end]
