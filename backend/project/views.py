@@ -949,6 +949,20 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 type=openapi.TYPE_STRING,
                 required=False,
             ),
+            openapi.Parameter(
+                "video_id",
+                openapi.IN_QUERY,
+                description=("An integer to identify the video"),
+                type=openapi.TYPE_INTEGER,
+                required=False,
+            ),
+            openapi.Parameter(
+                "target_language",
+                openapi.IN_QUERY,
+                description=("A string to identify the target language"),
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
         ],
         responses={200: "Get members of a project"},
     )
@@ -963,13 +977,32 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
         users = project.members.filter(has_accepted_invite=True).all()
+
+        if "video_id" in request.query_params:
+            video_id = int(request.query_params["video_id"])
+            try:
+                video = Video.objects.filter(
+                    id=video_id,
+                ).first()
+                users = users.filter(
+                    languages__contains=[dict(LANGUAGE_CHOICES)[video.language]],   # filtering of users based on video language
+                )
+            except:
+                return Response(
+                    {"message": "Invalid video id or language"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         serializer = UserFetchSerializer(users, many=True)
+
+        target_language = None
+
+        if "target_language" in request.query_params:
+            target_language = request.query_params["target_language"]
 
         if "task_type" in request.query_params:
             task_type = request.query_params["task_type"]
             try:
-                users_in_project = project.members.all()
-                users = users_in_project.filter(has_accepted_invite=True)
                 if task_type == "TRANSCRIPTION_EDIT":
                     user_by_roles = users.filter(
                         Q(role="PROJECT_MANAGER")
@@ -1021,11 +1054,33 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         | Q(role="VOICEOVER_REVIEWER")
                         | Q(is_superuser=True)
                     )
+
+                if (
+                    task_type
+                    in (
+                        "TRANSLATION_EDIT",
+                        "TRANSLATION_REVIEW",
+                        "VOICEOVER_EDIT",
+                        "VOICEOVER_REVIEW",
+                    )
+                    and target_language
+                ):
+                    user_by_roles = user_by_roles.filter(
+                        languages__contains=[dict(LANGUAGE_CHOICES)[target_language]],   # filtering of users based on target language
+                    )
+
                 serializer = UserFetchSerializer(user_by_roles, many=True)
             except Task.DoesNotExist:
                 return Response(
                     {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
                 )
+
+        if len(serializer.data) == 0:
+            users = User.objects.filter(
+                id=request.user.id,
+            )
+            serializer = UserFetchSerializer(users, many=True)
+
         return Response(serializer.data)
 
     @action(
