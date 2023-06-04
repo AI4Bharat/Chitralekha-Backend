@@ -198,9 +198,16 @@ def store_access_token(request):
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
-            "task_ids": openapi.Schema(type=openapi.TYPE_OBJECT),
+            "task_ids": openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                description="List of task ids to be uploaded.",
+            ),
+            "export_type": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Export Type of Transcript. Default is srt.",
+            ),
         },
-        required=["video_id"],
+        required=["task_ids"],
     ),
     responses={
         204: "Video caption stored successfully.",
@@ -217,6 +224,7 @@ def upload_to_youtube(request):
     task_responses = []
     # get request parameters
     get_task_ids = request.data.get("task_ids")
+    export_type = request.data.get("export_type")
     if (type(get_task_ids) is list) and len(get_task_ids) > 0:
         # Iterating over task ids
         for get_task_id in get_task_ids:
@@ -302,8 +310,10 @@ def upload_to_youtube(request):
                         "TRANSCRIPTION_REVIEW",
                         "TRANSCRIPTION_EDIT",
                     ]:
+                        if export_type is None:
+                            export_type = "srt"
                         target_lang_content = get_export_transcript(
-                            request, get_task_id, "srt"
+                            request, get_task_id, export_type
                         )
                         SUBTITLE_LANG = video.language
                     else:
@@ -315,7 +325,10 @@ def upload_to_youtube(request):
                     serialized_data = json.loads(
                         target_lang_content.content.decode("utf-8")
                     )
-                    file_name = str(task_obj.id) + "_" + SUBTITLE_LANG + ".srt"
+                    if export_type is not None:
+                        file_name = str(task_obj.id) + "_" + SUBTITLE_LANG + ".srt"
+                    else:
+                        file_name = str(task_obj.id) + "_" + SUBTITLE_LANG + export_type
                     caption_file = uploadToLocalDir(file_name, serialized_data)
                 else:
                     response_obj["status"] = "Fail"
@@ -326,7 +339,7 @@ def upload_to_youtube(request):
                     continue
 
             except Exception as e:
-                logging.info("There is a issue with file srt file creation")
+                logging.info("An issue occured while exporting the subtitles.")
                 response_obj["status"] = "Fail"
                 error = html2text.html2text(e.args[0])
                 response_obj["message"] = error
