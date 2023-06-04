@@ -326,12 +326,16 @@ def upload_to_youtube(request):
                     if export_type == "ytt":
                         file_name = str(task_obj.id) + "_" + SUBTITLE_LANG + ".ytt"
                         caption_file = target_lang_content
+                        logging.info("YTT Content")
+                        logging.info(caption_file)
                     else:
                         serialized_data = json.loads(
                             target_lang_content.content.decode("utf-8")
                         )
                         file_name = str(task_obj.id) + "_" + SUBTITLE_LANG + ".srt"
                         caption_file = uploadToLocalDir(file_name, serialized_data)
+                        logging.info("Caption File")
+                        logging.info(caption_file)
                 else:
                     response_obj["status"] = "Fail"
                     response_obj[
