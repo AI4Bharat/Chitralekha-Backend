@@ -104,6 +104,8 @@ services:
         condition: service_started
       # celery_voiceover:
       #   condition: service_started
+      celery_beat:
+        condition: service_started
     command: python3 -m celery -A backend flower --loglevel=info
     restart: unless-stopped
 

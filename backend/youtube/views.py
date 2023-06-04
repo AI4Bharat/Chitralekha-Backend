@@ -43,7 +43,7 @@ import logging
 import datetime
 from datetime import timedelta
 from urllib.parse import urlparse, parse_qs
-from config import youtube_api_key
+from config import youtube_api_key, frontend_url
 from .utils import *
 from video.utils import *
 
@@ -131,9 +131,10 @@ def store_access_token(request):
         "code": auth_code,
         "client_id": auth_token["client_id"],
         "client_secret": auth_token["client_secret"],
-        "redirect_uri": "https://dev.chitralekha.ai4bharat.org",
+        "redirect_uri": frontend_url,
         "grant_type": "authorization_code",
     }
+   
     response = requests.post(url=url, json=data)
 
     if response.status_code == 200:

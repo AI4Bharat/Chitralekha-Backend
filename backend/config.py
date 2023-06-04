@@ -7,6 +7,7 @@ asr_url = os.getenv("ASR_API_URL")
 tts_url = os.getenv("TTS_API_URL")
 anuvaad_url = os.getenv("ANUVAAD_NMT_URL")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
+align_json_url = os.getenv("ALIGN_JSON_URL")
 
 storage_account_key = os.getenv("AZURE_STORAGE_ACCOUNT_KEY")
 connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
@@ -18,6 +19,7 @@ flower_username, flower_password = None, None
 if flower_auth:
     flower_username, flower_password = flower_auth.split(':')
 
+frontend_url = os.getenv("FRONTEND_URL")
 ## CONSTANTS ##
 
 backend_default_translation_type = "MACHINE_GENERATED"

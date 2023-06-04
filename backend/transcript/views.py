@@ -64,6 +64,7 @@ import logging
 from django.conf import settings
 from django.core.mail import send_mail
 import logging
+from config import align_json_url
 
 
 @api_view(["GET"])
@@ -1533,7 +1534,7 @@ def align_json_api(transcript_obj):
         "language": transcript_obj.video.language,
     }
     response = requests.post(
-        "http://216.48.183.5:7000/align_json",
+        align_json_url,
         json=json_data,
     )
     data = response.json()
