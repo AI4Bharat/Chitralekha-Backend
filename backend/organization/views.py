@@ -33,6 +33,8 @@ from django.db.models import Q
 from utils import *
 import logging
 import math
+from django.db.models import Value
+from django.db.models.functions import Concat
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -366,9 +368,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     | Q(description__contains=search_dict["description"])
                 )
             if "assignee" in search_dict and len(search_dict["assignee"]):
-                all_tasks = all_tasks.filter(
-                    Q(user__first_name__contains=search_dict["assignee"])
-                    | Q(user__last_name__contains=search_dict["assignee"])
+                queryset = all_tasks.annotate(
+                    search_name=Concat(
+                        "user__first_name", Value(" "), "user__last_name"
+                    )
+                )
+                all_tasks = queryset.filter(
+                    search_name__icontains=search_dict["assignee"]
                 )
 
             # filter data based on filter parameters
@@ -447,10 +453,15 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     )
 
                 if "assignee" in search_dict and len(search_dict["assignee"]):
-                    all_tasks_in_projects = all_tasks_in_projects.filter(
-                        Q(user__first_name__contains=search_dict["assignee"])
-                        | Q(user__last_name__contains=search_dict["assignee"])
+                    queryset = all_tasks_in_projects.annotate(
+                        search_name=Concat(
+                            "user__first_name", Value(" "), "user__last_name"
+                        )
                     )
+                    all_tasks_in_projects = queryset.filter(
+                        search_name__icontains=search_dict["assignee"]
+                    )
+
                 if "description" in search_dict and len(search_dict["description"]):
                     all_tasks_in_projects = all_tasks_in_projects.filter(
                         Q(description__contains=search_dict["description"])
@@ -515,9 +526,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
 
                 if "assignee" in search_dict and len(search_dict["assignee"]):
-                    all_tasks = all_tasks.filter(
-                        Q(user__first_name__contains=search_dict["assignee"])
-                        | Q(user__last_name__contains=search_dict["assignee"])
+                    queryset = all_tasks.annotate(
+                        search_name=Concat(
+                            "user__first_name", Value(" "), "user__last_name"
+                        )
+                    )
+                    all_tasks = queryset.filter(
+                        search_name__icontains=search_dict["assignee"]
                     )
 
                 if "description" in search_dict and len(search_dict["description"]):
