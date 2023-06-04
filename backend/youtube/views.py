@@ -133,6 +133,7 @@ def store_access_token(request):
         "client_secret": auth_token["client_secret"],
         "redirect_uri": frontend_url,
         "grant_type": "authorization_code",
+    }
    
     response = requests.post(url=url, json=data)
 
