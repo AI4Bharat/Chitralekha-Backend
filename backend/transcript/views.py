@@ -1706,6 +1706,67 @@ def get_transcription_report(request):
     return Response(res, status=status.HTTP_200_OK)
 
 
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_ids"],
+        properties={
+            "task_ids": openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                description="An integer identifying the task instance",
+            ),
+        },
+    ),
+    responses={200: "Generates the YTT and store in azure"},
+)
+@api_view(["POST"])
+def generate_ytt_for_transcript(request):
+    task_ids = request.data["task_ids"]
+    for task_id in task_ids:
+        try:
+            task = Task.objects.get(pk=task_id)
+        except Task.DoesNotExist:
+            return Response(
+                {"message": "Task not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        transcript = get_transcript_id(task)
+        if transcript is None:
+            return Response(
+                {"message": "Transcript not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        payload = transcript.payload["payload"]
+        if task.status == "COMPLETE":
+            if (
+                transcript.payload != None
+                and "payload" in transcript.payload.keys()
+                and len(transcript.payload["payload"]) > 0
+                and "ytt_azure_url" in transcript.payload.keys()
+            ):
+                file_location = transcript.payload["ytt_azure_url"].split("/")[-1]
+                download_ytt_from_azure(file_location)
+            else:
+                try:
+                    data = align_json_api(transcript)
+                    time_now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+                    file_location = (
+                        "Chitralekha_Video_{}_{}".format(transcript.video.id, time_now)
+                        + ".ytt"
+                    )
+                    ytt_genorator(data, file_location, prev_line_in=0, mode="data")
+                    upload_ytt_to_azure(transcript, file_location)
+                except:
+                    logging.info("Error in exporting to ytt format %s", str(task_id))
+                    return Response(
+                        {"message": "Error in exporting to ytt format"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
+    return Response({"message": "All the ytt are aligned"}, status=status.HTTP_200_OK)
+
+
 ## Define the Transcript ViewSet
 class TranscriptViewSet(ModelViewSet):
     """

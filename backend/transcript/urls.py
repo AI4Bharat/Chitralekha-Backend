@@ -63,4 +63,9 @@ urlpatterns = [
         views.get_sentence_from_timeline,
         name="get_sentence_from_timeline",
     ),
+    path(
+        "generate_ytt_for_transcript/",
+        views.generate_ytt_for_transcript,
+        name="generate_ytt_for_transcript",
+    ),
 ]
