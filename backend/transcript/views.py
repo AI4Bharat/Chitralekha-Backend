@@ -195,7 +195,10 @@ def export_transcript(request):
         response["Content-Disposition"] = 'attachment; filename="transcript.ytt"'
         if return_file_content:
             logging.info("Return File location")
-            return file_location
+            return Response(
+                {"file_location": file_location},
+                status=status.HTTP_200_OK,
+            )
         os.remove(file_location)
         return response
     else:
