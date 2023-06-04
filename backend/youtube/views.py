@@ -134,6 +134,7 @@ def store_access_token(request):
         "redirect_uri": frontend_url,
         "grant_type": "authorization_code",
     }
+   
     response = requests.post(url=url, json=data)
 
     if response.status_code == 200:
