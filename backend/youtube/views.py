@@ -134,7 +134,7 @@ def store_access_token(request):
         "redirect_uri": frontend_url,
         "grant_type": "authorization_code",
     }
-   
+
     response = requests.post(url=url, json=data)
 
     if response.status_code == 200:
@@ -323,14 +323,15 @@ def upload_to_youtube(request):
                         task_responses.append(response_obj)
                         continue
 
-                    serialized_data = json.loads(
-                        target_lang_content.content.decode("utf-8")
-                    )
-                    if export_type is not None:
-                        file_name = str(task_obj.id) + "_" + SUBTITLE_LANG + ".srt"
+                    if export_type == "ytt":
+                        file_name = str(task_obj.id) + "_" + SUBTITLE_LANG + ".ytt"
+                        caption_file = target_lang_content
                     else:
-                        file_name = str(task_obj.id) + "_" + SUBTITLE_LANG + export_type
-                    caption_file = uploadToLocalDir(file_name, serialized_data)
+                        serialized_data = json.loads(
+                            target_lang_content.content.decode("utf-8")
+                        )
+                        file_name = str(task_obj.id) + "_" + SUBTITLE_LANG + ".srt"
+                        caption_file = uploadToLocalDir(file_name, serialized_data)
                 else:
                     response_obj["status"] = "Fail"
                     response_obj[
