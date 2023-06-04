@@ -49,6 +49,7 @@ from .models import (
 from .decorators import is_transcript_editor
 from .serializers import TranscriptSerializer
 from .utils.asr import get_asr_supported_languages, make_asr_api_call
+from .utils.ytt_align import *
 from users.models import User
 from rest_framework.response import Response
 from functools import wraps
@@ -64,7 +65,8 @@ import logging
 from django.conf import settings
 from django.core.mail import send_mail
 import logging
-from config import align_json_url
+from .tasks import celery_align_json
+import os
 
 
 @api_view(["GET"])
@@ -164,21 +166,35 @@ def export_transcript(request):
         content = convert_to_paragraph(lines)
         return convert_to_docx(content)
     elif export_type == "ytt":
-        try:
-            data = align_json_api(transcript)
-            ytt_genorator(data, "transcript_local.ytt", prev_line_in=0, mode="data")
-            file_location = "transcript_local.ytt"
-        except:
-            return Response(
-                {"message": "Error in exporting to ytt format."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        if (
+            transcript.payload != None
+            and "payload" in transcript.payload.keys()
+            and len(transcript.payload["payload"]) > 0
+            and "ytt_azure_url" in transcript.payload.keys()
+        ):
+            file_location = transcript.payload["ytt_azure_url"].split("/")[-1]
+            download_ytt_from_azure(file_location)
+        else:
+            try:
+                data = align_json_api(transcript)
+                time_now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+                file_location = (
+                    "Chitralekha_Video_{}_{}".format(transcript.video.id, time_now)
+                    + ".ytt"
+                )
+                ytt_genorator(data, file_location, prev_line_in=0, mode="data")
+                upload_ytt_to_azure(transcript, file_location)
+            except:
+                return Response(
+                    {"message": "Error in exporting to ytt format."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
         with open(file_location, "r") as f:
             file_data = f.read()
         response = HttpResponse(file_data, content_type="application/xml")
         response["Content-Disposition"] = 'attachment; filename="transcript.ytt"'
+        os.remove(file_location)
         return response
-
     else:
         return Response(
             {"message": "This type is not supported."},
@@ -1495,6 +1511,7 @@ def save_transcription(request):
                         task.save()
 
             if request.data.get("final"):
+                celery_align_json.delay(transcript_obj.id)
                 return Response(
                     {
                         "task_id": task_id,
@@ -1520,25 +1537,6 @@ def save_transcription(request):
             {"message": "Transcript doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
-
-def align_json_api(transcript_obj):
-    final_payload = []
-    payload = transcript_obj.payload
-    for index in range(len(transcript_obj.payload["payload"])):
-        if "text" in transcript_obj.payload["payload"][index]:
-            final_payload.append(transcript_obj.payload["payload"][index])
-    json_data = {
-        "srt": {"payload": final_payload},
-        "url": transcript_obj.video.url,
-        "language": transcript_obj.video.language,
-    }
-    response = requests.post(
-        align_json_url,
-        json=json_data,
-    )
-    data = response.json()
-    return data
 
 
 @swagger_auto_schema(
