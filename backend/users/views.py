@@ -553,7 +553,7 @@ class LanguageViewSet(viewsets.ViewSet):
         users = User.objects.all()
         for user in users:
             if user.has_accepted_invite:
-                if user.user.languages == None or len(user.languages) == 0:
+                if user.languages == None or len(user.languages) == 0:
                     user.languages = ["English", "Hindi"]
                     user.save()
                 if user.phone == "":
