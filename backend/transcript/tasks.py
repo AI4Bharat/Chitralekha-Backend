@@ -32,3 +32,4 @@ def celery_align_json(transcript_id):
             )
             ytt_genorator(data, file_name, prev_line_in=0, mode="data")
             upload_ytt_to_azure(transcript_obj, file_name)
+            os.remove(file_name)
