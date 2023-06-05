@@ -65,6 +65,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 import logging
 from config import align_json_url
+import regex
 
 
 @api_view(["GET"])
@@ -1496,10 +1497,16 @@ def save_transcription(request):
 
             if request.data.get("final"):
                 num_words = 0
-                for idv_transcription in transcript_obj.payload['payload']:
+                for idv_transcription in transcript_obj.payload["payload"]:
                     if "text" in idv_transcription.keys():
-                        num_words += len(idv_transcription["text"].split(" "))
-                transcript_obj.payload["num_words"] = num_words
+                        cleaned_text = regex.sub(
+                            r"[^\p{L}\s]", "", idv_transcription["text"]
+                        ).lower()  # for removing special characters
+                        cleaned_text = regex.sub(
+                            r"\s+", " ", cleaned_text
+                        )  # for removing multiple blank spaces
+                        num_words += len(cleaned_text.split(" "))
+                transcript_obj.payload["word_count"] = num_words
                 transcript_obj.save()
                 return Response(
                     {

@@ -56,6 +56,7 @@ import logging
 import datetime
 import math
 import json
+import regex
 
 
 @api_view(["GET"])
@@ -1214,9 +1215,15 @@ def save_translation(request):
 
                 num_words = 0
                 for idv_translation in translation_obj.payload["payload"]:
-                    if "text" in idv_translation.keys():
-                        num_words += len(idv_translation["text"].split(" "))
-                translation_obj.payload["num_words"] = num_words
+                    if "target_text" in idv_translation.keys():
+                        cleaned_text = regex.sub(
+                            r"[^\p{L}\s]", "", idv_translation["target_text"]
+                        ).lower()  # for removing special characters
+                        cleaned_text = regex.sub(
+                            r"\s+", " ", cleaned_text
+                        )  # for removing multiple blank spaces
+                        num_words += len(cleaned_text.split(" "))
+                translation_obj.payload["word_count"] = num_words
                 translation_obj.save()
                 return Response(
                     {
