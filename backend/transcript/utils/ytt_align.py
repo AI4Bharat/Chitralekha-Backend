@@ -16,7 +16,6 @@ from config import (
 import datetime
 import os
 import subprocess
-from config import align_json_url
 
 
 def align_json_api(transcript_obj):
@@ -74,9 +73,7 @@ def upload_ytt_to_azure(transcript_obj, file_name):
             logging.info(blob_client_json.url)
             transcript_obj.payload["ytt_azure_url"] = blob_client_json.url
             transcript_obj.save()
-            os.remove(file_name)
         else:
             blob_client_json.delete_blob()
             blob_client_json.upload_blob(data)
             logging.info(blob_client_json.url)
-            os.remove(file_name)

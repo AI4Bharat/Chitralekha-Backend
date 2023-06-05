@@ -473,7 +473,9 @@ class TaskViewSet(ModelViewSet):
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
-                        user_id = self.assign_users(task_type, video.project_id, video.language, target_language)
+                        user_id = self.assign_users(
+                            task_type, video.project_id, video.language, target_language
+                        )
                         if user_id is None:
                             user = request.user
                         else:
@@ -543,7 +545,9 @@ class TaskViewSet(ModelViewSet):
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
-                        user_id = self.assign_users(task_type, video.project_id, video.language, target_language)
+                        user_id = self.assign_users(
+                            task_type, video.project_id, video.language, target_language
+                        )
                         if user_id is None:
                             user = request.user
                         else:
@@ -785,7 +789,9 @@ class TaskViewSet(ModelViewSet):
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
-                        user_id = self.assign_users(task_type, video.project_id, video.language, target_language)
+                        user_id = self.assign_users(
+                            task_type, video.project_id, video.language, target_language
+                        )
                         if user_id is None:
                             user = request.user
                         else:
@@ -902,7 +908,9 @@ class TaskViewSet(ModelViewSet):
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
-                        user_id = self.assign_users(task_type, video.project_id, video.language, target_language)
+                        user_id = self.assign_users(
+                            task_type, video.project_id, video.language, target_language
+                        )
                         if user_id is None:
                             user = request.user
                         else:
@@ -1146,7 +1154,12 @@ class TaskViewSet(ModelViewSet):
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
-                        user_id = self.assign_users(task_type, video.project_id, video.language, target_language=None)
+                        user_id = self.assign_users(
+                            task_type,
+                            video.project_id,
+                            video.language,
+                            target_language=None,
+                        )
                         if user_id is None:
                             user = request.user
                         else:
@@ -1253,7 +1266,12 @@ class TaskViewSet(ModelViewSet):
                         is_active = True
 
                     if len(user_ids) == 0:
-                        user_id = self.assign_users(task_type, video.project_id, video.language, target_language=None)
+                        user_id = self.assign_users(
+                            task_type,
+                            video.project_id,
+                            video.language,
+                            target_language=None,
+                        )
                         if user_id is None:
                             user = request.user
                         else:
@@ -1978,7 +1996,9 @@ class TaskViewSet(ModelViewSet):
             and target_language
         ):
             users = users.filter(
-                Q(languages__contains=[dict(LANGUAGE_CHOICES)[target_language]])   # filtering of users based on target language
+                Q(
+                    languages__contains=[dict(LANGUAGE_CHOICES)[target_language]]
+                )  # filtering of users based on target language
             )
         sorted_users = (
             Task.objects.filter(video_id__in=videos)

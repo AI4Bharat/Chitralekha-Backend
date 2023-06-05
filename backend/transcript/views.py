@@ -1758,6 +1758,7 @@ def generate_ytt_for_transcript(request):
                     )
                     ytt_genorator(data, file_location, prev_line_in=0, mode="data")
                     upload_ytt_to_azure(transcript, file_location)
+                    os.remove(file_location)
                 except:
                     logging.info("Error in exporting to ytt format %s", str(task_id))
                     return Response(

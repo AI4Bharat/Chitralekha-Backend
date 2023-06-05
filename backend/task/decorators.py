@@ -51,6 +51,7 @@ def has_task_edit_permission(f):
 
     return wrapper
 
+
 def has_task_edit_permission_individual(f):
     @wraps(f)
     def wrapper(request, pk=None, *args, **kwargs):
