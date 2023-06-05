@@ -29,7 +29,7 @@ from transcript.models import (
     TRANSCRIPTION_EDIT_COMPLETE,
 )
 from translation.models import Translation, TRANSLATION_SELECT_SOURCE
-from django.db.models import Count
+from django.db.models import Count, Q
 from translation.utils import (
     get_batch_translations_using_indictrans_nmt_api,
     generate_translation_payload,
@@ -473,7 +473,9 @@ class TaskViewSet(ModelViewSet):
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
-                        user_id = self.assign_users(task_type, video.project_id)
+                        user_id = self.assign_users(
+                            task_type, video.project_id, video.language, target_language
+                        )
                         if user_id is None:
                             user = request.user
                         else:
@@ -543,7 +545,9 @@ class TaskViewSet(ModelViewSet):
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
-                        user_id = self.assign_users(task_type, video.project_id)
+                        user_id = self.assign_users(
+                            task_type, video.project_id, video.language, target_language
+                        )
                         if user_id is None:
                             user = request.user
                         else:
@@ -785,7 +789,9 @@ class TaskViewSet(ModelViewSet):
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
-                        user_id = self.assign_users(task_type, video.project_id)
+                        user_id = self.assign_users(
+                            task_type, video.project_id, video.language, target_language
+                        )
                         if user_id is None:
                             user = request.user
                         else:
@@ -902,7 +908,9 @@ class TaskViewSet(ModelViewSet):
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
-                        user_id = self.assign_users(task_type, video.project_id)
+                        user_id = self.assign_users(
+                            task_type, video.project_id, video.language, target_language
+                        )
                         if user_id is None:
                             user = request.user
                         else:
@@ -1146,7 +1154,12 @@ class TaskViewSet(ModelViewSet):
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
-                        user_id = self.assign_users(task_type, video.project_id)
+                        user_id = self.assign_users(
+                            task_type,
+                            video.project_id,
+                            video.language,
+                            target_language=None,
+                        )
                         if user_id is None:
                             user = request.user
                         else:
@@ -1253,7 +1266,12 @@ class TaskViewSet(ModelViewSet):
                         is_active = True
 
                     if len(user_ids) == 0:
-                        user_id = self.assign_users(task_type, video.project_id)
+                        user_id = self.assign_users(
+                            task_type,
+                            video.project_id,
+                            video.language,
+                            target_language=None,
+                        )
                         if user_id is None:
                             user = request.user
                         else:
@@ -1955,15 +1973,33 @@ class TaskViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    def assign_users(self, task_type, project):
+    def assign_users(self, task_type, project, video_language, target_language=None):
         videos = Video.objects.filter(project_id=project)
         roles = allowed_roles[task_type]
         users = (
             User.objects.filter(id__in=project.members.all())
-            .filter(has_accepted_invite=True)
-            .filter(role__in=roles)
+            .filter(
+                Q(has_accepted_invite=True)
+                & Q(role__in=roles)
+                & Q(languages__contains=[dict(LANGUAGE_CHOICES)[video_language]])
+            )
             .values_list("id", flat=True)
         )
+        if (
+            task_type
+            in (
+                "TRANSLATION_EDIT",
+                "TRANSLATION_REVIEW",
+                "VOICEOVER_EDIT",
+                "VOICEOVER_REVIEW",
+            )
+            and target_language
+        ):
+            users = users.filter(
+                Q(
+                    languages__contains=[dict(LANGUAGE_CHOICES)[target_language]]
+                )  # filtering of users based on target language
+            )
         sorted_users = (
             Task.objects.filter(video_id__in=videos)
             .filter(user_id__in=users)

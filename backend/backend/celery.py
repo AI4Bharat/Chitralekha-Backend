@@ -16,6 +16,7 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 # Celery Queue related settings
 app.conf.task_default_queue = "default"
 app.conf.task_routes = {"task.tasks.*": {"queue": "task"}}
+app.conf.task_routes = {"transcript.tasks.*": {"queue": "ytt"}}
 
 app.conf.beat_schedule = {
     "Send_mail_to_managers_completed": {
