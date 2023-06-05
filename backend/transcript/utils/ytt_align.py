@@ -30,6 +30,7 @@ def align_json_api(transcript_obj):
         "language": transcript_obj.video.language,
     }
     try:
+        logging.info("Sending Request to ALign Json API")
         curl_request = subprocess.run(
             [
                 "curl",
@@ -46,6 +47,7 @@ def align_json_api(transcript_obj):
             capture_output=True,
         )
         output = curl_request.stdout.decode()
+        logging.info("Response received from Align Json API")
         return json.loads(output)
     except:
         logging.info("Error in Align Json API %s", transcript_obj.video.url)
