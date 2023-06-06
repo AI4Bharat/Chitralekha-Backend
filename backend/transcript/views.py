@@ -1496,18 +1496,19 @@ def save_transcription(request):
                         task.save()
 
             if request.data.get("final"):
-                num_words = 0
-                for idv_transcription in transcript_obj.payload["payload"]:
-                    if "text" in idv_transcription.keys():
-                        cleaned_text = regex.sub(
-                            r"[^\p{L}\s]", "", idv_transcription["text"]
-                        ).lower()  # for removing special characters
-                        cleaned_text = regex.sub(
-                            r"\s+", " ", cleaned_text
-                        )  # for removing multiple blank spaces
-                        num_words += len(cleaned_text.split(" "))
-                transcript_obj.payload["word_count"] = num_words
-                transcript_obj.save()
+                if transcript_obj.payload != "" and transcript_obj.payload is not None:
+                    num_words = 0
+                    for idv_transcription in transcript_obj.payload["payload"]:
+                        if "text" in idv_transcription.keys():
+                            cleaned_text = regex.sub(
+                                r"[^\p{L}\s]", "", idv_transcription["text"]
+                            ).lower()  # for removing special characters
+                            cleaned_text = regex.sub(
+                                r"\s+", " ", cleaned_text
+                            )  # for removing multiple blank spaces
+                            num_words += len(cleaned_text.split(" "))
+                    transcript_obj.payload["word_count"] = num_words
+                    transcript_obj.save()
                 return Response(
                     {
                         "task_id": task_id,
