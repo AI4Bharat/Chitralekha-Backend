@@ -5,6 +5,7 @@ LANGUAGE_CHOICES = [
     ("as", "Assamese"),
     ("bn", "Bengali"),
     ("brx", "Bodo"),
+    ("doi", "Dogri"),
     ("gu", "Gujarati"),
     ("kn", "Kannada"),
     ("ks", "Kashmiri"),
@@ -17,6 +18,7 @@ LANGUAGE_CHOICES = [
     ("or", "Oriya"),
     ("pa", "Punjabi"),
     ("sa", "Sanskrit"),
+    ("sat", "Santali"),
     ("sd", "Sindhi"),
     ("si", "Sinhala"),
     ("ta", "Tamil"),
@@ -40,7 +42,7 @@ INDIC_TRANS_SUPPORTED_LANGUAGES = {
     "Telugu": "te",
 }
 
-LANG_NAME_TO_CODE_ULCA = {
+LANG_NAME_TO_CODE = {
     "English": "en",
     "Assamese": "as",
     "Bhojpuri": "bho",
@@ -48,7 +50,7 @@ LANG_NAME_TO_CODE_ULCA = {
     "Bodo": "brx",
     "Dogri": "doi",
     "Dhivehi": "dv",
-    "Konkani": "kok",
+    "Konkani": "gom",
     "Gujarati": "gu",
     "Hindi": "hi",
     "Kannada": "kn",
@@ -70,33 +72,6 @@ LANG_NAME_TO_CODE_ULCA = {
     "Urdu": "ur",
 }
 
-LANG_CODE_TO_NAME_ULCA = {
-    lang_code: lang_name for lang_name, lang_code in LANG_NAME_TO_CODE_ULCA.items()
+LANG_CODE_TO_NAME = {
+    lang_code: lang_name for lang_name, lang_code in LANG_NAME_TO_CODE.items()
 }
-
-LANG_TRANS_MODEL_CODES = {
-    "Hindi-English": 100,
-    "Bengali-English": 101,
-    "Tamil-English": 102,
-    "English-Hindi": 103,
-    "English-Tamil": 104,
-    "English-Assamese": 110,
-    "English-Bengali": 112,
-    "English-Gujarati": 114,
-    "English-Kannada": 116,
-    "English-Malayalam": 118,
-    "English-Marathi": 120,
-    "English-Odia": 122,
-    "English-Punjabi": 124,
-    "English-Telugu": 126,
-    "Assamese-English": 128,
-    "Gujarati-English": 130,
-    "Kannada-English": 132,
-    "Malayalam-English": 134,
-    "Marathi-English": 136,
-    "Odia-English": 138,
-    "Punjabi-English": 140,
-    "Telugu-English": 142,
-}  # 144 for all the other  indic-indic translations
-
-DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID = 144

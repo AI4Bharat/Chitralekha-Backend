@@ -10,13 +10,8 @@ from django.http import HttpResponse
 from io import StringIO, BytesIO
 import os
 import datetime
-
-from config import anuvaad_url
-from .metadata import (
-    LANG_TRANS_MODEL_CODES,
-    DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID,
-    LANG_CODE_TO_NAME_ULCA,
-)
+from config import nmt_url, dhruva_key
+from .metadata import LANG_CODE_TO_NAME
 
 ### Utility Functions ###
 def validate_uuid4(val):
@@ -93,15 +88,6 @@ def get_batch_translations_using_indictrans_nmt_api(
 
     logging.info("source_language_name %s", source_language_name)
     logging.info("target_language_name %s", target_language_name)
-    logging.info(
-        "DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID %s", DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID
-    )
-
-    # Get the translation model ID
-    model_id = LANG_TRANS_MODEL_CODES.get(
-        f"{source_language_name}-{target_language_name}",
-        DEFAULT_ULCA_INDIC_TO_INDIC_MODEL_ID,
-    )
 
     # Create the input sentences list
     input_sentences = [{"source": sentence} for sentence in sentence_list]
@@ -110,7 +96,6 @@ def get_batch_translations_using_indictrans_nmt_api(
     json_data = {
         "input": input_sentences,
         "config": {
-            "modelId": model_id,
             "language": {
                 "sourceLanguage": source_language,
                 "targetLanguage": target_language,
@@ -121,6 +106,7 @@ def get_batch_translations_using_indictrans_nmt_api(
     try:
         response = requests.post(
             anuvaad_url,
+            headers={"authorization": dhruva_key},
             json=json_data,
         )
         translations_output = response.json()["output"]

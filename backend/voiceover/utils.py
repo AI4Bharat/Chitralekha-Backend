@@ -4,11 +4,14 @@ import json
 from azure.storage.blob import BlobServiceClient
 import logging
 from config import (
-    tts_url,
     storage_account_key,
     connection_string,
     container_name,
     voice_over_payload_offset_size,
+    dhruva_key,
+    misc_tts_url,
+    indo_aryan_tts_url,
+    dravidian_tts_url,
 )
 from pydub import AudioSegment
 from datetime import datetime, date, timedelta
@@ -36,6 +39,17 @@ from pydub import AudioSegment
 import re
 from django.conf import settings
 from django.core.mail import send_mail
+
+
+def get_tts_url(language):
+    if language in ["brx", "en", "mni"]:
+        return misc_tts_url
+    elif language in ["as", "gu", "hi", "mr", "or", "pa", "bn"]:
+        return indo_aryan_tts_url
+    elif language in ["kn", "ml", "ta", "te"]:
+        return dravidian_tts_url
+    else:
+        return None
 
 
 ### Utility Functions ###
@@ -110,9 +124,16 @@ def get_tts_output(tts_input, target_language, gender):
         "config": {"language": {"sourceLanguage": target_language}, "gender": gender},
     }
     logging.info("Calling TTS API")
+    tts_url = get_tts_url(target_language)
+    if tts_url is None:
+        return {
+            "message": "Error in TTS API. Target Language is not supported.",
+            "status": status.HTTP_400_BAD_REQUEST,
+        }
     try:
         response = requests.post(
             tts_url,
+            headers={"authorization": dhruva_key},
             json=json_data,
         )
         tts_output = response.json()
