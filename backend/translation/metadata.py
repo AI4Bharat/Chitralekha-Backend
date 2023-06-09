@@ -1,5 +1,5 @@
 # Translation and Transcription language choices
-LANGUAGE_CHOICES = [
+TRANSLATION_LANGUAGE_CHOICES = [
     ("en", "English"),
     ("hi", "Hindi"),
     ("as", "Assamese"),
@@ -20,26 +20,35 @@ LANGUAGE_CHOICES = [
     ("sa", "Sanskrit"),
     ("sat", "Santali"),
     ("sd", "Sindhi"),
-    ("si", "Sinhala"),
     ("ta", "Tamil"),
     ("te", "Telugu"),
     ("ur", "Urdu"),
 ]
 
-# Indic Trans API supported languages
-INDIC_TRANS_SUPPORTED_LANGUAGES = {
+TRANSLATION_SUPPORTED_LANGUAGES = {
+    "English": "en",
     "Assamese": "as",
     "Bengali": "bn",
-    "English": "en",
+    "Bodo": "brx",
+    "Dogri": "doi",
+    "Konkani": "gom",
     "Gujarati": "gu",
     "Hindi": "hi",
     "Kannada": "kn",
+    "Kashmiri": "ks",
+    "Maithili": "mai",
     "Malayalam": "ml",
+    "Manipuri": "mni",
     "Marathi": "mr",
-    "Oriya": "or",
+    "Nepali": "ne",
+    "Odia": "or",
     "Punjabi": "pa",
+    "Sanskrit": "sa",
+    "Santali": "sat",
+    "Sindhi": "sd",
     "Tamil": "ta",
     "Telugu": "te",
+    "Urdu": "ur",
 }
 
 LANG_NAME_TO_CODE = {
