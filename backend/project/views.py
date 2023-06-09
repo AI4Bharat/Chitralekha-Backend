@@ -24,7 +24,7 @@ from datetime import timedelta
 from transcript.models import Transcript
 from translation.models import Translation
 import json
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 
 
 class ProjectViewSet(viewsets.ModelViewSet):

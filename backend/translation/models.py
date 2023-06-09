@@ -2,7 +2,7 @@ import uuid
 from django.db import models
 from transcript.models import Transcript
 from task.models import Task
-from .metadata import LANGUAGE_CHOICES
+from .metadata import TRANSLATION_LANGUAGE_CHOICES
 from video.models import Video
 from users.models import User
 
@@ -67,7 +67,9 @@ class Translation(models.Model):
     )
 
     target_language = models.CharField(
-        choices=LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language"
+        choices=TRANSLATION_LANGUAGE_CHOICES,
+        max_length=4,
+        verbose_name="Target Language",
     )
     user = models.ForeignKey(
         User,

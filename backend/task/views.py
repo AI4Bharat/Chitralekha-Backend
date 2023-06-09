@@ -41,7 +41,7 @@ import webvtt
 from io import StringIO
 import json, sys
 from config import *
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from .models import (
     TASK_TYPE,
     Task,

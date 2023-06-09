@@ -26,7 +26,7 @@ from video.models import Video
 from transcript.models import Transcript
 from translation.models import Translation
 import json
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from project.views import ProjectViewSet
 from django.http import HttpRequest
 from django.db.models import Q
