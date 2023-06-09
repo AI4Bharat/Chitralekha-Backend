@@ -1681,7 +1681,7 @@ def get_transcription_report(request):
         transcript_dict = {
             "org": elem["video__project_id__organization_id__title"],
             "language": {
-                "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                "value": dict(TRANSCRIPTION_LANGUAGE_CHOICES)[elem["language"]],
                 "label": "Media Language",
             },
             "total_duration": {
