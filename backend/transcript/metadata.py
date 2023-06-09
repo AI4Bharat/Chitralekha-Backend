@@ -10,6 +10,7 @@ TRANSCRIPTION_LANGUAGE_CHOICES = [
     ("mr", "Marathi"),
     ("or", "Oriya"),
     ("pa", "Punjabi"),
+    ("ta", "Tamil"),
     ("te", "Telugu"),
 ]
 
