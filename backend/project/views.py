@@ -986,7 +986,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 ).first()
                 users = users.filter(
                     languages__contains=[
-                        dict(LANGUAGE_CHOICES)[video.language]
+                        dict(TRANSLATION_LANGUAGE_CHOICES)[video.language]
                     ],  # filtering of users based on video language
                 )
             except:
@@ -1068,7 +1068,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 ):
                     user_by_roles = user_by_roles.filter(
                         languages__contains=[
-                            dict(LANGUAGE_CHOICES)[target_language]
+                            dict(TRANSLATION_LANGUAGE_CHOICES)[target_language]
                         ],  # filtering of users based on target language
                     )
                     users = User.objects.filter(
@@ -1269,7 +1269,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         for elem in transcript_statistics:
             transcript_dict = {
                 "language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["language"]],
                     "label": "Media Language",
                 },
                 "total_duration": {
