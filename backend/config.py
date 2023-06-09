@@ -2,10 +2,13 @@
 import os
 from dotenv import load_dotenv
 
+dhruva_key = os.getenv("DHRUVA_KEY")
 english_asr_url = os.getenv("ASR_API_URL")
 asr_url = os.getenv("ASR_API_URL")
-tts_url = os.getenv("TTS_API_URL")
-anuvaad_url = os.getenv("ANUVAAD_NMT_URL")
+misc_tts_url = os.getenv("MISC_TTS_API_URL")
+indo_aryan_tts_url = os.getenv("INDO_ARYAN_TTS_API_URL")
+dravidian_tts_url = os.getenv("DRAVIDIAN_TTS_API_URL")
+nmt_url = os.getenv("NMT_API_URL")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 align_json_url = os.getenv("ALIGN_JSON_URL")
 
@@ -17,7 +20,7 @@ flower_url = os.getenv("FLOWER_URL", "http://localhost:5555")
 flower_auth = os.getenv("FLOWER_BASIC_AUTH", None)
 flower_username, flower_password = None, None
 if flower_auth:
-    flower_username, flower_password = flower_auth.split(':')
+    flower_username, flower_password = flower_auth.split(":")
 
 frontend_url = os.getenv("FRONTEND_URL")
 ## CONSTANTS ##

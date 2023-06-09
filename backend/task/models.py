@@ -1,6 +1,6 @@
 import uuid
 from django.db import models
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from video.models import Video
 from django.conf import settings
 import datetime
@@ -72,7 +72,7 @@ class Task(models.Model):
         related_name="tasks",
     )
     target_language = models.CharField(
-        choices=LANGUAGE_CHOICES,
+        choices=TRANSLATION_LANGUAGE_CHOICES,
         max_length=4,
         verbose_name="Target Language",
         blank=True,
@@ -114,7 +114,7 @@ class Task(models.Model):
 
     @property
     def get_src_language_label(self):
-        for language in LANGUAGE_CHOICES:
+        for language in TRANSLATION_LANGUAGE_CHOICES:
             if self.video.language == language[0]:
                 return language[1]
 
@@ -126,7 +126,7 @@ class Task(models.Model):
 
     @property
     def get_target_language_label(self):
-        for language in LANGUAGE_CHOICES:
+        for language in TRANSLATION_LANGUAGE_CHOICES:
             if self.target_language == language[0]:
                 return language[1]
         return "-"

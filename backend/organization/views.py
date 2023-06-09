@@ -26,9 +26,15 @@ from video.models import Video
 from transcript.models import Transcript
 from translation.models import Translation
 import json
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from project.views import ProjectViewSet
 from django.http import HttpRequest
+from django.db.models import Q
+from utils import *
+import logging
+import math
+from django.db.models import Value
+from django.db.models.functions import Concat
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -282,23 +288,68 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
+    @swagger_auto_schema(
+        method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description=("Limit parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "offset",
+                openapi.IN_QUERY,
+                description=("Offset parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "filter",
+                openapi.IN_QUERY,
+                description=("Offset parameter"),
+                type=openapi.TYPE_OBJECT,
+                required=False,
+            ),
+            openapi.Parameter(
+                "search",
+                openapi.IN_QUERY,
+                description=("Search parameter"),
+                type=openapi.TYPE_OBJECT,
+                required=False,
+            ),
+        ],
+        responses={200: "List of org tasks"},
+    )
     @action(
         detail=True,
         methods=["GET"],
-        name="List Projects in Organization",
-        url_name="list_projects",
+        name="List Tasks in Organization",
+        url_name="list_tasks",
     )
     def list_org_tasks(self, request, pk=None, *args, **kwargs):
         try:
             organization = Organization.objects.get(pk=pk)
+            limit = int(request.query_params["limit"])
+            offset = int(request.query_params["offset"])
+            offset -= 1
+            if "filter" in request.query_params:
+                filter_dict = json.loads(request.query_params["filter"])
+
+            if "search" in request.query_params:
+                search_dict = json.loads(request.query_params["search"])
+
         except Organization.DoesNotExist:
             return Response(
-                {"message": "Project does not exist"},
+                {"message": "Organization does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
         user = request.user
         src_languages = set()
         target_languages = set()
+        total_count = 0
         if (
             organization.organization_owner == user
             or user.role == "ADMIN"
@@ -306,7 +357,35 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         ):
             projects = Project.objects.filter(organization_id=organization)
             videos = Video.objects.filter(project_id__in=projects)
-            tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
+            # filter data based on search parameters
+            videos = self.search_filter(videos, search_dict, filter_dict)
+
+            all_tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
+
+            if "description" in search_dict and len(search_dict["description"]):
+                all_tasks = all_tasks.filter(
+                    Q(description__contains=search_dict["description"])
+                    | Q(description__contains=search_dict["description"])
+                )
+            if "assignee" in search_dict and len(search_dict["assignee"]):
+                queryset = all_tasks.annotate(
+                    search_name=Concat(
+                        "user__first_name", Value(" "), "user__last_name"
+                    )
+                )
+                all_tasks = queryset.filter(
+                    search_name__icontains=search_dict["assignee"]
+                )
+
+            # filter data based on filter parameters
+            all_tasks = self.filter_query(all_tasks, filter_dict)
+            total_count = len(all_tasks)
+            total_pages = math.ceil(total_count / int(limit))
+            if offset > total_pages - 1:
+                offset = 0
+            start = offset * int(limit)
+            end = start + int(limit) - 1
+            tasks = all_tasks[start:end]
             tasks_serializer = TaskSerializer(tasks, many=True)
             tasks_list = json.loads(json.dumps(tasks_serializer.data))
             for task in tasks_list:
@@ -339,55 +418,72 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         buttons["View"] = True
                 task["buttons"] = buttons
         else:
-            projects = Project.objects.filter(organization_id=organization).filter(
-                managers__in=[user.id]
+            projects = (
+                Project.objects.filter(organization_id=organization)
+                .filter(managers__in=[user.id])
+                .values_list("id", flat=True)
             )
             if len(projects) > 0:
-                projects = Project.objects.filter(organization_id=organization).filter(
-                    managers__in=[user.id]
+                projects_only_members = (
+                    Project.objects.filter(organization_id=organization)
+                    .exclude(managers__in=[user.id])
+                    .filter(members__in=[user.id])
+                    .values_list("id", flat=True)
                 )
                 videos = Video.objects.filter(project_id__in=projects)
-                tasks_in_projects = Task.objects.filter(video__in=videos).order_by(
+                # filter data based on search parameters
+                videos = self.search_filter(videos, search_dict, filter_dict)
+
+                all_tasks_in_projects = Task.objects.filter(video__in=videos).order_by(
                     "-updated_at"
                 )
-                task_serializer = TaskSerializer(tasks_in_projects, many=True)
-                tasks_in_projects_list = json.loads(json.dumps(task_serializer.data))
-                for task in tasks_in_projects_list:
-                    src_languages.add(task["src_language_label"])
-                    target_languages.add(task["target_language_label"])
-                    buttons = {
-                        "Edit": False,
-                        "Preview": False,
-                        "Export": False,
-                        "Update": False,
-                        "View": False,
-                        "Delete": False,
-                    }
-                    buttons["Update"] = True
-                    buttons["Delete"] = True
-                    if task["status"] == "COMPLETE":
-                        buttons["Export"] = True
-                        buttons["Preview"] = True
-                        buttons["Update"] = False
-                        buttons["Edit"] = False
-                    if task["status"] == "POST_PROCESS":
-                        buttons["Update"] = True
-                    if task["user"]["email"] == request.user.email:
-                        if task["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
-                            buttons["Edit"] = True
-                        if (
-                            task["status"] == "SELECTED_SOURCE"
-                            and task["task_type"] != "VOICEOVER_EDIT"
-                        ):
-                            buttons["View"] = True
-                    task["buttons"] = buttons
+                if len(projects_only_members) > 0:
+                    videos = Video.objects.filter(project_id__in=projects_only_members)
 
-                assigned_tasks = Task.objects.filter(user=user).order_by("-updated_at")
-                assigned_tasks_serializer = TaskSerializer(assigned_tasks, many=True)
-                assigned_tasks_list = json.loads(
-                    json.dumps(assigned_tasks_serializer.data)
+                    # filter data based on search parameters
+                    videos = self.search_filter(videos, search_dict, filter_dict)
+
+                    all_tasks_in_projects_assigned = (
+                        Task.objects.filter(video__in=videos)
+                        .filter(user=user)
+                        .order_by("-updated_at")
+                    )
+                    all_tasks_in_projects = (
+                        all_tasks_in_projects | all_tasks_in_projects_assigned
+                    )
+
+                if "assignee" in search_dict and len(search_dict["assignee"]):
+                    queryset = all_tasks_in_projects.annotate(
+                        search_name=Concat(
+                            "user__first_name", Value(" "), "user__last_name"
+                        )
+                    )
+                    all_tasks_in_projects = queryset.filter(
+                        search_name__icontains=search_dict["assignee"]
+                    )
+
+                if "description" in search_dict and len(search_dict["description"]):
+                    all_tasks_in_projects = all_tasks_in_projects.filter(
+                        Q(description__contains=search_dict["description"])
+                        | Q(description__contains=search_dict["description"])
+                    )
+
+                # filter data based on filter parameters
+                all_tasks_in_projects = self.filter_query(
+                    all_tasks_in_projects, filter_dict
                 )
-                for task in assigned_tasks_list:
+                total_count = len(all_tasks_in_projects)
+                total_pages = math.ceil(total_count / int(limit))
+                if offset > total_pages:
+                    offset = 0
+                start = offset * int(limit)
+                end = start + int(limit)
+                tasks_in_projects = all_tasks_in_projects[start:end]
+
+                tasks_list = []
+                for task_o in tasks_in_projects:
+                    task_serializer = TaskSerializer(task_o)
+                    task = json.loads(json.dumps(task_serializer.data))
                     src_languages.add(task["src_language_label"])
                     target_languages.add(task["target_language_label"])
                     buttons = {
@@ -398,15 +494,16 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "View": False,
                         "Delete": False,
                     }
-                    buttons["Update"] = True
-                    buttons["Delete"] = True
-                    if task["status"] == "COMPLETE":
-                        buttons["Export"] = True
-                        buttons["Preview"] = True
-                        buttons["Update"] = False
-                        buttons["Edit"] = False
-                    if task["status"] == "POST_PROCESS":
+                    if user in task_o.video.project_id.managers.all():
                         buttons["Update"] = True
+                        buttons["Delete"] = True
+                        if task["status"] == "COMPLETE":
+                            buttons["Export"] = True
+                            buttons["Preview"] = True
+                            buttons["Update"] = False
+                            buttons["Edit"] = False
+                        if task["status"] == "POST_PROCESS":
+                            buttons["Update"] = True
                     if task["user"]["email"] == request.user.email:
                         if task["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
@@ -416,13 +513,42 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         ):
                             buttons["View"] = True
                     task["buttons"] = buttons
-                tasks_list = list(
-                    {
-                        v["id"]: v for v in tasks_in_projects_list + assigned_tasks_list
-                    }.values()
-                )
+                    tasks_list.append(task)
             else:
-                tasks = Task.objects.filter(user=user).order_by("-updated_at")
+                videos = Video.objects.all()
+                # filter data based on search parameters
+                videos = self.search_filter(videos, search_dict, filter_dict)
+
+                all_tasks = (
+                    Task.objects.filter(user=user)
+                    .filter(video__in=videos)
+                    .order_by("-updated_at")
+                )
+
+                if "assignee" in search_dict and len(search_dict["assignee"]):
+                    queryset = all_tasks.annotate(
+                        search_name=Concat(
+                            "user__first_name", Value(" "), "user__last_name"
+                        )
+                    )
+                    all_tasks = queryset.filter(
+                        search_name__icontains=search_dict["assignee"]
+                    )
+
+                if "description" in search_dict and len(search_dict["description"]):
+                    all_tasks = all_tasks.filter(
+                        Q(description__contains=search_dict["description"])
+                        | Q(description__contains=search_dict["description"])
+                    )
+                # filter data based on filter parameters
+                all_tasks = self.filter_query(all_tasks, filter_dict)
+                total_count = len(all_tasks)
+                total_pages = math.ceil(total_count / int(limit))
+                if offset > total_pages:
+                    offset = 0
+                start = offset * int(limit)
+                end = start + int(limit)
+                tasks = all_tasks[start:end]
                 tasks_serializer = TaskSerializer(tasks, many=True)
                 tasks_list = json.loads(json.dumps(tasks_serializer.data))
                 for task in tasks_list:
@@ -439,10 +565,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if task["status"] == "COMPLETE":
                         buttons["Export"] = True
                         buttons["Preview"] = True
-                        buttons["Update"] = False
-                        buttons["Edit"] = False
-                    if task["status"] == "POST_PROCESS":
-                        buttons["Update"] = True
                     if task["user"]["email"] == request.user.email:
                         if task["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
@@ -457,12 +579,43 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             target_languages_list.remove("-")
         return Response(
             {
+                "total_count": total_count,
                 "tasks_list": tasks_list,
                 "src_languages_list": sorted(list(src_languages)),
                 "target_languages_list": sorted(target_languages_list),
             },
             status=status.HTTP_200_OK,
         )
+
+    def search_filter(self, videos, search_dict, filter_dict):
+        if search_dict is not None:
+            if "video_name" in search_dict:
+                videos = videos.filter(Q(name__contains=search_dict["video_name"]))
+
+        if "src_language" in filter_dict and len(filter_dict["src_language"]):
+            src_lang_list = []
+            for lang in filter_dict["src_language"]:
+                lang_shortcode = get_language_label(lang)
+                src_lang_list.append(lang_shortcode)
+            if len(src_lang_list):
+                videos = videos.filter(language__in=src_lang_list)
+
+        return videos
+
+    def filter_query(self, all_tasks, filter_dict):
+        if "task_type" in filter_dict and len(filter_dict["task_type"]):
+            all_tasks = all_tasks.filter(task_type__in=filter_dict["task_type"])
+        if "target_language" in filter_dict and len(filter_dict["target_language"]):
+            target_lang_list = []
+            for lang in filter_dict["target_language"]:
+                lang_shortcode = get_language_label(lang)
+                target_lang_list.append(lang_shortcode)
+            if len(target_lang_list):
+                all_tasks = all_tasks.filter(target_language__in=target_lang_list)
+        if "status" in filter_dict and len(filter_dict["status"]):
+            all_tasks = all_tasks.filter(status__in=filter_dict["status"])
+
+        return all_tasks
 
     def get_project_report_users(self, project_id, user):
         data = ProjectViewSet(detail=True)

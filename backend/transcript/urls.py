@@ -19,9 +19,9 @@ urlpatterns = [
     ),
     path("", views.retrieve_transcription, name="retrieve_transcription"),
     path(
-        "generate/supported_languages",
-        views.get_supported_languages,
-        name="get_supported_languages",
+        "get_transcription_supported_languages",
+        views.get_transcription_supported_languages,
+        name="get_transcription_supported_languages",
     ),
     path(
         "get_transcript_types/",
@@ -62,5 +62,10 @@ urlpatterns = [
         "get_sentence_from_timeline/",
         views.get_sentence_from_timeline,
         name="get_sentence_from_timeline",
+    ),
+    path(
+        "generate_ytt_for_transcript/",
+        views.generate_ytt_for_transcript,
+        name="generate_ytt_for_transcript",
     ),
 ]

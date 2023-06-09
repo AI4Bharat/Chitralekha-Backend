@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Task, TASK_TYPE
 from video.models import Video
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from users.serializers import UserFetchSerializer
 from project.serializers import ProjectSerializer
 
