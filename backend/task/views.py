@@ -79,6 +79,7 @@ from transcript.views import export_transcript
 from translation.views import export_translation
 from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
+import regex
 
 
 def get_export_translation(request, task_id, export_type):
@@ -2532,6 +2533,80 @@ class TaskViewSet(ModelViewSet):
         task.save()
         return Response(
             {"message": "Time spent on task updated successfully."},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="populate_word_count",
+        url_name="populate_word_count",
+    )
+    def populate_word_count(self, request):
+        """
+        Adding word count for existing translations and transcriptions
+        """
+        translations = Translation.objects.all()
+        for translation_obj in translations:
+            try:
+                if (
+                    translation_obj.payload != ""
+                    and translation_obj.payload is not None
+                ):
+                    num_words = 0
+                    for idv_translation in translation_obj.payload["payload"]:
+                        if "target_text" in idv_translation.keys():
+                            cleaned_text = regex.sub(
+                                r"[^\p{L}\s]", "", idv_translation["target_text"]
+                            ).lower()  # for removing special characters
+                            cleaned_text = regex.sub(
+                                r"\s+", " ", cleaned_text
+                            )  # for removing multiple blank spaces
+                            num_words += len(cleaned_text.split(" "))
+                    translation_obj.payload["word_count"] = num_words
+                    translation_obj.save()
+                else:
+                    translation_obj.payload = {"payload": [], "word_count": 0}
+                    translation_obj.save()
+            except:
+                return Response(
+                    {
+                        "message": "Error in populating word count for translation object."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        transcripts = Transcript.objects.all()
+        for transcript_obj in transcripts:
+            try:
+                if transcript_obj.payload != "" and transcript_obj.payload is not None:
+                    num_words = 0
+                    for idv_transcription in transcript_obj.payload["payload"]:
+                        if "text" in idv_transcription.keys():
+                            cleaned_text = regex.sub(
+                                r"[^\p{L}\s]", "", idv_transcription["text"]
+                            ).lower()  # for removing special characters
+                            cleaned_text = regex.sub(
+                                r"\s+", " ", cleaned_text
+                            )  # for removing multiple blank spaces
+                            num_words += len(cleaned_text.split(" "))
+                    transcript_obj.payload["word_count"] = num_words
+                    transcript_obj.save()
+                else:
+                    transcript_obj.payload = {"payload": [], "word_count": 0}
+                    transcript_obj.save()
+            except:
+                return Response(
+                    {
+                        "message": "Error in populating word count for transcript object."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        return Response(
+            {
+                "message": "Successfully populated word count for transcript and translation objects."
+            },
             status=status.HTTP_200_OK,
         )
 
