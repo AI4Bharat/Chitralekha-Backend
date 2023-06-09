@@ -83,8 +83,8 @@ def get_batch_translations_using_indictrans_nmt_api(
     """
 
     # Convert language code to language text
-    source_language_name = LANG_CODE_TO_NAME_ULCA[source_language]
-    target_language_name = LANG_CODE_TO_NAME_ULCA[target_language]
+    source_language_name = LANG_CODE_TO_NAME[source_language]
+    target_language_name = LANG_CODE_TO_NAME[target_language]
 
     logging.info("source_language_name %s", source_language_name)
     logging.info("target_language_name %s", target_language_name)
@@ -105,15 +105,13 @@ def get_batch_translations_using_indictrans_nmt_api(
 
     try:
         response = requests.post(
-            anuvaad_url,
+            nmt_url,
             headers={"authorization": dhruva_key},
             json=json_data,
         )
         translations_output = response.json()["output"]
-
         # Collect the translated sentences
         return [translation["target"] for translation in translations_output]
-
     except Exception as e:
         return str(e)
 
