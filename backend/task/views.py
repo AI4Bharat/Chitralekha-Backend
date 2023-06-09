@@ -42,6 +42,7 @@ from io import StringIO
 import json, sys
 from config import *
 from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
+from voiceover.metadata import VOICEOVER_SUPPORTED_LANGUAGES
 from .models import (
     TASK_TYPE,
     Task,
@@ -188,7 +189,7 @@ class TaskViewSet(ModelViewSet):
         return False
 
     def get_target_language_label(self, target_language):
-        for language in LANGUAGE_CHOICES:
+        for language in TRANSLATION_LANGUAGE_CHOICES:
             if target_language == language[0]:
                 return language[1]
         return "-"
@@ -232,6 +233,7 @@ class TaskViewSet(ModelViewSet):
         duplicate_user_tasks = []
         delete_video = []
         same_language = []
+        language_not_supported = []
 
         for video in videos:
             task = Task.objects.filter(video=video)
@@ -241,6 +243,11 @@ class TaskViewSet(ModelViewSet):
                 )
                 if target_language == video.language:
                     same_language.append(video)
+                if (
+                    "VOICEOVER" in task_type
+                    and target_language not in VOICEOVER_SUPPORTED_LANGUAGES.values()
+                ):
+                    language_not_supported.append(video)
 
             if task.filter(task_type=task_type).first() is not None:
                 duplicate_tasks.append(task.filter(task_type=task_type).first())
@@ -270,7 +277,13 @@ class TaskViewSet(ModelViewSet):
                         task.filter(task_type=task_type).filter(user=user).first()
                     )
 
-        return duplicate_tasks, duplicate_user_tasks, delete_video, same_language
+        return (
+            duplicate_tasks,
+            duplicate_user_tasks,
+            delete_video,
+            same_language,
+            language_not_supported,
+        )
 
     def check_translation_exists(self, video, target_language):
         translation = Translation.objects.filter(video=video).filter(
@@ -338,6 +351,7 @@ class TaskViewSet(ModelViewSet):
             duplicate_user_tasks,
             delete_video,
             same_language,
+            language_not_supported,
         ) = self.check_duplicate_tasks(
             request, task_type, target_language, user_ids, videos
         )
@@ -679,6 +693,7 @@ class TaskViewSet(ModelViewSet):
             duplicate_user_tasks,
             delete_video,
             same_language,
+            language_not_supported,
         ) = self.check_duplicate_tasks(
             request, task_type, target_language, user_ids, videos
         )
@@ -690,6 +705,7 @@ class TaskViewSet(ModelViewSet):
         error_duplicate_tasks = []
         error_user_tasks = []
         error_same_language_tasks = []
+        error_language_not_supported_tasks = []
 
         if len(duplicate_tasks) > 0:
             for task in duplicate_tasks:
@@ -707,6 +723,13 @@ class TaskViewSet(ModelViewSet):
             for video in same_language:
                 video_ids.append(video)
                 error_same_language_tasks.append(
+                    {"video": video, "task_type": task_type}
+                )
+
+        if len(language_not_supported) > 0:
+            for video in language_not_supported:
+                video_ids.append(video)
+                error_language_not_supported_tasks.append(
                     {"video": video, "task_type": task_type}
                 )
 
@@ -752,6 +775,26 @@ class TaskViewSet(ModelViewSet):
                         "target_language": target_language,
                         "status": "Fail",
                         "message": "Task creation failed as target language is same as source language.",
+                    }
+                )
+
+        if len(error_language_not_supported_tasks):
+            consolidated_error.append(
+                {
+                    "message": "Task creation failed as Target Langauge is not supported for VoiceOver.",
+                    "count": len(error_language_not_supported_tasks),
+                }
+            )
+            for task in error_language_not_supported_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": self.get_task_type_label(task["task_type"]),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": target_language,
+                        "status": "Fail",
+                        "message": "Task creation failed as Target Langauge is not supported for VoiceOver.",
                     }
                 )
 
@@ -1044,6 +1087,7 @@ class TaskViewSet(ModelViewSet):
             duplicate_user_tasks,
             delete_video,
             same_language,
+            language_not_supported,
         ) = self.check_duplicate_tasks(request, task_type, None, user_ids, videos)
 
         response = {}
@@ -1981,7 +2025,11 @@ class TaskViewSet(ModelViewSet):
             .filter(
                 Q(has_accepted_invite=True)
                 & Q(role__in=roles)
-                & Q(languages__contains=[dict(LANGUAGE_CHOICES)[video_language]])
+                & Q(
+                    languages__contains=[
+                        dict(TRANSLATION_LANGUAGE_CHOICES)[video_language]
+                    ]
+                )
             )
             .values_list("id", flat=True)
         )
@@ -1997,7 +2045,9 @@ class TaskViewSet(ModelViewSet):
         ):
             users = users.filter(
                 Q(
-                    languages__contains=[dict(LANGUAGE_CHOICES)[target_language]]
+                    languages__contains=[
+                        dict(TRANSLATION_LANGUAGE_CHOICES)[target_language]
+                    ]
                 )  # filtering of users based on target language
             )
         sorted_users = (
