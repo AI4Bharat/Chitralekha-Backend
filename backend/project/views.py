@@ -1243,11 +1243,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
         for elem in translation_statistics:
             translation_dict = {
                 "src_language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["src_language"]],
                     "label": "Src Language",
                 },
                 "tgt_language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["tgt_language"]],
                     "label": "Tgt Language",
                 },
                 "translation_duration": {
