@@ -60,7 +60,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
     )
     @is_particular_project_owner
     def add_project_members(self, request, pk=None, *args, **kwargs):
-
         try:
             project = Project.objects.get(pk=pk)
             if "user_id" in dict(request.data):
@@ -613,8 +612,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             elif task_obj[1].user.id == request.user.id:
                                 send_video_data = True
                 if len(task_table) > 1:
-                    if "transcription" in task_table.keys():
-                        del task_table["transcription"]
+                    # if "transcription" in task_table.keys():
+                    #     del task_table["transcription"]
                     all_statuses = set()
                     for target_language, task_obj in task_table.items():
                         if type(task_obj) != tuple:
@@ -626,6 +625,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                                 or request.user.role == "ORG_OWNER"
                                 or request.user.role == "ADMIN"
                             ):
+                                if target_language == "transcription":
+                                    continue
+
                                 tasks_to_send.append(
                                     {
                                         "task": task_obj,
@@ -647,6 +649,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                                 or request.user.role == "ORG_OWNER"
                                 or request.user.role == "ADMIN"
                             ):
+                                if target_language == "transcription":
+                                    continue
+
                                 tasks_to_send.append(
                                     {
                                         "task": task_obj[1],
