@@ -235,6 +235,7 @@ class TaskViewSet(ModelViewSet):
         delete_video = []
         same_language = []
         language_not_supported = []
+        gender_not_supported = []
 
         for video in videos:
             task = Task.objects.filter(video=video)
@@ -249,6 +250,12 @@ class TaskViewSet(ModelViewSet):
                     and target_language not in VOICEOVER_SUPPORTED_LANGUAGES.values()
                 ):
                     language_not_supported.append(video)
+                if (
+                    "VOICEOVER" in task_type
+                    and target_language == "brx"
+                    and video.gender == "MALE"
+                ):
+                    gender_not_supported.append(video)
 
             if task.filter(task_type=task_type).first() is not None:
                 duplicate_tasks.append(task.filter(task_type=task_type).first())
@@ -284,6 +291,7 @@ class TaskViewSet(ModelViewSet):
             delete_video,
             same_language,
             language_not_supported,
+            gender_not_supported,
         )
 
     def check_translation_exists(self, video, target_language):
@@ -353,6 +361,7 @@ class TaskViewSet(ModelViewSet):
             delete_video,
             same_language,
             language_not_supported,
+            gender_not_supported,
         ) = self.check_duplicate_tasks(
             request, task_type, target_language, user_ids, videos
         )
@@ -408,7 +417,9 @@ class TaskViewSet(ModelViewSet):
                         "video_name": task["video"].name,
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
-                        "target_language": target_language,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
                         "source_language": task["video"].get_language_label,
                         "status": "Fail",
                         "message": "This task creation failed since Editor and Reviewer can't be same.",
@@ -429,7 +440,9 @@ class TaskViewSet(ModelViewSet):
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
                         "source_language": task["video"].get_language_label,
-                        "target_language": target_language,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
                         "status": "Fail",
                         "message": "Task creation failed as target language is same as source language.",
                     }
@@ -449,7 +462,9 @@ class TaskViewSet(ModelViewSet):
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
                         "source_language": task["video"].get_language_label,
-                        "target_language": target_language,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
@@ -469,7 +484,9 @@ class TaskViewSet(ModelViewSet):
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
                         "source_language": task["video"].get_language_label,
-                        "target_language": target_language,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
                         "status": "Fail",
                         "message": "Task creation for Translation Review failed as Voice Over task already exists.",
                     }
@@ -695,6 +712,7 @@ class TaskViewSet(ModelViewSet):
             delete_video,
             same_language,
             language_not_supported,
+            gender_not_supported,
         ) = self.check_duplicate_tasks(
             request, task_type, target_language, user_ids, videos
         )
@@ -707,6 +725,7 @@ class TaskViewSet(ModelViewSet):
         error_user_tasks = []
         error_same_language_tasks = []
         error_language_not_supported_tasks = []
+        error_gender_not_supported_tasks = []
 
         if len(duplicate_tasks) > 0:
             for task in duplicate_tasks:
@@ -734,6 +753,13 @@ class TaskViewSet(ModelViewSet):
                     {"video": video, "task_type": task_type}
                 )
 
+        if len(gender_not_supported) > 0:
+            for video in gender_not_supported:
+                video_ids.append(video)
+                error_gender_not_supported_tasks.append(
+                    {"video": video, "task_type": task_type}
+                )
+
         for video in video_ids:
             videos.remove(video)
             if len(user_ids) > 0:
@@ -753,7 +779,9 @@ class TaskViewSet(ModelViewSet):
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
                         "source_language": task["video"].get_language_label,
-                        "target_language": target_language,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
                         "status": "Fail",
                         "message": "This task creation failed since Editor and Reviewer can't be same.",
                     }
@@ -773,7 +801,9 @@ class TaskViewSet(ModelViewSet):
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
                         "source_language": task["video"].get_language_label,
-                        "target_language": target_language,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
                         "status": "Fail",
                         "message": "Task creation failed as target language is same as source language.",
                     }
@@ -793,9 +823,33 @@ class TaskViewSet(ModelViewSet):
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
                         "source_language": task["video"].get_language_label,
-                        "target_language": target_language,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
                         "status": "Fail",
                         "message": "Task creation failed as Target Langauge is not supported for VoiceOver.",
+                    }
+                )
+
+        if len(error_gender_not_supported_tasks):
+            consolidated_error.append(
+                {
+                    "message": "Task creation failed as Male Voice is not supported for Bodo language.",
+                    "count": len(error_language_not_supported_tasks),
+                }
+            )
+            for task in error_gender_not_supported_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": self.get_task_type_label(task["task_type"]),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
+                        "status": "Fail",
+                        "message": "Task creation failed as Male Voice is not supported for Bodo language.",
                     }
                 )
 
@@ -813,7 +867,9 @@ class TaskViewSet(ModelViewSet):
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
                         "source_language": task["video"].get_language_label,
-                        "target_language": target_language,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
@@ -1089,6 +1145,7 @@ class TaskViewSet(ModelViewSet):
             delete_video,
             same_language,
             language_not_supported,
+            gender_not_supported,
         ) = self.check_duplicate_tasks(request, task_type, None, user_ids, videos)
 
         response = {}
@@ -1138,7 +1195,9 @@ class TaskViewSet(ModelViewSet):
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
                         "source_language": task["video"].get_language_label,
-                        "target_language": target_language,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
                         "status": "Fail",
                         "message": "This task creation failed since Editor and Reviewer can't be same.",
                     }
@@ -1158,7 +1217,9 @@ class TaskViewSet(ModelViewSet):
                         "video_url": task["video"].url,
                         "task_type": self.get_task_type_label(task["task_type"]),
                         "source_language": task["video"].get_language_label,
-                        "target_language": target_language,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
@@ -2680,13 +2741,11 @@ def import_subtitles(request, pk=None):
             return Response(
                 {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
             )
-        print("subtitles", subtitles)
     else:
         subtitles = subtitles.read().decode("utf-8")
         try:
             subtitles = convert_srt_to_payload(subtitles)
         except Exception as e:
-            print(e)
             return Response(
                 {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
             )
