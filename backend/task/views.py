@@ -2486,16 +2486,33 @@ class TaskViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @swagger_auto_schema(
+        method="post",
+        manual_parameters=[
+            openapi.Parameter(
+                "project_id",
+                openapi.IN_QUERY,
+                description=("An integer to identify the project"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+        ],
+        responses={
+            200: "Word count populated successfully",
+            400: "Error in populating word count",      
+        },
+    )
     @action(
         detail=False,
         methods=["post"],
         url_path="populate_word_count",
         url_name="populate_word_count",
     )
-    def populate_word_count(self, request, project_id=None):
+    def populate_word_count(self, request):
         """
         Adding word count for existing translations and transcriptions
         """
+        project_id = request.query_params.get("project_id")
         translations = Translation.objects.filter(Q(video__project_id=project_id)
             & Q(status__in=["TRANSLATION_EDIT_COMPLETE", "TRANSLATION_REVIEW_COMPLETE"]))
         for translation_obj in translations:

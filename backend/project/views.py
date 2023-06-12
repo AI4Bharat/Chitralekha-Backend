@@ -1166,8 +1166,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 else round(elem["average_completion_time"].total_seconds() / 3600, 3)
             )
             user_dict = {
-                "name": {"value": elem["name"], "label": "Name"},
-                "mail": {"value": elem["mail"], "label": "Email"},
+                "name": {"value": elem["name"], "label": "Name", "viewColumns": False},
+                "mail": {"value": elem["mail"], "label": "Email", "viewColumns": False},
                 "tasks_assigned_count": {
                     "value": elem["tasks_assigned_count"],
                     "label": "Assigned Tasks",
@@ -1235,6 +1235,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 "total_duration": {
                     "value": round(elem["total_duration"].total_seconds() / 3600, 3),
                     "label": "Transcripted Duration (Hours)",
+                    "viewColumns": False,
                 },
             }
             transcript_data.append(transcript_dict)
@@ -1255,6 +1256,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         elem["translation_duration"].total_seconds() / 3600, 3
                     ),
                     "label": "Translated Duration (Hours)",
+                    "viewColumns": False,
                 },
                 "transcripts_translated": {
                     "value": elem["transcripts_translated"],
