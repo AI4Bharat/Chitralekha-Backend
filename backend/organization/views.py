@@ -706,8 +706,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 else round(elem["average_completion_time"].total_seconds() / 3600, 3)
             )
             user_dict = {
-                "name": {"value": elem["name"], "label": "Name"},
-                "mail": {"value": elem["mail"], "label": "Email"},
+                "name": {"value": elem["name"], "label": "Name", "viewColumns": False},
+                "mail": {"value": elem["mail"], "label": "Email", "viewColumns": False},
                 "tasks_assigned_count": {
                     "value": elem["tasks_assigned_count"],
                     "label": "Assigned Tasks",
@@ -829,8 +829,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "project_name": {
                         "value": task.video.project_id.title,
                         "label": "Project Name",
+                        "viewColumns": False,
                     },
-                    "video_name": {"value": task.video.name, "label": "Video Name"},
+                    "video_name": {
+                        "value": task.video.name, 
+                        "label": "Video Name",
+                        "viewColumns": False,
+                    },
                     "video_url": {
                         "value": task.video.url,
                         "label": "Video URL",
@@ -843,6 +848,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "task_type": {
                         "value": task.get_task_type_label,
                         "label": "Task Type",
+                        "viewColumns": False
                     },
                     "task_description": {
                         "value": description,
@@ -857,8 +863,14 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "value": task.get_target_language_label,
                         "label": "Target Langauge",
                     },
-                    "assignee": {"value": task.user.email, "label": "Assignee"},
-                    "status": {"value": task.get_task_status_label, "label": "Status"},
+                    "assignee": {
+                        "value": task.user.email, 
+                        "label": "Assignee",
+                    },
+                    "status": {
+                        "value": task.get_task_status_label, 
+                        "label": "Status"
+                    },
                     "completion_time": {
                         "value": completion_time,
                         "label": "Completion Time",
@@ -892,7 +904,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
                 for keys, values in project_report.items():
                     for report in values:
-                        report["project"] = {"value": project.title, "label": "Project"}
+                        report["project"] = {"value": project.title, "label": "Project", "viewColumns": False}
                 all_project_report.append(project_report)
 
         aggregated_project_report = {"transcript_stats": [], "translation_stats": []}
@@ -977,6 +989,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 "total_duration": {
                     "value": round(elem["total_duration"].total_seconds() / 3600, 3),
                     "label": "Transcripted Duration (Hours)",
+                    "viewColumns": False,
                 },
             }
             transcript_data.append(transcript_dict)
@@ -997,6 +1010,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         elem["translation_duration"].total_seconds() / 3600, 3
                     ),
                     "label": "Translated Duration (Hours)",
+                    "viewColumns": False,
                 },
                 "transcripts_translated": {
                     "value": elem["transcripts_translated"],
@@ -1068,8 +1082,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 else round(elem["total_translations"].total_seconds() / 3600, 3)
             )
             project_dict = {
-                "title": {"value": elem["title"], "label": "Title"},
-                "managers__username": {"value": manager_list, "label": "Managers"},
+                "title": {"value": elem["title"], "label": "Title", "viewColumns": False},
+                "managers__username": {"value": manager_list, "label": "Managers", "viewColumns": False},
                 "num_videos": {"value": elem["num_videos"], "label": "Video count"},
                 "total_transcriptions": {
                     "value": transcript_duration,
@@ -1127,7 +1141,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         org_data = []
         for elem in org_stats:
             org_dict = {
-                "title": {"value": elem["title"], "label": "Title"},
+                "title": {"value": elem["title"], "label": "Title", "viewColumns": False},
                 "num_projects": {
                     "value": elem["num_projects"],
                     "label": "Project count",
