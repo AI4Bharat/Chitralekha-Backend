@@ -26,7 +26,7 @@ from video.models import Video
 from transcript.models import Transcript
 from translation.models import Translation
 import json
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from project.views import ProjectViewSet
 from django.http import HttpRequest
 from django.db.models import Q
@@ -971,7 +971,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         for elem in transcript_statistics:
             transcript_dict = {
                 "language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["language"]],
                     "label": "Media Language",
                 },
                 "total_duration": {
@@ -985,11 +985,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         for elem in translation_statistics:
             translation_dict = {
                 "src_language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["src_language"]],
                     "label": "Src Language",
                 },
                 "tgt_language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["tgt_language"]],
                     "label": "Tgt Language",
                 },
                 "translation_duration": {

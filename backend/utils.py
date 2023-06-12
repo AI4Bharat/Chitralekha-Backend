@@ -1,4 +1,4 @@
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 
 
 def get_language_label(target_language):

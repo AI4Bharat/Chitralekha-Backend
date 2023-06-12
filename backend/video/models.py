@@ -1,7 +1,7 @@
 from django.db import models
 import uuid
 from project.models import Project
-from translation.metadata import LANGUAGE_CHOICES
+from transcript.metadata import TRANSCRIPTION_LANGUAGE_CHOICES
 from django.contrib.postgres.fields import ArrayField
 
 MALE = "MALE"
@@ -39,7 +39,9 @@ class Video(models.Model):
         help_text=("Organization to which the Project belongs"),
     )
     language = models.CharField(
-        choices=LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language"
+        choices=TRANSCRIPTION_LANGUAGE_CHOICES,
+        max_length=4,
+        verbose_name="Target Language",
     )
     description = models.TextField(
         max_length=400, null=True, blank=True, help_text=("Video Description")
@@ -65,7 +67,7 @@ class Video(models.Model):
 
     @property
     def get_language_label(self):
-        for language in LANGUAGE_CHOICES:
+        for language in TRANSCRIPTION_LANGUAGE_CHOICES:
             if self.language == language[0]:
                 return language[1]
 
