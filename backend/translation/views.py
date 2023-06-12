@@ -19,7 +19,7 @@ from django.http import HttpResponse
 from django.http import HttpRequest
 from django.core.files.base import ContentFile
 import requests
-from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES, LANGUAGE_CHOICES
+from .metadata import TRANSLATION_SUPPORTED_LANGUAGES, TRANSLATION_LANGUAGE_CHOICES
 from .models import (
     Translation,
     MACHINE_GENERATED,
@@ -1485,13 +1485,14 @@ def save_full_translation(request):
 @api_view(["GET"])
 @authentication_classes([])
 @permission_classes([])
-def get_supported_languages(request):
-
-    # Return the allowed translations and model codes
+def get_translation_supported_languages(request):
+    """
+    Endpoint to get the supported languages for TTS API
+    """
     return Response(
         [
             {"label": label, "value": value}
-            for label, value in INDIC_TRANS_SUPPORTED_LANGUAGES.items()
+            for label, value in TRANSLATION_SUPPORTED_LANGUAGES.items()
         ],
         status=status.HTTP_200_OK,
     )
@@ -1672,11 +1673,11 @@ def get_translation_report(request):
         translation_dict = {
             "org": elem["video__project_id__organization_id__title"],
             "src_language": {
-                "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["src_language"]],
                 "label": "Src Language",
             },
             "tgt_language": {
-                "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["tgt_language"]],
                 "label": "Tgt Language",
             },
             "translation_duration": {

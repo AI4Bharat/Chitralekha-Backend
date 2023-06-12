@@ -24,7 +24,7 @@ from datetime import timedelta
 from transcript.models import Transcript
 from translation.models import Translation
 import json
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -986,7 +986,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 ).first()
                 users = users.filter(
                     languages__contains=[
-                        dict(LANGUAGE_CHOICES)[video.language]
+                        dict(TRANSLATION_LANGUAGE_CHOICES)[video.language]
                     ],  # filtering of users based on video language
                 )
             except:
@@ -1068,7 +1068,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 ):
                     user_by_roles = user_by_roles.filter(
                         languages__contains=[
-                            dict(LANGUAGE_CHOICES)[target_language]
+                            dict(TRANSLATION_LANGUAGE_CHOICES)[target_language]
                         ],  # filtering of users based on target language
                     )
                     users = User.objects.filter(
@@ -1229,7 +1229,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         for elem in transcript_statistics:
             transcript_dict = {
                 "language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["language"]],
                     "label": "Media Language",
                 },
                 "total_duration": {
@@ -1243,11 +1243,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
         for elem in translation_statistics:
             translation_dict = {
                 "src_language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["src_language"]],
                     "label": "Src Language",
                 },
                 "tgt_language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["tgt_language"]],
                     "label": "Tgt Language",
                 },
                 "translation_duration": {

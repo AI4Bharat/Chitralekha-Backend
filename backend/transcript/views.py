@@ -26,7 +26,7 @@ from translation.utils import (
     convert_to_docx,
     convert_to_paragraph,
 )
-from translation.metadata import LANGUAGE_CHOICES, INDIC_TRANS_SUPPORTED_LANGUAGES
+from .metadata import TRANSCRIPTION_LANGUAGE_CHOICES, TRANSCRIPTION_SUPPORTED_LANGUAGES
 
 from .models import (
     Transcript,
@@ -1641,16 +1641,14 @@ def get_word_aligned_json(request):
 @api_view(["GET"])
 @authentication_classes([])
 @permission_classes([])
-def get_supported_languages(request):
+def get_transcription_supported_languages(request):
     """
     Endpoint to get the supported languages for ASR API
     """
-
-    # Make a call to the FASTAPI endpoint to get the list of supported languages
     return Response(
         [
             {"label": label, "value": value}
-            for label, value in INDIC_TRANS_SUPPORTED_LANGUAGES.items()
+            for label, value in TRANSCRIPTION_SUPPORTED_LANGUAGES.items()
         ],
         status=status.HTTP_200_OK,
     )
@@ -1683,7 +1681,7 @@ def get_transcription_report(request):
         transcript_dict = {
             "org": elem["video__project_id__organization_id__title"],
             "language": {
-                "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                "value": dict(TRANSCRIPTION_LANGUAGE_CHOICES)[elem["language"]],
                 "label": "Media Language",
             },
             "total_duration": {
