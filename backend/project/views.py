@@ -1295,10 +1295,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 "src_language": {
                     "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
                     "label": "Source Langauge",
+                    "viewColumns": False,
                 },
                 "tgt_language": {
                     "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
                     "label": "Target Language",
+                    "viewColumns": False,
                 },
                 "translation_duration": {
                     "value": round(
