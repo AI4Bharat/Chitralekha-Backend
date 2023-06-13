@@ -2,7 +2,7 @@ import uuid
 from django.db import models
 from translation.models import Translation
 from task.models import Task
-from translation.metadata import LANGUAGE_CHOICES
+from .metadata import VOICEOVER_LANGUAGE_CHOICES
 from video.models import Video
 from users.models import User
 
@@ -84,7 +84,7 @@ class VoiceOver(models.Model):
         related_name="voice_over_video",
     )
     target_language = models.CharField(
-        choices=LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language"
+        choices=VOICEOVER_LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language"
     )
     task = models.ForeignKey(
         Task,

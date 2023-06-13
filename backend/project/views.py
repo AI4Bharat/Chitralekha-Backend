@@ -24,7 +24,7 @@ from datetime import timedelta
 from transcript.models import Transcript
 from translation.models import Translation
 import json
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -60,7 +60,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
     )
     @is_particular_project_owner
     def add_project_members(self, request, pk=None, *args, **kwargs):
-
         try:
             project = Project.objects.get(pk=pk)
             if "user_id" in dict(request.data):
@@ -555,6 +554,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
             serializer = VideoSerializer(videos, many=True)
             video_data = []
             for video in videos:
+                send_video_data = False
+
                 tasks = Task.objects.filter(video=video)
                 video_serializer = VideoSerializer(video).data
                 try:
@@ -567,57 +568,106 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 if len(task_table) == 1:
                     if "transcription" in task_table.keys():
                         task_obj = task_table["transcription"]
+
                         if type(task_obj) != tuple:
-                            tasks_to_send.append(
-                                {
-                                    "task": task_obj,
-                                    "language_pair": task_obj.get_language_pair_label,
-                                    "task_status": task_obj.get_task_status,
-                                    "user": UserFetchSerializer(task_obj.user).data,
-                                    "created_at": task_obj.created_at,
-                                }
-                            )
+                            # Status won't be displayed to editors/reviewers(roles below PM).
+                            if (
+                                request.user.role == "PROJECT_MANAGER"
+                                or request.user.role == "ORG_OWNER"
+                                or request.user.role == "ADMIN"
+                            ):
+                                tasks_to_send.append(
+                                    {
+                                        "task": task_obj,
+                                        "language_pair": task_obj.get_language_pair_label,
+                                        "task_status": task_obj.get_task_status,
+                                        "user": UserFetchSerializer(task_obj.user).data,
+                                        "created_at": task_obj.created_at,
+                                    }
+                                )
+                            # Show the videos for which editors/reviewers have task assigned.
+                            elif task_obj.user.id == request.user.id:
+                                send_video_data = True
                         else:
-                            tasks_to_send.append(
-                                {
-                                    "task": task_obj[1],
-                                    "language_pair": task_obj[
-                                        1
-                                    ].get_language_pair_label,
-                                    "task_status": task_obj[0],
-                                    "user": UserFetchSerializer(task_obj[1].user).data,
-                                    "created_at": task_obj[1].created_at,
-                                }
-                            )
+                            # Status won't be displayed to editors/reviewers(roles below PM).
+                            if (
+                                request.user.role == "PROJECT_MANAGER"
+                                or request.user.role == "ORG_OWNER"
+                                or request.user.role == "ADMIN"
+                            ):
+                                tasks_to_send.append(
+                                    {
+                                        "task": task_obj[1],
+                                        "language_pair": task_obj[
+                                            1
+                                        ].get_language_pair_label,
+                                        "task_status": task_obj[0],
+                                        "user": UserFetchSerializer(
+                                            task_obj[1].user
+                                        ).data,
+                                        "created_at": task_obj[1].created_at,
+                                    }
+                                )
+                            # Show the videos for which editors/reviewers have task assigned.
+                            elif task_obj[1].user.id == request.user.id:
+                                send_video_data = True
                 if len(task_table) > 1:
-                    if "transcription" in task_table.keys():
-                        del task_table["transcription"]
+                    # if "transcription" in task_table.keys():
+                    #     del task_table["transcription"]
                     all_statuses = set()
                     for target_language, task_obj in task_table.items():
                         if type(task_obj) != tuple:
                             all_statuses.add(task_obj.status)
-                            tasks_to_send.append(
-                                {
-                                    "task": task_obj,
-                                    "language_pair": task_obj.get_language_pair_label,
-                                    "task_status": task_obj.get_task_status,
-                                    "user": UserFetchSerializer(task_obj.user).data,
-                                    "created_at": task_obj.created_at,
-                                }
-                            )
+
+                            # Status won't be displayed to editors/reviewers(roles below PM).
+                            if (
+                                request.user.role == "PROJECT_MANAGER"
+                                or request.user.role == "ORG_OWNER"
+                                or request.user.role == "ADMIN"
+                            ):
+                                if target_language == "transcription":
+                                    continue
+
+                                tasks_to_send.append(
+                                    {
+                                        "task": task_obj,
+                                        "language_pair": task_obj.get_language_pair_label,
+                                        "task_status": task_obj.get_task_status,
+                                        "user": UserFetchSerializer(task_obj.user).data,
+                                        "created_at": task_obj.created_at,
+                                    }
+                                )
+                            # Show the videos for which editors/reviewers have task assigned.
+                            elif task_obj.user.id == request.user.id:
+                                send_video_data = True
                         else:
                             all_statuses.add(task_obj[1].status)
-                            tasks_to_send.append(
-                                {
-                                    "task": task_obj[1],
-                                    "language_pair": task_obj[
-                                        1
-                                    ].get_language_pair_label,
-                                    "task_status": task_obj[0],
-                                    "user": UserFetchSerializer(task_obj[1].user).data,
-                                    "created_at": task_obj[1].created_at,
-                                }
-                            )
+
+                            # Status won't be displayed to editors/reviewers(roles below PM).
+                            if (
+                                request.user.role == "PROJECT_MANAGER"
+                                or request.user.role == "ORG_OWNER"
+                                or request.user.role == "ADMIN"
+                            ):
+                                if target_language == "transcription":
+                                    continue
+
+                                tasks_to_send.append(
+                                    {
+                                        "task": task_obj[1],
+                                        "language_pair": task_obj[
+                                            1
+                                        ].get_language_pair_label,
+                                        "task_status": task_obj[0],
+                                        "user": UserFetchSerializer(
+                                            task_obj[1].user
+                                        ).data,
+                                        "created_at": task_obj[1].created_at,
+                                    }
+                                )
+                            # Show the videos for which editors/reviewers have task assigned.
+                            elif task_obj[1].user.id == request.user.id:
+                                send_video_data = True
 
                 for task in tasks_to_send:
                     if (
@@ -629,7 +679,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     del task["task"]
 
                 video_serializer["status"] = tasks_to_send
-                video_data.append(video_serializer)
+                if send_video_data or (
+                    request.user.role == "PROJECT_MANAGER"
+                    or request.user.role == "ORG_OWNER"
+                    or request.user.role == "ADMIN"
+                ):
+                    video_data.append(video_serializer)
             return Response(video_data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response(
@@ -986,7 +1041,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 ).first()
                 users = users.filter(
                     languages__contains=[
-                        dict(LANGUAGE_CHOICES)[video.language]
+                        dict(TRANSLATION_LANGUAGE_CHOICES)[video.language]
                     ],  # filtering of users based on video language
                 )
             except:
@@ -1068,7 +1123,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 ):
                     user_by_roles = user_by_roles.filter(
                         languages__contains=[
-                            dict(LANGUAGE_CHOICES)[target_language]
+                            dict(TRANSLATION_LANGUAGE_CHOICES)[target_language]
                         ],  # filtering of users based on target language
                     )
                     users = User.objects.filter(
@@ -1274,7 +1329,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         for elem in transcript_statistics:
             transcript_dict = {
                 "language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["language"]],
                     "label": "Media Language",
                 },
                 "total_duration": {

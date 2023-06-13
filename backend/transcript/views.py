@@ -26,7 +26,7 @@ from translation.utils import (
     convert_to_docx,
     convert_to_paragraph,
 )
-from translation.metadata import LANGUAGE_CHOICES, INDIC_TRANS_SUPPORTED_LANGUAGES
+from .metadata import TRANSCRIPTION_LANGUAGE_CHOICES, TRANSCRIPTION_SUPPORTED_LANGUAGES
 
 from .models import (
     Transcript,
@@ -65,6 +65,8 @@ import logging
 from django.conf import settings
 from django.core.mail import send_mail
 import logging
+from config import align_json_url
+import regex
 from .tasks import celery_align_json
 import os
 
@@ -1517,6 +1519,19 @@ def save_transcription(request):
                         task.save()
 
             if request.data.get("final"):
+                if transcript_obj.payload != "" and transcript_obj.payload is not None:
+                    num_words = 0
+                    for idv_transcription in transcript_obj.payload["payload"]:
+                        if "text" in idv_transcription.keys():
+                            cleaned_text = regex.sub(
+                                r"[^\p{L}\s]", "", idv_transcription["text"]
+                            ).lower()  # for removing special characters
+                            cleaned_text = regex.sub(
+                                r"\s+", " ", cleaned_text
+                            )  # for removing multiple blank spaces
+                            num_words += len(cleaned_text.split(" "))
+                    transcript_obj.payload["word_count"] = num_words
+                    transcript_obj.save()
                 celery_align_json.delay(transcript_obj.id)
                 return Response(
                     {
@@ -1641,16 +1656,14 @@ def get_word_aligned_json(request):
 @api_view(["GET"])
 @authentication_classes([])
 @permission_classes([])
-def get_supported_languages(request):
+def get_transcription_supported_languages(request):
     """
     Endpoint to get the supported languages for ASR API
     """
-
-    # Make a call to the FASTAPI endpoint to get the list of supported languages
     return Response(
         [
             {"label": label, "value": value}
-            for label, value in INDIC_TRANS_SUPPORTED_LANGUAGES.items()
+            for label, value in TRANSCRIPTION_SUPPORTED_LANGUAGES.items()
         ],
         status=status.HTTP_200_OK,
     )
@@ -1683,7 +1696,7 @@ def get_transcription_report(request):
         transcript_dict = {
             "org": elem["video__project_id__organization_id__title"],
             "language": {
-                "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                "value": dict(TRANSCRIPTION_LANGUAGE_CHOICES)[elem["language"]],
                 "label": "Media Language",
             },
             "total_duration": {

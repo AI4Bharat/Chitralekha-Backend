@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from organization.models import Organization
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from django.contrib.postgres.fields import ArrayField
 
 TRANSCRIPT_TYPE = (
@@ -160,7 +160,7 @@ class Project(models.Model):
 
     default_target_languages = ArrayField(
         models.CharField(
-            choices=LANGUAGE_CHOICES,
+            choices=TRANSLATION_LANGUAGE_CHOICES,
             blank=True,
             default=None,
             null=True,

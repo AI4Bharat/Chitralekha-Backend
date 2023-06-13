@@ -5,9 +5,9 @@ from . import views
 urlpatterns = [
     path("save/", views.save_voice_over, name="save_voice_over"),
     path(
-        "generate/supported_languages",
-        views.get_supported_languages,
-        name="supported_languages",
+        "get_voiceover_supported_languages",
+        views.get_voiceover_supported_languages,
+        name="get_voiceover_supported_languages",
     ),
     path(
         "get_voice_over_types/",

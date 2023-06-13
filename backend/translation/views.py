@@ -19,7 +19,7 @@ from django.http import HttpResponse
 from django.http import HttpRequest
 from django.core.files.base import ContentFile
 import requests
-from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES, LANGUAGE_CHOICES
+from .metadata import TRANSLATION_SUPPORTED_LANGUAGES, TRANSLATION_LANGUAGE_CHOICES
 from .models import (
     Translation,
     MACHINE_GENERATED,
@@ -56,6 +56,7 @@ import logging
 import datetime
 import math
 import json
+import regex
 
 
 @api_view(["GET"])
@@ -1212,6 +1213,22 @@ def save_translation(request):
                 for ind in delete_indices:
                     translation_obj.payload["payload"].pop(ind)
 
+                if (
+                    translation_obj.payload != ""
+                    and translation_obj.payload is not None
+                ):
+                    num_words = 0
+                    for idv_translation in translation_obj.payload["payload"]:
+                        if "target_text" in idv_translation.keys():
+                            cleaned_text = regex.sub(
+                                r"[^\p{L}\s]", "", idv_translation["target_text"]
+                            ).lower()  # for removing special characters
+                            cleaned_text = regex.sub(
+                                r"\s+", " ", cleaned_text
+                            )  # for removing multiple blank spaces
+                            num_words += len(cleaned_text.split(" "))
+                    translation_obj.payload["word_count"] = num_words
+                    translation_obj.save()
                 return Response(
                     {
                         "message": full_message,
@@ -1485,13 +1502,14 @@ def save_full_translation(request):
 @api_view(["GET"])
 @authentication_classes([])
 @permission_classes([])
-def get_supported_languages(request):
-
-    # Return the allowed translations and model codes
+def get_translation_supported_languages(request):
+    """
+    Endpoint to get the supported languages for TTS API
+    """
     return Response(
         [
             {"label": label, "value": value}
-            for label, value in INDIC_TRANS_SUPPORTED_LANGUAGES.items()
+            for label, value in TRANSLATION_SUPPORTED_LANGUAGES.items()
         ],
         status=status.HTTP_200_OK,
     )
