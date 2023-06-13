@@ -1217,7 +1217,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project_members.annotate(
                 transcript_word_count=Sum(
                     Cast(F("transcript__payload__word_count"), FloatField()),
-                    filter=Q(transcript__video__project_id=prj.id),
+                    filter=(Q(transcript__video__project_id=prj.id) 
+                        & Q(transcript__status="TRANSCRIPTION_EDIT_COMPLETE")),
                 ),
             )
         ).order_by("mail")  # fetching transcript word count
@@ -1225,7 +1226,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project_members.annotate(
                 translation_word_count=Sum(
                     Cast(F("translation__payload__word_count"), FloatField()),
-                    filter=Q(translation__video__project_id=prj.id),
+                    filter=(Q(translation__video__project_id=prj.id)
+                        & Q(translation__status="TRANSLATION_EDIT_COMPLETE")),
                 )
             )
         ).order_by("mail")  # fetching translation word count
@@ -1305,8 +1307,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
             .values("language")
         )
         transcript_statistics = prj_transcriptions.annotate(
-            total_duration=Sum(F("video__duration"))
-        ).order_by("-total_duration")
+                total_duration=Sum(F("video__duration"))
+            ).annotate(
+                word_count=Sum(Cast(F("payload__word_count"), FloatField()))
+            ).order_by("-total_duration")
         prj_translations = (
             Translation.objects.filter(video__in=prj_videos)
             .filter(status="TRANSLATION_EDIT_COMPLETE")
@@ -1317,6 +1321,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         translation_statistics = (
             prj_translations.annotate(transcripts_translated=Count("id"))
             .annotate(translation_duration=Sum(F("video__duration")))
+            .annotate(word_count=Sum(Cast(F("payload__word_count"), FloatField())))
             .order_by("-translation_duration")
         )
 
@@ -1332,6 +1337,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     "label": "Transcripted Duration (Hours)",
                     "viewColumns": False,
                 },
+                "word_count": {
+                    "value": elem["word_count"],
+                    "label": "Transcripted Word Count",
+                }
             }
             transcript_data.append(transcript_dict)
 
@@ -1339,12 +1348,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
         for elem in translation_statistics:
             translation_dict = {
                 "src_language": {
-                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["src_language"]],
-                    "label": "Src Language",
+                    "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                    "label": "Source Langauge",
+                    "viewColumns": False,
                 },
                 "tgt_language": {
-                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["tgt_language"]],
-                    "label": "Tgt Language",
+                    "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                    "label": "Target Language",
+                    "viewColumns": False,
                 },
                 "translation_duration": {
                     "value": round(
@@ -1357,6 +1368,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     "value": elem["transcripts_translated"],
                     "label": "Translation Tasks Count",
                 },
+                "word_count": {
+                    "value": elem["word_count"],
+                    "label": "Translation Word Count",
+                }
             }
             translation_data.append(translation_dict)
         res = {
