@@ -1673,11 +1673,11 @@ def get_translation_report(request):
             "org": elem["video__project_id__organization_id__title"],
             "src_language": {
                 "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
-                "label": "Src Language",
+                "label": "Source Langauge",
             },
             "tgt_language": {
                 "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
-                "label": "Tgt Language",
+                "label": "Target Language",
             },
             "translation_duration": {
                 "value": round(elem["translation_duration"].total_seconds() / 3600, 3),
