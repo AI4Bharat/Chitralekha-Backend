@@ -874,10 +874,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "source_language": {
                         "value": task.get_src_language_label,
                         "label": "Source Langauge",
+                        "viewColumns": False,
                     },
                     "target_language": {
                         "value": task.get_target_language_label,
                         "label": "Target Langauge",
+                        "viewColumns": False,
                     },
                     "assignee": {
                         "value": task.user.email, 
