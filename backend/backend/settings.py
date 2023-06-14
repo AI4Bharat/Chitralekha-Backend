@@ -89,8 +89,8 @@ EMAIL_HOST_PASSWORD = os.getenv("SMTP_PASSWORD")
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 
-DOMAIN = "chitralekha.ai4bharat.org"
-SITE_NAME = "chitralekha.ai4bharat.org"
+DOMAIN = "chitralekha.ai4bharat.org/#"
+SITE_NAME = "chitralekha.ai4bharat.org/#"
 
 DJOSER = {
     "PASSWORD_RESET_CONFIRM_URL": "forget-password/confirm/{uid}/{token}",
