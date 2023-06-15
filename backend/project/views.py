@@ -16,11 +16,11 @@ from task.models import Task
 from task.serializers import TaskSerializer, TaskStatusSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum, Value
-from django.db.models.functions import Cast, Concat
+from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum, Value, Case, When, IntegerField
+from django.db.models.functions import Cast, Concat, Extract
 from config import *
 from users.serializers import UserFetchSerializer
-from datetime import timedelta
+from datetime import timedelta, datetime
 from transcript.models import Transcript
 from translation.models import Translation
 import json
@@ -1152,7 +1152,18 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
             .annotate(
                 average_completion_time=Avg(
-                    F("task__updated_at") - F("task__created_at"),
+                    Case(
+                        When(
+                            (Q(task__status="COMPLETE") & Q(task__updated_at__lt=(datetime(2023, 4, 5, 17, 0, 0)))),
+                            then=(Extract(F("task__updated_at") - F("task__created_at"), "epoch")),
+                        ),
+                        When(
+                            (Q(task__status="COMPLETE") & Q(task__updated_at__gte=(datetime(2023, 4, 5, 17, 0, 0)))),
+                            then=F("task__time_spent"),
+                        ),
+                        default=0,
+                        output_field=IntegerField(),
+                    ),
                     filter=Q(task__status="COMPLETE"),
                 )
             )
@@ -1198,7 +1209,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             avg_time = (
                 0
                 if elem["average_completion_time"] is None
-                else round(elem["average_completion_time"].total_seconds() / 3600, 3)
+                else round(elem["average_completion_time"] / 3600, 3)
             )
             word_count_translation = (
                 0
@@ -1237,7 +1248,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 },
                 "avg_comp_time": {
                     "value": float("{:.2f}".format(avg_time)),
-                    "label": "Avg. Completion Time (Seconds)",
+                    "label": "Avg. Completion Time (Hours)",
                 },
                 "word_count": {
                     "value": int(word_count_translation + word_count_transcript),
