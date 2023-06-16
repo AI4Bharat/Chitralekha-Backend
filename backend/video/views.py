@@ -182,6 +182,13 @@ def delete_video(request):
             type=openapi.TYPE_STRING,
             required=False,
         ),
+        openapi.Parameter(
+            "speaker_info",
+            openapi.IN_QUERY,
+            description=("Speaker's info such as Name, Age, Gender"),
+            type=openapi.TYPE_OBJECT,
+            required=False,
+        ),
     ],
     responses={200: "Return the video subtitle payload"},
 )

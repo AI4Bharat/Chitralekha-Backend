@@ -21,4 +21,5 @@ class VideoSerializer(serializers.ModelSerializer):
             "project_id",
             "language_label",
             "gender_label",
+            "speaker_info",
         )

@@ -61,6 +61,7 @@ class Video(models.Model):
         blank=True,
         verbose_name="Gender",
     )
+    speaker_info = models.JSONField(verbose_name="Speakers Info", null=True)
 
     def __str__(self):
         return str(self.video_uuid) + " : " + self.name
