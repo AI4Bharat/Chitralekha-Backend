@@ -492,15 +492,56 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             )
                     else:
                         task_table[task.target_language] = ("NEW", task)
+
+        for task in tasks:
+            if "VOICE" in task.task_type:
+                if task.status in ["INPROGRESS", "POST_PROCESS", "COMPLETE"]:
+                    if task.target_language not in task_table:
+                        task_table[task.target_language] = task
+                    else:
+                        if type(task_table[task.target_language]) != tuple:
+                            if "EDIT" in task_table[task.target_language].task_type:
+                                task_table[task.target_language] = task
+                        else:
+                            if "EDIT" in task.task_type:
+                                task_table[task.target_language] = task
+                else:
+                    if task.target_language in task_table:
+                        if type(task_table[task.target_language]) != tuple:
+                            task_table[task.target_language] = task
+                    elif "voice" in task_table:
+                        if type(task_table["voice"]) == tuple:
+                            task_table[task.target_language] = ("VOICE_OVER: NEW", task)
+                        else:
+                            task_table[task.target_language] = (
+                                task_table["voice"].get_task_status,
+                                task,
+                            )
+                    else:
+                        task_table[task.target_language] = ("VOICE_OVER: NEW", task)
+
         return task_table
 
     def check_if_last_task_in_workflow(self, task_obj):
         task = task_obj["task"]
-        if task.task_type == "TRANSLATION_REVIEW":
+        if task.task_type == "VOICEOVER_EDIT":
             return True
+        elif task.task_type == "TRANSLATION_REVIEW":
+            if (
+                Task.objects.filter(task_type__in=["VOICEOVER_EDIT"])
+                .filter(target_language=task.target_language)
+                .filter(video=task.video)
+                .first()
+                is None
+            ):
+                return True
+            else:
+                return False
+
         elif task.task_type == "TRANSLATION_EDIT":
             if (
                 Task.objects.filter(task_type="TRANSLATION_REVIEW")
+                .filter(target_language=task.target_language)
                 .filter(video=task.video)
                 .first()
                 is None
@@ -550,7 +591,21 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def list_project_videos(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
-            videos = Video.objects.filter(project_id=pk)
+
+            if (
+                request.user.role == "PROJECT_MANAGER"
+                or request.user.role == "ORG_OWNER"
+                or request.user.role == "ADMIN"
+            ):
+                videos = Video.objects.filter(project_id=pk)
+            else:
+                video_ids = (
+                    Task.objects.filter(user_id=request.user.id)
+                    .values_list("video_id", flat=True)
+                    .distinct()
+                )
+                videos = Video.objects.filter(project_id=pk).filter(id__in=video_ids)
+
             serializer = VideoSerializer(videos, many=True)
             video_data = []
             for video in videos:
