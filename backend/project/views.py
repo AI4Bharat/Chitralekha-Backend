@@ -16,15 +16,15 @@ from task.models import Task
 from task.serializers import TaskSerializer, TaskStatusSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum, Value
-from django.db.models.functions import Cast, Concat
+from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum, Value, Case, When, IntegerField
+from django.db.models.functions import Cast, Concat, Extract
 from config import *
 from users.serializers import UserFetchSerializer
-from datetime import timedelta
+from datetime import timedelta, datetime
 from transcript.models import Transcript
 from translation.models import Translation
 import json
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -1096,7 +1096,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 ).first()
                 users = users.filter(
                     languages__contains=[
-                        dict(LANGUAGE_CHOICES)[video.language]
+                        dict(TRANSLATION_LANGUAGE_CHOICES)[video.language]
                     ],  # filtering of users based on video language
                 )
             except:
@@ -1178,7 +1178,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 ):
                     user_by_roles = user_by_roles.filter(
                         languages__contains=[
-                            dict(LANGUAGE_CHOICES)[target_language]
+                            dict(TRANSLATION_LANGUAGE_CHOICES)[target_language]
                         ],  # filtering of users based on target language
                     )
                     users = User.objects.filter(
@@ -1262,22 +1262,88 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
             .annotate(
                 average_completion_time=Avg(
-                    F("task__updated_at") - F("task__created_at"),
+                    Case(
+                        When(
+                            (Q(task__status="COMPLETE") & Q(task__updated_at__lt=(datetime(2023, 4, 5, 17, 0, 0)))),
+                            then=(Extract(F("task__updated_at") - F("task__created_at"), "epoch")),
+                        ),
+                        When(
+                            (Q(task__status="COMPLETE") & Q(task__updated_at__gte=(datetime(2023, 4, 5, 17, 0, 0)))),
+                            then=F("task__time_spent"),
+                        ),
+                        default=0,
+                        output_field=IntegerField(),
+                    ),
                     filter=Q(task__status="COMPLETE"),
                 )
             )
             .exclude(tasks_assigned_count=0)
-        )
+        ).order_by("mail")
+        word_count_transcript_statistics = (
+            project_members.annotate(
+                transcript_word_count=Sum(
+                    Cast(F("transcript__payload__word_count"), FloatField()),
+                    filter=(
+                        Q(transcript__video__project_id=prj.id)
+                        & Q(transcript__status="TRANSCRIPTION_EDIT_COMPLETE")
+                    ),
+                ),
+            )
+        ).order_by(
+            "mail"
+        )  # fetching transcript word count
+        word_count_translation_statistics = (
+            project_members.annotate(
+                translation_word_count=Sum(
+                    Cast(F("translation__payload__word_count"), FloatField()),
+                    filter=(
+                        Q(translation__video__project_id=prj.id)
+                        & Q(translation__status="TRANSLATION_EDIT_COMPLETE")
+                    ),
+                )
+            )
+        ).order_by(
+            "mail"
+        )  # fetching translation word count
         user_data = []
+        word_count_idx = 0
         for elem in user_statistics:
+            while (
+                word_count_idx < len(word_count_translation_statistics)
+                and elem["name"]
+                != word_count_translation_statistics[word_count_idx]["name"]
+            ):  # to skip names not present in user_statistics
+                word_count_idx += 1
+            if word_count_idx >= len(word_count_translation_statistics):
+                break
             avg_time = (
                 0
                 if elem["average_completion_time"] is None
-                else round(elem["average_completion_time"].total_seconds() / 3600, 3)
+                else round(elem["average_completion_time"] / 3600, 3)
+            )
+            word_count_translation = (
+                0
+                if word_count_translation_statistics[word_count_idx][
+                    "translation_word_count"
+                ]
+                is None
+                else word_count_translation_statistics[word_count_idx][
+                    "translation_word_count"
+                ]
+            )
+            word_count_transcript = (
+                0
+                if word_count_transcript_statistics[word_count_idx][
+                    "transcript_word_count"
+                ]
+                is None
+                else word_count_transcript_statistics[word_count_idx][
+                    "transcript_word_count"
+                ]
             )
             user_dict = {
-                "name": {"value": elem["name"], "label": "Name"},
-                "mail": {"value": elem["mail"], "label": "Email"},
+                "name": {"value": elem["name"], "label": "Name", "viewColumns": False},
+                "mail": {"value": elem["mail"], "label": "Email", "viewColumns": False},
                 "tasks_assigned_count": {
                     "value": elem["tasks_assigned_count"],
                     "label": "Assigned Tasks",
@@ -1292,10 +1358,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 },
                 "avg_comp_time": {
                     "value": float("{:.2f}".format(avg_time)),
-                    "label": "Avg. Completion Time (Seconds)",
+                    "label": "Avg. Completion Time (Hours)",
+                },
+                "word_count": {
+                    "value": int(word_count_translation + word_count_transcript),
+                    "label": "Word count",
                 },
             }
             user_data.append(user_dict)
+            word_count_idx += 1
         return Response(user_data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
@@ -1319,9 +1390,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
             .filter(status="TRANSCRIPTION_EDIT_COMPLETE")
             .values("language")
         )
-        transcript_statistics = prj_transcriptions.annotate(
-            total_duration=Sum(F("video__duration"))
-        ).order_by("-total_duration")
+        transcript_statistics = (
+            prj_transcriptions.annotate(total_duration=Sum(F("video__duration")))
+            .annotate(word_count=Sum(Cast(F("payload__word_count"), FloatField())))
+            .order_by("-total_duration")
+        )
         prj_translations = (
             Translation.objects.filter(video__in=prj_videos)
             .filter(status="TRANSLATION_EDIT_COMPLETE")
@@ -1332,6 +1405,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         translation_statistics = (
             prj_translations.annotate(transcripts_translated=Count("id"))
             .annotate(translation_duration=Sum(F("video__duration")))
+            .annotate(word_count=Sum(Cast(F("payload__word_count"), FloatField())))
             .order_by("-translation_duration")
         )
 
@@ -1339,12 +1413,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
         for elem in transcript_statistics:
             transcript_dict = {
                 "language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["language"]],
                     "label": "Media Language",
                 },
                 "total_duration": {
                     "value": round(elem["total_duration"].total_seconds() / 3600, 3),
                     "label": "Transcripted Duration (Hours)",
+                    "viewColumns": False,
+                },
+                "word_count": {
+                    "value": elem["word_count"],
+                    "label": "Transcripted Word Count",
                 },
             }
             transcript_data.append(transcript_dict)
@@ -1353,22 +1432,29 @@ class ProjectViewSet(viewsets.ModelViewSet):
         for elem in translation_statistics:
             translation_dict = {
                 "src_language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
-                    "label": "Src Language",
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["src_language"]],
+                    "label": "Source Langauge",
+                    "viewColumns": False,
                 },
                 "tgt_language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
-                    "label": "Tgt Language",
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["tgt_language"]],
+                    "label": "Target Language",
+                    "viewColumns": False,
                 },
                 "translation_duration": {
                     "value": round(
                         elem["translation_duration"].total_seconds() / 3600, 3
                     ),
                     "label": "Translated Duration (Hours)",
+                    "viewColumns": False,
                 },
                 "transcripts_translated": {
                     "value": elem["transcripts_translated"],
                     "label": "Translation Tasks Count",
+                },
+                "word_count": {
+                    "value": elem["word_count"],
+                    "label": "Translation Word Count",
                 },
             }
             translation_data.append(translation_dict)

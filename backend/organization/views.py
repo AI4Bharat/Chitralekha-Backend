@@ -26,7 +26,7 @@ from video.models import Video
 from transcript.models import Transcript
 from translation.models import Translation
 import json
-from translation.metadata import LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from project.views import ProjectViewSet
 from django.http import HttpRequest
 from django.db.models import Q
@@ -706,8 +706,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 else round(elem["average_completion_time"].total_seconds() / 3600, 3)
             )
             user_dict = {
-                "name": {"value": elem["name"], "label": "Name"},
-                "mail": {"value": elem["mail"], "label": "Email"},
+                "name": {"value": elem["name"], "label": "Name", "viewColumns": False},
+                "mail": {"value": elem["mail"], "label": "Email", "viewColumns": False},
                 "tasks_assigned_count": {
                     "value": elem["tasks_assigned_count"],
                     "label": "Assigned Tasks",
@@ -823,14 +823,35 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 completion_time = self.format_completion_time(time_spent)
             else:
                 completion_time = None
+            
+            word_count = 0
+            if "Translation" in task.get_task_type_label:
+                try:
+                    translation_obj = Translation.objects.filter(task=task).first()
+                    word_count = translation_obj.payload["word_count"]
+                except:
+                    pass
+            elif "Transcription" in task.get_task_type_label:
+                try:
+                    transcript_obj = Transcript.objects.filter(task=task).first()
+                    word_count = transcript_obj.payload["word_count"]
+                except:
+                    pass
+            elif "VoiceOver" in task.get_task_type_label:
+                word_count = "-"
 
             tasks_list.append(
                 {
                     "project_name": {
                         "value": task.video.project_id.title,
                         "label": "Project Name",
+                        "viewColumns": False,
                     },
-                    "video_name": {"value": task.video.name, "label": "Video Name"},
+                    "video_name": {
+                        "value": task.video.name, 
+                        "label": "Video Name",
+                        "viewColumns": False,
+                    },
                     "video_url": {
                         "value": task.video.url,
                         "label": "Video URL",
@@ -843,6 +864,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "task_type": {
                         "value": task.get_task_type_label,
                         "label": "Task Type",
+                        "viewColumns": False
                     },
                     "task_description": {
                         "value": description,
@@ -852,18 +874,30 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "source_language": {
                         "value": task.get_src_language_label,
                         "label": "Source Langauge",
+                        "viewColumns": False,
                     },
                     "target_language": {
                         "value": task.get_target_language_label,
                         "label": "Target Langauge",
+                        "viewColumns": False,
                     },
-                    "assignee": {"value": task.user.email, "label": "Assignee"},
-                    "status": {"value": task.get_task_status_label, "label": "Status"},
+                    "assignee": {
+                        "value": task.user.email, 
+                        "label": "Assignee",
+                    },
+                    "status": {
+                        "value": task.get_task_status_label, 
+                        "label": "Status"
+                    },
                     "completion_time": {
                         "value": completion_time,
                         "label": "Completion Time",
                         "display": "exclude",
                     },
+                    "word_count": {
+                        "value": word_count,
+                        "label": "Word Count",
+                    }
                 }
             )
         return Response(tasks_list, status=status.HTTP_200_OK)
@@ -892,7 +926,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
                 for keys, values in project_report.items():
                     for report in values:
-                        report["project"] = {"value": project.title, "label": "Project"}
+                        report["project"] = {"value": project.title, "label": "Project", "viewColumns": False}
                 all_project_report.append(project_report)
 
         aggregated_project_report = {"transcript_stats": [], "translation_stats": []}
@@ -971,12 +1005,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         for elem in transcript_statistics:
             transcript_dict = {
                 "language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["language"]],
                     "label": "Media Language",
                 },
                 "total_duration": {
                     "value": round(elem["total_duration"].total_seconds() / 3600, 3),
                     "label": "Transcripted Duration (Hours)",
+                    "viewColumns": False,
                 },
             }
             transcript_data.append(transcript_dict)
@@ -985,11 +1020,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         for elem in translation_statistics:
             translation_dict = {
                 "src_language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["src_language"]],
                     "label": "Src Language",
                 },
                 "tgt_language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["tgt_language"]],
                     "label": "Tgt Language",
                 },
                 "translation_duration": {
@@ -997,6 +1032,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         elem["translation_duration"].total_seconds() / 3600, 3
                     ),
                     "label": "Translated Duration (Hours)",
+                    "viewColumns": False,
                 },
                 "transcripts_translated": {
                     "value": elem["transcripts_translated"],
@@ -1033,13 +1069,19 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
         project_stats = (
             org_projects.annotate(num_videos=Count("video"))
-            .annotate(
+        )
+
+        video_duration_transcripts = (
+            org_projects.annotate(
                 total_transcriptions=Sum(
                     "video__duration",
                     filter=Q(video__transcripts__status="TRANSCRIPTION_EDIT_COMPLETE"),
                 )
             )
-            .annotate(
+        )
+
+        video_duration_translations = (
+            org_projects.annotate(
                 total_translations=Sum(
                     "video__duration",
                     filter=Q(
@@ -1049,7 +1091,24 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             )
         )
 
+        word_count_transcripts = (
+            org_projects.annotate(
+                word_count = Sum(Cast(F("video__transcripts__payload__word_count"), FloatField()),
+                    filter=Q(video__transcripts__status__in=["TRANSCRIPTION_EDIT_COMPLETE"])
+                )
+            )
+        )
+
+        word_count_translations = (
+            org_projects.annotate(
+                word_count = Sum(Cast(F("video__translation_video__payload__word_count"), FloatField()),
+                    filter=Q(video__translation_video__status__in=["TRANSLATION_EDIT_COMPLETE"])
+                )
+            )
+        )
+
         project_data = []
+        idx = 0
         for elem in project_stats:
             manager_names = Project.objects.get(pk=elem["id"]).managers.all()
             manager_list = []
@@ -1059,17 +1118,27 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
             transcript_duration = (
                 None
-                if elem["total_transcriptions"] is None
-                else round(elem["total_transcriptions"].total_seconds() / 3600, 3)
+                if video_duration_transcripts[idx]["total_transcriptions"] is None
+                else round(video_duration_transcripts[idx]["total_transcriptions"].total_seconds() / 3600, 3)
+            )
+            transcript_word_count = (
+                0
+                if word_count_transcripts[idx]["word_count"] is None
+                else word_count_transcripts[idx]["word_count"]
             )
             translation_duration = (
                 None
-                if elem["total_translations"] is None
-                else round(elem["total_translations"].total_seconds() / 3600, 3)
+                if video_duration_translations[idx]["total_translations"] is None
+                else round(video_duration_translations[idx]["total_translations"].total_seconds() / 3600, 3)
+            )
+            translation_word_count = (
+                0
+                if word_count_translations[idx]["word_count"] is None
+                else word_count_translations[idx]["word_count"]
             )
             project_dict = {
-                "title": {"value": elem["title"], "label": "Title"},
-                "managers__username": {"value": manager_list, "label": "Managers"},
+                "title": {"value": elem["title"], "label": "Title", "viewColumns": False},
+                "managers__username": {"value": manager_list, "label": "Managers", "viewColumns": False},
                 "num_videos": {"value": elem["num_videos"], "label": "Video count"},
                 "total_transcriptions": {
                     "value": transcript_duration,
@@ -1079,8 +1148,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "value": translation_duration,
                     "label": "Translated Duration (Hours)",
                 },
+                "total_word_count": {
+                    "value": int(transcript_word_count + translation_word_count),
+                    "label": "Total Word Count",
+                }
             }
             project_data.append(project_dict)
+            idx += 1
 
         return Response(project_data, status=status.HTTP_200_OK)
 
@@ -1127,7 +1201,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         org_data = []
         for elem in org_stats:
             org_dict = {
-                "title": {"value": elem["title"], "label": "Title"},
+                "title": {"value": elem["title"], "label": "Title", "viewColumns": False},
                 "num_projects": {
                     "value": elem["num_projects"],
                     "label": "Project count",

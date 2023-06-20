@@ -6,7 +6,7 @@ from rest_framework.decorators import (
 )
 from rest_framework.response import Response
 from task.models import Task
-from translation.metadata import INDIC_TRANS_SUPPORTED_LANGUAGES
+from .metadata import VOICEOVER_SUPPORTED_LANGUAGES, VOICEOVER_LANGUAGE_CHOICES
 from .models import (
     VoiceOver,
     VOICEOVER_TYPE_CHOICES,
@@ -965,13 +965,14 @@ def save_voice_over(request):
 
 
 @api_view(["GET"])
-def get_supported_languages(request):
-
-    # Return the allowed voice_overs and model codes
+def get_voiceover_supported_languages(request):
+    """
+    Endpoint to get the supported languages for TTS API
+    """
     return Response(
         [
             {"label": label, "value": value}
-            for label, value in INDIC_TRANS_SUPPORTED_LANGUAGES.items()
+            for label, value in VOICEOVER_SUPPORTED_LANGUAGES.items()
         ],
         status=status.HTTP_200_OK,
     )

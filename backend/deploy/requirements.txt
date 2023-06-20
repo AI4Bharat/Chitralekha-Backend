@@ -30,3 +30,4 @@ pysrt
 google-api-python-client
 google-auth-oauthlib
 html2text
+regex
