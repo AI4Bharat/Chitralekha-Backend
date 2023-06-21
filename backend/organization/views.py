@@ -895,7 +895,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         report["project"] = {"value": project.title, "label": "Project"}
                 all_project_report.append(project_report)
 
-        aggregated_project_report = {"transcript_stats": [], "translation_stats": []}
+        aggregated_project_report = {"transcript_stats": [], "translation_stats": [], "voiceover_stats": []}
         for project_report in all_project_report:
             if type(project_report) == dict:
                 if (
@@ -927,6 +927,20 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         project_report["translation_stats"][i] = new_stats
                     aggregated_project_report["translation_stats"].extend(
                         project_report["translation_stats"]
+                    )
+                if (
+                    "voiceover_stats" in project_report.keys()
+                    and len(project_report["voiceover_stats"]) > 0
+                ):
+                    for i in range(len(project_report["voiceover_stats"])):
+                        new_stats = dict(
+                            reversed(
+                                list(project_report["voiceover_stats"][i].items())
+                            )
+                        )
+                        project_report["voiceover_stats"][i] = new_stats
+                    aggregated_project_report["voiceover_stats"].extend(
+                        project_report["voiceover_stats"]
                     )
         return Response(aggregated_project_report, status=status.HTTP_200_OK)
 

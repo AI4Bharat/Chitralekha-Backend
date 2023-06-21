@@ -23,8 +23,10 @@ from users.serializers import UserFetchSerializer
 from datetime import timedelta
 from transcript.models import Transcript
 from translation.models import Translation
+from voiceover.models import VoiceOver
 import json
 from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
+from voiceover.metadata import VOICEOVER_LANGUAGE_CHOICES
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -1224,6 +1226,18 @@ class ProjectViewSet(viewsets.ModelViewSet):
             .annotate(translation_duration=Sum(F("video__duration")))
             .order_by("-translation_duration")
         )
+        prj_voiceovers = (
+            VoiceOver.objects.filter(video__in=prj_videos)
+            .filter(status="VOICEOVER_EDIT_COMPLETE")
+            .values(
+                src_language=F("video__language"), tgt_language=F("target_language")
+            )
+        )
+        voiceover_statistics = (
+            prj_voiceovers.annotate(voiceovers_completed=Count("id"))
+            .annotate(voiceover_duration=Sum(F("video__duration")))
+            .order_by("-voiceover_duration")
+        )
 
         transcript_data = []
         for elem in transcript_statistics:
@@ -1262,8 +1276,33 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 },
             }
             translation_data.append(translation_dict)
+
+        voiceover_data = []
+        for elem in voiceover_statistics:
+            voiceover_dict = {
+                "src_language": {
+                    "value": dict(VOICEOVER_LANGUAGE_CHOICES)[elem["src_language"]],
+                    "label": "Source Language",
+                },
+                "tgt_language": {
+                    "value": dict(VOICEOVER_LANGUAGE_CHOICES)[elem["tgt_language"]],
+                    "label": "Target Language",
+                },
+                "voiceover_duration": {
+                    "value": round(
+                        elem["voiceover_duration"].total_seconds() / 3600, 3
+                    ),
+                    "label": "Voice Over Duration (Hours)",
+                },
+                "voiceovers_completed": {
+                    "value": elem["voiceovers_completed"],
+                    "label": "Voice Over Tasks Count",
+                }
+            }
+            voiceover_data.append(voiceover_dict)
         res = {
             "transcript_stats": transcript_data,
             "translation_stats": translation_data,
+            "voiceover_stats": voiceover_data,
         }
         return Response(res, status=status.HTTP_200_OK)
