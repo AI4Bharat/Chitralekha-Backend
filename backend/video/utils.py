@@ -242,6 +242,7 @@ def get_video_func(request):
     assignee = request.GET.get("assignee")
     upload_task_description = request.GET.get("task_description", "")
     speaker_info = request.GET.get("speaker_info")
+    multiple_speaker = request.GET.get("multiple_speaker", "false")
 
     create = create.lower() == "true"
     if create:
@@ -258,6 +259,7 @@ def get_video_func(request):
                 )
     # Convert audio only to boolean
     is_audio_only = is_audio_only.lower() == "true"
+    multiple_speaker = multiple_speaker.lower() == "true"
     if not url:
         return Response(
             {"message": "Video URL not provided in query params."},
@@ -330,6 +332,7 @@ def get_video_func(request):
                 "language": lang,
                 "description": description,
                 "gender": gender,
+                "multiple_speaker": multiple_speaker,
             },
         )
         serializer = VideoSerializer(video)
@@ -491,6 +494,7 @@ def get_video_func(request):
             "language": lang,
             "description": description,
             "gender": gender,
+            "multiple_speaker": multiple_speaker,
         },
     )
     if created:
