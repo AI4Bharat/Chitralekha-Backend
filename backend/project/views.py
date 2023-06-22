@@ -1429,6 +1429,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 "language": {
                     "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["language"]],
                     "label": "Media Language",
+                    "viewColumns": False,
                 },
                 "total_duration": {
                     "value": round(elem["total_duration"].total_seconds() / 3600, 3),
@@ -1479,16 +1480,19 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 "src_language": {
                     "value": dict(VOICEOVER_LANGUAGE_CHOICES)[elem["src_language"]],
                     "label": "Source Language",
+                    "viewColumns": False,
                 },
                 "tgt_language": {
                     "value": dict(VOICEOVER_LANGUAGE_CHOICES)[elem["tgt_language"]],
                     "label": "Target Language",
+                    "viewColumns": False,
                 },
                 "voiceover_duration": {
                     "value": round(
                         elem["voiceover_duration"].total_seconds() / 3600, 3
                     ),
                     "label": "Voice Over Duration (Hours)",
+                    "viewColumns": False,
                 },
                 "voiceovers_completed": {
                     "value": elem["voiceovers_completed"],
