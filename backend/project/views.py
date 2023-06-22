@@ -521,7 +521,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         if type(task_table[task.target_language]) != tuple:
                             task_table[task.target_language] = task
                     else:
-                        task_table["Not_defined"] = ("VOICE_OVER: NEW", task)
+                        task_table[task.target_language] = (
+                            task.get_task_status,
+                            task,
+                        )
 
         return task_table
 
