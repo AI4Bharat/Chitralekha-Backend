@@ -506,7 +506,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         task_table[task.target_language] = ("NEW", task)
 
             if "VOICE" in task.task_type:
-                if task.status in ["INPROGRESS", "POST_PROCESS", "COMPLETE"]:
+                if task.status in ["INPROGRESS", "POST_PROCESS", "COMPLETE", "FAIL"]:
                     if task.target_language not in task_table:
                         task_table[task.target_language] = task
                     else:
@@ -516,15 +516,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         else:
                             if "EDIT" in task.task_type:
                                 task_table[task.target_language] = task
-                else:
-                    if task.target_language in task_table:
-                        if type(task_table[task.target_language]) != tuple:
-                            task_table[task.target_language] = task
-                    else:
-                        task_table[task.target_language] = (
-                            task.get_task_status,
-                            task,
-                        )
+                # else:
+                #     if task.target_language in task_table:
+                #         if type(task_table[task.target_language]) != tuple:
+                #             task_table[task.target_language] = task
+                #     else:
+                #         task_table[task.target_language] = (
+                #             task.get_task_status,
+                #             task,
+                #         )
 
         return task_table
 
@@ -546,7 +546,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         elif task.task_type == "TRANSLATION_EDIT":
             if (
-                Task.objects.filter(task_type="TRANSLATION_REVIEW")
+                Task.objects.filter(
+                    task_type__in=["TRANSLATION_REVIEW", "VOICEOVER_EDIT"]
+                )
                 .filter(target_language=task.target_language)
                 .filter(video=task.video)
                 .first()
