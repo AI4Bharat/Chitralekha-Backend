@@ -142,7 +142,10 @@ def export_transcript(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                lines.append(segment["text"] + "\n")
+                if len(segment.get("speaker_id", "")) > 0:
+                    lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                else:
+                    lines.append(segment["text"] + "\n")
         filename = "transcript.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
@@ -517,6 +520,11 @@ def get_payload(request):
         for i in range(len(page_records)):
             page_records[i]["id"] = start + i
 
+    if "speaker_id" not in transcript.payload["payload"][0]:
+        for i in range(len(transcript.payload["payload"])):
+            transcript.payload["payload"][i]["speaker_id"] = ""
+        transcript.save()
+
     count_empty = 0
     records = []
     for record_object in page_records:
@@ -836,6 +844,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
+                    "speaker_id": payload["payload"][i]["speaker_id"],
                 }
             elif (
                 "text" in payload["payload"][i].keys()
@@ -845,6 +854,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
+                    "speaker_id": payload["payload"][i]["speaker_id"],
                 }
             else:
                 logging.info("Text missing in payload")
@@ -857,6 +867,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                             "start_time": payload["payload"][length + i]["start_time"],
                             "end_time": payload["payload"][length + i]["end_time"],
                             "text": payload["payload"][length + i]["text"],
+                            "speaker_id": payload["payload"][i]["speaker_id"],
                         },
                     )
                 else:
@@ -903,6 +914,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                         "start_time": payload["payload"][i]["start_time"],
                         "end_time": payload["payload"][i]["end_time"],
                         "text": payload["payload"][i]["text"],
+                        "speaker_id": payload["payload"][i]["speaker_id"],
                     }
                 elif (
                     "text" in payload["payload"][i].keys()
@@ -912,6 +924,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                         "start_time": payload["payload"][i]["start_time"],
                         "end_time": payload["payload"][i]["end_time"],
                         "text": payload["payload"][i]["text"],
+                        "speaker_id": payload["payload"][i]["speaker_id"],
                     }
                 else:
                     logging.info("Text missing in payload")
@@ -926,6 +939,9 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                                 ],
                                 "end_time": payload["payload"][length + i]["end_time"],
                                 "text": payload["payload"][length + i]["text"],
+                                "speaker_id": payload["payload"][length + i][
+                                    "speaker_id"
+                                ],
                             },
                         )
                     else:
@@ -944,6 +960,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                         "start_time": payload["payload"][i]["start_time"],
                         "end_time": payload["payload"][i]["end_time"],
                         "text": payload["payload"][i]["text"],
+                        "speaker_id": payload["payload"][i]["speaker_id"],
                     }
                 else:
                     logging.info("Text missing in payload")
@@ -980,12 +997,14 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
+                    "speaker_id": payload["payload"][i]["speaker_id"],
                 }
             elif "text" not in transcript.payload["payload"][start_offset + i]:
                 transcript.payload["payload"][start_offset + i] = {
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
+                    "speaker_id": payload["payload"][i]["speaker_id"],
                 }
             else:
                 logging.info("Text missing in payload")
@@ -1004,6 +1023,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                         "start_time": payload["payload"][length + i]["start_time"],
                         "end_time": payload["payload"][length + i]["end_time"],
                         "text": payload["payload"][length + i]["text"],
+                        "speaker_id": payload["payload"][length + i]["speaker_id"],
                     }
                 else:
                     transcript.payload["payload"].insert(
@@ -1012,6 +1032,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                             "start_time": payload["payload"][length + i]["start_time"],
                             "end_time": payload["payload"][length + i]["end_time"],
                             "text": payload["payload"][length + i]["text"],
+                            "speaker_id": payload["payload"][length + i]["speaker_id"],
                         },
                     )
             else:
