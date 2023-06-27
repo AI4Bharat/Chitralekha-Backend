@@ -20,6 +20,9 @@ from datetime import datetime, timedelta
 from .utils import *
 from config import voice_over_payload_offset_size
 from .tasks import celery_integration
+from django.db.models import Count, F, Sum
+from operator import itemgetter
+from itertools import groupby
 
 
 def get_voice_over_id(task):
@@ -1069,3 +1072,51 @@ def get_voice_over_task_counts(request):
         response,
         status=status.HTTP_200_OK,
     )
+
+@api_view(["GET"])
+def get_voiceover_report(request):
+    voiceovers = VoiceOver.objects.filter(
+        status="VOICEOVER_EDIT_COMPLETE"
+    ).values(
+        "video__project_id__organization_id__title",
+        src_language=F("video__language"),
+        tgt_language=F("target_language"),
+    )
+    voiceover_statistics = (
+        voiceovers.annotate(voiceovers_completed=Count("id"))
+        .annotate(voiceover_duration=Sum(F("video__duration")))
+        .order_by("-voiceover_duration")
+    )
+    voiceover_data = []
+    for elem in voiceover_statistics:
+        voiceover_dict = {
+            "org": elem["video__project_id__organization_id__title"],
+            "src_language": {
+                "value": dict(VOICEOVER_LANGUAGE_CHOICES)[elem["src_language"]],
+                "label": "Source Langauge",
+            },
+            "tgt_language": {
+                "value": dict(VOICEOVER_LANGUAGE_CHOICES)[elem["tgt_language"]],
+                "label": "Target Language",
+            },
+            "voiceover_duration": {
+                "value": round(elem["voiceover_duration"].total_seconds() / 3600, 3),
+                "label": "VoiceOver Duration (Hours)",
+            },
+            "voiceovers_completed": {
+                "value": elem["voiceovers_completed"],
+                "label": "VoiceOver Tasks Count",
+            },
+        }
+        voiceover_data.append(voiceover_dict)
+    voiceover_data.sort(key=itemgetter("org"))
+    res = []
+    for org, items in groupby(voiceover_data, key=itemgetter("org")):
+        lang_data = []
+        for i in items:
+            del i["org"]
+            lang_data.append(i)
+        temp_data = {"org": org, "data": lang_data}
+        res.append(temp_data)
+    
+    return Response(res, status=status.HTTP_200_OK)
