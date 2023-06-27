@@ -180,14 +180,28 @@ def translation_mg(transcript, target_language, batch_size=25):
         unix_start_time = datetime.datetime.timestamp(start_time)
         end_time = datetime.datetime.strptime(source["end_time"], "%H:%M:%S.%f")
         unix_end_time = datetime.datetime.timestamp(end_time)
-        payload.append(
-            {
-                "start_time": source["start_time"],
-                "end_time": source["end_time"],
-                "text": source["text"],
-                "unix_start_time": unix_start_time,
-                "unix_end_time": unix_end_time,
-                "target_text": target if source["text"].strip() else source["text"],
-            }
-        )
+        if "speaker_id" in source.keys():
+            payload.append(
+                {
+                    "start_time": source["start_time"],
+                    "end_time": source["end_time"],
+                    "text": source["text"],
+                    "speaker_id": source["speaker_id"],
+                    "unix_start_time": unix_start_time,
+                    "unix_end_time": unix_end_time,
+                    "target_text": target if source["text"].strip() else source["text"],
+                }
+            )
+        else:
+            payload.append(
+                {
+                    "start_time": source["start_time"],
+                    "end_time": source["end_time"],
+                    "text": source["text"],
+                    "speaker_id": "",
+                    "unix_start_time": unix_start_time,
+                    "unix_end_time": unix_end_time,
+                    "target_text": target if source["text"].strip() else source["text"],
+                }
+            )
     return json.loads(json.dumps({"payload": payload}))

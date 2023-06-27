@@ -189,6 +189,15 @@ def delete_video(request):
             type=openapi.TYPE_OBJECT,
             required=False,
         ),
+        openapi.Parameter(
+            "multiple_speaker",
+            openapi.IN_QUERY,
+            description=(
+                "A boolean to determine whether there are multiple or single speakers"
+            ),
+            type=openapi.TYPE_BOOLEAN,
+            required=False,
+        ),
     ],
     responses={200: "Return the video subtitle payload"},
 )

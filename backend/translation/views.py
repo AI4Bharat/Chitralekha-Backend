@@ -804,12 +804,14 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
                     "target_text": payload["payload"][i]["target_text"],
+                    "speaker_id": payload["payload"][i]["speaker_id"],
                 }
             elif "text" not in translation.payload["payload"][start_offset + i]:
                 translation.payload["payload"][start_offset + i] = {
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
+                    "speaker_id": payload["payload"][i]["speaker_id"],
                 }
             else:
                 translation.payload["payload"][start_offset + i] = {}
@@ -825,6 +827,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                             "target_text": payload["payload"][length + i][
                                 "target_text"
                             ],
+                            "speaker_id": payload["payload"][length + i]["speaker_id"],
                         },
                     )
                 else:
@@ -852,6 +855,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         "end_time": payload["payload"][i]["end_time"],
                         "text": payload["payload"][i]["text"],
                         "target_text": payload["payload"][i]["target_text"],
+                        "speaker_id": payload["payload"][i]["speaker_id"],
                     }
                 else:
                     translation.payload["payload"][start_offset + i] = {}
@@ -869,6 +873,9 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                                 "target_text": payload["payload"][length + i][
                                     "target_text"
                                 ],
+                                "speaker_id": payload["payload"][length + i][
+                                    "speaker_id"
+                                ],
                             },
                         )
                     else:
@@ -884,6 +891,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         "end_time": payload["payload"][i]["end_time"],
                         "text": payload["payload"][i]["text"],
                         "target_text": payload["payload"][i]["target_text"],
+                        "speaker_id": payload["payload"][i]["speaker_id"],
                     }
                 else:
                     translation.payload["payload"][start_offset + i] = {}
@@ -911,6 +919,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
                     "target_text": payload["payload"][i]["target_text"],
+                    "speaker_id": payload["payload"][i]["speaker_id"],
                 }
             else:
                 translation.payload["payload"][start_offset + i] = {}
@@ -928,6 +937,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         "end_time": payload["payload"][length + i]["end_time"],
                         "text": payload["payload"][length + i]["text"],
                         "target_text": payload["payload"][length + i]["target_text"],
+                        "speaker_id": payload["payload"][length + i]["speaker_id"],
                     }
                 else:
                     translation.payload["payload"].insert(
@@ -939,6 +949,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                             "target_text": payload["payload"][length + i][
                                 "target_text"
                             ],
+                            "speaker_id": payload["payload"][length + i]["speaker_id"],
                         },
                     )
             else:
@@ -1690,12 +1701,12 @@ def get_translation_report(request):
         translation_dict = {
             "org": elem["video__project_id__organization_id__title"],
             "src_language": {
-                "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["src_language"]],
                 "label": "Source Langauge",
                 "viewColumns": False,
             },
             "tgt_language": {
-                "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["tgt_language"]],
                 "label": "Target Language",
                 "viewColumns": False,
             },

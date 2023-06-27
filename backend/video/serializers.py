@@ -22,4 +22,5 @@ class VideoSerializer(serializers.ModelSerializer):
             "language_label",
             "gender_label",
             "speaker_info",
+            "multiple_speaker",
         )
