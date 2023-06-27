@@ -38,3 +38,10 @@ allowed_roles = {
     "VOICEOVER_EDIT": ["VOICEOVER_EDITOR", "UNIVERSAL_EDITOR"],
     "VOICEOVER_REVIEW": ["VOICEOVER_REVIEWER", "UNIVERSAL_EDITOR"],
 }
+
+DEFAULT_SPEAKER = {
+    "name": "default",
+    "gender": "male",
+    "age": "21-60",
+    "id": "default_speaker_chitralekha",
+}

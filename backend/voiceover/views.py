@@ -1000,12 +1000,20 @@ def get_voice_over_types(request):
             type=openapi.TYPE_INTEGER,
             required=True,
         ),
+        openapi.Parameter(
+            "export_type",
+            openapi.IN_QUERY,
+            description=("export type parameter mp4/mp3"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
     ],
-    responses={200: "Transcript is exported"},
+    responses={200: "VO is exported"},
 )
 @api_view(["GET"])
 def export_voiceover(request):
     task_id = request.query_params.get("task_id")
+    export_type = request.query_params.get("export_type")
     if task_id is None:
         return Response(
             {"message": "missing param : task_id"},
@@ -1033,10 +1041,20 @@ def export_voiceover(request):
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    return Response(
-        {"azure_url": voice_over.azure_url},
-        status=status.HTTP_200_OK,
-    )
+    if export_type == "mp4":
+        return Response(
+            {
+                "azure_url": voice_over.azure_url,
+            },
+            status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(
+            {
+                "azure_url": voice_over.azure_url_audio,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 @api_view(["GET"])

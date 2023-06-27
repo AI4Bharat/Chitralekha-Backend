@@ -12,6 +12,7 @@ from config import (
     misc_tts_url,
     indo_aryan_tts_url,
     dravidian_tts_url,
+    DEFAULT_SPEAKER,
 )
 from pydub import AudioSegment
 from datetime import datetime, date, timedelta
@@ -73,9 +74,13 @@ def download_from_blob_storage(file_path):
 
 def uploadToBlobStorage(file_path, voice_over_obj):
     full_path = file_path + ".mp4"
+    full_path_mp3 = file_path + "final.mp3"
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     blob_client = blob_service_client.get_blob_client(
         container=container_name, blob=file_path.split("/")[-1] + ".mp4"
+    )
+    blob_client_mp3 = blob_service_client.get_blob_client(
+        container=container_name, blob=file_path.split("/")[-1] + ".mp3"
     )
     voice_over_payload = voice_over_obj.payload
     json_object = json.dumps(voice_over_payload)
@@ -112,10 +117,25 @@ def uploadToBlobStorage(file_path, voice_over_obj):
                 logging.info("New video uploaded successfully!")
         except Exception as e:
             logging.info("This video can't be uploaded")
+
+        with open(full_path_mp3, "rb") as data:
+            try:
+                if not blob_client_mp3.exists():
+                    blob_client_mp3.upload_blob(data)
+                    logging.info("Audio uploaded successfully!")
+                    logging.info(blob_client.url)
+                else:
+                    blob_client_mp3.delete_blob()
+                    logging.info("Old Audio deleted successfully!")
+                    blob_client_mp3.upload_blob(data)
+                    logging.info("New audio uploaded successfully!")
+            except Exception as e:
+                logging.info("This audio can't be uploaded")
+
         logging.info(blob_client.url)
         os.remove(file_path + ".mp4")
         os.remove(file_path + "final.mp3")
-        return blob_client.url
+        return blob_client.url, blob_client_mp3.url
 
 
 def get_tts_output(tts_input, target_language, gender):
