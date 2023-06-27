@@ -40,6 +40,7 @@ from pydub import AudioSegment
 import re
 from django.conf import settings
 from django.core.mail import send_mail
+import operator
 
 
 def get_tts_url(language):
@@ -138,10 +139,13 @@ def uploadToBlobStorage(file_path, voice_over_obj):
         return blob_client.url, blob_client_mp3.url
 
 
-def get_tts_output(tts_input, target_language, gender):
+def get_tts_output(tts_input, target_language, multiple_speaker, gender):
     json_data = {
         "input": tts_input,
-        "config": {"language": {"sourceLanguage": target_language}, "gender": gender},
+        "config": {
+            "language": {"sourceLanguage": target_language},
+            "gender": gender.lower(),
+        },
     }
     logging.info("Calling TTS API")
     tts_url = get_tts_url(target_language)
@@ -157,7 +161,7 @@ def get_tts_output(tts_input, target_language, gender):
             json=json_data,
         )
         tts_output = response.json()
-        # Collect the translated sentences
+        # Collect the audios
         return tts_output
 
     except Exception as e:
@@ -175,7 +179,46 @@ def generate_tts_output(
         gender = "MALE"
     else:
         gender = translation_obj.video.gender
-    tts_output = get_tts_output(tts_input, target_language, gender.lower())
+    if (
+        translation_obj.video.multiple_speaker == False
+        and len(translation_obj.video.speaker_info) == 0
+    ):
+        tts_output = get_tts_output(
+            tts_input,
+            target_language,
+            translation_obj.video.multiple_speaker,
+            gender.lower(),
+        )
+    else:
+        speakers_tts_input = group_speakers(tts_input)
+        speaker_info = {
+            speaker_info["id"]: speaker_info["gender"]
+            for speaker_info in translation_obj.video.speaker_info
+        }
+        merged_tts_output = {"audio": []}
+        list_indices = []
+        for speaker_id, speaker_tts_input in speakers_tts_input.items():
+            for ind in speaker_tts_input:
+                list_indices.append(ind["index"])
+            speaker_tts_output = get_tts_output(
+                speaker_tts_input,
+                target_language,
+                translation_obj.video.multiple_speaker,
+                speaker_info[speaker_id],
+            )
+            if (
+                type(speaker_tts_output) != dict
+                or "audio" not in speaker_tts_output.keys()
+            ):
+                return speaker_tts_output
+            merged_tts_output["audio"].extend(speaker_tts_output["audio"])
+        merged_tts_output["config"] = speaker_tts_output["config"]
+        for input, output in zip(list_indices, merged_tts_output["audio"]):
+            output["index"] = input
+        tts_output = {}
+        tts_output["audio"] = sorted(
+            merged_tts_output["audio"], key=operator.itemgetter("index")
+        )
     if type(tts_output) != dict or "audio" not in tts_output.keys():
         return tts_output
     logging.info("Size of TTS output %s", str(asizeof(tts_output)))
@@ -250,6 +293,7 @@ def generate_tts_output(
                 "text": text["target_text"],
                 "audio": {"audioContent": decoded_audio},
                 "audio_speed": 1,
+                "index": tts_output["audio"][count]["index"],
             }
             count = count + 1
         else:
@@ -291,7 +335,13 @@ def process_translation_payload(translation_obj, target_language):
             and clean_target_text.isspace() == False
             and re.match(r"^[_\W]+$", clean_target_text) == None
         ):
-            tts_input.append({"source": clean_target_text})
+            tts_input.append(
+                {
+                    "source": clean_target_text,
+                    "index": ind,
+                    "speaker_id": text.get("speaker_id", ""),
+                }
+            )
         else:
             empty_sentences.append(ind)
     return (
@@ -301,6 +351,24 @@ def process_translation_payload(translation_obj, target_language):
         translation_obj.id,
         empty_sentences,
     )
+
+
+def group_speakers(tts_input):
+    for ind, input in enumerate(tts_input):
+        if ind > 0 and "speaker_id" in input.keys() and len(input["speaker_id"]) == 0:
+            if len(tts_input[ind - 1]["speaker_id"]) > 0:
+                input["speaker_id"] = tts_input[ind - 1]["speaker_id"]
+            else:
+                input["speaker_id"] = DEFAULT_SPEAKER
+
+    speakers_tts_input = {}
+    for ind, input in enumerate(tts_input):
+        if input["speaker_id"] not in speakers_tts_input.keys():
+            speakers_tts_input[input["speaker_id"]] = []
+            speakers_tts_input[input["speaker_id"]].append(input)
+        else:
+            speakers_tts_input[input["speaker_id"]].append(input)
+    return speakers_tts_input
 
 
 def generate_voiceover_payload(translation_payload, target_language, task):
@@ -330,7 +398,7 @@ def generate_voiceover_payload(translation_payload, target_language, task):
         else:
             gender = task.video.gender
         voiceover_machine_generated = get_tts_output(
-            tts_input, target_language, gender.lower()
+            tts_input, target_language, task.video.multiple_speaker, gender.lower()
         )
         for voice_over in voiceover_machine_generated["audio"]:
             ind = post_generated_audio_indices.pop(0)
@@ -548,9 +616,6 @@ def integrate_all_audios(file_name, payload, video_duration):
                 difference_between_payloads = get_original_duration(
                     previous_payload, current_payload
                 )
-                # print("current_payload", current_payload)
-                # print("previous_payload", previous_payload)
-                # print("difference_betwwen_payloads", difference_between_payloads)
                 if difference_between_payloads > 0:
                     silence_segment = AudioSegment.silent(
                         duration=difference_between_payloads * 1000
