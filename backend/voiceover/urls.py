@@ -25,4 +25,9 @@ urlpatterns = [
         views.get_voice_over_task_counts,
         name="get_voice_over_task_counts/",
     ),
+    path(
+        "get_report_voiceover/",
+        views.get_voiceover_report,
+        name="get_voiceover_report",
+    ),
 ]
