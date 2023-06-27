@@ -507,6 +507,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     else:
                         task_table[task.target_language] = ("NEW", task)
 
+        for task in tasks:
             if "VOICE" in task.task_type:
                 if task.status in ["INPROGRESS", "POST_PROCESS", "COMPLETE", "FAIL"]:
                     if task.target_language not in task_table:
