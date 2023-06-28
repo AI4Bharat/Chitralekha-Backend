@@ -968,6 +968,8 @@ def save_voice_over(request):
 
 
 @api_view(["GET"])
+@authentication_classes([])
+@permission_classes([])
 def get_voiceover_supported_languages(request):
     """
     Endpoint to get the supported languages for TTS API
@@ -1073,11 +1075,10 @@ def get_voice_over_task_counts(request):
         status=status.HTTP_200_OK,
     )
 
+
 @api_view(["GET"])
 def get_voiceover_report(request):
-    voiceovers = VoiceOver.objects.filter(
-        status="VOICEOVER_EDIT_COMPLETE"
-    ).values(
+    voiceovers = VoiceOver.objects.filter(status="VOICEOVER_EDIT_COMPLETE").values(
         "video__project_id__organization_id__title",
         src_language=F("video__language"),
         tgt_language=F("target_language"),
@@ -1118,5 +1119,5 @@ def get_voiceover_report(request):
             lang_data.append(i)
         temp_data = {"org": org, "data": lang_data}
         res.append(temp_data)
-    
+
     return Response(res, status=status.HTTP_200_OK)
