@@ -510,24 +510,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         for task in tasks:
             if "VOICE" in task.task_type:
                 if task.status in ["INPROGRESS", "POST_PROCESS", "COMPLETE", "FAIL"]:
-                    if task.target_language not in task_table:
-                        task_table[task.target_language] = task
-                    else:
-                        if type(task_table[task.target_language]) != tuple:
-                            if "EDIT" in task_table[task.target_language].task_type:
-                                task_table[task.target_language] = task
-                        else:
-                            if "EDIT" in task.task_type:
-                                task_table[task.target_language] = task
-                # else:
-                #     if task.target_language in task_table:
-                #         if type(task_table[task.target_language]) != tuple:
-                #             task_table[task.target_language] = task
-                #     else:
-                #         task_table[task.target_language] = (
-                #             task.get_task_status,
-                #             task,
-                #         )
+                    task_table[task.target_language] = task
 
         return task_table
 
