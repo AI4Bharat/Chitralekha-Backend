@@ -16,15 +16,29 @@ from task.models import Task
 from task.serializers import TaskSerializer, TaskStatusSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum, Value
-from django.db.models.functions import Cast, Concat
+from django.db.models import (
+    Q,
+    Count,
+    Avg,
+    F,
+    FloatField,
+    BigIntegerField,
+    Sum,
+    Value,
+    Case,
+    When,
+    IntegerField,
+)
+from django.db.models.functions import Cast, Concat, Extract
 from config import *
 from users.serializers import UserFetchSerializer
-from datetime import timedelta
+from datetime import timedelta, datetime
 from transcript.models import Transcript
 from translation.models import Translation
+from voiceover.models import VoiceOver
 import json
 from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
+from voiceover.metadata import VOICEOVER_LANGUAGE_CHOICES
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -492,15 +506,36 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             )
                     else:
                         task_table[task.target_language] = ("NEW", task)
+
+        for task in tasks:
+            if "VOICE" in task.task_type:
+                if task.status in ["INPROGRESS", "POST_PROCESS", "COMPLETE", "FAIL"]:
+                    task_table[task.target_language] = task
+
         return task_table
 
     def check_if_last_task_in_workflow(self, task_obj):
         task = task_obj["task"]
-        if task.task_type == "TRANSLATION_REVIEW":
+        if task.task_type == "VOICEOVER_EDIT":
             return True
+        elif task.task_type == "TRANSLATION_REVIEW":
+            if (
+                Task.objects.filter(task_type__in=["VOICEOVER_EDIT"])
+                .filter(target_language=task.target_language)
+                .filter(video=task.video)
+                .first()
+                is None
+            ):
+                return True
+            else:
+                return False
+
         elif task.task_type == "TRANSLATION_EDIT":
             if (
-                Task.objects.filter(task_type="TRANSLATION_REVIEW")
+                Task.objects.filter(
+                    task_type__in=["TRANSLATION_REVIEW", "VOICEOVER_EDIT"]
+                )
+                .filter(target_language=task.target_language)
                 .filter(video=task.video)
                 .first()
                 is None
@@ -550,15 +585,34 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def list_project_videos(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
-            videos = Video.objects.filter(project_id=pk)
+
+            if (
+                request.user.role == "PROJECT_MANAGER"
+                or request.user.role == "ORG_OWNER"
+                or request.user.role == "ADMIN"
+            ):
+                videos = Video.objects.filter(project_id=pk)
+            else:
+                video_ids = (
+                    Task.objects.filter(user_id=request.user.id)
+                    .values_list("video_id", flat=True)
+                    .distinct()
+                )
+                videos = Video.objects.filter(project_id=pk).filter(id__in=video_ids)
+
             serializer = VideoSerializer(videos, many=True)
             video_data = []
             for video in videos:
-                send_video_data = False
                 tasks = Task.objects.filter(video=video)
                 video_serializer = VideoSerializer(video).data
+                task_table = {}
                 try:
-                    task_table = self.video_status(tasks)
+                    if (
+                        request.user.role == "PROJECT_MANAGER"
+                        or request.user.role == "ORG_OWNER"
+                        or request.user.role == "ADMIN"
+                    ):
+                        task_table = self.video_status(tasks)
                 except:
                     video_serializer["status"] = []
                     video_data.append(video_serializer)
@@ -568,47 +622,27 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     if "transcription" in task_table.keys():
                         task_obj = task_table["transcription"]
                         if type(task_obj) != tuple:
-                            # Status won't be displayed to editors/reviewers(roles below PM).
-                            if (
-                                request.user.role == "PROJECT_MANAGER"
-                                or request.user.role == "ORG_OWNER"
-                                or request.user.role == "ADMIN"
-                            ):
-                                tasks_to_send.append(
-                                    {
-                                        "task": task_obj,
-                                        "language_pair": task_obj.get_language_pair_label,
-                                        "task_status": task_obj.get_task_status,
-                                        "user": UserFetchSerializer(task_obj.user).data,
-                                        "created_at": task_obj.created_at,
-                                    }
-                                )
-                            # Show the videos for which editors/reviewers have task assigned.
-                            elif task_obj.user.id == request.user.id:
-                                send_video_data = True
+                            tasks_to_send.append(
+                                {
+                                    "task": task_obj,
+                                    "language_pair": task_obj.get_language_pair_label,
+                                    "task_status": task_obj.get_task_status,
+                                    "user": UserFetchSerializer(task_obj.user).data,
+                                    "created_at": task_obj.created_at,
+                                }
+                            )
                         else:
-                            # Status won't be displayed to editors/reviewers(roles below PM).
-                            if (
-                                request.user.role == "PROJECT_MANAGER"
-                                or request.user.role == "ORG_OWNER"
-                                or request.user.role == "ADMIN"
-                            ):
-                                tasks_to_send.append(
-                                    {
-                                        "task": task_obj[1],
-                                        "language_pair": task_obj[
-                                            1
-                                        ].get_language_pair_label,
-                                        "task_status": task_obj[0],
-                                        "user": UserFetchSerializer(
-                                            task_obj[1].user
-                                        ).data,
-                                        "created_at": task_obj[1].created_at,
-                                    }
-                                )
-                            # Show the videos for which editors/reviewers have task assigned.
-                            elif task_obj[1].user.id == request.user.id:
-                                send_video_data = True
+                            tasks_to_send.append(
+                                {
+                                    "task": task_obj[1],
+                                    "language_pair": task_obj[
+                                        1
+                                    ].get_language_pair_label,
+                                    "task_status": task_obj[0],
+                                    "user": UserFetchSerializer(task_obj[1].user).data,
+                                    "created_at": task_obj[1].created_at,
+                                }
+                            )
                 if len(task_table) > 1:
                     # if "transcription" in task_table.keys():
                     #     del task_table["transcription"]
@@ -617,55 +651,35 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         if type(task_obj) != tuple:
                             all_statuses.add(task_obj.status)
 
-                            # Status won't be displayed to editors/reviewers(roles below PM).
-                            if (
-                                request.user.role == "PROJECT_MANAGER"
-                                or request.user.role == "ORG_OWNER"
-                                or request.user.role == "ADMIN"
-                            ):
-                                if target_language == "transcription":
-                                    continue
+                            if target_language == "transcription":
+                                continue
 
-                                tasks_to_send.append(
-                                    {
-                                        "task": task_obj,
-                                        "language_pair": task_obj.get_language_pair_label,
-                                        "task_status": task_obj.get_task_status,
-                                        "user": UserFetchSerializer(task_obj.user).data,
-                                        "created_at": task_obj.created_at,
-                                    }
-                                )
-                            # Show the videos for which editors/reviewers have task assigned.
-                            elif task_obj.user.id == request.user.id:
-                                send_video_data = True
+                            tasks_to_send.append(
+                                {
+                                    "task": task_obj,
+                                    "language_pair": task_obj.get_language_pair_label,
+                                    "task_status": task_obj.get_task_status,
+                                    "user": UserFetchSerializer(task_obj.user).data,
+                                    "created_at": task_obj.created_at,
+                                }
+                            )
                         else:
                             all_statuses.add(task_obj[1].status)
 
-                            # Status won't be displayed to editors/reviewers(roles below PM).
-                            if (
-                                request.user.role == "PROJECT_MANAGER"
-                                or request.user.role == "ORG_OWNER"
-                                or request.user.role == "ADMIN"
-                            ):
-                                if target_language == "transcription":
-                                    continue
+                            if target_language == "transcription":
+                                continue
 
-                                tasks_to_send.append(
-                                    {
-                                        "task": task_obj[1],
-                                        "language_pair": task_obj[
-                                            1
-                                        ].get_language_pair_label,
-                                        "task_status": task_obj[0],
-                                        "user": UserFetchSerializer(
-                                            task_obj[1].user
-                                        ).data,
-                                        "created_at": task_obj[1].created_at,
-                                    }
-                                )
-                            # Show the videos for which editors/reviewers have task assigned.
-                            elif task_obj[1].user.id == request.user.id:
-                                send_video_data = True
+                            tasks_to_send.append(
+                                {
+                                    "task": task_obj[1],
+                                    "language_pair": task_obj[
+                                        1
+                                    ].get_language_pair_label,
+                                    "task_status": task_obj[0],
+                                    "user": UserFetchSerializer(task_obj[1].user).data,
+                                    "created_at": task_obj[1].created_at,
+                                }
+                            )
 
                 for task in tasks_to_send:
                     if (
@@ -677,12 +691,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     del task["task"]
 
                 video_serializer["status"] = tasks_to_send
-                if send_video_data or (
-                    request.user.role == "PROJECT_MANAGER"
-                    or request.user.role == "ORG_OWNER"
-                    or request.user.role == "ADMIN"
-                ):
-                    video_data.append(video_serializer)
+
+                video_data.append(video_serializer)
             return Response(video_data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
             return Response(
@@ -1214,7 +1224,37 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
             .annotate(
                 average_completion_time=Avg(
-                    F("task__updated_at") - F("task__created_at"),
+                    Case(
+                        When(
+                            (
+                                Q(task__status="COMPLETE")
+                                & Q(
+                                    task__updated_at__lt=(
+                                        datetime(2023, 4, 5, 17, 0, 0)
+                                    )
+                                )
+                            ),
+                            then=(
+                                Extract(
+                                    F("task__updated_at") - F("task__created_at"),
+                                    "epoch",
+                                )
+                            ),
+                        ),
+                        When(
+                            (
+                                Q(task__status="COMPLETE")
+                                & Q(
+                                    task__updated_at__gte=(
+                                        datetime(2023, 4, 5, 17, 0, 0)
+                                    )
+                                )
+                            ),
+                            then=F("task__time_spent"),
+                        ),
+                        default=0,
+                        output_field=IntegerField(),
+                    ),
                     filter=Q(task__status="COMPLETE"),
                 )
             )
@@ -1260,7 +1300,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             avg_time = (
                 0
                 if elem["average_completion_time"] is None
-                else round(elem["average_completion_time"].total_seconds() / 3600, 3)
+                else round(elem["average_completion_time"] / 3600, 3)
             )
             word_count_translation = (
                 0
@@ -1299,7 +1339,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 },
                 "avg_comp_time": {
                     "value": float("{:.2f}".format(avg_time)),
-                    "label": "Avg. Completion Time (Seconds)",
+                    "label": "Avg. Completion Time (Hours)",
                 },
                 "word_count": {
                     "value": int(word_count_translation + word_count_transcript),
@@ -1349,6 +1389,18 @@ class ProjectViewSet(viewsets.ModelViewSet):
             .annotate(word_count=Sum(Cast(F("payload__word_count"), FloatField())))
             .order_by("-translation_duration")
         )
+        prj_voiceovers = (
+            VoiceOver.objects.filter(video__in=prj_videos)
+            .filter(status="VOICEOVER_EDIT_COMPLETE")
+            .values(
+                src_language=F("video__language"), tgt_language=F("target_language")
+            )
+        )
+        voiceover_statistics = (
+            prj_voiceovers.annotate(voiceovers_completed=Count("id"))
+            .annotate(voiceover_duration=Sum(F("video__duration")))
+            .order_by("-voiceover_duration")
+        )
 
         transcript_data = []
         for elem in transcript_statistics:
@@ -1356,6 +1408,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 "language": {
                     "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["language"]],
                     "label": "Media Language",
+                    "viewColumns": False,
                 },
                 "total_duration": {
                     "value": round(elem["total_duration"].total_seconds() / 3600, 3),
@@ -1373,12 +1426,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
         for elem in translation_statistics:
             translation_dict = {
                 "src_language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["src_language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["src_language"]],
                     "label": "Source Langauge",
                     "viewColumns": False,
                 },
                 "tgt_language": {
-                    "value": dict(LANGUAGE_CHOICES)[elem["tgt_language"]],
+                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["tgt_language"]],
                     "label": "Target Language",
                     "viewColumns": False,
                 },
@@ -1399,8 +1452,36 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 },
             }
             translation_data.append(translation_dict)
+
+        voiceover_data = []
+        for elem in voiceover_statistics:
+            voiceover_dict = {
+                "src_language": {
+                    "value": dict(VOICEOVER_LANGUAGE_CHOICES)[elem["src_language"]],
+                    "label": "Source Language",
+                    "viewColumns": False,
+                },
+                "tgt_language": {
+                    "value": dict(VOICEOVER_LANGUAGE_CHOICES)[elem["tgt_language"]],
+                    "label": "Target Language",
+                    "viewColumns": False,
+                },
+                "voiceover_duration": {
+                    "value": round(
+                        elem["voiceover_duration"].total_seconds() / 3600, 3
+                    ),
+                    "label": "Voice Over Duration (Hours)",
+                    "viewColumns": False,
+                },
+                "voiceovers_completed": {
+                    "value": elem["voiceovers_completed"],
+                    "label": "Voice Over Tasks Count",
+                }
+            }
+            voiceover_data.append(voiceover_dict)
         res = {
             "transcript_stats": transcript_data,
             "translation_stats": translation_data,
+            "voiceover_stats": voiceover_data,
         }
         return Response(res, status=status.HTTP_200_OK)
