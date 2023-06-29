@@ -782,7 +782,10 @@ def generate_translation_output(request):
         payloads = generate_translation_payload(
             translation.transcript, translation.target_language, [source_type]
         )
-        translation.payload = payloads[source_type]
+        if type(translation.payload) == dict and "speaker_info" in translation.payload:
+            translation.payload["payload"] = payloads[source_type]["payload"]
+        else:
+            translation.payload = payloads[source_type]
         translation.save()
     return Response(
         {"message": "Payload for translation is generated."},
@@ -1644,6 +1647,7 @@ def update_speaker_info(request):
         .filter(status="TRANSLATION_SELECT_SOURCE")
         .first()
     )
+    translation_obj.payload = {}
     translation_obj.payload["speaker_info"] = speaker_info
     translation_obj.save()
     return Response(
