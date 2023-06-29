@@ -57,6 +57,7 @@ import datetime
 import math
 import json
 import regex
+import requests
 
 
 @api_view(["GET"])
@@ -1522,6 +1523,131 @@ def get_translation_supported_languages(request):
             {"label": label, "value": value}
             for label, value in TRANSLATION_SUPPORTED_LANGUAGES.items()
         ],
+        status=status.HTTP_200_OK,
+    )
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("A string to pass the transcript uuid"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+    ],
+    responses={200: "Get Speaker info in target language."},
+)
+@api_view(["GET"])
+def get_speaker_info(request):
+    if "task_id" not in dict(request.query_params):
+        return Response(
+            {"message": "missing param : task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    task_id = request.query_params["task_id"]
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if task.video.multiple_speaker == True:
+        speakers_info = task.video.speaker_info
+        target_language = task.target_language
+        speaker_output = []
+        for speaker_info in speakers_info:
+            name = speaker_info["id"]
+            json_data = {
+                "input": [{"source": name}],
+                "config": {
+                    "language": {
+                        "sourceLanguage": task.video.language,
+                        "targetLanguage": task.target_language,
+                    },
+                    "isSentence": True,
+                },
+            }
+            logging.info("Calling Transliteration API")
+            response = requests.post(
+                config.transliteration_url,
+                headers={"authorization": config.dhruva_key},
+                json=json_data,
+            )
+            transliteration_output = response.json()
+            speaker_output.append(
+                {
+                    "label": name,
+                    "value": transliteration_output["output"][0]["target"][0],
+                }
+            )
+        return Response(
+            {"speaker_info": speaker_output},
+            status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(
+            {
+                "message": "Can not retrieve multiple speakers info as there is only one speaker in this video."
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_id"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the task instance",
+            ),
+            "speaker_info": openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                description="An object consisting details of speaker",
+            ),
+        },
+        description="Update Speaker Info.",
+    ),
+    responses={
+        200: "Speaker info has been updated.",
+    },
+)
+@api_view(["POST"])
+def update_speaker_info(request):
+    task_id = request.data.get("task_id")
+    speaker_info = request.data.get("speaker_info")
+    if task_id is None:
+        return Response(
+            {"message": "Missing required parameters - task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    translation_obj = (
+        Translation.objects.filter(task=task)
+        .filter(status="TRANSLATION_SELECT_SOURCE")
+        .first()
+    )
+    translation_obj.payload["speaker_info"] = speaker_info
+    translation_obj.save()
+    return Response(
+        {"message": "Updated speaker info"},
         status=status.HTTP_200_OK,
     )
 

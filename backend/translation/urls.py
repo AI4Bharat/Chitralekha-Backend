@@ -16,6 +16,8 @@ urlpatterns = [
         views.get_translation_supported_languages,
         name="get_translation_supported_languages",
     ),
+    path("get_speaker_info", views.get_speaker_info, name="get_speaker_info"),
+    path("update_speaker_info", views.update_speaker_info, name="update_speaker_info"),
     path("generate", views.generate_translation, name="generate_translation"),
     path(
         "generate_translation_output/",

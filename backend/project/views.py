@@ -621,7 +621,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 if len(task_table) == 1:
                     if "transcription" in task_table.keys():
                         task_obj = task_table["transcription"]
-
                         if type(task_obj) != tuple:
                             tasks_to_send.append(
                                 {
@@ -749,11 +748,19 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     if data["user"]["email"] == request.user.email:
                         if data["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
-                        if (
-                            data["status"] == "SELECTED_SOURCE"
-                            and data["task_type"] != "VOICEOVER_EDIT"
-                        ):
-                            buttons["View"] = True
+                        if data["status"] == "SELECTED_SOURCE":
+                            if data["task_type"] != "VOICEOVER_EDIT":
+                                buttons["Edit"] = True
+                                buttons["View"] = True
+                            if data["task_type"] == "TRANSLATION_EDIT":
+                                video = Video.objects.get(pk=data["video"])
+                                if (
+                                    video.multiple_speaker == True
+                                    and data["time_spent"] == "0"
+                                ):
+                                    buttons["Edit-Speaker"] = True
+                                    buttons["View"] = True
+                                    buttons["Edit"] = False
                     data["buttons"] = buttons
             else:
                 tasks_by_users = tasks.filter(user=request.user).order_by("-updated_at")

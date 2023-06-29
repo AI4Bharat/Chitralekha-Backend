@@ -22,11 +22,12 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
         task.status = "FAILED"
         task.save()
         logging.info("Error in integrating audio and video")
-    azure_url = uploadToBlobStorage(file_name, voice_over_obj)
+    azure_url_video, azure_url_audio = uploadToBlobStorage(file_name, voice_over_obj)
     ts_status = "VOICEOVER_EDIT_COMPLETE"
     voice_over_obj.status = ts_status
     voice_over_obj.payload = {"payload": ""}
     voice_over_obj.azure_url = azure_url
+    voice_over_obj.azure_url_audio = azure_url_audio
     voice_over_obj.save()
     task.status = "COMPLETE"
     task.save()
