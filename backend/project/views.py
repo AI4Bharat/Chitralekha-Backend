@@ -752,12 +752,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             if data["task_type"] != "VOICEOVER_EDIT":
                                 buttons["Edit"] = True
                                 buttons["View"] = True
-                            if data["task_type"] == "TRANSLATION_EDIT":
+                            if (
+                                data["task_type"] == "TRANSLATION_EDIT"
+                                and data["is_active"] == True
+                                and data["time_spent"] == "0"
+                            ):
                                 video = Video.objects.get(pk=data["video"])
-                                if (
-                                    video.multiple_speaker == True
-                                    and data["time_spent"] == "0"
-                                ):
+                                if video.multiple_speaker == True:
                                     buttons["Edit-Speaker"] = True
                                     buttons["View"] = True
                                     buttons["Edit"] = False
