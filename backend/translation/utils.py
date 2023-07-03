@@ -12,6 +12,8 @@ import os
 import datetime
 from config import nmt_url, dhruva_key
 from .metadata import LANG_CODE_TO_NAME
+import math
+
 
 ### Utility Functions ###
 def validate_uuid4(val):
@@ -64,6 +66,49 @@ def convert_to_paragraph(lines):
         if sentences_count < 5 and i == ".":
             sentences_count += 1
 
+    return content
+
+
+def convert_to_paragraph_bilingual(payload):
+    lines = []
+    transcripted_lines = []
+    content = ""
+    transcripted_content = ""
+    translated_content = ""
+    sentences_count = 0
+    number_of_paragraphs = math.ceil(len(payload) / 5)
+    count_paragraphs = 0
+    for index, segment in enumerate(payload):
+        if "text" in segment.keys():
+            lines.append(segment["target_text"])
+            transcripted_lines.append(segment["text"])
+            transcripted_content = transcripted_content + segment["text"]
+            translated_content = translated_content + segment["target_text"]
+            sentences_count += 1
+            if sentences_count % 5 == 0:
+                count_paragraphs += 1
+                content = (
+                    content
+                    + transcripted_content
+                    + "\n"
+                    + "\n"
+                    + translated_content
+                    + "\n"
+                    + "\n"
+                )
+                transcripted_content = ""
+                translated_content = ""
+
+    if count_paragraphs < number_of_paragraphs:
+        content = (
+            content
+            + transcripted_content
+            + "\n"
+            + "\n"
+            + translated_content
+            + "\n"
+            + "\n"
+        )
     return content
 
 

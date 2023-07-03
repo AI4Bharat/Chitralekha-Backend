@@ -42,6 +42,7 @@ from .utils import (
     get_batch_translations_using_indictrans_nmt_api,
     convert_to_docx,
     convert_to_paragraph,
+    convert_to_paragraph_bilingual,
     generate_translation_payload,
 )
 from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
@@ -80,7 +81,7 @@ def get_translation_export_types(request):
         openapi.Parameter(
             "export_type",
             openapi.IN_QUERY,
-            description=("export type parameter srt/vtt/txt"),
+            description=("export type parameter srt/vtt/txt/docx/docx-bilingual"),
             type=openapi.TYPE_STRING,
             required=True,
         ),
@@ -128,11 +129,12 @@ def export_translation(request):
     payload = translation.payload["payload"]
     lines = []
 
-    supported_types = ["srt", "vtt", "txt", "docx"]
+    lines = []
+    supported_types = ["srt", "vtt", "txt", "docx", "docx-bilingual"]
     if export_type not in supported_types:
         return Response(
             {
-                "message": "exported type only supported formats are : {srt, vtt, txt, docx} "
+                "message": "exported type only supported formats are : {srt, vtt, txt, docx, docx-bilingual} "
             },
             status=status.HTTP_404_NOT_FOUND,
         )
@@ -181,6 +183,10 @@ def export_translation(request):
                 lines.append(segment["target_text"])
         filename = "translation.docx"
         content = convert_to_paragraph(lines)
+        return convert_to_docx(content)
+    elif export_type == "docx-bilingual":
+        filename = "translation.docx"
+        content = convert_to_paragraph_bilingual(payload)
         return convert_to_docx(content)
     else:
         return Response(
