@@ -96,6 +96,15 @@ def get_transcript_export_types(request):
             type=openapi.TYPE_STRING,
             required=True,
         ),
+        openapi.Parameter(
+            "with_speaker_info",
+            openapi.IN_QUERY,
+            description=(
+                "A boolean to determine whether to export with or without speaker info."
+            ),
+            type=openapi.TYPE_BOOLEAN,
+            required=False,
+        ),
     ],
     responses={200: "Transcript is exported"},
 )
@@ -104,6 +113,8 @@ def export_transcript(request):
     task_id = request.query_params.get("task_id")
     export_type = request.query_params.get("export_type")
     return_file_content = request.query_params.get("return_file_content")
+    with_speaker_info = request.query_params.get("with_speaker_info", "false")
+    with_speaker_info = with_speaker_info.lower() == "true"
 
     if task_id is None or export_type is None:
         return Response(
@@ -134,6 +145,14 @@ def export_transcript(request):
             {"message": "Transcript not found."},
             status=status.HTTP_404_NOT_FOUND,
         )
+
+    if with_speaker_info:
+        speaker_info = transcript.video.multiple_speaker
+        if speaker_info == False:
+            return Response(
+                {"message": "There is no speaker info in this transcript."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
     payload = transcript.payload["payload"]
     lines = []
 
@@ -142,7 +161,7 @@ def export_transcript(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                if len(segment.get("speaker_id", "")) > 0:
+                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
                     lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
                 else:
                     lines.append(segment["text"] + "\n")
@@ -154,7 +173,10 @@ def export_transcript(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                lines.append(segment["text"] + "\n")
+                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                    lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                else:
+                    lines.append(segment["text"] + "\n")
         filename = "transcript.vtt"
         content = "\n".join(lines)
     elif export_type == "txt":

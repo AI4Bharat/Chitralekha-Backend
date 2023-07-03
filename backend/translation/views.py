@@ -84,6 +84,15 @@ def get_translation_export_types(request):
             type=openapi.TYPE_STRING,
             required=True,
         ),
+        openapi.Parameter(
+            "with_speaker_info",
+            openapi.IN_QUERY,
+            description=(
+                "A boolean to determine whether to export with or without speaker info."
+            ),
+            type=openapi.TYPE_BOOLEAN,
+            required=False,
+        ),
     ],
     responses={200: "Translation has been exported."},
 )
@@ -92,7 +101,9 @@ def export_translation(request):
     task_id = request.query_params.get("task_id")
     export_type = request.query_params.get("export_type")
     return_file_content = request.query_params.get("return_file_content")
+    with_speaker_info = request.query_params.get("with_speaker_info", "false")
 
+    with_speaker_info = with_speaker_info.lower() == "true"
     if task_id is None or export_type is None:
         return Response(
             {"message": "missing param : task_id or export_type"},
@@ -130,7 +141,15 @@ def export_translation(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                lines.append(segment["target_text"] + "\n")
+                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                    lines.append(
+                        speaker_info_dict[segment["speaker_id"]]
+                        + ": "
+                        + segment["target_text"]
+                        + "\n"
+                    )
+                else:
+                    lines.append(segment["target_text"] + "\n")
         filename = "translation.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
@@ -139,7 +158,15 @@ def export_translation(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                lines.append(segment["target_text"] + "\n")
+                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                    lines.append(
+                        speaker_info_dict[segment["speaker_id"]]
+                        + ": "
+                        + segment["target_text"]
+                        + "\n"
+                    )
+                else:
+                    lines.append(segment["target_text"] + "\n")
         filename = "translation.vtt"
         content = "\n".join(lines)
     elif export_type == "txt":
