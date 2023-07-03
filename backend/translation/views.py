@@ -127,7 +127,16 @@ def export_translation(request):
         )
 
     payload = translation.payload["payload"]
-    lines = []
+    if with_speaker_info:
+        speaker_info = translation.payload.get("speaker_info", None)
+        if speaker_info == None:
+            return Response(
+                {"message": "There is no speaker info in this translation."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        speaker_info_dict = {
+            speaker["label"]: speaker["value"] for speaker in speaker_info
+        }
 
     lines = []
     supported_types = ["srt", "vtt", "txt", "docx", "docx-bilingual"]
