@@ -64,7 +64,8 @@ import requests
 @api_view(["GET"])
 def get_translation_export_types(request):
     return Response(
-        {"export_types": ["srt", "vtt", "txt", "docx"]}, status=status.HTTP_200_OK
+        {"export_types": ["srt", "vtt", "txt", "docx", "docx-bilingual"]},
+        status=status.HTTP_200_OK,
     )
 
 
