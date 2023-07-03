@@ -26,6 +26,13 @@ from itertools import groupby
 from pydub import AudioSegment
 
 
+@api_view(["GET"])
+def get_voice_over_export_types(request):
+    return Response(
+        {"export_types": ["mp4", "mp3", "flac", "wav"]}, status=status.HTTP_200_OK
+    )
+
+
 def get_voice_over_id(task):
     voice_over = VoiceOver.objects.filter(task=task)
     if "EDIT" in task.task_type:
