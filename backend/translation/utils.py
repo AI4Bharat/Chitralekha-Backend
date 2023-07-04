@@ -12,6 +12,8 @@ import os
 import datetime
 from config import nmt_url, dhruva_key
 from .metadata import LANG_CODE_TO_NAME
+import math
+
 
 ### Utility Functions ###
 def validate_uuid4(val):
@@ -64,6 +66,49 @@ def convert_to_paragraph(lines):
         if sentences_count < 5 and i == ".":
             sentences_count += 1
 
+    return content
+
+
+def convert_to_paragraph_bilingual(payload):
+    lines = []
+    transcripted_lines = []
+    content = ""
+    transcripted_content = ""
+    translated_content = ""
+    sentences_count = 0
+    number_of_paragraphs = math.ceil(len(payload) / 5)
+    count_paragraphs = 0
+    for index, segment in enumerate(payload):
+        if "text" in segment.keys():
+            lines.append(segment["target_text"])
+            transcripted_lines.append(segment["text"])
+            transcripted_content = transcripted_content + segment["text"]
+            translated_content = translated_content + segment["target_text"]
+            sentences_count += 1
+            if sentences_count % 5 == 0:
+                count_paragraphs += 1
+                content = (
+                    content
+                    + transcripted_content
+                    + "\n"
+                    + "\n"
+                    + translated_content
+                    + "\n"
+                    + "\n"
+                )
+                transcripted_content = ""
+                translated_content = ""
+
+    if count_paragraphs < number_of_paragraphs:
+        content = (
+            content
+            + transcripted_content
+            + "\n"
+            + "\n"
+            + translated_content
+            + "\n"
+            + "\n"
+        )
     return content
 
 
@@ -180,14 +225,28 @@ def translation_mg(transcript, target_language, batch_size=25):
         unix_start_time = datetime.datetime.timestamp(start_time)
         end_time = datetime.datetime.strptime(source["end_time"], "%H:%M:%S.%f")
         unix_end_time = datetime.datetime.timestamp(end_time)
-        payload.append(
-            {
-                "start_time": source["start_time"],
-                "end_time": source["end_time"],
-                "text": source["text"],
-                "unix_start_time": unix_start_time,
-                "unix_end_time": unix_end_time,
-                "target_text": target if source["text"].strip() else source["text"],
-            }
-        )
+        if "speaker_id" in source.keys():
+            payload.append(
+                {
+                    "start_time": source["start_time"],
+                    "end_time": source["end_time"],
+                    "text": source["text"],
+                    "speaker_id": source["speaker_id"],
+                    "unix_start_time": unix_start_time,
+                    "unix_end_time": unix_end_time,
+                    "target_text": target if source["text"].strip() else source["text"],
+                }
+            )
+        else:
+            payload.append(
+                {
+                    "start_time": source["start_time"],
+                    "end_time": source["end_time"],
+                    "text": source["text"],
+                    "speaker_id": "",
+                    "unix_start_time": unix_start_time,
+                    "unix_end_time": unix_end_time,
+                    "target_text": target if source["text"].strip() else source["text"],
+                }
+            )
     return json.loads(json.dumps({"payload": payload}))

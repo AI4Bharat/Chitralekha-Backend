@@ -25,7 +25,14 @@ from .tasks import celery_integration
 from django.db.models import Count, F, Sum
 from operator import itemgetter
 from itertools import groupby
+from pydub import AudioSegment
 
+
+@api_view(["GET"])
+def get_voice_over_export_types(request):
+    return Response(
+        {"export_types": ["mp4", "mp3", "flac", "wav"]}, status=status.HTTP_200_OK
+    )
 
 def get_voice_over_id(task):
     voice_over = VoiceOver.objects.filter(task=task)
@@ -1007,12 +1014,20 @@ def get_voice_over_types(request):
             type=openapi.TYPE_INTEGER,
             required=True,
         ),
+        openapi.Parameter(
+            "export_type",
+            openapi.IN_QUERY,
+            description=("export type parameter mp4/mp3/flac/wav"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
     ],
-    responses={200: "Transcript is exported"},
+    responses={200: "VO is exported"},
 )
 @api_view(["GET"])
 def export_voiceover(request):
     task_id = request.query_params.get("task_id")
+    export_type = request.query_params.get("export_type")
     if task_id is None:
         return Response(
             {"message": "missing param : task_id"},
@@ -1040,10 +1055,63 @@ def export_voiceover(request):
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    return Response(
-        {"azure_url": voice_over.azure_url},
-        status=status.HTTP_200_OK,
-    )
+    if export_type == "mp4":
+        return Response(
+            {
+                "azure_url": voice_over.azure_url,
+            },
+            status=status.HTTP_200_OK,
+        )
+    elif export_type == "flac":
+        return Response(
+            {
+                "azure_url": voice_over.azure_url_audio,
+            },
+            status=status.HTTP_200_OK,
+        )
+    elif export_type == "mp3":
+        logging.info("Downloading audio from Azure Blob %s", voice_over.azure_url_audio)
+        download_from_azure_blob(str(voice_over.azure_url_audio))
+        logging.info("Downloaded audio from Azure Blob %s", voice_over.azure_url_audio)
+        file_path = voice_over.azure_url_audio.split("/")[-1]
+        AudioSegment.from_file(file_path).export(
+            file_path.split("/")[-1].replace(".flac", "") + ".mp3", format="mp3"
+        )
+        logging.info("Uploading audio mp3 to Azure Blob %s", voice_over.azure_url_audio)
+        azure_url_audio = upload_audio_to_azure_blob(
+            file_path, export_type, export=True
+        )
+        return Response(
+            {
+                "azure_url": azure_url_audio,
+            },
+            status=status.HTTP_200_OK,
+        )
+    elif export_type == "wav":
+        logging.info("Downloading audio from Azure Blob %s", voice_over.azure_url_audio)
+        download_from_azure_blob(str(voice_over.azure_url_audio))
+        logging.info("Downloaded audio from Azure Blob %s", voice_over.azure_url_audio)
+        file_path = voice_over.azure_url_audio.split("/")[-1]
+        AudioSegment.from_file(file_path).export(
+            file_path.split("/")[-1].replace(".flac", "") + ".wav", format="wav"
+        )
+        logging.info("Uploading audio wav to Azure Blob %s", voice_over.azure_url_audio)
+        azure_url_audio = upload_audio_to_azure_blob(
+            file_path, export_type, export=True
+        )
+        return Response(
+            {
+                "azure_url": azure_url_audio,
+            },
+            status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(
+            {
+                "message": "exported type only supported formats are : {mp4, mp3, flac, wav} "
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
 
 @api_view(["GET"])

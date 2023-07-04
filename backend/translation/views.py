@@ -42,6 +42,7 @@ from .utils import (
     get_batch_translations_using_indictrans_nmt_api,
     convert_to_docx,
     convert_to_paragraph,
+    convert_to_paragraph_bilingual,
     generate_translation_payload,
 )
 from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
@@ -57,12 +58,14 @@ import datetime
 import math
 import json
 import regex
+import requests
 
 
 @api_view(["GET"])
 def get_translation_export_types(request):
     return Response(
-        {"export_types": ["srt", "vtt", "txt", "docx"]}, status=status.HTTP_200_OK
+        {"export_types": ["srt", "vtt", "txt", "docx", "docx-bilingual"]},
+        status=status.HTTP_200_OK,
     )
 
 
@@ -79,9 +82,18 @@ def get_translation_export_types(request):
         openapi.Parameter(
             "export_type",
             openapi.IN_QUERY,
-            description=("export type parameter srt/vtt/txt"),
+            description=("export type parameter srt/vtt/txt/docx/docx-bilingual"),
             type=openapi.TYPE_STRING,
             required=True,
+        ),
+        openapi.Parameter(
+            "with_speaker_info",
+            openapi.IN_QUERY,
+            description=(
+                "A boolean to determine whether to export with or without speaker info."
+            ),
+            type=openapi.TYPE_BOOLEAN,
+            required=False,
         ),
     ],
     responses={200: "Translation has been exported."},
@@ -91,7 +103,9 @@ def export_translation(request):
     task_id = request.query_params.get("task_id")
     export_type = request.query_params.get("export_type")
     return_file_content = request.query_params.get("return_file_content")
+    with_speaker_info = request.query_params.get("with_speaker_info", "false")
 
+    with_speaker_info = with_speaker_info.lower() == "true"
     if task_id is None or export_type is None:
         return Response(
             {"message": "missing param : task_id or export_type"},
@@ -114,13 +128,23 @@ def export_translation(request):
         )
 
     payload = translation.payload["payload"]
-    lines = []
+    if with_speaker_info:
+        speaker_info = translation.payload.get("speaker_info", None)
+        if speaker_info == None:
+            return Response(
+                {"message": "There is no speaker info in this translation."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        speaker_info_dict = {
+            speaker["label"]: speaker["value"] for speaker in speaker_info
+        }
 
-    supported_types = ["srt", "vtt", "txt", "docx"]
+    lines = []
+    supported_types = ["srt", "vtt", "txt", "docx", "docx-bilingual"]
     if export_type not in supported_types:
         return Response(
             {
-                "message": "exported type only supported formats are : {srt, vtt, txt, docx} "
+                "message": "exported type only supported formats are : {srt, vtt, txt, docx, docx-bilingual} "
             },
             status=status.HTTP_404_NOT_FOUND,
         )
@@ -129,7 +153,15 @@ def export_translation(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                lines.append(segment["target_text"] + "\n")
+                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                    lines.append(
+                        speaker_info_dict[segment["speaker_id"]]
+                        + ": "
+                        + segment["target_text"]
+                        + "\n"
+                    )
+                else:
+                    lines.append(segment["target_text"] + "\n")
         filename = "translation.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
@@ -138,7 +170,15 @@ def export_translation(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                lines.append(segment["target_text"] + "\n")
+                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                    lines.append(
+                        speaker_info_dict[segment["speaker_id"]]
+                        + ": "
+                        + segment["target_text"]
+                        + "\n"
+                    )
+                else:
+                    lines.append(segment["target_text"] + "\n")
         filename = "translation.vtt"
         content = "\n".join(lines)
     elif export_type == "txt":
@@ -153,6 +193,10 @@ def export_translation(request):
                 lines.append(segment["target_text"])
         filename = "translation.docx"
         content = convert_to_paragraph(lines)
+        return convert_to_docx(content)
+    elif export_type == "docx-bilingual":
+        filename = "translation.docx"
+        content = convert_to_paragraph_bilingual(payload)
         return convert_to_docx(content)
     else:
         return Response(
@@ -781,7 +825,10 @@ def generate_translation_output(request):
         payloads = generate_translation_payload(
             translation.transcript, translation.target_language, [source_type]
         )
-        translation.payload = payloads[source_type]
+        if type(translation.payload) == dict and "speaker_info" in translation.payload:
+            translation.payload["payload"] = payloads[source_type]["payload"]
+        else:
+            translation.payload = payloads[source_type]
         translation.save()
     return Response(
         {"message": "Payload for translation is generated."},
@@ -804,12 +851,14 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
                     "target_text": payload["payload"][i]["target_text"],
+                    "speaker_id": payload["payload"][i]["speaker_id"],
                 }
             elif "text" not in translation.payload["payload"][start_offset + i]:
                 translation.payload["payload"][start_offset + i] = {
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
+                    "speaker_id": payload["payload"][i]["speaker_id"],
                 }
             else:
                 translation.payload["payload"][start_offset + i] = {}
@@ -825,6 +874,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                             "target_text": payload["payload"][length + i][
                                 "target_text"
                             ],
+                            "speaker_id": payload["payload"][length + i]["speaker_id"],
                         },
                     )
                 else:
@@ -852,6 +902,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         "end_time": payload["payload"][i]["end_time"],
                         "text": payload["payload"][i]["text"],
                         "target_text": payload["payload"][i]["target_text"],
+                        "speaker_id": payload["payload"][i]["speaker_id"],
                     }
                 else:
                     translation.payload["payload"][start_offset + i] = {}
@@ -869,6 +920,9 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                                 "target_text": payload["payload"][length + i][
                                     "target_text"
                                 ],
+                                "speaker_id": payload["payload"][length + i][
+                                    "speaker_id"
+                                ],
                             },
                         )
                     else:
@@ -884,6 +938,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         "end_time": payload["payload"][i]["end_time"],
                         "text": payload["payload"][i]["text"],
                         "target_text": payload["payload"][i]["target_text"],
+                        "speaker_id": payload["payload"][i]["speaker_id"],
                     }
                 else:
                     translation.payload["payload"][start_offset + i] = {}
@@ -911,6 +966,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
                     "target_text": payload["payload"][i]["target_text"],
+                    "speaker_id": payload["payload"][i]["speaker_id"],
                 }
             else:
                 translation.payload["payload"][start_offset + i] = {}
@@ -928,6 +984,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         "end_time": payload["payload"][length + i]["end_time"],
                         "text": payload["payload"][length + i]["text"],
                         "target_text": payload["payload"][length + i]["target_text"],
+                        "speaker_id": payload["payload"][length + i]["speaker_id"],
                     }
                 else:
                     translation.payload["payload"].insert(
@@ -939,6 +996,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                             "target_text": payload["payload"][length + i][
                                 "target_text"
                             ],
+                            "speaker_id": payload["payload"][length + i]["speaker_id"],
                         },
                     )
             else:
@@ -1511,6 +1569,132 @@ def get_translation_supported_languages(request):
             {"label": label, "value": value}
             for label, value in TRANSLATION_SUPPORTED_LANGUAGES.items()
         ],
+        status=status.HTTP_200_OK,
+    )
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("A string to pass the transcript uuid"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        ),
+    ],
+    responses={200: "Get Speaker info in target language."},
+)
+@api_view(["GET"])
+def get_speaker_info(request):
+    if "task_id" not in dict(request.query_params):
+        return Response(
+            {"message": "missing param : task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    task_id = request.query_params["task_id"]
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if task.video.multiple_speaker == True:
+        speakers_info = task.video.speaker_info
+        target_language = task.target_language
+        speaker_output = []
+        for speaker_info in speakers_info:
+            name = speaker_info["id"]
+            json_data = {
+                "input": [{"source": name}],
+                "config": {
+                    "language": {
+                        "sourceLanguage": task.video.language,
+                        "targetLanguage": task.target_language,
+                    },
+                    "isSentence": True,
+                },
+            }
+            logging.info("Calling Transliteration API")
+            response = requests.post(
+                config.transliteration_url,
+                headers={"authorization": config.dhruva_key},
+                json=json_data,
+            )
+            transliteration_output = response.json()
+            speaker_output.append(
+                {
+                    "label": name,
+                    "value": transliteration_output["output"][0]["target"][0],
+                }
+            )
+        return Response(
+            {"speaker_info": speaker_output},
+            status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(
+            {
+                "message": "Can not retrieve multiple speakers info as there is only one speaker in this video."
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_id"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the task instance",
+            ),
+            "speaker_info": openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                description="An object consisting details of speaker",
+            ),
+        },
+        description="Update Speaker Info.",
+    ),
+    responses={
+        200: "Speaker info has been updated.",
+    },
+)
+@api_view(["POST"])
+def update_speaker_info(request):
+    task_id = request.data.get("task_id")
+    speaker_info = request.data.get("speaker_info")
+    if task_id is None:
+        return Response(
+            {"message": "Missing required parameters - task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    translation_obj = (
+        Translation.objects.filter(task=task)
+        .filter(status="TRANSLATION_SELECT_SOURCE")
+        .first()
+    )
+    translation_obj.payload = {}
+    translation_obj.payload["speaker_info"] = speaker_info
+    translation_obj.save()
+    return Response(
+        {"message": "Updated speaker info"},
         status=status.HTTP_200_OK,
     )
 

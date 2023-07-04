@@ -22,6 +22,7 @@ from users.models import User
 from rest_framework import request
 import urllib
 from mutagen.mp3 import MP3
+import json
 
 
 ydl = YoutubeDL({"format": "best"})
@@ -240,6 +241,8 @@ def get_video_func(request):
     upload_target_language = request.GET.get("target_language")
     assignee = request.GET.get("assignee")
     upload_task_description = request.GET.get("task_description", "")
+    speaker_info = request.GET.get("speaker_info")
+    multiple_speaker = request.GET.get("multiple_speaker", "false")
 
     create = create.lower() == "true"
     if create:
@@ -256,6 +259,7 @@ def get_video_func(request):
                 )
     # Convert audio only to boolean
     is_audio_only = is_audio_only.lower() == "true"
+    multiple_speaker = multiple_speaker.lower() == "true"
     if not url:
         return Response(
             {"message": "Video URL not provided in query params."},
@@ -328,6 +332,7 @@ def get_video_func(request):
                 "language": lang,
                 "description": description,
                 "gender": gender,
+                "multiple_speaker": multiple_speaker,
             },
         )
         serializer = VideoSerializer(video)
@@ -341,6 +346,20 @@ def get_video_func(request):
             response_data["direct_video_url"] = direct_video_url
 
         if created:
+            if speaker_info is not None:
+                speakers = set()
+                for speaker in json.loads(speaker_info):
+                    if speaker["id"] not in speaker:
+                        speakers.add(speaker["id"])
+                    else:
+                        logging.error("Speaker Ids are not unique.")
+                        return Response(
+                            {"message": "Speaker Ids should be unique."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                video.speaker_info = json.loads(speaker_info)
+            else:
+                video.speaker_info = []
             video.save()
             logging.info("Video is created.")
             default_task_types = (
@@ -475,9 +494,25 @@ def get_video_func(request):
             "language": lang,
             "description": description,
             "gender": gender,
+            "multiple_speaker": multiple_speaker,
         },
     )
     if created:
+        if speaker_info is not None:
+            # Check if speakers are unique within the video.
+            speakers = set()
+            for speaker in json.loads(speaker_info):
+                if speaker["id"] not in speakers:
+                    speakers.add(speaker["id"])
+                else:
+                    logging.error("Speaker Ids are not unique.")
+                    return Response(
+                        {"message": "Speaker Ids should be unique."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            video.speaker_info = json.loads(speaker_info)
+        else:
+            video.speaker_info = []
         video.save()
         subtitle_payload, is_machine_generated = get_subtitles_from_google_video(
             url, lang

@@ -61,6 +61,12 @@ class Video(models.Model):
         blank=True,
         verbose_name="Gender",
     )
+    speaker_info = models.JSONField(verbose_name="Speakers Info", null=True)
+    multiple_speaker = models.BooleanField(
+        verbose_name="Multiple Speaker",
+        default=False,
+        help_text="Does this object have multiple speakers?",
+    )
 
     def __str__(self):
         return str(self.video_uuid) + " : " + self.name
