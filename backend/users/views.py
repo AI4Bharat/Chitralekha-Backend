@@ -32,7 +32,9 @@ from django.core.mail import send_mail
 from rest_framework.generics import UpdateAPIView
 from task.models import Task
 from task.serializers import TaskSerializer
+from project.models import Project
 import json
+from project.serializers import ProjectSerializer
 
 
 regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
@@ -582,6 +584,18 @@ class RoleViewSet(viewsets.ViewSet):
                     {"message": f"User's role must not be update as {role}"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            elif user.role == "PROJECT_MANAGER":
+                projects = Project.objects.filter("user_id", user.id)
+                if len(projects) > 0:
+                    serializer_project = ProjectSerializer(projects, many=True)
+
+                    return Response(
+                        {
+                            "message": "Please remove user from project manager",
+                            "data": serializer_project.data,
+                        },
+                        status=status.HTTP_200_OK,
+                    )
 
             if role in itertools.chain(*User.ROLE_CHOICES):
                 if user.role == "TRANSCRIPT_EDITOR":
@@ -611,8 +625,6 @@ class RoleViewSet(viewsets.ViewSet):
                         update_user_role = True
                     else:
                         check_if_tasks_assign = True
-                elif user.role == "TRANSCRIPT_REVIEWER":
-                    check_if_tasks_assign = True
                 else:
                     check_if_tasks_assign = True
 
