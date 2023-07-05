@@ -9,14 +9,15 @@ class TranslationAdmin(admin.ModelAdmin):
     """
 
     list_display = (
-        "id",
+        "task",
         "transcript",
         "target_language",
         "translation_type",
         "updated_at",
+        "id",
     )
-    list_filter = ("transcript", "target_language", "translation_type")
-    search_fields = ("transcript", "target_language", "translation_type")
+    list_filter = ("task", "transcript", "target_language", "translation_type")
+    search_fields = ("task", "transcript", "target_language", "translation_type")
     ordering = ("-updated_at",)
 
 
