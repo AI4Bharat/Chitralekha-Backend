@@ -1,5 +1,6 @@
 from transcript.models import Transcript
 from celery import shared_task
+from backend.celery import celery_app
 import json
 import logging
 from azure.storage.blob import BlobServiceClient
@@ -14,7 +15,7 @@ import os
 from .utils.ytt_align import *
 
 
-@shared_task()
+@celery_app.task(queue="ytt")
 def celery_align_json(transcript_id):
     transcript_obj = Transcript.objects.filter(id=transcript_id).first()
     if transcript_obj is not None:
