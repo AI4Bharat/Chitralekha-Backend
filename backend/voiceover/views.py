@@ -1059,49 +1059,67 @@ def export_voiceover(request):
             },
             status=status.HTTP_200_OK,
         )
-    elif export_type == "flac":
-        return Response(
-            {
-                "azure_url": voice_over.azure_url_audio,
-            },
-            status=status.HTTP_200_OK,
-        )
-    elif export_type == "mp3":
-        logging.info("Downloading audio from Azure Blob %s", voice_over.azure_url_audio)
-        download_from_azure_blob(str(voice_over.azure_url_audio))
-        logging.info("Downloaded audio from Azure Blob %s", voice_over.azure_url_audio)
-        file_path = voice_over.azure_url_audio.split("/")[-1]
-        AudioSegment.from_file(file_path).export(
-            file_path.split("/")[-1].replace(".flac", "") + ".mp3", format="mp3"
-        )
-        logging.info("Uploading audio mp3 to Azure Blob %s", voice_over.azure_url_audio)
-        azure_url_audio = upload_audio_to_azure_blob(
-            file_path, export_type, export=True
-        )
-        return Response(
-            {
-                "azure_url": azure_url_audio,
-            },
-            status=status.HTTP_200_OK,
-        )
-    elif export_type == "wav":
-        logging.info("Downloading audio from Azure Blob %s", voice_over.azure_url_audio)
-        download_from_azure_blob(str(voice_over.azure_url_audio))
-        logging.info("Downloaded audio from Azure Blob %s", voice_over.azure_url_audio)
-        file_path = voice_over.azure_url_audio.split("/")[-1]
-        AudioSegment.from_file(file_path).export(
-            file_path.split("/")[-1].replace(".flac", "") + ".wav", format="wav"
-        )
-        logging.info("Uploading audio wav to Azure Blob %s", voice_over.azure_url_audio)
-        azure_url_audio = upload_audio_to_azure_blob(
-            file_path, export_type, export=True
-        )
-        return Response(
-            {
-                "azure_url": azure_url_audio,
-            },
-            status=status.HTTP_200_OK,
-        )
+    elif export_type in ["mp3", "flac", "wav"]:
+        if voice_over.azure_url_audio == None:
+            return Response(
+                {"message": "Audio was not created for this Voice Over Task."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        elif export_type == "flac":
+            return Response(
+                {
+                    "azure_url": voice_over.azure_url_audio,
+                },
+                status=status.HTTP_200_OK,
+            )
+        elif export_type == "mp3":
+            logging.info(
+                "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
+            )
+            download_from_azure_blob(str(voice_over.azure_url_audio))
+            logging.info(
+                "Downloaded audio from Azure Blob %s", voice_over.azure_url_audio
+            )
+            file_path = voice_over.azure_url_audio.split("/")[-1]
+            AudioSegment.from_file(file_path).export(
+                file_path.split("/")[-1].replace(".flac", "") + ".mp3", format="mp3"
+            )
+            logging.info(
+                "Uploading audio mp3 to Azure Blob %s", voice_over.azure_url_audio
+            )
+            azure_url_audio = upload_audio_to_azure_blob(
+                file_path, export_type, export=True
+            )
+            return Response(
+                {
+                    "azure_url": azure_url_audio,
+                },
+                status=status.HTTP_200_OK,
+            )
+        elif export_type == "wav":
+            logging.info(
+                "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
+            )
+            download_from_azure_blob(str(voice_over.azure_url_audio))
+            logging.info(
+                "Downloaded audio from Azure Blob %s", voice_over.azure_url_audio
+            )
+            file_path = voice_over.azure_url_audio.split("/")[-1]
+            AudioSegment.from_file(file_path).export(
+                file_path.split("/")[-1].replace(".flac", "") + ".wav", format="wav"
+            )
+            logging.info(
+                "Uploading audio wav to Azure Blob %s", voice_over.azure_url_audio
+            )
+            azure_url_audio = upload_audio_to_azure_blob(
+                file_path, export_type, export=True
+            )
+            return Response(
+                {
+                    "azure_url": azure_url_audio,
+                },
+                status=status.HTTP_200_OK,
+            )
     else:
         return Response(
             {
