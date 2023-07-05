@@ -25,7 +25,10 @@ def celery_align_json(transcript_id):
             and len(transcript_obj.payload["payload"]) > 0
             and "ytt_azure_url" not in transcript_obj.payload.keys()
         ):
-            data = align_json_api(transcript_obj)
+            try:
+                data = align_json_api(transcript_obj)
+            except:
+                print("Error in calling align json API")
             time_now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
             file_name = (
                 "Chitralekha_Video_{}_{}".format(transcript_obj.video.id, time_now)
