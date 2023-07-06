@@ -101,6 +101,13 @@ class VoiceOver(models.Model):
     azure_url = models.URLField(
         max_length=200, verbose_name="azure_url", default=None, blank=True, null=True
     )
+    azure_url_audio = models.URLField(
+        max_length=200,
+        verbose_name="azure_url_audio",
+        default=None,
+        blank=True,
+        null=True,
+    )
 
     def __str__(self):
         return "Voice Over: " + str(self.voice_over_uuid)

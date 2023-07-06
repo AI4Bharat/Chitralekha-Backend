@@ -3,6 +3,7 @@ from transcript.models import Transcript
 from task.models import Task
 from io import StringIO
 from celery import shared_task
+from backend.celery import celery_app
 import json
 import webvtt
 import datetime
@@ -74,7 +75,7 @@ def convert_payload_format(data):
     return json.loads(json.dumps({"payload": sentences_list}))
 
 
-@shared_task()
+@celery_app.task(queue="asr_tts")
 def celery_tts_call(
     task_id, tts_input, target_language, translation, translation_id, empty_sentences
 ):
@@ -105,7 +106,7 @@ def celery_tts_call(
     send_mail_to_user(task_obj)
 
 
-@shared_task()
+@celery_app.task(queue="asr_tts")
 def celery_asr_call(task_id):
     task_obj = Task.objects.get(pk=task_id)
     transcript_obj = Transcript.objects.filter(task=task_obj).first()

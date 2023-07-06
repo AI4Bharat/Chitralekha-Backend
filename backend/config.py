@@ -11,6 +11,7 @@ dravidian_tts_url = os.getenv("DRAVIDIAN_TTS_API_URL")
 nmt_url = os.getenv("NMT_API_URL")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 align_json_url = os.getenv("ALIGN_JSON_URL")
+transliteration_url = os.getenv("TRANSLITERATION_URL")
 
 storage_account_key = os.getenv("AZURE_STORAGE_ACCOUNT_KEY")
 connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
@@ -37,4 +38,11 @@ allowed_roles = {
     "TRANSLATION_REVIEW": ["TRANSLATION_REVIEWER", "UNIVERSAL_EDITOR"],
     "VOICEOVER_EDIT": ["VOICEOVER_EDITOR", "UNIVERSAL_EDITOR"],
     "VOICEOVER_REVIEW": ["VOICEOVER_REVIEWER", "UNIVERSAL_EDITOR"],
+}
+
+DEFAULT_SPEAKER = {
+    "name": "default",
+    "gender": "male",
+    "age": "21-60",
+    "id": "default_speaker_chitralekha",
 }

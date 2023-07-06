@@ -5,7 +5,7 @@ from .models import Transcript
 
 # Show particular fields in the admin panel
 class TranscriptAdmin(admin.ModelAdmin):
-    list_display = ("id", "video", "language", "transcript_type", "updated_at")
+    list_display = ("task", "video", "language", "transcript_type", "updated_at", "id")
     list_filter = ("video", "language", "transcript_type")
     search_fields = ("video", "language", "transcript_type")
     ordering = ("-updated_at",)

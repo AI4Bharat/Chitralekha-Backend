@@ -33,6 +33,7 @@ import base64
 import io
 from video.tasks import create_videos_async
 from organization.models import Organization
+from config import *
 
 
 accepted_languages = [
@@ -180,6 +181,22 @@ def delete_video(request):
             openapi.IN_QUERY,
             description=("Gender of video's voice"),
             type=openapi.TYPE_STRING,
+            required=False,
+        ),
+        openapi.Parameter(
+            "speaker_info",
+            openapi.IN_QUERY,
+            description=("Speaker's info such as Name, Age, Gender"),
+            type=openapi.TYPE_OBJECT,
+            required=False,
+        ),
+        openapi.Parameter(
+            "multiple_speaker",
+            openapi.IN_QUERY,
+            description=(
+                "A boolean to determine whether there are multiple or single speakers"
+            ),
+            type=openapi.TYPE_BOOLEAN,
             required=False,
         ),
     ],
@@ -746,6 +763,36 @@ def upload_csv_data(request):
     project_id = request.data.get("project_id")
     csv_content = request.data.get("csv")
 
+    try:
+        tasks_list = []
+        params = {
+            "state": "RECEIVED",
+            "sort_by": "received",
+            "name": "task.tasks.celery_asr_call",
+        }
+        url = f"{flower_url}/api/tasks"
+        if flower_username and flower_password:
+            res = requests.get(
+                url, params=params, auth=(flower_username, flower_password)
+            )
+        else:
+            res = requests.get(url, params=params)
+        data = res.json()
+        task_data = list(data.values())
+        for elem in task_data:
+            tasks_list.append(eval(elem["kwargs"])["task_id"])
+        if len(data) > 29:
+            return Response(
+                {
+                    "message": "There are {} Transcription calls in the queue already. Please wait, till these are completed.".format(
+                        len(data)
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    except:
+        logging.info("There was an issue in checking ASR queue.")
+
     decrypted = base64.b64decode(csv_content).decode("utf-8")
     csv_data = []
     with io.StringIO(decrypted) as fp:
@@ -759,7 +806,13 @@ def upload_csv_data(request):
             {"message": "Number of rows is greater than 30."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    csv_reader = csv.DictReader(csv_data)
+    try:
+        csv_reader = csv.DictReader(csv_data)
+    except:
+        return Response(
+            {"message": "Error in reading CSV file."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     if not set(required_fields_project).issubset(csv_reader.fieldnames):
         return Response(
             {
@@ -946,6 +999,36 @@ def upload_csv_org(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
+    try:
+        tasks_list = []
+        params = {
+            "state": "RECEIVED",
+            "sort_by": "received",
+            "name": "task.tasks.celery_asr_call",
+        }
+        url = f"{flower_url}/api/tasks"
+        if flower_username and flower_password:
+            res = requests.get(
+                url, params=params, auth=(flower_username, flower_password)
+            )
+        else:
+            res = requests.get(url, params=params)
+        data = res.json()
+        task_data = list(data.values())
+        for elem in task_data:
+            tasks_list.append(eval(elem["kwargs"])["task_id"])
+        if len(data) > 29:
+            return Response(
+                {
+                    "message": "There are {} Transcription calls in the queue already. Please wait, till these are completed.".format(
+                        len(data)
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    except:
+        logging.info("There was an issue in checking ASR queue.")
+
     if not org.enable_upload:
         return Response(
             {"message": "CSV upload is not enabled. Please contact the administrator!"},
@@ -960,9 +1043,9 @@ def upload_csv_org(request):
             new_row = ",".join(row)
             csv_data.append(new_row)
 
-    if len(csv_data) > 100:
+    if len(csv_data) > 50:
         return Response(
-            {"message": "Number of rows is greater than 100."},
+            {"message": "Number of rows is greater than 50."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     csv_reader = csv.DictReader(csv_data)
