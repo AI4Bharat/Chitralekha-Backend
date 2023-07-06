@@ -194,9 +194,9 @@ def generate_tts_output(
         gender = "MALE"
     else:
         gender = translation_obj.video.gender
-    if (
-        translation_obj.video.multiple_speaker == False
-        and len(translation_obj.video.speaker_info) == 0
+    if translation_obj.video.multiple_speaker == False and (
+        translation_obj.video.speaker_info == None
+        or len(translation_obj.video.speaker_info) == 0
     ):
         tts_output = get_tts_output(
             tts_input,
