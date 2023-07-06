@@ -1050,9 +1050,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
         users = project.members.filter(has_accepted_invite=True).all()
 
-        if "video_id" in request.query_params:
-            video_id = int(request.query_params["video_id"])
+        if (
+            "video_id" in request.query_params
+            and len(request.query_params["video_id"]) > 0
+        ):
             try:
+                video_id = int(request.query_params["video_id"])
                 video = Video.objects.filter(
                     id=video_id,
                 ).first()
@@ -1063,7 +1066,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 )
             except:
                 return Response(
-                    {"message": "Invalid video id or language"},
+                    {"message": "Invalid video id"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
