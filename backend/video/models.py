@@ -69,7 +69,7 @@ class Video(models.Model):
     )
 
     def __str__(self):
-        return str(self.video_uuid) + " : " + self.name
+        return self.name
 
     @property
     def get_language_label(self):
