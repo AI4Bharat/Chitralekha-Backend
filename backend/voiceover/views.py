@@ -3,6 +3,8 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import (
     api_view,
+    permission_classes,
+    authentication_classes,
 )
 from rest_framework.response import Response
 from task.models import Task
@@ -976,6 +978,8 @@ def save_voice_over(request):
 
 
 @api_view(["GET"])
+@authentication_classes([])
+@permission_classes([])
 def get_voiceover_supported_languages(request):
     """
     Endpoint to get the supported languages for TTS API

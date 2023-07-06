@@ -2402,11 +2402,10 @@ class TaskViewSet(ModelViewSet):
         Fetches all task types.
         """
         response = [
-            {"id": 1, "value": "TRANSCRIPTION_EDIT", "label": "Transcription Edit"},
-            {"id": 2, "value": "TRANSCRIPTION_REVIEW", "label": "Transcription Review"},
-            {"id": 3, "value": "TRANSLATION_EDIT", "label": "Translation Edit"},
-            {"id": 4, "value": "TRANSLATION_REVIEW", "label": "Translation Review"},
-            {"id": 5, "value": "VOICEOVER_EDIT", "label": "VoiceOver Edit"},
+            {"id": 1, "value": "TRANSCRIPTION_REVIEW", "label": "Transcription Review"},
+            {"id": 2, "value": "TRANSLATION_EDIT", "label": "Translation Edit"},
+            {"id": 3, "value": "TRANSLATION_REVIEW", "label": "Translation Review"},
+            {"id": 4, "value": "VOICEOVER_EDIT", "label": "VoiceOver Edit"},
         ]
         return Response(response, status=status.HTTP_200_OK)
 
