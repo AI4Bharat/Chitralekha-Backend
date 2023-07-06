@@ -851,14 +851,14 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
                     "target_text": payload["payload"][i]["target_text"],
-                    "speaker_id": payload["payload"][i]["speaker_id"],
+                    "speaker_id": payload["payload"][i].get("speaker_id", ""),
                 }
             elif "text" not in translation.payload["payload"][start_offset + i]:
                 translation.payload["payload"][start_offset + i] = {
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
-                    "speaker_id": payload["payload"][i]["speaker_id"],
+                    "speaker_id": payload["payload"][i].get("speaker_id", ""),
                 }
             else:
                 translation.payload["payload"][start_offset + i] = {}
@@ -874,7 +874,9 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                             "target_text": payload["payload"][length + i][
                                 "target_text"
                             ],
-                            "speaker_id": payload["payload"][length + i]["speaker_id"],
+                            "speaker_id": payload["payload"][length + i].get(
+                                "speaker_id", ""
+                            ),
                         },
                     )
                 else:
@@ -902,7 +904,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         "end_time": payload["payload"][i]["end_time"],
                         "text": payload["payload"][i]["text"],
                         "target_text": payload["payload"][i]["target_text"],
-                        "speaker_id": payload["payload"][i]["speaker_id"],
+                        "speaker_id": payload["payload"][i].get("speaker_id", ""),
                     }
                 else:
                     translation.payload["payload"][start_offset + i] = {}
@@ -920,9 +922,9 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                                 "target_text": payload["payload"][length + i][
                                     "target_text"
                                 ],
-                                "speaker_id": payload["payload"][length + i][
-                                    "speaker_id"
-                                ],
+                                "speaker_id": payload["payload"][length + i].get(
+                                    "speaker_id", ""
+                                ),
                             },
                         )
                     else:
@@ -938,7 +940,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         "end_time": payload["payload"][i]["end_time"],
                         "text": payload["payload"][i]["text"],
                         "target_text": payload["payload"][i]["target_text"],
-                        "speaker_id": payload["payload"][i]["speaker_id"],
+                        "speaker_id": payload["payload"][i].get("speaker_id", ""),
                     }
                 else:
                     translation.payload["payload"][start_offset + i] = {}
@@ -966,7 +968,7 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                     "end_time": payload["payload"][i]["end_time"],
                     "text": payload["payload"][i]["text"],
                     "target_text": payload["payload"][i]["target_text"],
-                    "speaker_id": payload["payload"][i]["speaker_id"],
+                    "speaker_id": payload["payload"][i].get("speaker_id", ""),
                 }
             else:
                 translation.payload["payload"][start_offset + i] = {}
@@ -984,7 +986,9 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         "end_time": payload["payload"][length + i]["end_time"],
                         "text": payload["payload"][length + i]["text"],
                         "target_text": payload["payload"][length + i]["target_text"],
-                        "speaker_id": payload["payload"][length + i]["speaker_id"],
+                        "speaker_id": payload["payload"][length + i].get(
+                            "speaker_id", ""
+                        ),
                     }
                 else:
                     translation.payload["payload"].insert(
@@ -996,7 +1000,9 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                             "target_text": payload["payload"][length + i][
                                 "target_text"
                             ],
-                            "speaker_id": payload["payload"][length + i]["speaker_id"],
+                            "speaker_id": payload["payload"][length + i].get(
+                                "speaker_id", ""
+                            ),
                         },
                     )
             else:
@@ -1054,7 +1060,7 @@ def save_translation(request):
 
     if not task.is_active:
         return Response(
-            {"message": "This task is not ative yet."},
+            {"message": "This task is not active yet."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

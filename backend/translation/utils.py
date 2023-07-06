@@ -11,7 +11,7 @@ from io import StringIO, BytesIO
 import os
 import datetime
 from config import nmt_url, dhruva_key
-from .metadata import LANG_CODE_TO_NAME
+from .metadata import LANG_CODE_TO_NAME, english_noise_tags, target_noise_tags
 import math
 
 
@@ -147,7 +147,6 @@ def get_batch_translations_using_indictrans_nmt_api(
             },
         },
     }
-
     try:
         response = requests.post(
             nmt_url,
@@ -182,7 +181,13 @@ def translation_mg(transcript, target_language, batch_size=25):
     vtt_output = transcript.payload
     for index, vtt_line in enumerate(vtt_output["payload"]):
         if "text" in vtt_line.keys():
-            sentence_list.append(vtt_line["text"])
+            text = vtt_line["text"]
+            if transcript.language == "en":
+                for noise_tag in english_noise_tags:
+                    text = text.replace(noise_tag, "")
+                sentence_list.append(text)
+            else:
+                sentence_list.append(text)
         else:
             delete_indices.append(index)
 
@@ -201,7 +206,6 @@ def translation_mg(transcript, target_language, batch_size=25):
             source_language=transcript.language,
             target_language=target_language,
         )
-
         # Check if translations output doesn't return a string error
         if isinstance(translations_output, str):
             return Response(
@@ -225,6 +229,19 @@ def translation_mg(transcript, target_language, batch_size=25):
         unix_start_time = datetime.datetime.timestamp(start_time)
         end_time = datetime.datetime.strptime(source["end_time"], "%H:%M:%S.%f")
         unix_end_time = datetime.datetime.timestamp(end_time)
+
+        try:
+            if transcript.language == "en":
+                noise_tags = list(set(source["text"].split()) & english_noise_tags)
+                if noise_tags:
+                    replace_noise_tag = target_noise_tags[target_language][
+                        noise_tags[0].replace("[", "").replace("]", "")
+                    ]
+                    if replace_noise_tag != "nan":
+                        target = "[" + replace_noise_tag + "] " + target
+        except:
+            logging.info("Error in replacing noise tags.")
+
         if "speaker_id" in source.keys():
             payload.append(
                 {

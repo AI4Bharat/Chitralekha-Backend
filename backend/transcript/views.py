@@ -204,18 +204,20 @@ def export_transcript(request):
         else:
             try:
                 data = align_json_api(transcript)
+            except:
+                return Response(
+                    {
+                        "message": "Error in exporting to ytt format as Align Json API is failing."
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
                 time_now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
                 file_location = (
                     "Chitralekha_Video_{}_{}".format(transcript.video.id, time_now)
                     + ".ytt"
                 )
-                ytt_genorator(data, file_location, prev_line_in=0, mode="data")
-                upload_ytt_to_azure(transcript, file_location)
-            except:
-                return Response(
-                    {"message": "Error in exporting to ytt format."},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+            ytt_genorator(data, file_location, prev_line_in=0, mode="data")
+            upload_ytt_to_azure(transcript, file_location)
         with open(file_location, "r") as f:
             file_data = f.read()
         response = HttpResponse(file_data, content_type="application/xml")

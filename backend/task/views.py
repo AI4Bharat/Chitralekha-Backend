@@ -2520,7 +2520,12 @@ class TaskViewSet(ModelViewSet):
                 "sort_by": "received",
                 "name": "task.tasks.celery_asr_call",
             }
-            res = requests.get(url, params=params)
+            if flower_username and flower_password:
+                res = requests.get(
+                    url, params=params, auth=(flower_username, flower_password)
+                )
+            else:
+                res = requests.get(url, params=params)
             data = res.json()
             task_data = list(data.values())
             for elem in task_data:
@@ -2551,7 +2556,7 @@ class TaskViewSet(ModelViewSet):
             )
         except Exception:
             return Response(
-                {"message": "unable to query celery", "data": []},
+                {"message": "Unable to query celery", "data": []},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
