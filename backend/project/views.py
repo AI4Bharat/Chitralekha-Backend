@@ -16,7 +16,19 @@ from task.models import Task
 from task.serializers import TaskSerializer, TaskStatusSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum, Value, Case, When, IntegerField
+from django.db.models import (
+    Q,
+    Count,
+    Avg,
+    F,
+    FloatField,
+    BigIntegerField,
+    Sum,
+    Value,
+    Case,
+    When,
+    IntegerField,
+)
 from django.db.models.functions import Cast, Concat, Extract
 from config import *
 from users.serializers import UserFetchSerializer
@@ -62,7 +74,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
     )
     @is_particular_project_owner
     def add_project_members(self, request, pk=None, *args, **kwargs):
-
         try:
             project = Project.objects.get(pk=pk)
             if "user_id" in dict(request.data):
@@ -495,15 +506,36 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             )
                     else:
                         task_table[task.target_language] = ("NEW", task)
+
+        for task in tasks:
+            if "VOICE" in task.task_type:
+                if task.status in ["INPROGRESS", "POST_PROCESS", "COMPLETE", "FAIL"]:
+                    task_table[task.target_language] = task
+
         return task_table
 
     def check_if_last_task_in_workflow(self, task_obj):
         task = task_obj["task"]
-        if task.task_type == "TRANSLATION_REVIEW":
+        if task.task_type == "VOICEOVER_EDIT":
             return True
+        elif task.task_type == "TRANSLATION_REVIEW":
+            if (
+                Task.objects.filter(task_type__in=["VOICEOVER_EDIT"])
+                .filter(target_language=task.target_language)
+                .filter(video=task.video)
+                .first()
+                is None
+            ):
+                return True
+            else:
+                return False
+
         elif task.task_type == "TRANSLATION_EDIT":
             if (
-                Task.objects.filter(task_type="TRANSLATION_REVIEW")
+                Task.objects.filter(
+                    task_type__in=["TRANSLATION_REVIEW", "VOICEOVER_EDIT"]
+                )
+                .filter(target_language=task.target_language)
                 .filter(video=task.video)
                 .first()
                 is None
@@ -553,14 +585,34 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def list_project_videos(self, request, pk=None, *args, **kwargs):
         try:
             project = Project.objects.get(pk=pk)
-            videos = Video.objects.filter(project_id=pk)
+
+            if (
+                request.user.role == "PROJECT_MANAGER"
+                or request.user.role == "ORG_OWNER"
+                or request.user.role == "ADMIN"
+            ):
+                videos = Video.objects.filter(project_id=pk)
+            else:
+                video_ids = (
+                    Task.objects.filter(user_id=request.user.id)
+                    .values_list("video_id", flat=True)
+                    .distinct()
+                )
+                videos = Video.objects.filter(project_id=pk).filter(id__in=video_ids)
+
             serializer = VideoSerializer(videos, many=True)
             video_data = []
             for video in videos:
                 tasks = Task.objects.filter(video=video)
                 video_serializer = VideoSerializer(video).data
+                task_table = {}
                 try:
-                    task_table = self.video_status(tasks)
+                    if (
+                        request.user.role == "PROJECT_MANAGER"
+                        or request.user.role == "ORG_OWNER"
+                        or request.user.role == "ADMIN"
+                    ):
+                        task_table = self.video_status(tasks)
                 except:
                     video_serializer["status"] = []
                     video_data.append(video_serializer)
@@ -592,12 +644,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
                                 }
                             )
                 if len(task_table) > 1:
-                    if "transcription" in task_table.keys():
-                        del task_table["transcription"]
+                    # if "transcription" in task_table.keys():
+                    #     del task_table["transcription"]
                     all_statuses = set()
                     for target_language, task_obj in task_table.items():
                         if type(task_obj) != tuple:
                             all_statuses.add(task_obj.status)
+
+                            if target_language == "transcription":
+                                continue
+
                             tasks_to_send.append(
                                 {
                                     "task": task_obj,
@@ -609,6 +665,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             )
                         else:
                             all_statuses.add(task_obj[1].status)
+
+                            if target_language == "transcription":
+                                continue
+
                             tasks_to_send.append(
                                 {
                                     "task": task_obj[1],
@@ -631,6 +691,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     del task["task"]
 
                 video_serializer["status"] = tasks_to_send
+
                 video_data.append(video_serializer)
             return Response(video_data, status=status.HTTP_200_OK)
         except Project.DoesNotExist:
@@ -687,11 +748,20 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     if data["user"]["email"] == request.user.email:
                         if data["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
-                        if (
-                            data["status"] == "SELECTED_SOURCE"
-                            and data["task_type"] != "VOICEOVER_EDIT"
-                        ):
-                            buttons["View"] = True
+                        if data["status"] == "SELECTED_SOURCE":
+                            if data["task_type"] != "VOICEOVER_EDIT":
+                                buttons["Edit"] = True
+                                buttons["View"] = True
+                            if (
+                                data["task_type"] == "TRANSLATION_EDIT"
+                                and data["is_active"] == True
+                                and data["time_spent"] == "0"
+                            ):
+                                video = Video.objects.get(pk=data["video"])
+                                if video.multiple_speaker == True:
+                                    buttons["Edit-Speaker"] = True
+                                    buttons["View"] = True
+                                    buttons["Edit"] = False
                     data["buttons"] = buttons
             else:
                 tasks_by_users = tasks.filter(user=request.user).order_by("-updated_at")
@@ -980,9 +1050,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
         users = project.members.filter(has_accepted_invite=True).all()
 
-        if "video_id" in request.query_params:
-            video_id = int(request.query_params["video_id"])
+        if (
+            "video_id" in request.query_params
+            and len(request.query_params["video_id"]) > 0
+        ):
             try:
+                video_id = int(request.query_params["video_id"])
                 video = Video.objects.filter(
                     id=video_id,
                 ).first()
@@ -993,7 +1066,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 )
             except:
                 return Response(
-                    {"message": "Invalid video id or language"},
+                    {"message": "Invalid video id"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -1156,11 +1229,30 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 average_completion_time=Avg(
                     Case(
                         When(
-                            (Q(task__status="COMPLETE") & Q(task__updated_at__lt=(datetime(2023, 4, 5, 17, 0, 0)))),
-                            then=(Extract(F("task__updated_at") - F("task__created_at"), "epoch")),
+                            (
+                                Q(task__status="COMPLETE")
+                                & Q(
+                                    task__updated_at__lt=(
+                                        datetime(2023, 4, 5, 17, 0, 0)
+                                    )
+                                )
+                            ),
+                            then=(
+                                Extract(
+                                    F("task__updated_at") - F("task__created_at"),
+                                    "epoch",
+                                )
+                            ),
                         ),
                         When(
-                            (Q(task__status="COMPLETE") & Q(task__updated_at__gte=(datetime(2023, 4, 5, 17, 0, 0)))),
+                            (
+                                Q(task__status="COMPLETE")
+                                & Q(
+                                    task__updated_at__gte=(
+                                        datetime(2023, 4, 5, 17, 0, 0)
+                                    )
+                                )
+                            ),
                             then=F("task__time_spent"),
                         ),
                         default=0,

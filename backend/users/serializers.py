@@ -74,6 +74,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             "availability_status",
             "phone",
             "enable_mail",
+            "languages",
         ]
         read_only_fields = ["email"]
 

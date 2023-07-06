@@ -2410,6 +2410,19 @@ class TaskViewSet(ModelViewSet):
         ]
         return Response(response, status=status.HTTP_200_OK)
 
+    @action(detail=False, methods=["get"], url_path="get_supported_bulk_task_types")
+    def get_supported_bulk_task_types(self, request):
+        """
+        Fetches all task types.
+        """
+        response = [
+            {"id": 1, "value": "TRANSCRIPTION_REVIEW", "label": "Transcription Review"},
+            {"id": 2, "value": "TRANSLATION_EDIT", "label": "Translation Edit"},
+            {"id": 3, "value": "TRANSLATION_REVIEW", "label": "Translation Review"},
+            {"id": 4, "value": "VOICEOVER_EDIT", "label": "VoiceOver Edit"},
+        ]
+        return Response(response, status=status.HTTP_200_OK)
+
     @action(detail=False, methods=["get"], url_path="get_priority_types")
     def get_priority_types(self, request):
         """
@@ -2520,7 +2533,12 @@ class TaskViewSet(ModelViewSet):
                 "sort_by": "received",
                 "name": "task.tasks.celery_asr_call",
             }
-            res = requests.get(url, params=params)
+            if flower_username and flower_password:
+                res = requests.get(
+                    url, params=params, auth=(flower_username, flower_password)
+                )
+            else:
+                res = requests.get(url, params=params)
             data = res.json()
             task_data = list(data.values())
             for elem in task_data:
@@ -2551,7 +2569,7 @@ class TaskViewSet(ModelViewSet):
             )
         except Exception:
             return Response(
-                {"message": "unable to query celery", "data": []},
+                {"message": "Unable to query celery", "data": []},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
