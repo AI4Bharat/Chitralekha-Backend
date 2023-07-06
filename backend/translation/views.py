@@ -1639,14 +1639,14 @@ def get_speaker_info(request):
                     "value": transliteration_output["output"][0]["target"][0],
                 }
             )
-            translation_obj = (
-                Translation.objects.filter(task=task)
-                .filter(status=TRANSLATION_SELECT_SOURCE)
-                .first()
-            )
-            translation_obj.payload = {}
-            translation_obj.payload["speaker_info"] = speaker_info
-            translation_obj.save()
+        translation_obj = (
+            Translation.objects.filter(task=task)
+            .filter(status=TRANSLATION_SELECT_SOURCE)
+            .first()
+        )
+        translation_obj.payload = {}
+        translation_obj.payload["speaker_info"] = speaker_output
+        translation_obj.save()
         return Response(
             {"speaker_info": speaker_output},
             status=status.HTTP_200_OK,
