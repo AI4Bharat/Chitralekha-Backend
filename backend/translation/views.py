@@ -865,10 +865,9 @@ def generate_translation_output(request):
 def modify_payload(limit, payload, start_offset, end_offset, translation):
     count_sentences = len(translation.payload["payload"])
     for i in range(len(payload["payload"])):
-        if (
-            "retranslate" in payload["payload"][i].keys()
-            and payload["payload"][i]["retranslate"] == True
-        ):
+        if "retranslate" in payload["payload"][i].keys():
+            print(payload["payload"][i]["retranslate"])
+            print("type", type(payload["payload"][i]["retranslate"]))
             translated_text = get_batch_translations_using_indictrans_nmt_api(
                 [payload["payload"][i]["text"]],
                 translation.video.language,
