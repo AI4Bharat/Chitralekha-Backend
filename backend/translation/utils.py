@@ -94,7 +94,7 @@ def convert_to_paragraph_bilingual(payload):
             lines.append(segment["target_text"])
             transcripted_lines.append(segment["text"])
             transcripted_content = (
-                transcripted_content + " " + segment["text"].replace("\n", "")
+                transcripted_content + " " + segment["text"].replace("\n", " ")
             )
             translated_content = translated_content + segment["target_text"]
             sentences_count += 1
