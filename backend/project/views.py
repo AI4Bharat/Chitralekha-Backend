@@ -36,9 +36,10 @@ from datetime import timedelta, datetime
 from transcript.models import Transcript
 from translation.models import Translation
 from voiceover.models import VoiceOver
-import json
+import json, math
 from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from voiceover.metadata import VOICEOVER_LANGUAGE_CHOICES
+from utils import *
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -704,6 +705,40 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
+    @swagger_auto_schema(
+        method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description=("Limit parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "offset",
+                openapi.IN_QUERY,
+                description=("Offset parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "filter",
+                openapi.IN_QUERY,
+                description=("Offset parameter"),
+                type=openapi.TYPE_OBJECT,
+                required=False,
+            ),
+            openapi.Parameter(
+                "search",
+                openapi.IN_QUERY,
+                description=("Search parameter"),
+                type=openapi.TYPE_OBJECT,
+                required=False,
+            ),
+        ],
+        responses={200: "List of org tasks"},
+    )
     @action(
         detail=True,
         methods=["GET"],
@@ -712,9 +747,51 @@ class ProjectViewSet(viewsets.ModelViewSet):
     )
     def list_project_tasks(self, request, pk=None, *args, **kwargs):
         try:
+            limit = int(request.query_params["limit"])
+            offset = int(request.query_params["offset"])
+            offset -= 1
+            # limit = 50
+            # offset = 1
+            filter_dict = {}
+            search_dict = {}
+            if "filter" in request.query_params:
+                filter_dict = json.loads(request.query_params["filter"])
+
+            if "search" in request.query_params:
+                search_dict = json.loads(request.query_params["search"])
+
             project = Project.objects.get(pk=pk)
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
-            tasks = Task.objects.filter(video_id__in=videos).order_by("-updated_at")
+            # filter data based on search parameters
+            videos = self.search_filter(videos, search_dict, filter_dict)
+
+            all_tasks = Task.objects.filter(video_id__in=videos).order_by("-updated_at")
+
+            if "assignee" in search_dict and len(search_dict["assignee"]):
+                queryset = all_tasks.annotate(
+                    search_name=Concat(
+                        "user__first_name", Value(" "), "user__last_name"
+                    )
+                )
+                all_tasks = queryset.filter(
+                    search_name__icontains=search_dict["assignee"]
+                )
+
+            # filter data based on filter parameters
+            all_tasks = self.filter_query(all_tasks, filter_dict)
+            if not (
+                request.user in project.managers.all() or request.user.is_superuser
+            ):
+                all_tasks = all_tasks.filter(user=request.user).order_by("-updated_at")
+
+            total_count = len(all_tasks)
+            total_pages = math.ceil(total_count / int(limit))
+            if offset > total_pages - 1:
+                offset = 0
+            start = offset * int(limit)
+            end = start + int(limit)
+            tasks = all_tasks[start:end]
+
             src_languages = set()
             target_languages = set()
             if request.user in project.managers.all() or request.user.is_superuser:
@@ -764,8 +841,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                                     buttons["Edit"] = False
                     data["buttons"] = buttons
             else:
-                tasks_by_users = tasks.filter(user=request.user).order_by("-updated_at")
-                serializer = TaskSerializer(tasks_by_users, many=True)
+                serializer = TaskSerializer(tasks, many=True)
                 serialized_dict = json.loads(json.dumps(serializer.data))
                 for data in serialized_dict:
                     src_languages.add(data["src_language_label"])
@@ -802,6 +878,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 target_languages_list.remove("-")
             return Response(
                 {
+                    "total_count": total_count,
                     "tasks_list": serialized_dict,
                     "src_languages_list": sorted(list(src_languages)),
                     "target_languages_list": sorted(target_languages_list),
@@ -824,6 +901,36 @@ class ProjectViewSet(viewsets.ModelViewSet):
             {"message": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
+
+    def search_filter(self, videos, search_dict, filter_dict):
+        if search_dict is not None:
+            if "video_name" in search_dict:
+                videos = videos.filter(Q(name__contains=search_dict["video_name"]))
+
+        if "src_language" in filter_dict and len(filter_dict["src_language"]):
+            src_lang_list = []
+            for lang in filter_dict["src_language"]:
+                lang_shortcode = get_language_label(lang)
+                src_lang_list.append(lang_shortcode)
+            if len(src_lang_list):
+                videos = videos.filter(language__in=src_lang_list)
+
+        return videos
+
+    def filter_query(self, all_tasks, filter_dict):
+        if "task_type" in filter_dict and len(filter_dict["task_type"]):
+            all_tasks = all_tasks.filter(task_type__in=filter_dict["task_type"])
+        if "target_language" in filter_dict and len(filter_dict["target_language"]):
+            target_lang_list = []
+            for lang in filter_dict["target_language"]:
+                lang_shortcode = get_language_label(lang)
+                target_lang_list.append(lang_shortcode)
+            if len(target_lang_list):
+                all_tasks = all_tasks.filter(target_language__in=target_lang_list)
+        if "status" in filter_dict and len(filter_dict["status"]):
+            all_tasks = all_tasks.filter(status__in=filter_dict["status"])
+
+        return all_tasks
 
     @is_organization_owner
     def create(self, request, pk=None, *args, **kwargs):
@@ -1479,7 +1586,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 "voiceovers_completed": {
                     "value": elem["voiceovers_completed"],
                     "label": "Voice Over Tasks Count",
-                }
+                },
             }
             voiceover_data.append(voiceover_dict)
         res = {
