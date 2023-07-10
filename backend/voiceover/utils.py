@@ -335,6 +335,10 @@ def process_translation_payload(translation_obj, target_language):
                 translation["payload"][ind - 1]["end_time"], text["start_time"]
             )[0]
         ):
+            logging.info(
+                "Voice Over can't be generated as start time of a sentence is greater than end time of previous sentence. %s",
+                str(ind),
+            )
             return {
                 "message": "Voice Over can't be generated as start time of a sentence is greater than end time of previous sentence.",
                 "status": status.HTTP_400_BAD_REQUEST,
