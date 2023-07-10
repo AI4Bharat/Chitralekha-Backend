@@ -526,6 +526,8 @@ def get_sentence_from_timeline(request):
 
     save_index = -1
     for ind, sentence in enumerate(translation.payload["payload"]):
+        if "start_time" not in sentence.keys():
+            continue
         start_time = datetime.datetime.strptime(sentence["start_time"], "%H:%M:%S.%f")
         unix_start_time = datetime.datetime.timestamp(start_time)
         end_time = datetime.datetime.strptime(sentence["end_time"], "%H:%M:%S.%f")
@@ -537,7 +539,11 @@ def get_sentence_from_timeline(request):
             if unix_time < unix_start_time:
                 save_index = ind
                 break
-        if ind < len(translation.payload["payload"]) - 1:
+        if (
+            ind < len(translation.payload["payload"]) - 1
+            and type(translation.payload["payload"][ind + 1]) == dict
+            and "text" in translation.payload["payload"][ind + 1].keys()
+        ):
             end_time_of_next_sentence = datetime.datetime.strptime(
                 translation.payload["payload"][ind + 1]["start_time"], "%H:%M:%S.%f"
             )
@@ -551,6 +557,8 @@ def get_sentence_from_timeline(request):
                 save_index = ind
                 break
 
+    if save_index == -1:
+        save_index = 0
     length_payload = len(translation.payload["payload"])
     sentence_offset = math.ceil((save_index + 1) / int(limit))
     response = get_payload_request(request, task_id, limit, sentence_offset)
