@@ -750,8 +750,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
             limit = int(request.query_params["limit"])
             offset = int(request.query_params["offset"])
             offset -= 1
-            # limit = 50
-            # offset = 1
             filter_dict = {}
             search_dict = {}
             if "filter" in request.query_params:
