@@ -903,7 +903,6 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                     "text": payload["payload"][i]["text"],
                     "target_text": payload["payload"][i]["target_text"],
                     "speaker_id": payload["payload"][i].get("speaker_id", ""),
-
                 }
             else:
                 translation.payload["payload"][start_offset + i] = {}
@@ -1225,15 +1224,15 @@ def save_translation(request):
                     )
                     ts_status = TRANSLATION_EDIT_INPROGRESS
                     if translation_obj is not None:
-                            modify_payload(
-                                limit,
-                                payload,
-                                start_offset,
-                                end_offset,
-                                translation_obj,
-                            )
-                            translation_obj.save()
-                            logging.info("Error in saving translation")
+                        modify_payload(
+                            limit,
+                            payload,
+                            start_offset,
+                            end_offset,
+                            translation_obj,
+                        )
+                        translation_obj.save()
+                        logging.info("Error in saving translation")
                     else:
                         translation_obj = (
                             Translation.objects.filter(status=TRANSLATION_SELECT_SOURCE)
