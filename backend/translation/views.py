@@ -1221,7 +1221,6 @@ def save_translation(request):
                     )
                     ts_status = TRANSLATION_EDIT_INPROGRESS
                     if translation_obj is not None:
-                        try:
                             modify_payload(
                                 limit,
                                 payload,
@@ -1230,7 +1229,6 @@ def save_translation(request):
                                 translation_obj,
                             )
                             translation_obj.save()
-                        except:
                             logging.info("Error in saving translation")
                     else:
                         translation_obj = (
