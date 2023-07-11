@@ -24,16 +24,27 @@ def validate_uuid4(val):
         return False
 
 
+def valid_xml_char_ordinal(c):
+    codepoint = ord(c)
+    # conditions ordered by presumed frequency
+    return (
+        0x20 <= codepoint <= 0xD7FF
+        or codepoint in (0x9, 0xA, 0xD)
+        or 0xE000 <= codepoint <= 0xFFFD
+        or 0x10000 <= codepoint <= 0x10FFFF
+    )
+
+
 def convert_to_docx(content):
     document = Document()
-    document.add_paragraph(content)
-    # document.add_page_break()
-
+    cleaned_string = "".join(c for c in content if valid_xml_char_ordinal(c))
+    document.add_paragraph(cleaned_string)
     # Prepare document for download
     # -----------------------------
     buffer = BytesIO()
     with open("temp_f.txt", "w") as out_f:
         out_f.write(content)
+
     buffer.write(open("temp_f.txt", "rb").read())
     os.remove("temp_f.txt")
     document.save(buffer)
@@ -82,7 +93,9 @@ def convert_to_paragraph_bilingual(payload):
         if "text" in segment.keys():
             lines.append(segment["target_text"])
             transcripted_lines.append(segment["text"])
-            transcripted_content = transcripted_content + segment["text"]
+            transcripted_content = (
+                transcripted_content + " " + segment["text"].replace("\n", " ")
+            )
             translated_content = translated_content + segment["target_text"]
             sentences_count += 1
             if sentences_count % 5 == 0:
