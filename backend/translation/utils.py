@@ -6,7 +6,7 @@ from rest_framework import status
 import logging
 from docx import *
 from docx.shared import Inches
-from django.http import HttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 from io import StringIO, BytesIO
 import os
 import datetime
@@ -38,7 +38,8 @@ def valid_xml_char_ordinal(c):
 def convert_to_docx(content):
     document = Document()
     cleaned_string = "".join(c for c in content if valid_xml_char_ordinal(c))
-    document.add_paragraph(cleaned_string)
+    paragraph = document.add_paragraph(cleaned_string)
+    run = paragraph.add_run()
     # Prepare document for download
     # -----------------------------
     buffer = BytesIO()
@@ -46,16 +47,19 @@ def convert_to_docx(content):
         out_f.write(content)
 
     buffer.write(open("temp_f.txt", "rb").read())
-    os.remove("temp_f.txt")
+    # print("buffer", buffer)
+    print(buffer.seek(0))
     document.save(buffer)
     length = buffer.tell()
     buffer.seek(0)
-    response = HttpResponse(
-        buffer.getvalue(),
+    response = StreamingHttpResponse(
+        streaming_content=buffer,
         content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
     response["Content-Disposition"] = "attachment; filename=" + "new_file_download"
+    response["Content-Encoding"] = "UTF-8"
     response["Content-Length"] = length
+    os.remove("temp_f.txt")
     return response
 
 
