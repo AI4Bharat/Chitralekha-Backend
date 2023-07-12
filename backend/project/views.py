@@ -40,6 +40,7 @@ import json, math
 from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from voiceover.metadata import VOICEOVER_LANGUAGE_CHOICES
 from utils import *
+from organization.utils import task_search_filter, task_filter_query
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -761,13 +762,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project = Project.objects.get(pk=pk)
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
 
-            if request.user.role == "ORG_OWNER" and (
-                request.user.organization_id != project.organization_id.id
-            ):
-                videos = {}
-
             # filter data based on search parameters
-            videos = self.search_filter(videos, search_dict, filter_dict)
+            videos = task_search_filter(videos, search_dict, filter_dict)
 
             all_tasks = Task.objects.filter(video_id__in=videos).order_by("-updated_at")
 
@@ -782,7 +778,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 )
 
             # filter data based on filter parameters
-            all_tasks = self.filter_query(all_tasks, filter_dict)
+            all_tasks = task_filter_query(all_tasks, filter_dict)
             if not (
                 request.user in project.managers.all() or request.user.is_superuser
             ):
@@ -799,7 +795,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             src_languages = set()
             target_languages = set()
             if (
-                request.user.role == "ORG_OWNER"
+                request.user.id == project.organization_id.organization_owner_id
                 or request.user in project.managers.all()
                 or request.user.is_superuser
             ):
@@ -909,36 +905,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
             {"message": "invalid method"},
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
-
-    def search_filter(self, videos, search_dict, filter_dict):
-        if search_dict is not None:
-            if "video_name" in search_dict:
-                videos = videos.filter(Q(name__contains=search_dict["video_name"]))
-
-        if "src_language" in filter_dict and len(filter_dict["src_language"]):
-            src_lang_list = []
-            for lang in filter_dict["src_language"]:
-                lang_shortcode = get_language_label(lang)
-                src_lang_list.append(lang_shortcode)
-            if len(src_lang_list):
-                videos = videos.filter(language__in=src_lang_list)
-
-        return videos
-
-    def filter_query(self, all_tasks, filter_dict):
-        if "task_type" in filter_dict and len(filter_dict["task_type"]):
-            all_tasks = all_tasks.filter(task_type__in=filter_dict["task_type"])
-        if "target_language" in filter_dict and len(filter_dict["target_language"]):
-            target_lang_list = []
-            for lang in filter_dict["target_language"]:
-                lang_shortcode = get_language_label(lang)
-                target_lang_list.append(lang_shortcode)
-            if len(target_lang_list):
-                all_tasks = all_tasks.filter(target_language__in=target_lang_list)
-        if "status" in filter_dict and len(filter_dict["status"]):
-            all_tasks = all_tasks.filter(status__in=filter_dict["status"])
-
-        return all_tasks
 
     @is_organization_owner
     def create(self, request, pk=None, *args, **kwargs):
