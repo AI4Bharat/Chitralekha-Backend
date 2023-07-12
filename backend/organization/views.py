@@ -35,7 +35,7 @@ import logging
 import math
 from django.db.models import Value
 from django.db.models.functions import Concat
-from organization.utils import task_search_filter, task_filter_query
+from organization.utils import *
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -363,20 +363,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
             all_tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
 
-            if "description" in search_dict and len(search_dict["description"]):
-                all_tasks = all_tasks.filter(
-                    Q(description__contains=search_dict["description"])
-                    | Q(description__contains=search_dict["description"])
-                )
-            if "assignee" in search_dict and len(search_dict["assignee"]):
-                queryset = all_tasks.annotate(
-                    search_name=Concat(
-                        "user__first_name", Value(" "), "user__last_name"
-                    )
-                )
-                all_tasks = queryset.filter(
-                    search_name__icontains=search_dict["assignee"]
-                )
+            all_tasks = task_search_by_description(all_tasks, search_dict)
+            all_tasks = task_search_by_assignee(all_tasks, search_dict)
 
             # filter data based on filter parameters
             all_tasks = task_filter_query(all_tasks, filter_dict)
@@ -453,21 +441,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         all_tasks_in_projects | all_tasks_in_projects_assigned
                     )
 
-                if "assignee" in search_dict and len(search_dict["assignee"]):
-                    queryset = all_tasks_in_projects.annotate(
-                        search_name=Concat(
-                            "user__first_name", Value(" "), "user__last_name"
-                        )
-                    )
-                    all_tasks_in_projects = queryset.filter(
-                        search_name__icontains=search_dict["assignee"]
-                    )
-
-                if "description" in search_dict and len(search_dict["description"]):
-                    all_tasks_in_projects = all_tasks_in_projects.filter(
-                        Q(description__contains=search_dict["description"])
-                        | Q(description__contains=search_dict["description"])
-                    )
+                all_tasks_in_projects = task_search_by_description(
+                    all_tasks_in_projects, search_dict
+                )
+                all_tasks_in_projects = task_search_by_assignee(
+                    all_tasks_in_projects, search_dict
+                )
 
                 # filter data based on filter parameters
                 all_tasks_in_projects = task_filter_query(
@@ -526,21 +505,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     .order_by("-updated_at")
                 )
 
-                if "assignee" in search_dict and len(search_dict["assignee"]):
-                    queryset = all_tasks.annotate(
-                        search_name=Concat(
-                            "user__first_name", Value(" "), "user__last_name"
-                        )
-                    )
-                    all_tasks = queryset.filter(
-                        search_name__icontains=search_dict["assignee"]
-                    )
+                all_tasks = task_search_by_description(all_tasks, search_dict)
+                all_tasks = task_search_by_assignee(all_tasks, search_dict)
 
-                if "description" in search_dict and len(search_dict["description"]):
-                    all_tasks = all_tasks.filter(
-                        Q(description__contains=search_dict["description"])
-                        | Q(description__contains=search_dict["description"])
-                    )
                 # filter data based on filter parameters
                 all_tasks = task_filter_query(all_tasks, filter_dict)
                 total_count = len(all_tasks)

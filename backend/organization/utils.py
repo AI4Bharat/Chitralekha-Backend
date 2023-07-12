@@ -12,6 +12,7 @@ from django.db.models import (
     When,
     IntegerField,
 )
+from django.db.models.functions import Cast, Concat
 
 
 def task_search_filter(videos, search_dict, filter_dict):
@@ -43,6 +44,25 @@ def task_filter_query(all_tasks, filter_dict):
     if "status" in filter_dict and len(filter_dict["status"]):
         all_tasks = all_tasks.filter(status__in=filter_dict["status"])
 
+    return all_tasks
+
+
+def task_search_by_assignee(all_tasks, search_dict):
+    if "assignee" in search_dict and len(search_dict["assignee"]):
+        queryset = all_tasks.annotate(
+            search_name=Concat("user__first_name", Value(" "), "user__last_name")
+        )
+        all_tasks = queryset.filter(search_name__icontains=search_dict["assignee"])
+
+    return all_tasks
+
+
+def task_search_by_description(all_tasks, search_dict):
+    if "description" in search_dict and len(search_dict["description"]):
+        all_tasks = all_tasks.filter(
+            Q(description__contains=search_dict["description"])
+            | Q(description__contains=search_dict["description"])
+        )
     return all_tasks
 
 
