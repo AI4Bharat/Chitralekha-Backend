@@ -760,6 +760,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
             project = Project.objects.get(pk=pk)
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
+
+            if request.user.role == "ORG_OWNER" and (
+                request.user.organization_id != project.organization_id.id
+            ):
+                videos = {}
+
             # filter data based on search parameters
             videos = self.search_filter(videos, search_dict, filter_dict)
 
@@ -792,7 +798,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
             src_languages = set()
             target_languages = set()
-            if request.user in project.managers.all() or request.user.is_superuser:
+            if (
+                request.user.role == "ORG_OWNER"
+                or request.user in project.managers.all()
+                or request.user.is_superuser
+            ):
                 serializer = TaskSerializer(tasks, many=True)
                 serialized_dict = json.loads(json.dumps(serializer.data))
                 for data in serialized_dict:
