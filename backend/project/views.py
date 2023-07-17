@@ -773,7 +773,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
             # filter data based on filter parameters
             all_tasks = task_filter_query(all_tasks, filter_dict)
             if not (
-                request.user in project.managers.all() or request.user.is_superuser
+                request.user in project.managers.all()
+                or request.user.is_superuser
+                or request.user.id == project.organization_id.organization_owner_id
             ):
                 all_tasks = all_tasks.filter(user=request.user).order_by("-updated_at")
 
