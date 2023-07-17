@@ -2,6 +2,7 @@ import os
 from http.client import responses
 import secrets
 import string
+import itertools
 from wsgiref.util import request_uri
 from rest_framework import viewsets, status
 import re
@@ -29,6 +30,11 @@ from datetime import datetime
 from django.conf import settings
 from django.core.mail import send_mail
 from rest_framework.generics import UpdateAPIView
+from task.models import Task
+from task.serializers import TaskSerializer
+from project.models import Project
+from project.serializers import ProjectSerializer
+import json
 
 
 regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
@@ -525,6 +531,144 @@ class RoleViewSet(viewsets.ViewSet):
         """
         data = [{"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES]
         return Response(data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        method="post",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "user_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "role": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="role to be updated",
+                ),
+            },
+            required=["user_id", "role"],
+        ),
+        responses={
+            200: "User updated successfully",
+            404: "User does not exist",
+        },
+    )
+    @action(
+        detail=False,
+        methods=["POST"],
+        name="Update user role",
+        url_name="update_user_role",
+    )
+    @is_organization_owner
+    def update_user_role(self, request, *args, **kwargs):
+        """
+        API Endpoint to store parameter of youtube
+        Endpoint: /users/update_user_role/
+        Method: POST
+        """
+
+        user_id = request.data.get("user_id")
+        role = request.data.get("role")
+
+        try:
+            user = User.objects.get(id=user_id)
+            update_user_role = False
+            check_if_tasks_assign = False
+
+            if user.role == role:
+                return Response(
+                    {
+                        "message": "User has same role as requested",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            elif (role == "ORG_OWNER") or (role == "ADMIN"):
+                return Response(
+                    {"message": f"User's role must not be update as {role}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            elif user.role == "PROJECT_MANAGER":
+                projects = Project.objects.filter(managers__in=[user.id])
+                if len(projects) > 0:
+                    serializer_project = ProjectSerializer(projects, many=True)
+
+                    return Response(
+                        {
+                            "message": "Please remove user from project manager",
+                            "data": serializer_project.data,
+                        },
+                        status=status.HTTP_200_OK,
+                    )
+            if role in itertools.chain(*User.ROLE_CHOICES):
+                if user.role == "TRANSCRIPT_EDITOR":
+                    if (
+                        (role == "TRANSCRIPT_REVIEWER")
+                        or (role == "UNIVERSAL_EDITOR")
+                        or (role == "PROJECT_MANAGER")
+                    ):
+                        update_user_role = True
+                    else:
+                        check_if_tasks_assign = True
+                if user.role == "TRANSLATION_EDITOR":
+                    if (
+                        (role == "TRANSLATION_REVIEWER")
+                        or (role == "UNIVERSAL_EDITOR")
+                        or (role == "PROJECT_MANAGER")
+                    ):
+                        update_user_role = True
+                    else:
+                        check_if_tasks_assign = True
+                if user.role == "VOICEOVER_EDITOR":
+                    if (
+                        (role == "VOICEOVER_REVIEWER")
+                        or (role == "UNIVERSAL_EDITOR")
+                        or (role == "PROJECT_MANAGER")
+                    ):
+                        update_user_role = True
+                    else:
+                        check_if_tasks_assign = True
+                else:
+                    check_if_tasks_assign = True
+
+                if check_if_tasks_assign:
+                    tasks = Task.objects.filter(user=user).exclude(status="COMPLETE")
+                    if len(tasks) > 0:
+                        serializer = TaskSerializer(tasks, many=True)
+                        serialized_dict = json.loads(json.dumps(serializer.data))
+                        return Response(
+                            {
+                                "message": "Please assign task to relevant user",
+                                "data": serialized_dict,
+                            },
+                            status=status.HTTP_200_OK,
+                        )
+                    else:
+                        update_user_role = True
+
+                if update_user_role:
+                    user.role = role
+                    user.save()
+                    response = {
+                        "message": "User's role is successfully updated.",
+                    }
+                    status_code = status.HTTP_200_OK
+                else:
+                    response = {
+                        "message": "Unable to update user role",
+                    }
+                    status_code = status.HTTP_400_BAD_REQUEST
+            else:
+                response = {
+                    "message": "Role does not exist",
+                }
+                status_code = status.HTTP_404_NOT_FOUND
+
+            return Response(
+                response,
+                status=status_code,
+            )
+        except User.DoesNotExist:
+            return Response(
+                {"message": "User does not exist"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
 
 class LanguageViewSet(viewsets.ViewSet):
