@@ -40,7 +40,7 @@ import json, math
 from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from voiceover.metadata import VOICEOVER_LANGUAGE_CHOICES
 from utils import *
-from organization.utils import task_search_filter, task_filter_query
+from organization.utils import *
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -767,15 +767,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
             all_tasks = Task.objects.filter(video_id__in=videos).order_by("-updated_at")
 
-            if "assignee" in search_dict and len(search_dict["assignee"]):
-                queryset = all_tasks.annotate(
-                    search_name=Concat(
-                        "user__first_name", Value(" "), "user__last_name"
-                    )
-                )
-                all_tasks = queryset.filter(
-                    search_name__icontains=search_dict["assignee"]
-                )
+            all_tasks = task_search_by_assignee(all_tasks, search_dict)
 
             # filter data based on filter parameters
             all_tasks = task_filter_query(all_tasks, filter_dict)
