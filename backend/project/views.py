@@ -41,6 +41,7 @@ from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from voiceover.metadata import VOICEOVER_LANGUAGE_CHOICES
 from utils import *
 from organization.utils import *
+import logging
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -791,6 +792,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 or request.user in project.managers.all()
                 or request.user.is_superuser
             ):
+                logging.info("Showing list to Org owner or Project Manager.")
                 serializer = TaskSerializer(tasks, many=True)
                 serialized_dict = json.loads(json.dumps(serializer.data))
                 for data in serialized_dict:
@@ -837,6 +839,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                                     buttons["Edit"] = False
                     data["buttons"] = buttons
             else:
+                logging.info("Showing list to editors and reviewers.")
                 serializer = TaskSerializer(tasks, many=True)
                 serialized_dict = json.loads(json.dumps(serializer.data))
                 for data in serialized_dict:
