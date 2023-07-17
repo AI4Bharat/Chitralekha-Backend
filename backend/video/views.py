@@ -72,7 +72,8 @@ required_fields_project = [
     "Task Type",
     "Target Language",
     "Assignee",
-    "Description",
+    "Task Description",
+    "Video Description",
 ]
 
 
@@ -84,7 +85,8 @@ required_fields_org = [
     "Task Type",
     "Target Language",
     "Assignee",
-    "Description",
+    "Task Description",
+    "Video Description",
 ]
 
 
@@ -688,7 +690,8 @@ def upload_csv(request):
         else:
             valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
 
-        valid_row["description"] = row["Description"]
+        valid_row["task_description"] = row["Task Description"]
+        valid_row["video_description"] = row["Video Description"]
         video = Video.objects.filter(url=row["Youtube URL"]).first()
         existing_videos = []
         if video is not None:
@@ -709,19 +712,6 @@ def upload_csv(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     else:
-        """
-        for row in valid_rows:
-            create_video(
-                request,
-                row["url"],
-                project.id,
-                existing_videos,
-                row["description"],
-                row["gender"],
-                row["assignee"],
-                row["lang"],
-            )
-        """
         return Response(
             {"message": "CSV uploaded successfully"}, status=status.HTTP_200_OK
         )
@@ -924,7 +914,8 @@ def upload_csv_data(request):
         else:
             valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
 
-        valid_row["description"] = row["Description"]
+        valid_row["video_description"] = row["Video Description"]
+        valid_row["task_description"] = row["Task Description"]
         video = Video.objects.filter(url=row["Youtube URL"]).first()
         existing_videos = []
         if len(errors) == 0:
@@ -1192,7 +1183,8 @@ def upload_csv_org(request):
         else:
             valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
 
-        valid_row["description"] = row["Description"]
+        valid_row["task_description"] = row["Task Description"]
+        valid_row["video_description"] = row["Video Description"]
         video = Video.objects.filter(url=row["Youtube URL"]).first()
         if len(errors) == 0:
             if video is not None:
