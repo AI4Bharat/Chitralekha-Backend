@@ -685,7 +685,8 @@ def create_video(
     user_id,
     url,
     project_id,
-    description,
+    task_description,
+    video_description,
     gender,
     task_type=None,
     target_language=None,
@@ -699,7 +700,8 @@ def create_video(
     new_request.GET["multimedia_url"] = url
     new_request.GET["lang"] = lang
     new_request.GET["project_id"] = project_id
-    new_request.GET["task_description"] = description
+    new_request.GET["task_description"] = task_description
+    new_request.GET["description"] = video_description
     new_request.GET["create"] = "true"
     new_request.GET["gender"] = gender
     new_request.GET["assignee"] = assignee
