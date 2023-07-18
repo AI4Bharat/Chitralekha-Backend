@@ -30,12 +30,11 @@ from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from project.views import ProjectViewSet
 from django.http import HttpRequest
 from django.db.models import Q
-from utils import *
 import logging
 import math
 from django.db.models import Value
 from django.db.models.functions import Concat
-from organization.utils import *
+from .utils import *
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):

@@ -18,7 +18,7 @@ from django.db.models.functions import Cast, Concat
 def task_search_filter(videos, search_dict, filter_dict):
     if search_dict is not None:
         if "video_name" in search_dict:
-            videos = videos.filter(Q(name__contains=search_dict["video_name"]))
+            videos = videos.filter(Q(name__icontains=search_dict["video_name"]))
 
     if "src_language" in filter_dict and len(filter_dict["src_language"]):
         src_lang_list = []
@@ -60,8 +60,8 @@ def task_search_by_assignee(all_tasks, search_dict):
 def task_search_by_description(all_tasks, search_dict):
     if "description" in search_dict and len(search_dict["description"]):
         all_tasks = all_tasks.filter(
-            Q(description__contains=search_dict["description"])
-            | Q(description__contains=search_dict["description"])
+            Q(description__icontains=search_dict["description"])
+            | Q(description__icontains=search_dict["description"])
         )
     return all_tasks
 
