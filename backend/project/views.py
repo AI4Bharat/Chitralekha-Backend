@@ -39,7 +39,6 @@ from voiceover.models import VoiceOver
 import json, math
 from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from voiceover.metadata import VOICEOVER_LANGUAGE_CHOICES
-from utils import *
 from organization.utils import *
 import logging
 
@@ -768,6 +767,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
             all_tasks = Task.objects.filter(video_id__in=videos).order_by("-updated_at")
 
+            all_tasks = task_search_by_description(all_tasks, search_dict)
             all_tasks = task_search_by_assignee(all_tasks, search_dict)
 
             # filter data based on filter parameters
