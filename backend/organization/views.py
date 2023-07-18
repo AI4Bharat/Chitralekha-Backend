@@ -786,7 +786,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "viewColumns": False,
                     },
                     "video_name": {
-                        "value": task.video.name, 
+                        "value": task.video.name,
                         "label": "Video Name",
                         "viewColumns": False,
                     },
@@ -802,7 +802,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "task_type": {
                         "value": task.get_task_type_label,
                         "label": "Task Type",
-                        "viewColumns": False
+                        "viewColumns": False,
                     },
                     "task_description": {
                         "value": description,
@@ -820,13 +820,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "viewColumns": False,
                     },
                     "assignee": {
-                        "value": task.user.email, 
+                        "value": task.user.email,
                         "label": "Assignee",
                     },
-                    "status": {
-                        "value": task.get_task_status_label, 
-                        "label": "Status"
-                    },
+                    "status": {"value": task.get_task_status_label, "label": "Status"},
                     "completion_time": {
                         "value": completion_time,
                         "label": "Completion Time",
@@ -835,7 +832,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "word_count": {
                         "value": word_count,
                         "label": "Word Count",
-                    }
+                    },
                 }
             )
         return Response(tasks_list, status=status.HTTP_200_OK)
@@ -864,10 +861,18 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
                 for keys, values in project_report.items():
                     for report in values:
-                        report["project"] = {"value": project.title, "label": "Project", "viewColumns": False}
+                        report["project"] = {
+                            "value": project.title,
+                            "label": "Project",
+                            "viewColumns": False,
+                        }
                 all_project_report.append(project_report)
 
-        aggregated_project_report = {"transcript_stats": [], "translation_stats": [], "voiceover_stats": []}
+        aggregated_project_report = {
+            "transcript_stats": [],
+            "translation_stats": [],
+            "voiceover_stats": [],
+        }
         for project_report in all_project_report:
             if type(project_report) == dict:
                 if (
@@ -906,9 +911,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 ):
                     for i in range(len(project_report["voiceover_stats"])):
                         new_stats = dict(
-                            reversed(
-                                list(project_report["voiceover_stats"][i].items())
-                            )
+                            reversed(list(project_report["voiceover_stats"][i].items()))
                         )
                         project_report["voiceover_stats"][i] = new_stats
                     aggregated_project_report["voiceover_stats"].extend(
@@ -1019,43 +1022,37 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             .order_by("id")
         )
 
-        project_stats = (
-            org_projects.annotate(num_videos=Count("video"))
-        )
+        project_stats = org_projects.annotate(num_videos=Count("video"))
 
-        video_duration_transcripts = (
-            org_projects.annotate(
-                total_transcriptions=Sum(
-                    "video__duration",
-                    filter=Q(video__transcripts__status="TRANSCRIPTION_EDIT_COMPLETE"),
-                )
+        video_duration_transcripts = org_projects.annotate(
+            total_transcriptions=Sum(
+                "video__duration",
+                filter=Q(video__transcripts__status="TRANSCRIPTION_EDIT_COMPLETE"),
             )
         )
 
-        video_duration_translations = (
-            org_projects.annotate(
-                total_translations=Sum(
-                    "video__duration",
-                    filter=Q(
-                        video__translation_video__status="TRANSLATION_EDIT_COMPLETE"
-                    ),
-                )
+        video_duration_translations = org_projects.annotate(
+            total_translations=Sum(
+                "video__duration",
+                filter=Q(video__translation_video__status="TRANSLATION_EDIT_COMPLETE"),
             )
         )
 
-        word_count_transcripts = (
-            org_projects.annotate(
-                word_count = Sum(Cast(F("video__transcripts__payload__word_count"), FloatField()),
-                    filter=Q(video__transcripts__status__in=["TRANSCRIPTION_EDIT_COMPLETE"])
-                )
+        word_count_transcripts = org_projects.annotate(
+            word_count=Sum(
+                Cast(F("video__transcripts__payload__word_count"), FloatField()),
+                filter=Q(
+                    video__transcripts__status__in=["TRANSCRIPTION_EDIT_COMPLETE"]
+                ),
             )
         )
 
-        word_count_translations = (
-            org_projects.annotate(
-                word_count = Sum(Cast(F("video__translation_video__payload__word_count"), FloatField()),
-                    filter=Q(video__translation_video__status__in=["TRANSLATION_EDIT_COMPLETE"])
-                )
+        word_count_translations = org_projects.annotate(
+            word_count=Sum(
+                Cast(F("video__translation_video__payload__word_count"), FloatField()),
+                filter=Q(
+                    video__translation_video__status__in=["TRANSLATION_EDIT_COMPLETE"]
+                ),
             )
         )
 
@@ -1071,7 +1068,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             transcript_duration = (
                 None
                 if video_duration_transcripts[idx]["total_transcriptions"] is None
-                else round(video_duration_transcripts[idx]["total_transcriptions"].total_seconds() / 3600, 3)
+                else round(
+                    video_duration_transcripts[idx][
+                        "total_transcriptions"
+                    ].total_seconds()
+                    / 3600,
+                    3,
+                )
             )
             transcript_word_count = (
                 0
@@ -1081,7 +1084,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             translation_duration = (
                 None
                 if video_duration_translations[idx]["total_translations"] is None
-                else round(video_duration_translations[idx]["total_translations"].total_seconds() / 3600, 3)
+                else round(
+                    video_duration_translations[idx][
+                        "total_translations"
+                    ].total_seconds()
+                    / 3600,
+                    3,
+                )
             )
             translation_word_count = (
                 0
@@ -1089,8 +1098,16 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 else word_count_translations[idx]["word_count"]
             )
             project_dict = {
-                "title": {"value": elem["title"], "label": "Title", "viewColumns": False},
-                "managers__username": {"value": manager_list, "label": "Managers", "viewColumns": False},
+                "title": {
+                    "value": elem["title"],
+                    "label": "Title",
+                    "viewColumns": False,
+                },
+                "managers__username": {
+                    "value": manager_list,
+                    "label": "Managers",
+                    "viewColumns": False,
+                },
                 "num_videos": {"value": elem["num_videos"], "label": "Video count"},
                 "total_transcriptions": {
                     "value": transcript_duration,
@@ -1103,7 +1120,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 "total_word_count": {
                     "value": int(transcript_word_count + translation_word_count),
                     "label": "Total Word Count",
-                }
+                },
             }
             project_data.append(project_dict)
             idx += 1
@@ -1153,7 +1170,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         org_data = []
         for elem in org_stats:
             org_dict = {
-                "title": {"value": elem["title"], "label": "Title", "viewColumns": False},
+                "title": {
+                    "value": elem["title"],
+                    "label": "Title",
+                    "viewColumns": False,
+                },
                 "num_projects": {
                     "value": elem["num_projects"],
                     "label": "Project count",

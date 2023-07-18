@@ -161,7 +161,7 @@ REST_FRAMEWORK = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "NAME": os.getenv("POSTGRES_DB_NAME"),
+        "NAME": "youtube_test_pre",
         "USER": os.getenv("POSTGRES_DB_USERNAME"),
         "PASSWORD": os.getenv("POSTGRES_DB_PASSWORD"),
         "HOST": os.getenv("POSTGRES_DB_HOST"),

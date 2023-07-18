@@ -512,12 +512,12 @@ class UserViewSet(viewsets.ViewSet):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
                 users = set(list(user_by_roles)) - set(list(organization_owners))
-                if "org_id" in request.query_params:
-                    org_id = request.query_params["org_id"]
-                    organization_obj = Organization.objects.get(pk=org_id)
-                    organization_owner = organization_obj.organization_owner
-                    users.add(organization_owner)
-                serializer = UserProfileSerializer(list(users), many=True)
+            if "org_id" in request.query_params:
+                org_id = request.query_params["org_id"]
+                organization_obj = Organization.objects.get(pk=org_id)
+                organization_owner = organization_obj.organization_owner
+                users.add(organization_owner)
+            serializer = UserProfileSerializer(list(users), many=True)
         return Response(serializer.data)
 
 

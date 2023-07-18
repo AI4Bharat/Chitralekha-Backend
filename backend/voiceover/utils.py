@@ -236,6 +236,7 @@ def generate_tts_output(
         )
     if type(tts_output) != dict or "audio" not in tts_output.keys():
         return tts_output
+    print("66666666666666666666")
     logging.info("Size of TTS output %s", str(asizeof(tts_output)))
     logging.info("Output from TTS generated")
     voiceover_payload = {"payload": {}}
@@ -243,6 +244,7 @@ def generate_tts_output(
     payload_size = 0
     payload_size_encoded = 0
     for ind, text in enumerate(translation["payload"]):
+        print("ind", ind)
         start_time = text["start_time"]
         end_time = text["end_time"]
         logging.info("Starting time of this sentence %s", start_time)
@@ -627,6 +629,11 @@ def integrate_all_audios(file_name, payload, video_duration):
         payload["payload"][str(0)]["time_difference"],
         -1,
     )
+    first_start_time = payload["payload"]["0"]["start_time"]
+    difference_between_payloads = get_original_duration(
+        "00:00:00.000", first_start_time
+    )
+    print("dddddddddddddd", difference_between_payloads)
     sorted_keys = list(payload["payload"].keys())
     audio_file_paths.append(file_name + "_" + str(0) + ".flac")
     for key in sorted_keys:

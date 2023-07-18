@@ -2628,7 +2628,7 @@ class TaskViewSet(ModelViewSet):
         ],
         responses={
             200: "Word count populated successfully",
-            400: "Error in populating word count",      
+            400: "Error in populating word count",
         },
     )
     @action(
@@ -2642,8 +2642,10 @@ class TaskViewSet(ModelViewSet):
         Adding word count for existing translations and transcriptions
         """
         project_id = request.query_params.get("project_id")
-        translations = Translation.objects.filter(Q(video__project_id=project_id)
-            & Q(status__in=["TRANSLATION_EDIT_COMPLETE", "TRANSLATION_REVIEW_COMPLETE"]))
+        translations = Translation.objects.filter(
+            Q(video__project_id=project_id)
+            & Q(status__in=["TRANSLATION_EDIT_COMPLETE", "TRANSLATION_REVIEW_COMPLETE"])
+        )
         for translation_obj in translations:
             try:
                 if (
@@ -2673,14 +2675,18 @@ class TaskViewSet(ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        transcripts = Transcript.objects.filter(Q(video__project_id=project_id) 
-            & Q(status__in=["TRANSCRIPTION_EDIT_COMPLETE", "TRANSCRIPTION_REVIEW_COMPLETE"]))
+        transcripts = Transcript.objects.filter(
+            Q(video__project_id=project_id)
+            & Q(
+                status__in=[
+                    "TRANSCRIPTION_EDIT_COMPLETE",
+                    "TRANSCRIPTION_REVIEW_COMPLETE",
+                ]
+            )
+        )
         for transcript_obj in transcripts:
             try:
-                if (
-                    transcript_obj.payload != "" 
-                    and transcript_obj.payload is not None
-                ):
+                if transcript_obj.payload != "" and transcript_obj.payload is not None:
                     num_words = 0
                     for idv_transcription in transcript_obj.payload["payload"]:
                         if "text" in idv_transcription.keys():

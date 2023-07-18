@@ -62,7 +62,6 @@ def convert_payload_format(data):
         unix_start_time = datetime.datetime.timestamp(start_time)
         end_time = datetime.datetime.strptime(vtt_line.end, "%H:%M:%S.%f")
         unix_end_time = datetime.datetime.timestamp(end_time)
-
         sentences_list.append(
             {
                 "start_time": vtt_line.start,
