@@ -989,6 +989,9 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         logging.info("Text missing in payload")
             if length_3 > 0:
                 for i in range(length_3):
+                    logging.info(
+                        "Iterate for third length %s", str(start_offset + i + length)
+                    )
                     translation.payload["payload"][start_offset + i + length] = {}
         else:
             for i in range(length):
@@ -1002,6 +1005,17 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         "text": payload["payload"][i]["text"],
                         "target_text": payload["payload"][i]["target_text"],
                         "speaker_id": payload["payload"][i].get("speaker_id", ""),
+                    }
+                elif (
+                    "text" in payload["payload"][i].keys()
+                    and "text" not in translation.payload["payload"][start_offset + i]
+                ):
+                    translation.payload["payload"][start_offset + i] = {
+                        "start_time": payload["payload"][i]["start_time"],
+                        "end_time": payload["payload"][i]["end_time"],
+                        "text": payload["payload"][i]["text"],
+                        "speaker_id": payload["payload"][i].get("speaker_id"),
+                        "target_text": payload["payload"][i]["target_text"],
                     }
                 else:
                     logging.info("Text missing in payload")
