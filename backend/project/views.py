@@ -773,7 +773,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
             # filter data based on filter parameters
             all_tasks = task_filter_query(all_tasks, filter_dict)
             if not (
-                request.user in project.managers.all() or request.user.is_superuser
+                request.user in project.managers.all()
+                or request.user.is_superuser
+                or request.user.id == project.organization_id.organization_owner_id
             ):
                 all_tasks = all_tasks.filter(user=request.user).order_by("-updated_at")
 
@@ -792,7 +794,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 or request.user in project.managers.all()
                 or request.user.is_superuser
             ):
-                logging.info("Showing list to Org owner or Project Manager.")
+                logging.info(
+                    "Showing project tasks list to org owner or project manager"
+                )
                 serializer = TaskSerializer(tasks, many=True)
                 serialized_dict = json.loads(json.dumps(serializer.data))
                 for data in serialized_dict:
@@ -839,7 +843,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                                     buttons["Edit"] = False
                     data["buttons"] = buttons
             else:
-                logging.info("Showing list to editors and reviewers.")
+                logging.info("Showing project tasks list to editors and reviewers.")
                 serializer = TaskSerializer(tasks, many=True)
                 serialized_dict = json.loads(json.dumps(serializer.data))
                 for data in serialized_dict:
