@@ -318,10 +318,36 @@ def generate_tts_output(
     return voiceover_payload
 
 
+def equal_sentences(ind, previous_sentence, current_sentence, delete_indices):
+    if "text" not in current_sentence:
+        delete_indices.append(ind)
+    elif (
+        get_original_duration(
+            previous_sentence["start_time"], current_sentence["start_time"]
+        )
+        == 0
+        and get_original_duration(
+            previous_sentence["end_time"], current_sentence["end_time"]
+        )
+        == 0
+    ):
+        delete_indices.append(ind)
+    else:
+        pass
+
+
 def process_translation_payload(translation_obj, target_language):
     tts_input = []
     empty_sentences = []
+    delete_indices = []
     translation = translation_obj.payload
+    for ind, text in enumerate(translation["payload"]):
+        if ind != 0:
+            equal_sentences(ind, translation["payload"][ind - 1], text, delete_indices)
+
+    delete_indices.reverse()
+    for index in delete_indices:
+        translation["payload"].pop(index)
     for ind, text in enumerate(translation["payload"]):
         if not compare_time(text["end_time"], text["start_time"])[0]:
             return {
@@ -557,7 +583,7 @@ def adjust_audio(audio_file, original_time, audio_speed):
     # audio_time_difference = original_time - seconds
     audio = AudioSegment.from_file(audio_file)
     audio_time_difference = (original_time * 1000 - len(audio)) / 1000
-    if audio_time_difference > 0.11:
+    if audio_time_difference > 0:
         logging.info("Add silence in the audio of %s", str(audio_time_difference))
         # duration in millisecond
         silence_segment = AudioSegment.silent(duration=audio_time_difference * 1000)
@@ -567,21 +593,16 @@ def adjust_audio(audio_file, original_time, audio_speed):
         combined_audio.export(audio_file, format="flac")
     elif audio_time_difference == 0:
         logging.info("No time difference")
-    elif audio_time_difference < 0:
+    elif audio_time_difference < -0.001:
         logging.info("Speed up the audio by %s", str(seconds / original_time))
         sound = AudioSegment.from_file(audio_file)
-        # sound.export("temp_original_" + str(ind) + ".mp3", format="mp3")
-        # generate a slower audio for example
-        faster_sound = speedup(sound, seconds / original_time, 100)
-        final_sound = faster_sound[: original_time * 1000]
-        final_sound.export(audio_file, format="flac")
-        audio = AudioFileClip(audio_file)
-        seconds = audio.duration
-        logging.info("Seconds of adjusted flac audio %s", str(seconds))
-        # audio = MP3(audio_file)
-        # faster_sound.export("temp_" + str(ind) + ".mp3", format="mp3")
-        # speed_change(sound, 0.5)
-        # adjust_speed(audio_file, seconds / original_time)
+        if (seconds / original_time) > 0:
+            faster_sound = speedup(sound, seconds / original_time, 100)
+            final_sound = faster_sound[: original_time * 1000]
+            final_sound.export(audio_file, format="flac")
+            audio = AudioFileClip(audio_file)
+            seconds = audio.duration
+            logging.info("Seconds of adjusted flac audio %s", str(seconds))
     else:
         pass
 
@@ -627,6 +648,7 @@ def integrate_all_audios(file_name, payload, video_duration):
         payload["payload"][str(0)]["time_difference"],
         -1,
     )
+
     first_start_time = payload["payload"]["0"]["start_time"]
     difference_between_payloads = get_original_duration(
         "00:00:00.000", first_start_time
@@ -667,6 +689,7 @@ def integrate_all_audios(file_name, payload, video_duration):
                         file_name + "_" + str(index - 1) + ".flac", format="flac"
                     )
             if index == length_payload - 1:
+                original_time = payload["payload"][str(index)]["time_difference"]
                 end_time = payload["payload"][str(index)]["end_time"]
                 audio_2_decoded = base64.b64decode(
                     payload["payload"][str(index)]["audio"]["audioContent"]
@@ -680,6 +703,9 @@ def integrate_all_audios(file_name, payload, video_duration):
                             file_name + "_" + str(index) + ".flac", "wb"
                         ) as out_f23:
                             out_f23.write(audio_2_decoded)
+                        adjust_audio(
+                            file_name + "_" + str(index) + ".flac", original_time, -1
+                        )
                         silence_segment = AudioSegment.silent(
                             duration=last_segment_difference * 1000
                         )
@@ -697,7 +723,11 @@ def integrate_all_audios(file_name, payload, video_duration):
                 else:
                     with open(file_name + "_" + str(index) + ".flac", "wb") as out_f23:
                         out_f23.write(audio_2_decoded)
+                    adjust_audio(
+                        file_name + "_" + str(index) + ".flac", original_time, -1
+                    )
                     audio_file_paths.append(file_name + "_" + str(index) + ".flac")
+
             else:
                 logging.info("Index of Audio : #%s", str(index))
                 original_time = payload["payload"][str(index)]["time_difference"]
@@ -720,13 +750,13 @@ def integrate_all_audios(file_name, payload, video_duration):
             final_clip.write_audiofile(file_name + str(i) + ".wav")
             final_paths.append(file_name + str(i) + ".wav")
         elif i == batch_size - 1:
-            audio_batch_paths = audio_file_paths[(i) * 20 : len(audio_file_paths)]
+            audio_batch_paths = audio_file_paths[(i * 20) : len(audio_file_paths)]
             clips = [AudioFileClip(c) for c in audio_batch_paths]
             final_clip = concatenate_audioclips(clips)
             final_clip.write_audiofile(file_name + str(i) + ".wav")
             final_paths.append(file_name + str(i) + ".wav")
         else:
-            audio_batch_paths = audio_file_paths[(i) * 20 : (i + 1) * 20]
+            audio_batch_paths = audio_file_paths[(i * 20) : ((i + 1) * 20)]
             clips = [AudioFileClip(c) for c in audio_batch_paths]
             final_clip = concatenate_audioclips(clips)
             final_clip.write_audiofile(file_name + str(i) + ".wav")
