@@ -594,7 +594,7 @@ class RoleViewSet(viewsets.ViewSet):
                             "message": "Please remove user from project manager",
                             "data": serializer_project.data,
                         },
-                        status=status.HTTP_200_OK,
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
             if role in itertools.chain(*User.ROLE_CHOICES):
                 if user.role == "TRANSCRIPT_EDITOR":
@@ -637,7 +637,7 @@ class RoleViewSet(viewsets.ViewSet):
                                 "message": "Please assign task to relevant user",
                                 "data": serialized_dict,
                             },
-                            status=status.HTTP_200_OK,
+                            status=status.HTTP_400_BAD_REQUEST,
                         )
                     else:
                         update_user_role = True
