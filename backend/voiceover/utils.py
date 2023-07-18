@@ -627,6 +627,20 @@ def integrate_all_audios(file_name, payload, video_duration):
         payload["payload"][str(0)]["time_difference"],
         -1,
     )
+    first_start_time = payload["payload"]["0"]["start_time"]
+    difference_between_payloads = get_original_duration(
+        "00:00:00.000", first_start_time
+    )
+    if difference_between_payloads > 0:
+        silence_segment = AudioSegment.silent(
+            duration=difference_between_payloads * 1000
+        )
+        # duration in milliseconds
+        # read wav file to an audio segment
+        audio = AudioSegment.from_file(file_name + "_" + str(0) + ".flac")
+        # Add above two audio segments
+        final_audio = silence_segment + audio
+        final_audio.export(file_name + "_" + str(0) + ".flac", format="flac")
     sorted_keys = list(payload["payload"].keys())
     audio_file_paths.append(file_name + "_" + str(0) + ".flac")
     for key in sorted_keys:

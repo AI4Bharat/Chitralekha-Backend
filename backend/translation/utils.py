@@ -84,6 +84,28 @@ def convert_to_paragraph(lines):
     return content
 
 
+def convert_to_paragraph_monolingual(payload):
+    lines = []
+    content = ""
+    translated_content = ""
+    sentences_count = 0
+    number_of_paragraphs = math.ceil(len(payload) / 5)
+    count_paragraphs = 0
+    for index, segment in enumerate(payload):
+        if "text" in segment.keys():
+            lines.append(segment["target_text"])
+            translated_content = translated_content + " " + segment["target_text"]
+            sentences_count += 1
+            if sentences_count % 5 == 0:
+                count_paragraphs += 1
+                content = content + translated_content + "\n" + "\n"
+                translated_content = ""
+
+    if count_paragraphs < number_of_paragraphs:
+        content = content + translated_content + "\n" + "\n"
+    return content
+
+
 def convert_to_paragraph_bilingual(payload):
     lines = []
     transcripted_lines = []
@@ -100,7 +122,7 @@ def convert_to_paragraph_bilingual(payload):
             transcripted_content = (
                 transcripted_content + " " + segment["text"].replace("\n", " ")
             )
-            translated_content = translated_content + segment["target_text"]
+            translated_content = translated_content + " " + segment["target_text"]
             sentences_count += 1
             if sentences_count % 5 == 0:
                 count_paragraphs += 1
