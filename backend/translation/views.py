@@ -316,6 +316,7 @@ def get_translation_id(task):
                 translation.filter(video=task.video)
                 .filter(target_language=task.target_language)
                 .filter(status="TRANSLATION_EDIT_INPROGRESS")
+                .order_by("-updated_at")
                 .first()
             )
         if task.status == "COMPLETE":
