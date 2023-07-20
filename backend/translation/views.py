@@ -45,6 +45,7 @@ from .utils import (
     convert_to_paragraph_monolingual,
     convert_to_paragraph_bilingual,
     generate_translation_payload,
+    set_fail_for_translation_task,
 )
 from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
 from django.db.models.functions import Cast
