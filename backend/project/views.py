@@ -810,6 +810,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "View": False,
                         "Delete": False,
                         "Upload": False,
+                        "Info": False,
+                        "Reopen": False,
                     }
                     buttons["Update"] = True
                     buttons["Delete"] = True
@@ -822,8 +824,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             buttons["Upload"] = True
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
+                    if data["status"] == "FAILED":
+                        buttons["Info"] = True
+                        buttons["Reopen"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
+                        if data["status"] == "FAILED":
+                            buttons["Reopen"] = False
                     if data["user"]["email"] == request.user.email:
                         if data["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
@@ -857,6 +864,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Create": False,
                         "Delete": False,
                         "Upload": False,
+                        "Info": False,
+                        "Reopen": False,
                     }
                     if data["status"] == "COMPLETE":
                         buttons["Edit"] = False
@@ -865,6 +874,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Update"] = False
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
+                    if data["status"] == "FAILED":
+                        buttons["Info"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
                     if data["user"]["email"] == request.user.email:

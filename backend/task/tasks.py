@@ -103,7 +103,10 @@ def celery_tts_call(
         task_obj.is_active = False
         task_obj.status = "FAILED"
         task_obj.save()
-    send_mail_to_user(task_obj)
+    try:
+        send_mail_to_user(task_obj)
+    except:
+        logging.info("Error in sending mail")
 
 
 @celery_app.task(queue="asr_tts")

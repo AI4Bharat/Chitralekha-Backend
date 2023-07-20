@@ -306,3 +306,13 @@ def translation_mg(transcript, target_language, batch_size=25):
                 }
             )
     return json.loads(json.dumps({"payload": payload}))
+
+def set_fail_for_translation_task(task):
+    translation_task = (
+        Task.objects.filter(target_language=task.target_language)
+        .filter(task_type="TRANSLATION_EDIT")
+        .filter(video=task.video)
+        .first()
+    )
+    if translation_task is not None:
+        translation_task.status = "FAILED"

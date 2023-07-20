@@ -45,6 +45,7 @@ from .utils import (
     convert_to_paragraph_monolingual,
     convert_to_paragraph_bilingual,
     generate_translation_payload,
+    set_fail_for_translation_task,
 )
 from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
 from django.db.models.functions import Cast
@@ -312,6 +313,14 @@ def get_translation_id(task):
                 .first()
             )
         if task.status == "INPROGRESS":
+            translation_id = (
+                translation.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .filter(status="TRANSLATION_EDIT_INPROGRESS")
+                .order_by("-updated_at")
+                .first()
+            )
+        if task.status == "FAILED":
             translation_id = (
                 translation.filter(video=task.video)
                 .filter(target_language=task.target_language)
@@ -750,6 +759,7 @@ def change_active_status_of_next_tasks(task, translation_obj):
                 logging.info("Error from TTS API")
                 voice_over_task.status = "FAILED"
                 voice_over_task.save()
+                set_fail_for_translation_task(task)
                 return message
             if source_type == "MANUALLY_CREATED":
                 voice_over_obj.translation = translation_obj

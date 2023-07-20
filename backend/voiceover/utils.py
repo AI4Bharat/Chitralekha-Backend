@@ -122,6 +122,7 @@ def uploadToBlobStorage(file_path, voice_over_obj):
         logging.info(blob_client.url)
         os.remove(file_path + ".mp4")
         os.remove(file_path + "final.flac")
+        os.remove(file_path.split("/")[-1] + ".json")
         return blob_client.url, blob_client_audio_url
 
 
@@ -334,6 +335,34 @@ def equal_sentences(ind, previous_sentence, current_sentence, delete_indices):
         delete_indices.append(ind)
     else:
         pass
+
+
+def get_bad_sentences(translation_obj, target_language):
+    tts_input = []
+    empty_sentences = []
+    delete_indices = []
+    translation = translation_obj.payload
+    for ind, text in enumerate(translation["payload"]):
+        if ind != 0:
+            equal_sentences(ind, translation["payload"][ind - 1], text, delete_indices)
+
+    problem_sentences = {}
+    delete_indices.reverse()
+    for index in delete_indices:
+        translation["payload"].pop(index)
+    for ind, text in enumerate(translation["payload"]):
+        if not compare_time(text["end_time"], text["start_time"])[0]:
+            problem_sentences[ind] = text
+        if (
+            ind != 0
+            and ind < len(translation["payload"])
+            and compare_time(
+                translation["payload"][ind - 1]["end_time"], text["start_time"]
+            )[0]
+        ):
+            problem_sentences[ind] = text
+
+    return problem_sentences
 
 
 def process_translation_payload(translation_obj, target_language):
