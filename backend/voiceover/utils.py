@@ -346,13 +346,13 @@ def get_bad_sentences(translation_obj, target_language):
         if ind != 0:
             equal_sentences(ind, translation["payload"][ind - 1], text, delete_indices)
 
-    problem_sentences = {}
+    problem_sentences = []
     delete_indices.reverse()
     for index in delete_indices:
         translation["payload"].pop(index)
     for ind, text in enumerate(translation["payload"]):
         if not compare_time(text["end_time"], text["start_time"])[0]:
-            problem_sentences[ind] = text
+            problem_sentences.append({"index": ind, "segment": text})
         if (
             ind != 0
             and ind < len(translation["payload"])
@@ -360,7 +360,7 @@ def get_bad_sentences(translation_obj, target_language):
                 translation["payload"][ind - 1]["end_time"], text["start_time"]
             )[0]
         ):
-            problem_sentences[ind] = text
+            problem_sentences.append({"index": ind, "segment": text})
 
     return problem_sentences
 
