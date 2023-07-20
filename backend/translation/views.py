@@ -319,6 +319,14 @@ def get_translation_id(task):
                 .order_by("-updated_at")
                 .first()
             )
+        if task.status == "FAILED":
+            translation_id = (
+                translation.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .filter(status="TRANSLATION_EDIT_INPROGRESS")
+                .order_by("-updated_at")
+                .first()
+            )
         if task.status == "COMPLETE":
             translation_id = (
                 translation.filter(video=task.video)
@@ -750,6 +758,7 @@ def change_active_status_of_next_tasks(task, translation_obj):
                 logging.info("Error from TTS API")
                 voice_over_task.status = "FAILED"
                 voice_over_task.save()
+                set_fail_for_translation_task(task)
                 return message
             if source_type == "MANUALLY_CREATED":
                 voice_over_obj.translation = translation_obj
