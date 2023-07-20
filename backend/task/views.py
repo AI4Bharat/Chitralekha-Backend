@@ -2643,7 +2643,7 @@ class TaskViewSet(ModelViewSet):
             if len(bad_sentences) > 0:
                 return Response(
                     {
-                        "wrong_sentences": bad_sentences,
+                        "data": bad_sentences,
                         "message": "Sentences with time issues are returned.",
                     },
                     status=status.HTTP_200_OK,
