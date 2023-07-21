@@ -305,14 +305,14 @@ def get_translation_id(task):
     if "EDIT" in task.task_type:
         if task.status == "NEW":
             translation_id = None
-        if task.status == "SELECTED_SOURCE":
+        elif task.status == "SELECTED_SOURCE":
             translation_id = (
                 translation.filter(video=task.video)
                 .filter(target_language=task.target_language)
                 .filter(status="TRANSLATION_SELECT_SOURCE")
                 .first()
             )
-        if task.status == "INPROGRESS":
+        elif task.status == "INPROGRESS":
             translation_id = (
                 translation.filter(video=task.video)
                 .filter(target_language=task.target_language)
@@ -320,7 +320,7 @@ def get_translation_id(task):
                 .order_by("-updated_at")
                 .first()
             )
-        if task.status == "FAILED":
+        elif task.status == "REOPEN":
             translation_id = (
                 translation.filter(video=task.video)
                 .filter(target_language=task.target_language)
@@ -328,7 +328,14 @@ def get_translation_id(task):
                 .order_by("-updated_at")
                 .first()
             )
-        if task.status == "COMPLETE":
+        elif task.status == "FAILED":
+            translation_id = (
+                translation.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .filter(status="TRANSLATION_EDIT_COMPLETE")
+                .first()
+            )
+        elif task.status == "COMPLETE":
             translation_id = (
                 translation.filter(video=task.video)
                 .filter(target_language=task.target_language)
@@ -875,8 +882,6 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
     count_sentences = len(translation.payload["payload"])
     for i in range(len(payload["payload"])):
         if "retranslate" in payload["payload"][i].keys():
-            print(payload["payload"][i]["retranslate"])
-            print("type", type(payload["payload"][i]["retranslate"]))
             translated_text = get_batch_translations_using_indictrans_nmt_api(
                 [payload["payload"][i]["text"]],
                 translation.video.language,
