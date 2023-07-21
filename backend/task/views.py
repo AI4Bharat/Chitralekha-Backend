@@ -77,7 +77,7 @@ from django.db.models.functions import Concat
 from django.db.models import Value
 from django.http import HttpRequest
 from transcript.views import export_transcript
-from translation.views import export_translation
+from translation.views import export_translation, get_translation_id
 from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 import regex
@@ -2637,8 +2637,8 @@ class TaskViewSet(ModelViewSet):
             )
 
         bad_sentences = []
-        translation = self.check_translation_exists(task.video, task.target_language)
-        if task.task_type in ["VOICEOVER_EDIT", "TRANSLATION_EDIT"] and translation:
+        translation = get_translation_id(task)
+        if task.task_type in ["TRANSLATION_EDIT"] and translation:
             bad_sentences = get_bad_sentences(translation, task.target_language)
             if len(bad_sentences) > 0:
                 return Response(
@@ -2668,14 +2668,27 @@ class TaskViewSet(ModelViewSet):
 
         if task.status == "FAILED" and "TRANSLATION" in task.task_type:
             translation_completed_obj = (
-                Translation.objects.filter(status=TRANSLATION_EDIT_COMPLETE)
+                Translation.objects.filter(status="TRANSLATION_EDIT_COMPLETE")
                 .filter(target_language=task.target_language)
                 .filter(video=task.video)
                 .first()
             )
-            if translation_completed_obj is not None:
-                translation_completed_obj.delete()
-                task.status = "INPROGRESS"
+            translation_inprogress_obj = (
+                Translation.objects.filter(status="TRANSLATION_EDIT_INPROGRESS")
+                .filter(target_language=task.target_language)
+                .filter(video=task.video)
+                .all()
+            )
+            if (
+                translation_inprogress_obj is not None
+                and translation_completed_obj is not None
+            ):
+                translation_completed_obj.parent = None
+                translation_completed_obj.save()
+                translation_inprogress_obj.delete()
+                translation_completed_obj.status = "TRANSLATION_EDIT_INPROGRESS"
+                translation_completed_obj.save()
+                task.status = "REOPEN"
                 task.save()
             else:
                 return Response(
