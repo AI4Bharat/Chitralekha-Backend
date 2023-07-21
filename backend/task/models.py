@@ -33,6 +33,7 @@ TASK_STATUS = (
     (POST_PROCESS, "Post Process"),
     (FAILED, "Failed"),
     (COMPLETE, "Complete"),
+    (REOPEN, "Re Open"),
 )
 
 TASK_TYPE = (
