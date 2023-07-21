@@ -322,6 +322,8 @@ def generate_tts_output(
 def equal_sentences(ind, previous_sentence, current_sentence, delete_indices):
     if "text" not in current_sentence:
         delete_indices.append(ind)
+    elif "text" not in previous_sentence:
+        pass
     elif (
         get_original_duration(
             previous_sentence["start_time"], current_sentence["start_time"]
