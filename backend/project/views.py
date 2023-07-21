@@ -831,6 +831,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Info"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
+                        buttons["Info"] = False
                         if data["status"] == "FAILED":
                             buttons["Reopen"] = False
                     if data["user"]["email"] == request.user.email:
