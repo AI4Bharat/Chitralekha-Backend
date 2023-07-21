@@ -827,6 +827,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     if data["status"] == "FAILED":
                         buttons["Info"] = True
                         buttons["Reopen"] = True
+                    if data["status"] == "REOPEN":
+                        buttons["Info"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
                         if data["status"] == "FAILED":
@@ -874,10 +876,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Update"] = False
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
-                    if data["status"] == "FAILED":
+                    if data["status"] in ["FAILED", "REOPEN"]:
                         buttons["Info"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
+                        buttons["Info"] = False
                     if data["user"]["email"] == request.user.email:
                         if data["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
