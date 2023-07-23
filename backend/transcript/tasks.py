@@ -34,6 +34,9 @@ def celery_align_json(transcript_id):
                 "Chitralekha_Video_{}_{}".format(transcript_obj.video.id, time_now)
                 + ".ytt"
             )
-            ytt_genorator(data, file_name, prev_line_in=0, mode="data")
-            upload_ytt_to_azure(transcript_obj, file_name)
+            try:
+                ytt_genorator(data, file_name, prev_line_in=0, mode="data")
+                upload_ytt_to_azure(transcript_obj, file_name)
+            except:
+                print("Error in converting ytt to json.")
             os.remove(file_name)
