@@ -691,26 +691,6 @@ def save_voice_over(request):
                             voice_over_obj.video.id,
                             task.id,
                         )
-                        """
-                        integrate_audio_with_video(
-                            file_path + "/" + file_name,
-                            voice_over_obj,
-                            voice_over_obj.video,
-                        )
-                        azure_url = uploadToBlobStorage(
-                            os.path.join(file_path + "/" + file_name)
-                        )
-                        # change_active_status_of_next_tasks(
-                        #    task, target_language, voice_over_obj
-                        # )
-                        ts_status = VOICEOVER_EDIT_COMPLETE
-                        voice_over_obj.status = ts_status
-                        voice_over_obj.payload = {"payload": ""}
-                        voice_over_obj.azure_url = azure_url
-                        voice_over_obj.save()
-                        task.status = "COMPLETE"
-                        task.save()
-                        """
                 else:
                     voice_over_obj = (
                         VoiceOver.objects.filter(status=VOICEOVER_EDIT_INPROGRESS)
@@ -1057,6 +1037,11 @@ def export_voiceover(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     if export_type == "mp4":
+        if voice_over.azure_url == None:
+            return Response(
+                {"message": "Video was not created for this Voice Over Task."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(
             {
                 "azure_url": voice_over.azure_url,
@@ -1070,9 +1055,28 @@ def export_voiceover(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         elif export_type == "flac":
+            logging.info(
+                "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
+            )
+            download_from_azure_blob(str(voice_over.azure_url_audio))
+            logging.info(
+                "Downloaded audio from Azure Blob %s", voice_over.azure_url_audio
+            )
+            file_path = voice_over.azure_url_audio.split("/")[-1]
+            AudioSegment.from_file(file_path).export(
+                file_path.split("/")[-1].replace(".ogg", "") + ".flac", format="flac"
+            )
+            logging.info(
+                "Uploading audio flac to Azure Blob %s", voice_over.azure_url_audio
+            )
+            azure_url_audio = upload_audio_to_azure_blob(
+                file_path, export_type, export=True
+            )
+            os.remove(file_path)
+            os.remove(file_path.split("/")[-1].replace(".ogg", "") + ".flac")
             return Response(
                 {
-                    "azure_url": voice_over.azure_url_audio,
+                    "azure_url": azure_url_audio,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -1086,7 +1090,7 @@ def export_voiceover(request):
             )
             file_path = voice_over.azure_url_audio.split("/")[-1]
             AudioSegment.from_file(file_path).export(
-                file_path.split("/")[-1].replace(".flac", "") + ".mp3", format="mp3"
+                file_path.split("/")[-1].replace(".ogg", "") + ".mp3", format="mp3"
             )
             logging.info(
                 "Uploading audio mp3 to Azure Blob %s", voice_over.azure_url_audio
@@ -1094,6 +1098,8 @@ def export_voiceover(request):
             azure_url_audio = upload_audio_to_azure_blob(
                 file_path, export_type, export=True
             )
+            os.remove(file_path)
+            os.remove(file_path.split("/")[-1].replace(".ogg", "") + ".mp3")
             return Response(
                 {
                     "azure_url": azure_url_audio,
@@ -1110,7 +1116,7 @@ def export_voiceover(request):
             )
             file_path = voice_over.azure_url_audio.split("/")[-1]
             AudioSegment.from_file(file_path).export(
-                file_path.split("/")[-1].replace(".flac", "") + ".wav", format="wav"
+                file_path.split("/")[-1].replace(".ogg", "") + ".wav", format="wav"
             )
             logging.info(
                 "Uploading audio wav to Azure Blob %s", voice_over.azure_url_audio
@@ -1118,6 +1124,8 @@ def export_voiceover(request):
             azure_url_audio = upload_audio_to_azure_blob(
                 file_path, export_type, export=True
             )
+            os.remove(file_path)
+            os.remove(file_path.split("/")[-1].replace(".ogg", "") + ".wav")
             return Response(
                 {
                     "azure_url": azure_url_audio,
