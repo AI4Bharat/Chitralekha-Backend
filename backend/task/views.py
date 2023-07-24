@@ -210,6 +210,7 @@ class TaskViewSet(ModelViewSet):
         )
         if translation_task is not None:
             translation_task.status = "FAILED"
+            translation_task.save()
 
     def get_language_pair_label(self, video, target_language):
         src_language = self.get_target_language_label(video.language)
