@@ -83,7 +83,6 @@ def get_completed_tasks():
                     + "</p><br><h1><b>Tasks Reports</b></h1>"
                     + html_table_df_tasks
                 )
-                print(email_to_send)
                 logging.info("Sending Mail to %s", manager.email)
                 send_mail(
                     "Chitralekha - Completed Tasks Report",
