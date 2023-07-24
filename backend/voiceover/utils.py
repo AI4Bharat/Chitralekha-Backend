@@ -328,7 +328,6 @@ def generate_tts_output(
             pass
     logging.info("Size of voiceover payload %s", str(asizeof(voiceover_payload)))
     logging.info("Size of combined audios %s", str(payload_size))
-    os.remove("temp_1.ogg")
     os.remove("temp_1.wav")
     return voiceover_payload
 
