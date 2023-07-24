@@ -1032,8 +1032,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project.title = title
 
         if video_integration is not None:
-            video_integration = video_integration.lower() == "true"
-            project.video_integration = video_integration
+            if type(video_integration) == bool:
+                project.video_integration = video_integration
 
         if managers_id is not None and len(managers_id) > 0:
             project.managers.set([])
