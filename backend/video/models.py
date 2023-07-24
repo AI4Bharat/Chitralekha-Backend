@@ -61,7 +61,7 @@ class Video(models.Model):
         blank=True,
         verbose_name="Gender",
     )
-    speaker_info = models.JSONField(verbose_name="Speakers Info", null=True)
+    speaker_info = models.JSONField(verbose_name="Speakers Info", null=True, blank=True)
     multiple_speaker = models.BooleanField(
         verbose_name="Multiple Speaker",
         default=False,

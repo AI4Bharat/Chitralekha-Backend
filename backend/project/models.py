@@ -187,6 +187,13 @@ class Project(models.Model):
         blank=True,
         null=True,
     )
+    video_integration = models.BooleanField(
+        verbose_name="require_video_integration",
+        default=False,
+        help_text=(
+            "Indicates whether video integration is needed for VO tasks or not."
+        ),
+    )
 
     def __str__(self):
         return str(self.title)
