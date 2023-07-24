@@ -1277,15 +1277,17 @@ def save_translation(request):
                         for ind in delete_indices:
                             translation_obj.payload["payload"].pop(ind)
                         translation_obj.save()
+                        """
                         response = check_if_translation_correct(translation_obj, task)
                         if type(response) == dict:
                             return Response(
-                                {
-                                    "data": response["data"],
-                                    "message": response["message"],
-                                },
-                                status=status.HTTP_400_BAD_REQUEST,
+                              {
+                                "data": response["data"],
+                                "message": response["message"]
+                              },
+                              status=status.HTTP_400_BAD_REQUEST,
                             )
+                        """
                         message = change_active_status_of_next_tasks(
                             task, translation_obj
                         )
@@ -1387,13 +1389,17 @@ def save_translation(request):
                     translation_obj.save()
                     task.status = "COMPLETE"
                     task.save()
-
+                    """
                     response = check_if_translation_correct(translation_obj, task)
                     if type(response) == dict:
                         return Response(
-                            {"data": response["data"], "message": response["message"]},
-                            status=status.HTTP_400_BAD_REQUEST,
+                          {
+                            "data": response["data"],
+                            "message": response["message"]
+                          },
+                          status=status.HTTP_400_BAD_REQUEST,
                         )
+                    """
                     message = change_active_status_of_next_tasks(task, translation_obj)
                 else:
                     translation_obj = (
