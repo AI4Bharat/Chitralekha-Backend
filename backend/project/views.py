@@ -1019,6 +1019,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         default_task_eta = request.data.get("default_task_eta")
         default_task_priority = request.data.get("default_task_priority")
         default_task_description = request.data.get("default_task_description")
+        video_integration = request.data.get("video_integration")
 
         try:
             project = Project.objects.get(pk=pk)
@@ -1029,6 +1030,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         if title is not None:
             project.title = title
+
+        if video_integration is not None:
+            video_integration = video_integration.lower() == "true"
+            project.video_integration = video_integration
 
         if managers_id is not None and len(managers_id) > 0:
             project.managers.set([])
