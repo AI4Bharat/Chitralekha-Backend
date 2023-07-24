@@ -35,7 +35,7 @@ from .models import (
     TRANSLATION_REVIEW_INPROGRESS,
     TRANSLATION_REVIEW_COMPLETE,
 )
-from voiceover.utils import process_translation_payload
+from voiceover.utils import process_translation_payload, get_bad_sentences
 from .decorators import is_translation_editor
 from .serializers import TranslationSerializer
 from .utils import (
@@ -758,6 +758,27 @@ def change_active_status_of_next_tasks(task, translation_obj):
         if source_type is None:
             source_type = config.backend_default_voice_over_type
         if voice_over_task is not None:
+            bad_sentences = get_bad_sentences(translation_obj, task.target_language)
+            if len(bad_sentences) > 0:
+                translation = (
+                    Translation.objects.filter(
+                        target_language=translation_obj.target_language
+                    )
+                    .filter(video=task.video)
+                    .filter(status="TRANSLATION_EDIT_INPROGRESS")
+                    .first()
+                )
+                if translation is not None:
+                    task.status = "INPROGRESS"
+                else:
+                    task.status = "SELECTED_SOURCE"
+                task.save()
+                translation_obj.delete()
+                response = {
+                    "data": bad_sentences,
+                    "message": "Translation task couldn't be completed. Please correct the following sentences.",
+                }
+                return response
             tts_payload = process_translation_payload(
                 translation_obj, voice_over_task.target_language
             )
@@ -1243,6 +1264,14 @@ def save_translation(request):
                         message = change_active_status_of_next_tasks(
                             task, translation_obj
                         )
+                        if type(message) == dict:
+                            return Response(
+                                {
+                                    "data": message["data"],
+                                    "message": message["message"],
+                                },
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
                 else:
                     translation_obj = (
                         Translation.objects.filter(status=TRANSLATION_EDIT_INPROGRESS)
@@ -1342,6 +1371,15 @@ def save_translation(request):
                     task.status = "COMPLETE"
                     task.save()
                     message = change_active_status_of_next_tasks(task, translation_obj)
+                    if type(message) == dict:
+                        if type(message) == dict:
+                            return Response(
+                                {
+                                    "data": message["data"],
+                                    "message": message["message"],
+                                },
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
                 else:
                     translation_obj = (
                         Translation.objects.filter(status=TRANSLATION_REVIEW_INPROGRESS)
