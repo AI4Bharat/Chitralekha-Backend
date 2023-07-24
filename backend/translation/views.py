@@ -708,14 +708,26 @@ def check_if_translation_correct(translation_obj, task):
             Translation.objects.filter(target_language=translation_obj.target_language)
             .filter(video=task.video)
             .filter(status="TRANSLATION_EDIT_INPROGRESS")
-            .first()
+            .all()
         )
         if translation is not None:
             task.status = "INPROGRESS"
+            translation.delete()
+            translation_obj.status = "TRANSLATION_EDIT_INPROGRESS"
         else:
+            translation = (
+                Translation.objects.filter(
+                    target_language=translation_obj.target_language
+                )
+                .filter(video=task.video)
+                .filter(status="TRANSLATION_SELECT_SOURCE")
+                .first()
+            )
+            translation.delete()
             task.status = "SELECTED_SOURCE"
+            translation_obj.status = "TRANSLATION_SELECT_SOURCE"
         task.save()
-        translation_obj.delete()
+        translation_obj.save()
         response = {
             "data": bad_sentences,
             "message": "Translation task couldn't be completed. Please correct the following sentences.",
