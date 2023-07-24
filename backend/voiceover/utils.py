@@ -365,6 +365,7 @@ def get_bad_sentences(translation_obj, target_language):
     delete_indices.reverse()
     for index in delete_indices:
         translation["payload"].pop(index)
+    logging.info("delete_indices %s", str(delete_indices))
     translation_obj.save()
     for ind, text in enumerate(translation["payload"]):
         if not compare_time(text["end_time"], text["start_time"])[0]:
