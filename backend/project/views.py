@@ -972,7 +972,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 )
 
         project = Project(
-            title=title,
+            title=title.replace("\n", ""),
             organization_id=organization,
             created_by=request.user,
             default_transcript_type=default_transcript_type,
