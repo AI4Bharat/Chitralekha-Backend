@@ -37,7 +37,7 @@ class Project(models.Model):
     Model for Project Management
     """
 
-    title = models.CharField(max_length=100, help_text=("Project Title"))
+    title = models.CharField(max_length=150, help_text=("Project Title"))
 
     description = models.TextField(
         max_length=1000, null=True, blank=True, help_text=("Project Description")
