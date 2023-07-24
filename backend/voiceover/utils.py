@@ -386,7 +386,8 @@ def get_bad_sentences(translation_obj, target_language):
         ):
             problem_sentences.append(
                 {
-                    "index": ind,
+                    "index": ind % 50,
+                    "page_number": ind//50,
                     "start_time": text["start_time"],
                     "end_time": text["end_time"],
                     "text": text["text"],
