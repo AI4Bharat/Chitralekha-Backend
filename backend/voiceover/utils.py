@@ -365,12 +365,13 @@ def get_bad_sentences(translation_obj, target_language):
     delete_indices.reverse()
     for index in delete_indices:
         translation["payload"].pop(index)
+    translation_obj.save()
     for ind, text in enumerate(translation["payload"]):
         if not compare_time(text["end_time"], text["start_time"])[0]:
             problem_sentences.append(
                 {
                     "index": ind % 50,
-                    "page_number": ind//50,
+                    "page_number": (ind // 50) + 1,
                     "start_time": text["start_time"],
                     "end_time": text["end_time"],
                     "text": text["text"],
@@ -387,7 +388,7 @@ def get_bad_sentences(translation_obj, target_language):
             problem_sentences.append(
                 {
                     "index": ind % 50,
-                    "page_number": ind//50,
+                    "page_number": (ind // 50) + 1,
                     "start_time": text["start_time"],
                     "end_time": text["end_time"],
                     "text": text["text"],
