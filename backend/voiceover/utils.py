@@ -400,9 +400,7 @@ def get_bad_sentences(translation_obj, target_language):
 
 
 def get_bad_sentences_in_progress(translation_obj, target_language):
-    tts_input = []
-    empty_sentences = []
-    delete_indices = []
+    problem_sentences = []
     translation = translation_obj.payload
     for ind, text in enumerate(translation["payload"]):
         if not compare_time(text["end_time"], text["start_time"])[0]:
