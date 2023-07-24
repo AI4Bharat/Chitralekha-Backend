@@ -690,6 +690,21 @@ def upload_csv(request):
         else:
             valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
 
+        valid_row["multiple_speaker"] = "false"
+        if "multiple_speaker" in row and len(row["multiple_speaker"]) > 0:
+            valid_row["multiple_speaker"] = row["multiple_speaker"].lower()
+
+            if valid_row["multiple_speaker"] not in [
+                "false",
+                "true",
+            ]:
+                errors.append(
+                    {
+                        "row_no": f"Row {row_num}",
+                        "message": f"Invalid multiple speaker value: {row['multiple_speaker']}",
+                    }
+                )
+
         valid_row["task_description"] = row["Task Description"]
         valid_row["video_description"] = row["Video Description"]
         video = Video.objects.filter(url=row["Youtube URL"]).first()
@@ -913,6 +928,21 @@ def upload_csv_data(request):
                 )
         else:
             valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
+
+        valid_row["multiple_speaker"] = "false"
+        if "multiple_speaker" in row and len(row["multiple_speaker"]) > 0:
+            valid_row["multiple_speaker"] = row["multiple_speaker"].lower()
+
+            if valid_row["multiple_speaker"] not in [
+                "false",
+                "true",
+            ]:
+                errors.append(
+                    {
+                        "row_no": f"Row {row_num}",
+                        "message": f"Invalid multiple speaker value: {row['multiple_speaker']}",
+                    }
+                )
 
         valid_row["video_description"] = row["Video Description"]
         valid_row["task_description"] = row["Task Description"]
@@ -1182,6 +1212,21 @@ def upload_csv_org(request):
                 )
         else:
             valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
+
+        valid_row["multiple_speaker"] = "false"
+        if "multiple_speaker" in row and len(row["multiple_speaker"]) > 0:
+            valid_row["multiple_speaker"] = row["multiple_speaker"].lower()
+
+            if valid_row["multiple_speaker"] not in [
+                "false",
+                "true",
+            ]:
+                errors.append(
+                    {
+                        "row_no": f"Row {row_num}",
+                        "message": f"Invalid multiple speaker value: {row['multiple_speaker']}",
+                    }
+                )
 
         valid_row["task_description"] = row["Task Description"]
         valid_row["video_description"] = row["Video Description"]

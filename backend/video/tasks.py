@@ -78,6 +78,7 @@ def create_videos_async(user_id, valid_rows, existing_videos, project_id):
             project_id,
             row["task_description"],
             row["video_description"],
+            row["multiple_speaker"],
             row["gender"],
             row["task_type"],
             row["target_language"],

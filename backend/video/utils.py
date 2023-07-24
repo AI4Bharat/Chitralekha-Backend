@@ -687,6 +687,7 @@ def create_video(
     project_id,
     task_description,
     video_description,
+    multiple_speaker,
     gender,
     task_type=None,
     target_language=None,
@@ -701,6 +702,7 @@ def create_video(
     new_request.GET["lang"] = lang
     new_request.GET["project_id"] = project_id
     new_request.GET["task_description"] = task_description
+    new_request.GET["multiple_speaker"] = multiple_speaker
     new_request.GET["description"] = video_description
     new_request.GET["create"] = "true"
     new_request.GET["gender"] = gender
