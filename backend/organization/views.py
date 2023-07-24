@@ -386,6 +386,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "Update": False,
                     "View": False,
                     "Delete": False,
+                    "Info": False,
+                    "Reopen": False,
                 }
                 buttons["Update"] = True
                 buttons["Delete"] = True
@@ -396,6 +398,16 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     buttons["Edit"] = False
                 if task["status"] == "POST_PROCESS":
                     buttons["Update"] = True
+                if task["status"] == "FAILED":
+                    buttons["Info"] = True
+                    buttons["Reopen"] = True
+                if task["status"] == "REOPEN":
+                    buttons["Info"] = True
+                if task["task_type"] == "VOICEOVER_EDIT":
+                    buttons["Preview"] = False
+                    buttons["Info"] = False
+                    if task["status"] == "FAILED":
+                        buttons["Reopen"] = False
                 if task["user"]["email"] == request.user.email:
                     if task["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                         buttons["Edit"] = True
@@ -472,6 +484,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "Update": False,
                         "View": False,
                         "Delete": False,
+                        "Info": False,
+                        "Reopen": False,
                     }
                     if user in task_o.video.project_id.managers.all():
                         buttons["Update"] = True
@@ -483,6 +497,16 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             buttons["Edit"] = False
                         if task["status"] == "POST_PROCESS":
                             buttons["Update"] = True
+                        if task["status"] == "FAILED":
+                            buttons["Info"] = True
+                            buttons["Reopen"] = True
+                        if task["status"] == "REOPEN":
+                            buttons["Info"] = True
+                        if task["task_type"] == "VOICEOVER_EDIT":
+                            buttons["Preview"] = False
+                            buttons["Info"] = False
+                            if task["status"] == "FAILED":
+                                buttons["Reopen"] = False
                     if task["user"]["email"] == request.user.email:
                         if task["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
@@ -528,6 +552,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "Update": False,
                         "View": False,
                         "Delete": False,
+                        "Info": False,
+                        "Reopen": False,
                     }
                     if task["status"] == "COMPLETE":
                         buttons["Export"] = True
@@ -540,6 +566,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             and task["task_type"] != "VOICEOVER_EDIT"
                         ):
                             buttons["View"] = True
+                        if task["status"] == "FAILED":
+                            buttons["Info"] = True
+                        if task["task_type"] == "VOICEOVER_EDIT":
+                            buttons["Preview"] = False
+                            buttons["Info"] = False
                     task["buttons"] = buttons
         target_languages_list = list(target_languages)
         if "-" in target_languages_list:
