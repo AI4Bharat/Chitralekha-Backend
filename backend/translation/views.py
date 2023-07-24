@@ -711,6 +711,7 @@ def check_if_translation_correct(translation_obj, task):
             .all()
         )
         if translation is not None:
+            translation_obj.parent = None
             task.status = "INPROGRESS"
             translation.delete()
             translation_obj.status = "TRANSLATION_EDIT_INPROGRESS"
@@ -723,6 +724,7 @@ def check_if_translation_correct(translation_obj, task):
                 .filter(status="TRANSLATION_SELECT_SOURCE")
                 .first()
             )
+            translation_obj.parent = None
             translation.delete()
             task.status = "SELECTED_SOURCE"
             translation_obj.status = "TRANSLATION_SELECT_SOURCE"
