@@ -402,11 +402,16 @@ def get_bad_sentences(translation_obj, target_language):
 def get_bad_sentences_in_progress(translation_obj, target_language):
     problem_sentences = []
     translation = translation_obj.payload
+    compare_with_index = -1
+    last_valid_index = -1
     for ind, text in enumerate(translation["payload"]):
-        if not compare_time(text["end_time"], text["start_time"])[0]:
+        if (
+            "text" in text.keys()
+            and not compare_time(text["end_time"], text["start_time"])[0]
+        ):
             problem_sentences.append(
                 {
-                    "index": ind % 50,
+                    "index": (ind % 50) + 1,
                     "page_number": (ind // 50) + 1,
                     "start_time": text["start_time"],
                     "end_time": text["end_time"],
@@ -415,8 +420,6 @@ def get_bad_sentences_in_progress(translation_obj, target_language):
                 }
             )
         if ind != 0 and ind < len(translation["payload"]):
-            compare_with_index = -1
-            last_valid_index = -1
             compare = False
             if "text" in translation["payload"][ind - 1] and "text" in text.keys():
                 compare_with_index = ind - 1
@@ -438,7 +441,7 @@ def get_bad_sentences_in_progress(translation_obj, target_language):
             ):
                 problem_sentences.append(
                     {
-                        "index": ind % 50,
+                        "index": (ind % 50) + 1,
                         "page_number": (ind // 50) + 1,
                         "start_time": text["start_time"],
                         "end_time": text["end_time"],

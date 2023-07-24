@@ -1266,6 +1266,15 @@ def save_translation(request):
                         task.status = "COMPLETE"
                         task.save()
                         translation_obj.save()
+                        response = check_if_translation_correct(translation_obj, task)
+                        if type(response) == dict:
+                            return Response(
+                                {
+                                    "data": response["data"],
+                                    "message": response["message"],
+                                },
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
                         delete_indices = []
                         for index, sentence in enumerate(
                             translation_obj.payload["payload"]
@@ -1277,15 +1286,6 @@ def save_translation(request):
                         for ind in delete_indices:
                             translation_obj.payload["payload"].pop(ind)
                         translation_obj.save()
-                        response = check_if_translation_correct(translation_obj, task)
-                        if type(response) == dict:
-                            return Response(
-                                {
-                                    "data": response["data"],
-                                    "message": response["message"],
-                                },
-                                status=status.HTTP_400_BAD_REQUEST,
-                            )
                         message = change_active_status_of_next_tasks(
                             task, translation_obj
                         )
@@ -1374,6 +1374,15 @@ def save_translation(request):
                         limit, payload, start_offset, end_offset, translation_obj
                     )
                     translation_obj.save()
+                    translation_obj.save()
+                    task.status = "COMPLETE"
+                    task.save()
+                    response = check_if_translation_correct(translation_obj, task)
+                    if type(response) == dict:
+                        return Response(
+                            {"data": response["data"], "message": response["message"]},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
                     delete_indices = []
                     for index, sentence in enumerate(
                         translation_obj.payload["payload"]
@@ -1384,15 +1393,6 @@ def save_translation(request):
                     delete_indices.reverse()
                     for ind in delete_indices:
                         translation_obj.payload["payload"].pop(ind)
-                    translation_obj.save()
-                    task.status = "COMPLETE"
-                    task.save()
-                    response = check_if_translation_correct(translation_obj, task)
-                    if type(response) == dict:
-                        return Response(
-                            {"data": response["data"], "message": response["message"]},
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
                     message = change_active_status_of_next_tasks(task, translation_obj)
                 else:
                     translation_obj = (
