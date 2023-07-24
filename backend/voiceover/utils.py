@@ -371,7 +371,7 @@ def get_bad_sentences(translation_obj, target_language):
         if not compare_time(text["end_time"], text["start_time"])[0]:
             problem_sentences.append(
                 {
-                    "index": ind % 50,
+                    "index": (ind % 50) + 1,
                     "page_number": (ind // 50) + 1,
                     "start_time": text["start_time"],
                     "end_time": text["end_time"],
@@ -388,6 +388,26 @@ def get_bad_sentences(translation_obj, target_language):
         ):
             problem_sentences.append(
                 {
+                    "index": (ind % 50) + 1,
+                    "page_number": (ind // 50) + 1,
+                    "start_time": text["start_time"],
+                    "end_time": text["end_time"],
+                    "text": text["text"],
+                    "target_text": text["target_text"],
+                }
+            )
+    return problem_sentences
+
+
+def get_bad_sentences_in_progress(translation_obj, target_language):
+    tts_input = []
+    empty_sentences = []
+    delete_indices = []
+    translation = translation_obj.payload
+    for ind, text in enumerate(translation["payload"]):
+        if not compare_time(text["end_time"], text["start_time"])[0]:
+            problem_sentences.append(
+                {
                     "index": ind % 50,
                     "page_number": (ind // 50) + 1,
                     "start_time": text["start_time"],
@@ -396,6 +416,38 @@ def get_bad_sentences(translation_obj, target_language):
                     "target_text": text["target_text"],
                 }
             )
+        if ind != 0 and ind < len(translation["payload"]):
+            compare_with_index = -1
+            last_valid_index = -1
+            compare = False
+            if "text" in translation["payload"][ind - 1] and "text" in text.keys():
+                compare_with_index = ind - 1
+                last_valid_index = ind
+                compare = True
+            elif (
+                "text" in text.keys() and "text" not in translation["payload"][ind - 1]
+            ):
+                compare_with_index = last_valid_index
+                compare = True
+            else:
+                pass
+            if (
+                compare
+                and compare_time(
+                    translation["payload"][compare_with_index]["end_time"],
+                    text["start_time"],
+                )[0]
+            ):
+                problem_sentences.append(
+                    {
+                        "index": ind % 50,
+                        "page_number": (ind // 50) + 1,
+                        "start_time": text["start_time"],
+                        "end_time": text["end_time"],
+                        "text": text["text"],
+                        "target_text": text["target_text"],
+                    }
+                )
     return problem_sentences
 
 

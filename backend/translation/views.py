@@ -35,7 +35,7 @@ from .models import (
     TRANSLATION_REVIEW_INPROGRESS,
     TRANSLATION_REVIEW_COMPLETE,
 )
-from voiceover.utils import process_translation_payload, get_bad_sentences
+from voiceover.utils import process_translation_payload, get_bad_sentences_in_progress
 from .decorators import is_translation_editor
 from .serializers import TranslationSerializer
 from .utils import (
@@ -702,7 +702,7 @@ def send_mail_to_user(task):
 
 
 def check_if_translation_correct(translation_obj, task):
-    bad_sentences = get_bad_sentences(translation_obj, task)
+    bad_sentences = get_bad_sentences_in_progress(translation_obj, task)
     if len(bad_sentences) > 0:
         translation = (
             Translation.objects.filter(target_language=translation_obj.target_language)
@@ -1277,17 +1277,15 @@ def save_translation(request):
                         for ind in delete_indices:
                             translation_obj.payload["payload"].pop(ind)
                         translation_obj.save()
-                        """
                         response = check_if_translation_correct(translation_obj, task)
                         if type(response) == dict:
                             return Response(
-                              {
-                                "data": response["data"],
-                                "message": response["message"]
-                              },
-                              status=status.HTTP_400_BAD_REQUEST,
+                                {
+                                    "data": response["data"],
+                                    "message": response["message"],
+                                },
+                                status=status.HTTP_400_BAD_REQUEST,
                             )
-                        """
                         message = change_active_status_of_next_tasks(
                             task, translation_obj
                         )
@@ -1389,17 +1387,12 @@ def save_translation(request):
                     translation_obj.save()
                     task.status = "COMPLETE"
                     task.save()
-                    """
                     response = check_if_translation_correct(translation_obj, task)
                     if type(response) == dict:
                         return Response(
-                          {
-                            "data": response["data"],
-                            "message": response["message"]
-                          },
-                          status=status.HTTP_400_BAD_REQUEST,
+                            {"data": response["data"], "message": response["message"]},
+                            status=status.HTTP_400_BAD_REQUEST,
                         )
-                    """
                     message = change_active_status_of_next_tasks(task, translation_obj)
                 else:
                     translation_obj = (

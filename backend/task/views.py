@@ -22,6 +22,7 @@ from voiceover.utils import (
     process_translation_payload,
     send_mail_to_user,
     get_bad_sentences,
+    get_bad_sentences_in_progress,
 )
 from transcript.models import (
     Transcript,
@@ -2640,7 +2641,12 @@ class TaskViewSet(ModelViewSet):
         bad_sentences = []
         translation = get_translation_id(task)
         if task.task_type in ["TRANSLATION_EDIT"] and translation:
-            bad_sentences = get_bad_sentences(translation, task.target_language)
+            if "COMPLETE" not in translation.status:
+                bad_sentences = get_bad_sentences_in_progress(
+                    translation, task.target_language
+                )
+            else:
+                bad_sentences = get_bad_sentences(translation, task.target_language)
             if len(bad_sentences) > 0:
                 return Response(
                     {
