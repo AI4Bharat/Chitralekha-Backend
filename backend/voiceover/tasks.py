@@ -36,9 +36,3 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
     voice_over_obj.save()
     task.status = "COMPLETE"
     task.save()
-
-
-@shared_task()
-def delete_temp_data_from_azure():
-    for i in 10:
-        print(i)

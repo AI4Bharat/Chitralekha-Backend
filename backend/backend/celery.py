@@ -27,10 +27,6 @@ celery_app.conf.beat_schedule = {
         "task": "send_new_tasks_mail",
         "schedule": crontab(minute=0, hour=1),  # execute everyday at 1 am
     },
-    "Delete_temp_data_from_azure": {
-        "task": "delete_temp_data_from_azure",
-        "schedule": crontab(minute=0, hour=22),  # execute everyday at 10 pm
-    },
 }
 
 celery_app.autodiscover_tasks()
