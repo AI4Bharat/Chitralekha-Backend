@@ -62,7 +62,6 @@ def convert_payload_format(data):
         unix_start_time = datetime.datetime.timestamp(start_time)
         end_time = datetime.datetime.strptime(vtt_line.end, "%H:%M:%S.%f")
         unix_end_time = datetime.datetime.timestamp(end_time)
-
         sentences_list.append(
             {
                 "start_time": vtt_line.start,
@@ -79,6 +78,7 @@ def convert_payload_format(data):
 def celery_tts_call(
     task_id, tts_input, target_language, translation, translation_id, empty_sentences
 ):
+    logging.info("Calling TTS API for %s", str(task_id))
     translation_obj = Translation.objects.get(id=translation_id)
     task_obj = Task.objects.get(pk=task_id)
     logging.info("Generate TTS output")
@@ -98,12 +98,17 @@ def celery_tts_call(
     )
     voiceover_obj.save()
     task_obj.is_active = True
+    task_obj.status = "SELECTED_SOURCE"
     task_obj.save()
+    logging.info("Payload generated for TTS API for %s", str(task_id))
     if "message" in tts_payload:
         task_obj.is_active = False
         task_obj.status = "FAILED"
         task_obj.save()
-    send_mail_to_user(task_obj)
+    try:
+        send_mail_to_user(task_obj)
+    except:
+        logging.info("Error in sending mail")
 
 
 @celery_app.task(queue="asr_tts")

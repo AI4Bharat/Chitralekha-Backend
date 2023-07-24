@@ -23,7 +23,7 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
     voice_over_obj = VoiceOver.objects.filter(id=voice_over_obj_id).first()
     task = Task.objects.filter(id=task_id).first()
     integrate_audio_with_video(file_name, voice_over_obj, voice_over_obj.video)
-    if not os.path.isfile(file_name + ".mp4") or os.path.isfile(file_name + ".mp3"):
+    if not os.path.isfile(file_name + ".mp4") or os.path.isfile(file_name + ".wav"):
         task.status = "FAILED"
         task.save()
         logging.info("Error in integrating audio and video")
@@ -36,9 +36,3 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
     voice_over_obj.save()
     task.status = "COMPLETE"
     task.save()
-
-
-@shared_task()
-def delete_temp_data_from_azure():
-    for i in 10:
-        print(i)

@@ -37,7 +37,7 @@ class Project(models.Model):
     Model for Project Management
     """
 
-    title = models.CharField(max_length=100, help_text=("Project Title"))
+    title = models.CharField(max_length=150, help_text=("Project Title"))
 
     description = models.TextField(
         max_length=1000, null=True, blank=True, help_text=("Project Description")
@@ -186,6 +186,13 @@ class Project(models.Model):
         max_length=2,
         blank=True,
         null=True,
+    )
+    video_integration = models.BooleanField(
+        verbose_name="require_video_integration",
+        default=False,
+        help_text=(
+            "Indicates whether video integration is needed for VO tasks or not."
+        ),
     )
 
     def __str__(self):

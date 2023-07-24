@@ -13,7 +13,7 @@ import datetime
 from config import nmt_url, dhruva_key
 from .metadata import LANG_CODE_TO_NAME, english_noise_tags, target_noise_tags
 import math
-
+from task.models import Task
 
 ### Utility Functions ###
 def validate_uuid4(val):
@@ -47,7 +47,6 @@ def convert_to_docx(content):
         out_f.write(content)
 
     buffer.write(open("temp_f.txt", "rb").read())
-    # print("buffer", buffer)
     print(buffer.seek(0))
     document.save(buffer)
     length = buffer.tell()
@@ -306,3 +305,15 @@ def translation_mg(transcript, target_language, batch_size=25):
                 }
             )
     return json.loads(json.dumps({"payload": payload}))
+
+
+def set_fail_for_translation_task(task):
+    translation_task = (
+        Task.objects.filter(target_language=task.target_language)
+        .filter(task_type="TRANSLATION_EDIT")
+        .filter(video=task.video)
+        .first()
+    )
+    if translation_task is not None:
+        translation_task.status = "FAILED"
+        translation_task.save()

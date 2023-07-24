@@ -810,6 +810,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "View": False,
                         "Delete": False,
                         "Upload": False,
+                        "Info": False,
+                        "Reopen": False,
                     }
                     buttons["Update"] = True
                     buttons["Delete"] = True
@@ -822,8 +824,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             buttons["Upload"] = True
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
+                    if data["status"] == "FAILED":
+                        buttons["Info"] = True
+                        buttons["Reopen"] = True
+                    if data["status"] == "REOPEN":
+                        buttons["Info"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
+                        buttons["Info"] = False
+                        if data["status"] == "FAILED":
+                            buttons["Reopen"] = False
                     if data["user"]["email"] == request.user.email:
                         if data["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
@@ -857,6 +867,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Create": False,
                         "Delete": False,
                         "Upload": False,
+                        "Info": False,
+                        "Reopen": False,
                     }
                     if data["status"] == "COMPLETE":
                         buttons["Edit"] = False
@@ -865,8 +877,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Update"] = False
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
+                    if data["status"] in ["FAILED", "REOPEN"]:
+                        buttons["Info"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
+                        buttons["Info"] = False
                     if data["user"]["email"] == request.user.email:
                         if data["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
@@ -957,7 +972,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 )
 
         project = Project(
-            title=title,
+            title=title.replace("\n", ""),
             organization_id=organization,
             created_by=request.user,
             default_transcript_type=default_transcript_type,
@@ -1004,6 +1019,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         default_task_eta = request.data.get("default_task_eta")
         default_task_priority = request.data.get("default_task_priority")
         default_task_description = request.data.get("default_task_description")
+        video_integration = request.data.get("video_integration")
 
         try:
             project = Project.objects.get(pk=pk)
@@ -1014,6 +1030,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         if title is not None:
             project.title = title
+
+        if video_integration is not None:
+            if type(video_integration) == bool:
+                project.video_integration = video_integration
 
         if managers_id is not None and len(managers_id) > 0:
             project.managers.set([])

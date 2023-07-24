@@ -28,4 +28,5 @@ class ProjectSerializer(serializers.ModelSerializer):
             "default_eta",
             "default_priority",
             "default_description",
+            "video_integration",
         ]

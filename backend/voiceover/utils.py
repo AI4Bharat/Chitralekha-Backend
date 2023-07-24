@@ -76,20 +76,40 @@ def download_from_azure_blob(file_path):
         sample_blob.write(download_stream.readall())
 
 
-def uploadToBlobStorage(file_path, voice_over_obj):
+def upload_video(file_path):
     full_path = file_path + ".mp4"
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     blob_client = blob_service_client.get_blob_client(
         container=container_name, blob=file_path.split("/")[-1] + ".mp4"
     )
+    with open(full_path, "rb") as data:
+        try:
+            if not blob_client.exists():
+                blob_client.upload_blob(data)
+                logging.info("Video uploaded successfully!")
+                logging.info(blob_client.url)
+            else:
+                blob_client.delete_blob()
+                logging.info("Old Video deleted successfully!")
+                blob_client.upload_blob(data)
+                logging.info("New video uploaded successfully!")
+        except Exception as e:
+            logging.info("This video can't be uploaded")
+    return blob_client.url
+
+
+def upload_json(file_path, voice_over_obj):
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     voice_over_payload = voice_over_obj.payload
     json_object = json.dumps(voice_over_payload)
+
     with open(file_path.split("/")[-1] + ".json", "w") as outfile:
         outfile.write(json_object)
 
     blob_client_json = blob_service_client.get_blob_client(
         container=container_name, blob=file_path.split("/")[-1] + ".json"
     )
+
     with open(file_path.split("/")[-1] + ".json", "rb") as data:
         try:
             if not blob_client_json.exists():
@@ -104,39 +124,32 @@ def uploadToBlobStorage(file_path, voice_over_obj):
         except Exception as e:
             logging.info("This Voice Over payload can't be uploaded")
 
-    with open(full_path, "rb") as data:
-        try:
-            if not blob_client.exists():
-                blob_client.upload_blob(data)
-                logging.info("Video uploaded successfully!")
-                logging.info(blob_client.url)
-            else:
-                blob_client.delete_blob()
-                logging.info("Old Video deleted successfully!")
-                blob_client.upload_blob(data)
-                logging.info("New video uploaded successfully!")
-        except Exception as e:
-            logging.info("This video can't be uploaded")
 
-        blob_client_audio_url = upload_audio_to_azure_blob(file_path, "", export=False)
-        logging.info(blob_client.url)
+def uploadToBlobStorage(file_path, voice_over_obj):
+    blob_client_url = None
+    if voice_over_obj.video.project_id.video_integration == True:
+        blob_client_url = upload_video(file_path)
         os.remove(file_path + ".mp4")
-        os.remove(file_path + "final.flac")
-        return blob_client.url, blob_client_audio_url
+    upload_json(file_path, voice_over_obj)
+    blob_client_audio_url = upload_audio_to_azure_blob(file_path, "", export=False)
+    os.remove(file_path + "final.ogg")
+    os.remove(file_path + "final.wav")
+    os.remove(file_path.split("/")[-1] + ".json")
+    return blob_client_url, blob_client_audio_url
 
 
 def upload_audio_to_azure_blob(file_path, export_type, export):
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     if export == False:
-        full_path_audio = file_path + "final.flac"
+        full_path_audio = file_path + "final.ogg"
         blob_client_audio = blob_service_client.get_blob_client(
-            container=container_name, blob=file_path.split("/")[-1] + ".flac"
+            container=container_name, blob=file_path.split("/")[-1] + ".ogg"
         )
     else:
-        full_path_audio = file_path.replace(".flac", "") + "." + export_type
+        full_path_audio = file_path.replace(".ogg", "") + "." + export_type
         blob_client_audio = blob_service_client.get_blob_client(
             container=container_name,
-            blob=file_path.split("/")[-1].replace(".flac", "") + "." + export_type,
+            blob=file_path.split("/")[-1].replace(".ogg", "") + "." + export_type,
         )
     with open(full_path_audio, "rb") as data:
         try:
@@ -289,15 +302,15 @@ def generate_tts_output(
                 output_f.write(audio_decoded)
             audio = AudioFileClip("temp_1.wav")
             wav_seconds = audio.duration
-            AudioSegment.from_wav("temp_1.wav").export("temp_1.flac", format="flac")
+            AudioSegment.from_wav("temp_1.wav").export("temp_1.ogg", format="ogg")
             logging.info("Seconds of wave audio %s", str(wav_seconds))
-            audio = AudioFileClip("temp_1.flac")
+            audio = AudioFileClip("temp_1.ogg")
             seconds = audio.duration
-            logging.info("Seconds of flac audio %s", str(seconds))
-            adjust_audio("temp_1.flac", t_d, -1)
-            encoded_audio = base64.b64encode(open("temp_1.flac", "rb").read())
+            logging.info("Seconds of ogg audio %s", str(seconds))
+            adjust_audio("temp_1.ogg", t_d, -1)
+            encoded_audio = base64.b64encode(open("temp_1.ogg", "rb").read())
             decoded_audio = encoded_audio.decode()
-            os.remove("temp_1.flac")
+            os.remove("temp_1.ogg")
             payload_size = payload_size + asizeof(decoded_audio)
             logging.info("Payload size %s", str(asizeof(decoded_audio)))
             logging.info("Index %s", str(ind))
@@ -315,12 +328,15 @@ def generate_tts_output(
             pass
     logging.info("Size of voiceover payload %s", str(asizeof(voiceover_payload)))
     logging.info("Size of combined audios %s", str(payload_size))
+    os.remove("temp_1.wav")
     return voiceover_payload
 
 
 def equal_sentences(ind, previous_sentence, current_sentence, delete_indices):
     if "text" not in current_sentence:
         delete_indices.append(ind)
+    elif "text" not in previous_sentence:
+        pass
     elif (
         get_original_duration(
             previous_sentence["start_time"], current_sentence["start_time"]
@@ -334,6 +350,53 @@ def equal_sentences(ind, previous_sentence, current_sentence, delete_indices):
         delete_indices.append(ind)
     else:
         pass
+
+
+def get_bad_sentences(translation_obj, target_language):
+    tts_input = []
+    empty_sentences = []
+    delete_indices = []
+    translation = translation_obj.payload
+    for ind, text in enumerate(translation["payload"]):
+        if ind != 0:
+            equal_sentences(ind, translation["payload"][ind - 1], text, delete_indices)
+
+    problem_sentences = []
+    delete_indices.reverse()
+    for index in delete_indices:
+        translation["payload"].pop(index)
+    logging.info("delete_indices %s", str(delete_indices))
+    translation_obj.save()
+    for ind, text in enumerate(translation["payload"]):
+        if not compare_time(text["end_time"], text["start_time"])[0]:
+            problem_sentences.append(
+                {
+                    "index": ind % 50,
+                    "page_number": (ind // 50) + 1,
+                    "start_time": text["start_time"],
+                    "end_time": text["end_time"],
+                    "text": text["text"],
+                    "target_text": text["target_text"],
+                }
+            )
+        if (
+            ind != 0
+            and ind < len(translation["payload"])
+            and compare_time(
+                translation["payload"][ind - 1]["end_time"], text["start_time"]
+            )[0]
+        ):
+            problem_sentences.append(
+                {
+                    "index": ind % 50,
+                    "page_number": (ind // 50) + 1,
+                    "start_time": text["start_time"],
+                    "end_time": text["end_time"],
+                    "text": text["text"],
+                    "target_text": text["target_text"],
+                }
+            )
+    return problem_sentences
 
 
 def process_translation_payload(translation_obj, target_language):
@@ -451,15 +514,15 @@ def generate_voiceover_payload(translation_payload, target_language, task):
             first_audio_decoded = base64.b64decode(voice_over["audioContent"])
             with open(audio_file, "wb") as output_f:
                 output_f.write(first_audio_decoded)
-            AudioSegment.from_wav("temp.wav").export("temp.flac", format="flac")
-            adjust_audio("temp.flac", translation_payload[ind][3], -1)
-            encoded_audio = base64.b64encode(open("temp.flac", "rb").read())
+            AudioSegment.from_wav("temp.wav").export("temp.ogg", format="ogg")
+            adjust_audio("temp.ogg", translation_payload[ind][3], -1)
+            encoded_audio = base64.b64encode(open("temp.ogg", "rb").read())
             output[ind] = (
                 translation_payload[ind][0],
                 {"audioContent": encoded_audio.decode()},
             )
             os.remove(audio_file)
-            os.remove("temp.flac")
+            os.remove("temp.ogg")
     return output
 
 
@@ -485,29 +548,30 @@ def integrate_audio_with_video(file_name, voice_over_obj, video):
     integrate_all_audios(file_name, voice_over_obj.payload, video.duration)
     logging.info("Audio Integration Completed.")
     # load the video
-    download_video(video.url, file_name)
-    video_file = file_name + ".mp4"
-    video_clip = VideoFileClip(video_file)
-    # load the audio
-    audio_file = file_name + "final.flac"
+    audio_file = file_name + "final.ogg"
     AudioSegment.from_wav(file_name + "final.wav").export(
-        file_name + "final.flac", format="flac"
+        file_name + "final.ogg", format="ogg"
     )
     audio_clip = AudioFileClip(audio_file)
-    audio_clip = audio_clip.volumex(1)
-    end = video_clip.end
-    start = 0
-    # make sure audio clip is less than video clip in duration
-    # setting the start & end of the audio clip to `start` and `end` paramters
-    # audio_clip = audio_clip.subclip(start, end)
-    final_audio = audio_clip
-    # add the final audio to the video
-    final_clip = video_clip.set_audio(final_audio)
-    # save the final clip
-    final_clip.write_videofile(os.path.join(file_name + "final.mp4"))
-    logging.info("Integration of audio and video done")
-    os.remove(video_file)
-    os.rename(os.path.join(file_name + "final.mp4"), file_name + ".mp4")
+    if voice_over_obj.video.project_id.video_integration == True:
+        download_video(video.url, file_name)
+        video_file = file_name + ".mp4"
+        video_clip = VideoFileClip(video_file)
+        # load the audio
+        audio_clip = audio_clip.volumex(1)
+        end = video_clip.end
+        start = 0
+        # make sure audio clip is less than video clip in duration
+        # setting the start & end of the audio clip to `start` and `end` paramters
+        # audio_clip = audio_clip.subclip(start, end)
+        final_audio = audio_clip
+        # add the final audio to the video
+        final_clip = video_clip.set_audio(final_audio)
+        # save the final clip
+        final_clip.write_videofile(os.path.join(file_name + "final.mp4"))
+        logging.info("Integration of audio and video done")
+        os.remove(video_file)
+        os.rename(os.path.join(file_name + "final.mp4"), file_name + ".mp4")
 
 
 def check_audio_completion(voice_over_obj):
@@ -580,7 +644,6 @@ def adjust_audio_wav(audio_file, original_time, audio_speed):
 def adjust_audio(audio_file, original_time, audio_speed):
     audio = AudioFileClip(audio_file)
     seconds = audio.duration
-    # audio_time_difference = original_time - seconds
     audio = AudioSegment.from_file(audio_file)
     audio_time_difference = (original_time * 1000 - len(audio)) / 1000
     if audio_time_difference > 0:
@@ -590,19 +653,19 @@ def adjust_audio(audio_file, original_time, audio_speed):
         orig_seg = AudioSegment.from_file(audio_file)
         # for adding silence at the end of audio
         combined_audio = orig_seg + silence_segment
-        combined_audio.export(audio_file, format="flac")
+        combined_audio.export(audio_file, format="ogg")
     elif audio_time_difference == 0:
         logging.info("No time difference")
     elif audio_time_difference < -0.001:
         logging.info("Speed up the audio by %s", str(seconds / original_time))
         sound = AudioSegment.from_file(audio_file)
-        if (seconds / original_time) > 0:
+        if (seconds / original_time) > 1.001:
             faster_sound = speedup(sound, seconds / original_time, 100)
             final_sound = faster_sound[: original_time * 1000]
-            final_sound.export(audio_file, format="flac")
+            final_sound.export(audio_file, format="ogg")
             audio = AudioFileClip(audio_file)
             seconds = audio.duration
-            logging.info("Seconds of adjusted flac audio %s", str(seconds))
+            logging.info("Seconds of adjusted ogg audio %s", str(seconds))
     else:
         pass
 
@@ -641,14 +704,13 @@ def integrate_all_audios(file_name, payload, video_duration):
     first_audio_decoded = base64.b64decode(first_audio)
     logging.info("Index of Audio : #%s", str(0))
     audio_file_paths = []
-    with open(file_name + "_" + str(0) + ".flac", "wb") as out_f23:
+    with open(file_name + "_" + str(0) + ".ogg", "wb") as out_f23:
         out_f23.write(first_audio_decoded)
     adjust_audio(
-        file_name + "_" + str(0) + ".flac",
+        file_name + "_" + str(0) + ".ogg",
         payload["payload"][str(0)]["time_difference"],
         -1,
     )
-
     first_start_time = payload["payload"]["0"]["start_time"]
     difference_between_payloads = get_original_duration(
         "00:00:00.000", first_start_time
@@ -657,14 +719,14 @@ def integrate_all_audios(file_name, payload, video_duration):
         silence_segment = AudioSegment.silent(
             duration=difference_between_payloads * 1000
         )
-        # duration in milliseconds
         # read wav file to an audio segment
-        audio = AudioSegment.from_file(file_name + "_" + str(0) + ".flac")
+        audio = AudioSegment.from_file(file_name + "_" + str(0) + ".ogg")
         # Add above two audio segments
         final_audio = silence_segment + audio
-        final_audio.export(file_name + "_" + str(0) + ".flac", format="flac")
+        final_audio.export(file_name + "_" + str(0) + ".ogg", format="ogg")
+
     sorted_keys = list(payload["payload"].keys())
-    audio_file_paths.append(file_name + "_" + str(0) + ".flac")
+    audio_file_paths.append(file_name + "_" + str(0) + ".ogg")
     for key in sorted_keys:
         index = int(key)
         if str(index) in payload["payload"].keys() and index > 0:
@@ -681,12 +743,12 @@ def integrate_all_audios(file_name, payload, video_duration):
                     # duration in milliseconds
                     # read wav file to an audio segment
                     audio = AudioSegment.from_file(
-                        file_name + "_" + str(index - 1) + ".flac"
+                        file_name + "_" + str(index - 1) + ".ogg"
                     )
                     # Add above two audio segments
                     final_audio = audio + silence_segment
                     final_audio.export(
-                        file_name + "_" + str(index - 1) + ".flac", format="flac"
+                        file_name + "_" + str(index - 1) + ".ogg", format="ogg"
                     )
             if index == length_payload - 1:
                 original_time = payload["payload"][str(index)]["time_difference"]
@@ -700,11 +762,11 @@ def integrate_all_audios(file_name, payload, video_duration):
                     )
                     if last_segment_difference > 0:
                         with open(
-                            file_name + "_" + str(index) + ".flac", "wb"
+                            file_name + "_" + str(index) + ".ogg", "wb"
                         ) as out_f23:
                             out_f23.write(audio_2_decoded)
                         adjust_audio(
-                            file_name + "_" + str(index) + ".flac", original_time, -1
+                            file_name + "_" + str(index) + ".ogg", original_time, -1
                         )
                         silence_segment = AudioSegment.silent(
                             duration=last_segment_difference * 1000
@@ -712,21 +774,21 @@ def integrate_all_audios(file_name, payload, video_duration):
                         # duration in milliseconds
                         # read wav file to an audio segment
                         audio = AudioSegment.from_file(
-                            file_name + "_" + str(index) + ".flac"
+                            file_name + "_" + str(index) + ".ogg"
                         )
                         # Add above two audio segments
                         final_audio = audio + silence_segment
                         final_audio.export(
-                            file_name + "_" + str(index) + ".flac", format="flac"
+                            file_name + "_" + str(index) + ".ogg", format="ogg"
                         )
-                        audio_file_paths.append(file_name + "_" + str(index) + ".flac")
+                        audio_file_paths.append(file_name + "_" + str(index) + ".ogg")
                 else:
-                    with open(file_name + "_" + str(index) + ".flac", "wb") as out_f23:
+                    with open(file_name + "_" + str(index) + ".ogg", "wb") as out_f23:
                         out_f23.write(audio_2_decoded)
                     adjust_audio(
-                        file_name + "_" + str(index) + ".flac", original_time, -1
+                        file_name + "_" + str(index) + ".ogg", original_time, -1
                     )
-                    audio_file_paths.append(file_name + "_" + str(index) + ".flac")
+                    audio_file_paths.append(file_name + "_" + str(index) + ".ogg")
 
             else:
                 logging.info("Index of Audio : #%s", str(index))
@@ -734,14 +796,14 @@ def integrate_all_audios(file_name, payload, video_duration):
                 audio_2_decoded = base64.b64decode(
                     payload["payload"][str(index)]["audio"]["audioContent"]
                 )
-                with open(file_name + "_" + str(index) + ".flac", "wb") as out_f23:
+                with open(file_name + "_" + str(index) + ".ogg", "wb") as out_f23:
                     out_f23.write(audio_2_decoded)
 
-                adjust_audio(file_name + "_" + str(index) + ".flac", original_time, -1)
-                audio_file_paths.append(file_name + "_" + str(index) + ".flac")
+                adjust_audio(file_name + "_" + str(index) + ".ogg", original_time, -1)
+                audio_file_paths.append(file_name + "_" + str(index) + ".ogg")
 
-    batch_size = math.ceil(len(audio_file_paths) / 20)
     final_paths = []
+    batch_size = math.ceil(len(audio_file_paths) / 20)
     for i in range(batch_size):
         if i == 0:
             audio_batch_paths = audio_file_paths[: (i + 1) * 20]
@@ -765,6 +827,7 @@ def integrate_all_audios(file_name, payload, video_duration):
     clips = [AudioFileClip(c) for c in final_paths]
     final_clip_1 = concatenate_audioclips(clips)
     final_clip_1.write_audiofile(file_name + "final.wav")
+
     for fname in audio_file_paths + final_paths:
         if os.path.isfile(fname):
             os.remove(fname)

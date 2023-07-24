@@ -21,6 +21,7 @@ from voiceover.utils import (
     generate_voiceover_payload,
     process_translation_payload,
     send_mail_to_user,
+    get_bad_sentences,
 )
 from transcript.models import (
     Transcript,
@@ -76,7 +77,7 @@ from django.db.models.functions import Concat
 from django.db.models import Value
 from django.http import HttpRequest
 from transcript.views import export_transcript
-from translation.views import export_translation
+from translation.views import export_translation, get_translation_id
 from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 import regex
@@ -199,6 +200,17 @@ class TaskViewSet(ModelViewSet):
         for t_type in TASK_TYPE:
             if task_type == t_type[0]:
                 return t_type[1]
+
+    def set_fail_for_translation_task(self, task):
+        translation_task = (
+            Task.objects.filter(target_language=task.target_language)
+            .filter(task_type="TRANSLATION_EDIT")
+            .filter(video=task.video)
+            .first()
+        )
+        if translation_task is not None:
+            translation_task.status = "FAILED"
+            translation_task.save()
 
     def get_language_pair_label(self, video, target_language):
         src_language = self.get_target_language_label(video.language)
@@ -948,6 +960,7 @@ class TaskViewSet(ModelViewSet):
                             )
                             task.status = "FAILED"
                             task.save()
+                            self.set_fail_for_translation_task(task)
                             video_ids.append(task.video)
                             delete_tasks.append(task)
                             consolidated_error.append(
@@ -2615,6 +2628,91 @@ class TaskViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @action(detail=True, methods=["get"], url_path="get_fail_info")
+    def get_fail_info(self, request, pk, *args, **kwargs):
+        try:
+            task = Task.objects.get(pk=pk)
+        except Task.DoesNotExist:
+            return Response(
+                {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        bad_sentences = []
+        translation = get_translation_id(task)
+        if task.task_type in ["TRANSLATION_EDIT"] and translation:
+            bad_sentences = get_bad_sentences(translation, task.target_language)
+            if len(bad_sentences) > 0:
+                return Response(
+                    {
+                        "data": bad_sentences,
+                        "message": "Sentences with time issues are returned.",
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            else:
+                return Response(
+                    {
+                        "message": "There is no issue in sentences.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+    @is_project_owner
+    @action(detail=True, methods=["post"], url_path="reopen_translation_task")
+    def reopen_translation_task(self, request, pk, *args, **kwargs):
+        try:
+            task = Task.objects.get(pk=pk)
+        except Task.DoesNotExist:
+            return Response(
+                {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if task.status == "FAILED" and "TRANSLATION" in task.task_type:
+            translation_completed_obj = (
+                Translation.objects.filter(status="TRANSLATION_EDIT_COMPLETE")
+                .filter(target_language=task.target_language)
+                .filter(video=task.video)
+                .first()
+            )
+            translation_inprogress_obj = (
+                Translation.objects.filter(status="TRANSLATION_EDIT_INPROGRESS")
+                .filter(target_language=task.target_language)
+                .filter(video=task.video)
+                .all()
+            )
+            if (
+                translation_inprogress_obj is not None
+                and translation_completed_obj is not None
+            ):
+                translation_completed_obj.parent = None
+                translation_completed_obj.save()
+                translation_inprogress_obj.delete()
+                translation_completed_obj.status = "TRANSLATION_EDIT_INPROGRESS"
+                translation_completed_obj.save()
+                task.status = "REOPEN"
+                task.save()
+            else:
+                return Response(
+                    {
+                        "message": "Can not reopen this task.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            return Response(
+                {
+                    "message": "Can not reopen this task.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "message": "Task is reopened.",
+            },
+            status=status.HTTP_200_OK,
+        )
+
     @swagger_auto_schema(
         method="post",
         manual_parameters=[
@@ -2628,7 +2726,7 @@ class TaskViewSet(ModelViewSet):
         ],
         responses={
             200: "Word count populated successfully",
-            400: "Error in populating word count",      
+            400: "Error in populating word count",
         },
     )
     @action(
