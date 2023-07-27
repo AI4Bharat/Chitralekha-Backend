@@ -1577,7 +1577,7 @@ def save_transcription(request):
                             num_words += len(cleaned_text.split(" "))
                     transcript_obj.payload["word_count"] = num_words
                     transcript_obj.save()
-                # celery_align_json.delay(transcript_obj.id)
+                celery_align_json.delay(transcript_obj.id)
                 return Response(
                     {
                         "task_id": task_id,
@@ -1620,10 +1620,6 @@ def save_transcription(request):
 )
 @api_view(["GET"])
 def get_word_aligned_json(request):
-    return Response(
-        {"message": "Soemthing went wrong!"},
-        status=status.HTTP_400_BAD_REQUEST,
-    )
     video_id = request.query_params.get("video_id")
 
     if video_id is None:

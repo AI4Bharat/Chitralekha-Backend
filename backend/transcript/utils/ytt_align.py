@@ -2,6 +2,7 @@
 import traceback
 import requests
 import logging
+from config import asr_url, english_asr_url
 import subprocess
 import json
 from config import align_json_url
