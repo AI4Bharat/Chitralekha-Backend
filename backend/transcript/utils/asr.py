@@ -3,7 +3,7 @@
 import traceback
 import requests
 import logging
-from config import asr_url, english_asr_url
+from config import english_asr_url, indic_asr_url, dhruva_key
 import subprocess
 import json
 
@@ -12,33 +12,61 @@ def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
     json_data = json.dumps(
         {"url": url, "vad_level": vad_level, "chunk_size": chunk_size, "language": lang}
     )
-    request_url = asr_url
     if lang == "en":
-        logging.info("Calling another instance for English video.%s", url)
         request_url = english_asr_url
-    logging.info("Request to ASR API send %s", request_url)
-    try:
-        curl_request = subprocess.run(
-            [
-                "curl",
-                "-X",
-                "POST",
-                "-d",
-                json_data,
-                "-H",
-                "Keep-Alive: timeout=40*60,max=60*60",
-                "-H",
-                "Content-Type: application/json",
-                request_url,
-            ],
-            capture_output=True,
-        )
-        output = curl_request.stdout.decode()
-        return eval(output)
-    except:
-        logging.info("Error in ASR API")
-        traceback.print_stack()
-        return None
+        logging.info("Calling another instance for English video.%s", url)
+        logging.info("Request to ASR API sent %s", request_url)
+        try:
+            curl_request = subprocess.run(
+                [
+                    "curl",
+                    "-X",
+                    "POST",
+                    "-d",
+                    json_data,
+                    "-H",
+                    "Keep-Alive: timeout=40*60,max=60*60",
+                    "-H",
+                    "Content-Type: application/json",
+                    request_url,
+                ],
+                capture_output=True,
+            )
+            output = curl_request.stdout.decode()
+            return eval(output)
+        except:
+            logging.info("Error in ASR API")
+            traceback.print_stack()
+            return None
+    else:
+        if lang == "hi":
+            service_id = "ai4bharat/conformer-hi-gpu--t4"
+        elif lang in ["bn", "gu", "mr", "or", "pa", "sa", "ur"]:
+            service_id = "ai4bharat/conformer-multilingual-indo_aryan-gpu--t4"
+        elif lang in ["kn", "ml", "ta", "te"]:
+            service_id = "ai4bharat/conformer-multilingual-dravidian-gpu--t4"
+        else:
+            return None
+
+        json_data = {
+            "config": {
+                "serviceId": service_id,
+                "language": {"sourceLanguage": lang},
+                "transcriptionFormat": {"value": "srt"},
+            },
+            "audio": [{"audioUri": url}],
+        }
+        logging.info("Sending request to indic model.")
+        try:
+            response = requests.post(
+                indic_asr_url,
+                headers={"authorization": dhruva_key},
+                json=json_data,
+            )
+            logging.info("Response Received")
+            return response.json()["output"][0]["source"]
+        except:
+            logging.info("Error in Indic ASR API")
 
 
 def get_asr_supported_languages():
