@@ -3,7 +3,14 @@
 import traceback
 import requests
 import logging
-from config import english_asr_url, indic_asr_url, dhruva_key
+from config import (
+    english_asr_url,
+    indic_asr_url,
+    dhruva_key,
+    service_id_hindi,
+    service_id_indo_aryan,
+    service_id_dravidian,
+)
 import subprocess
 import json
 
@@ -40,11 +47,11 @@ def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
             return None
     else:
         if lang == "hi":
-            service_id = "ai4bharat/conformer-hi-gpu--t4"
+            service_id = service_id_hindi
         elif lang in ["bn", "gu", "mr", "or", "pa", "sa", "ur"]:
-            service_id = "ai4bharat/conformer-multilingual-indo_aryan-gpu--t4"
+            service_id = service_id_indo_aryan
         elif lang in ["kn", "ml", "ta", "te"]:
-            service_id = "ai4bharat/conformer-multilingual-dravidian-gpu--t4"
+            service_id = service_id_dravidian
         else:
             return None
 
