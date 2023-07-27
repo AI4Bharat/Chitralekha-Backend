@@ -862,6 +862,7 @@ def generate_translation_output(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    logging.info("Generating Translation for task_id %s", str(task_id))
     user = request.user
 
     try:
@@ -924,7 +925,12 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                 translation.video.language,
                 translation.task.target_language,
             )
-            payload["payload"][i]["target_text"] = translated_text[0]
+            if type(translated_text) == list:
+                payload["payload"][i]["target_text"] = translated_text[0]
+            else:
+                logging.info(
+                    "Failed to retranslate for task_id %s", str(translation.task.id)
+                )
     if len(payload["payload"]) == limit:
         length = len(payload["payload"])
         length_2 = -1
