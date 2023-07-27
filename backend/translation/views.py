@@ -927,6 +927,10 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
             )
             if type(translated_text) == list:
                 payload["payload"][i]["target_text"] = translated_text[0]
+            else:
+                logging.info(
+                    "Failed to retranslate for task_id %s", str(translation.task.id)
+                )
     if len(payload["payload"]) == limit:
         length = len(payload["payload"])
         length_2 = -1
