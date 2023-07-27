@@ -415,7 +415,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         task["status"] == "SELECTED_SOURCE"
                         and task["task_type"] != "VOICEOVER_EDIT"
                     ):
-                        buttons["View"] = True
+                        buttons["View"] = False
                 task["buttons"] = buttons
         else:
             projects = (
@@ -514,7 +514,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             task["status"] == "SELECTED_SOURCE"
                             and task["task_type"] != "VOICEOVER_EDIT"
                         ):
-                            buttons["View"] = True
+                            buttons["View"] = False
                     task["buttons"] = buttons
                     tasks_list.append(task)
             else:
@@ -565,7 +565,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             task["status"] == "SELECTED_SOURCE"
                             and task["task_type"] != "VOICEOVER_EDIT"
                         ):
-                            buttons["View"] = True
+                            buttons["View"] = False
                         if task["status"] == "FAILED":
                             buttons["Info"] = True
                         if task["task_type"] == "VOICEOVER_EDIT":

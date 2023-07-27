@@ -840,7 +840,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         if data["status"] == "SELECTED_SOURCE":
                             if data["task_type"] != "VOICEOVER_EDIT":
                                 buttons["Edit"] = True
-                                buttons["View"] = True
+                                # buttons["View"] = True
                             if (
                                 data["task_type"] == "TRANSLATION_EDIT"
                                 and data["is_active"] == True
@@ -849,7 +849,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                                 video = Video.objects.get(pk=data["video"])
                                 if video.multiple_speaker == True:
                                     buttons["Edit-Speaker"] = True
-                                    buttons["View"] = True
+                                    # buttons["View"] = False
                                     buttons["Edit"] = False
                     data["buttons"] = buttons
             else:
@@ -889,7 +889,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             data["status"] == "SELECTED_SOURCE"
                             and data["task_type"] != "VOICEOVER_EDIT"
                         ):
-                            buttons["View"] = True
+                            buttons["View"] = False
                     data["buttons"] = buttons
             target_languages_list = list(target_languages)
             if "-" in target_languages_list:

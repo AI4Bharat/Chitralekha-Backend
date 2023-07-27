@@ -861,7 +861,6 @@ def generate_translation_output(request):
             {"message": "Missing required parameters - task_id"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
     user = request.user
 
     try:
@@ -924,7 +923,12 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                 translation.video.language,
                 translation.task.target_language,
             )
-            payload["payload"][i]["target_text"] = translated_text[0]
+            if type(translated_text) == list:
+                payload["payload"][i]["target_text"] = translated_text[0]
+            else:
+                logging.info(
+                    "Failed to retranslate for task_id %s", str(translation.task.id)
+                )
     if len(payload["payload"]) == limit:
         length = len(payload["payload"])
         length_2 = -1
@@ -1040,9 +1044,6 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         logging.info("Text missing in payload")
             if length_3 > 0:
                 for i in range(length_3):
-                    logging.info(
-                        "Iterate for third length %s", str(start_offset + i + length)
-                    )
                     translation.payload["payload"][start_offset + i + length] = {}
         else:
             for i in range(length):
