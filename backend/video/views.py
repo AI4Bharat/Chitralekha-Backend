@@ -34,7 +34,6 @@ import io
 from video.tasks import create_videos_async
 from organization.models import Organization
 from config import *
-from collections import Counter
 
 
 accepted_languages = [
@@ -1035,29 +1034,9 @@ def upload_csv_org(request):
             new_row = ",".join(row)
             csv_data.append(new_row)
 
-    if len(csv_data) > 200:
+    if len(csv_data) > 50:
         return Response(
-            {"message": "Number of rows is greater than 200."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    all_task_types = []
-
-    csv_reader_1 = csv.DictReader(csv_data)
-    for task in csv_reader_1:
-        all_task_types.append(task["Task Type"].lower())
-    # Count the occurrences of each unique string
-    string_counts = Counter(all_task_types)
-    # Display the results
-    asr_tts_tasks = (
-        string_counts["transcription edit"] + string_counts["voiceover edit"]
-    )
-    logging.info("Sum of Transcription and VO tasks is %s", str(asr_tts_tasks))
-    if asr_tts_tasks > 50:
-        return Response(
-            {
-                "message": "Sum of Transcription and VoiceOver in a CSV can't be more than 50."
-            },
+            {"message": "Number of rows is greater than 50."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     csv_reader = csv.DictReader(csv_data)
@@ -1221,6 +1200,7 @@ def upload_csv_org(request):
                     valid_rows.append(valid_row)
             else:
                 valid_rows.append(valid_row)
+
     if len(errors) > 0:
         return Response(
             {"message": "Invalid CSV", "response": errors},

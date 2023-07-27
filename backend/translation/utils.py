@@ -164,6 +164,7 @@ def get_batch_translations_using_indictrans_nmt_api(
     Returns:
         list: List of dictionaries containing the translated sentences.
     """
+
     # Convert language code to language text
     source_language_name = LANG_CODE_TO_NAME[source_language]
     target_language_name = LANG_CODE_TO_NAME[target_language]
@@ -194,7 +195,6 @@ def get_batch_translations_using_indictrans_nmt_api(
         # Collect the translated sentences
         return [translation["target"] for translation in translations_output]
     except Exception as e:
-        logging.info("Error in generating translation Output")
         return str(e)
 
 
