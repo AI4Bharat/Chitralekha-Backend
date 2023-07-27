@@ -5,9 +5,6 @@ from dotenv import load_dotenv
 dhruva_key = os.getenv("DHRUVA_KEY")
 english_asr_url = os.getenv("ENGLISH_ASR_API_URL")
 indic_asr_url = os.getenv("INDIC_ASR_API_URL")
-service_id_hindi = SERVICE_ID_HINDI
-service_id_indo_aryan = SERVICE_ID_INDO_ARYAN
-service_id_dravidian = SERVICE_ID_DRAVIDIAN
 misc_tts_url = os.getenv("MISC_TTS_API_URL")
 indo_aryan_tts_url = os.getenv("INDO_ARYAN_TTS_API_URL")
 dravidian_tts_url = os.getenv("DRAVIDIAN_TTS_API_URL")
