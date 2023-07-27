@@ -82,7 +82,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 ids = request.data.get("user_id", "")
             else:
                 return Response(
-                    {"message": "key doesnot match"},
+                    {"message": "key does not match"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             user = User.objects.filter(id__in=ids).filter(has_accepted_invite=True)
@@ -111,7 +111,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     )
             else:
                 return Response(
-                    {"message": "User doesnot exist"},
+                    {"message": "User does not exist"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         except Project.DoesNotExist:
@@ -195,7 +195,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         if len(invalid_users) > 0:
             return Response(
-                {"message": "Users doesnot exist."},
+                {"message": "Users does not exist."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -274,7 +274,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             ids = request.data.get("user_id", "")
         else:
             return Response(
-                {"message": "key doesnot match"},
+                {"message": "key does not match"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -316,7 +316,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         except User.DoesNotExist:
             return Response(
-                {"message": "User doesnot exist"},
+                {"message": "User does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Project.DoesNotExist:
@@ -353,7 +353,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             ids = request.data.get("user_id", "")
         else:
             return Response(
-                {"message": "key doesnot match"},
+                {"message": "key does not match"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
@@ -403,7 +403,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     )
         except User.DoesNotExist:
             return Response(
-                {"message": "User doesnot exist"},
+                {"message": "User does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         except Project.DoesNotExist:
