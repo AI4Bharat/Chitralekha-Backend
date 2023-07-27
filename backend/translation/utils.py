@@ -168,12 +168,12 @@ def get_batch_translations_using_indictrans_nmt_api(
     source_language_name = LANG_CODE_TO_NAME[source_language]
     target_language_name = LANG_CODE_TO_NAME[target_language]
 
-    logging.info("source_language_name %s", source_language_name)
+    # logging.info("source_language_name %s", source_language_name)
     logging.info("target_language_name %s", target_language_name)
 
     # Create the input sentences list
     input_sentences = [{"source": sentence} for sentence in sentence_list]
-    logging.info("Length of input_sentences %s", len(input_sentences))
+    # logging.info("Length of input_sentences %s", len(input_sentences))
 
     json_data = {
         "input": input_sentences,
