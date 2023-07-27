@@ -1046,9 +1046,6 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                         logging.info("Text missing in payload")
             if length_3 > 0:
                 for i in range(length_3):
-                    logging.info(
-                        "Iterate for third length %s", str(start_offset + i + length)
-                    )
                     translation.payload["payload"][start_offset + i + length] = {}
         else:
             for i in range(length):
