@@ -861,8 +861,6 @@ def generate_translation_output(request):
             {"message": "Missing required parameters - task_id"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
-    logging.info("Generating Translation for task_id %s", str(task_id))
     user = request.user
 
     try:
