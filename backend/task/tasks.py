@@ -104,9 +104,16 @@ def celery_tts_call(
     task_id, tts_input, target_language, translation, translation_id, empty_sentences
 ):
     logging.info("Calling TTS API for %s", str(task_id))
-    translation_obj = Translation.objects.get(id=translation_id)
     task_obj = Task.objects.get(pk=task_id)
-    logging.info("Generate TTS output")
+    translation_obj = (
+        Translation.objects.filter(target_language=target_language)
+        .filter(video=task_obj.video)
+        .filter(status__in=["TRANSLATION_EDIT_COMPLETE", "TRANSLATION_REVIEW_COMPLETE"])
+        .first()
+    )
+    logging.info("Generate TTS output ID %s", str(translation_obj.task.id))
+    logging.info("Translation ID %s", str(translation_id))
+    logging.info("Empty sentences %s", str(empty_sentences))
     tts_payload = generate_tts_output(
         tts_input, target_language, translation, translation_obj, empty_sentences
     )
