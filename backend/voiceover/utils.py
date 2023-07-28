@@ -182,22 +182,19 @@ def get_tts_output(tts_input, target_language, multiple_speaker, gender):
             "message": "Error in TTS API. Target Language is not supported.",
             "status": status.HTTP_400_BAD_REQUEST,
         }
-    try:
-        response = requests.post(
-            tts_url,
-            headers={"authorization": dhruva_key},
-            json=json_data,
-        )
-        tts_output = response.json()
-        # Collect the audios
-        return tts_output
-
-    except Exception as e:
-        logging.info("Error in TTS API %s", str(e))
+    response = requests.post(
+        tts_url,
+        headers={"authorization": dhruva_key},
+        json=json_data,
+    )
+    if response.status_code != 200:
+        logging.info("Error in TTS API %s", str(response.status_code))
         return {
             "message": "Error in TTS API. Invalid sentence was passed.",
             "status": status.HTTP_400_BAD_REQUEST,
         }
+    tts_output = response.json()
+    return tts_output
 
 
 def generate_tts_output(
@@ -296,13 +293,13 @@ def generate_tts_output(
 
         if ind not in empty_sentences:
             logging.info("Count of audios saved %s", str(count))
-            audio_file = "temp_1.wav"
+            wave_audio = "temp_" + str(ind) + ".wav"
             audio_decoded = base64.b64decode(tts_output["audio"][count]["audioContent"])
-            with open(audio_file, "wb") as output_f:
+            with open(wave_audio, "wb") as output_f:
                 output_f.write(audio_decoded)
-            audio = AudioFileClip("temp_1.wav")
+            audio = AudioFileClip(wave_audio)
             wav_seconds = audio.duration
-            AudioSegment.from_wav("temp_1.wav").export("temp_1.ogg", format="ogg")
+            AudioSegment.from_wav(wave_audio).export("temp_1.ogg", format="ogg")
             logging.info("Seconds of wave audio %s", str(wav_seconds))
             audio = AudioFileClip("temp_1.ogg")
             seconds = audio.duration
@@ -311,6 +308,7 @@ def generate_tts_output(
             encoded_audio = base64.b64encode(open("temp_1.ogg", "rb").read())
             decoded_audio = encoded_audio.decode()
             os.remove("temp_1.ogg")
+            os.remove(wave_audio)
             payload_size = payload_size + asizeof(decoded_audio)
             logging.info("Payload size %s", str(asizeof(decoded_audio)))
             logging.info("Index %s", str(ind))
@@ -328,7 +326,7 @@ def generate_tts_output(
             pass
     logging.info("Size of voiceover payload %s", str(asizeof(voiceover_payload)))
     logging.info("Size of combined audios %s", str(payload_size))
-    os.remove("temp_1.wav")
+    # os.remove("temp_1.wav")
     return voiceover_payload
 
 
