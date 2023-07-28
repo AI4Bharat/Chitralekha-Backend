@@ -299,15 +299,16 @@ def generate_tts_output(
                 output_f.write(audio_decoded)
             audio = AudioFileClip(wave_audio)
             wav_seconds = audio.duration
-            AudioSegment.from_wav(wave_audio).export("temp_1.ogg", format="ogg")
+            ogg_audio = "temp_" + str(ind) + ".ogg"
+            AudioSegment.from_wav(wave_audio).export(ogg_audio, format="ogg")
             logging.info("Seconds of wave audio %s", str(wav_seconds))
-            audio = AudioFileClip("temp_1.ogg")
+            audio = AudioFileClip(ogg_audio)
             seconds = audio.duration
             logging.info("Seconds of ogg audio %s", str(seconds))
-            adjust_audio("temp_1.ogg", t_d, -1)
-            encoded_audio = base64.b64encode(open("temp_1.ogg", "rb").read())
+            adjust_audio(ogg_audio, t_d, -1)
+            encoded_audio = base64.b64encode(open(ogg_audio, "rb").read())
             decoded_audio = encoded_audio.decode()
-            os.remove("temp_1.ogg")
+            os.remove(ogg_audio)
             os.remove(wave_audio)
             payload_size = payload_size + asizeof(decoded_audio)
             logging.info("Payload size %s", str(asizeof(decoded_audio)))
@@ -326,7 +327,6 @@ def generate_tts_output(
             pass
     logging.info("Size of voiceover payload %s", str(asizeof(voiceover_payload)))
     logging.info("Size of combined audios %s", str(payload_size))
-    # os.remove("temp_1.wav")
     return voiceover_payload
 
 
@@ -710,8 +710,8 @@ def adjust_audio(audio_file, original_time, audio_speed):
     elif audio_time_difference < -0.001:
         logging.info("Speed up the audio by %s", str(seconds / original_time))
         sound = AudioSegment.from_file(audio_file)
-        if (seconds / original_time) > 1.001:
-            faster_sound = speedup(sound, seconds / original_time, 100)
+        if (seconds / original_time) > 1.009:
+            faster_sound = speedup(sound, seconds / original_time, 200)
             final_sound = faster_sound[: original_time * 1000]
             final_sound.export(audio_file, format="ogg")
             audio = AudioFileClip(audio_file)
