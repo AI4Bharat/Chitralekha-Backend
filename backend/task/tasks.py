@@ -74,6 +74,31 @@ def convert_payload_format(data):
     return json.loads(json.dumps({"payload": sentences_list}))
 
 
+def convert_dhruva_payload_format(text):
+    lines = text.strip().split("\n")
+    data_list = []
+    i = 0
+
+    while i < len(lines):
+        entry = {}
+        start_time, end_time = lines[i + 1].split(" --> ")
+        if i + 2 == len(lines):
+            entry["text"] = ""
+        else:
+            entry["text"] = lines[i + 2]
+        entry["start_time"] = start_time.replace(",", ".")
+        entry["end_time"] = end_time.replace(",", ".")
+        start_time = datetime.datetime.strptime(entry["start_time"], "%H:%M:%S.%f")
+        unix_start_time = datetime.datetime.timestamp(start_time)
+        end_time = datetime.datetime.strptime(entry["end_time"], "%H:%M:%S.%f")
+        unix_end_time = datetime.datetime.timestamp(end_time)
+        entry["unix_start_time"] = unix_start_time
+        entry["unix_end_time"] = unix_end_time
+        data_list.append(entry)
+        i += 4
+    return json.loads(json.dumps({"payload": data_list}))
+
+
 @celery_app.task(queue="asr_tts")
 def celery_tts_call(
     task_id, tts_input, target_language, translation, translation_id, empty_sentences
@@ -120,19 +145,37 @@ def celery_asr_call(task_id):
             task_obj.video.url, task_obj.video.language
         )
         if transcribed_data is not None:
-            data = convert_payload_format(transcribed_data)
-            transcript_obj = Transcript(
-                video=task_obj.video,
-                user=task_obj.user,
-                payload=data,
-                language=task_obj.video.language,
-                task=task_obj,
-                transcript_type="MACHINE_GENERATED",
-                status="TRANSCRIPTION_SELECT_SOURCE",
-            )
-            task_obj.is_active = True
-            task_obj.save()
-            transcript_obj.save()
-            send_mail_to_user(task_obj)
+            if task_obj.video.language == "en":
+                task_obj = Task.objects.get(pk=task_id)
+                data = convert_payload_format(transcribed_data)
+                transcript_obj = Transcript(
+                    video=task_obj.video,
+                    user=task_obj.user,
+                    payload=data,
+                    language=task_obj.video.language,
+                    task=task_obj,
+                    transcript_type="MACHINE_GENERATED",
+                    status="TRANSCRIPTION_SELECT_SOURCE",
+                )
+                task_obj.is_active = True
+                task_obj.save()
+                transcript_obj.save()
+                send_mail_to_user(task_obj)
+            else:
+                data = convert_dhruva_payload_format(transcribed_data)
+                task_obj = Task.objects.get(pk=task_id)
+                transcript_obj = Transcript(
+                    video=task_obj.video,
+                    user=task_obj.user,
+                    payload=data,
+                    language=task_obj.video.language,
+                    task=task_obj,
+                    transcript_type="MACHINE_GENERATED",
+                    status="TRANSCRIPTION_SELECT_SOURCE",
+                )
+                task_obj.is_active = True
+                task_obj.save()
+                transcript_obj.save()
+                send_mail_to_user(task_obj)
     else:
         logging.info("Transcript already exists")
