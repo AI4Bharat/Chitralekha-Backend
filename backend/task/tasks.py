@@ -82,7 +82,10 @@ def convert_dhruva_payload_format(text):
     while i < len(lines):
         entry = {}
         start_time, end_time = lines[i + 1].split(" --> ")
-        entry["text"] = lines[i + 2]
+        if i + 2 == len(lines):
+            entry["text"] = ""
+        else:
+            entry["text"] = lines[i + 2]
         entry["start_time"] = start_time.replace(",", ".")
         entry["end_time"] = end_time.replace(",", ".")
         start_time = datetime.datetime.strptime(entry["start_time"], "%H:%M:%S.%f")
