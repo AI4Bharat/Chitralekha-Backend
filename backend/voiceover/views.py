@@ -288,9 +288,9 @@ def get_payload(request):
                     "end_time": end_time,
                     "text": voice_over.payload["payload"][str(audio_index)]["text"],
                     "audio": voice_over.payload["payload"][str(audio_index)]["audio"],
-                    "audio_generated": voice_over.payload["payload"][str(audio_index)][
-                        "audio_generated"
-                    ],
+                    # "audio_generated": voice_over.payload["payload"][str(audio_index)][
+                    #     "audio_generated"
+                    # ],
                     "audio_speed": 1,
                 }
             )
