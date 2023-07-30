@@ -92,6 +92,76 @@ def get_voice_over_id(task):
             type=openapi.TYPE_INTEGER,
             required=True,
         ),
+    ],
+    responses={200: "Returns the empty audios."},
+)
+@api_view(["GET"])
+def get_empty_audios(request):
+    try:
+        task_id = request.query_params["task_id"]
+    except KeyError:
+        return Response(
+            {"message": "Missing required parameters - task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    voice_over = get_voice_over_id(task)
+    if voice_over is not None:
+        voice_over_id = voice_over.id
+    else:
+        if task.status == "POST_PROCESS":
+            return Response(
+                {"message": "VoiceOver is in Post Process stage."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {"message": "VoiceOver doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Retrieve the voice over object
+    try:
+        voice_over = VoiceOver.objects.get(pk=voice_over_id)
+    except VoiceOver.DoesNotExist:
+        return Response(
+            {"message": "VoiceOver doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if (
+        voice_over.payload
+        and "payload" in voice_over.payload
+        and "audio_not_generated" in voice_over.payload
+    ):
+        return Response(
+            {"data": voice_over.payload["audio_not_generated"]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    else:
+        return Response(
+            {"message": "No issues in audios."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the task id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
         openapi.Parameter(
             "offset",
             openapi.IN_QUERY,
@@ -218,6 +288,9 @@ def get_payload(request):
                     "end_time": end_time,
                     "text": voice_over.payload["payload"][str(audio_index)]["text"],
                     "audio": voice_over.payload["payload"][str(audio_index)]["audio"],
+                    # "audio_generated": voice_over.payload["payload"][str(audio_index)][
+                    #     "audio_generated"
+                    # ],
                     "audio_speed": 1,
                 }
             )
