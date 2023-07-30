@@ -192,10 +192,10 @@ def get_tts_output(tts_input, target_language, multiple_speaker, gender):
             json=sentence_json_data,
         )
         if sentence_response.status_code != 200:
-            logging.info("Error in TTS API %s", str(response.status_code))
-            sentence_tts_output = [{"audio": [{"audioContent": "", "audioUri": null}]}]
+            logging.info("Error in TTS API %s", str(sentence_response.status_code))
+            sentence_tts_output = {"audioContent": "", "audioUri": None}
             count_errors += 1
-            tts_output.append(sentence_tts_output)
+            tts_output["audio"].append(sentence_tts_output)
         else:
             sentence_tts_output = sentence_response.json()
             tts_output["audio"].append(sentence_tts_output["audio"][0])
@@ -599,21 +599,40 @@ def generate_voiceover_payload(translation_payload, target_language, task):
         voiceover_machine_generated = get_tts_output(
             tts_input, target_language, task.video.multiple_speaker, gender.lower()
         )
-        for voice_over in voiceover_machine_generated["audio"]:
+        if (
+            type(voiceover_machine_generated) == dict
+            and "audio" in voiceover_machine_generated
+        ):
+            for voice_over in voiceover_machine_generated["audio"]:
+                if (
+                    "audioContent" in voice_over.keys()
+                    and len(voice_over["audioContent"]) > 100
+                ):
+                    ind = post_generated_audio_indices.pop(0)
+                    audio_file = "temp.wav"
+                    first_audio_decoded = base64.b64decode(voice_over["audioContent"])
+                    with open(audio_file, "wb") as output_f:
+                        output_f.write(first_audio_decoded)
+                    AudioSegment.from_wav("temp.wav").export("temp.ogg", format="ogg")
+                    adjust_audio("temp.ogg", translation_payload[ind][3], -1)
+                    encoded_audio = base64.b64encode(open("temp.ogg", "rb").read())
+                    output[ind] = (
+                        translation_payload[ind][0],
+                        {"audioContent": encoded_audio.decode()},
+                    )
+                    os.remove(audio_file)
+                    os.remove("temp.ogg")
+                else:
+                    output[ind] = (
+                        translation_payload[ind][0],
+                        {"audioContent": ""},
+                    )
+        else:
             ind = post_generated_audio_indices.pop(0)
-            audio_file = "temp.wav"
-            first_audio_decoded = base64.b64decode(voice_over["audioContent"])
-            with open(audio_file, "wb") as output_f:
-                output_f.write(first_audio_decoded)
-            AudioSegment.from_wav("temp.wav").export("temp.ogg", format="ogg")
-            adjust_audio("temp.ogg", translation_payload[ind][3], -1)
-            encoded_audio = base64.b64encode(open("temp.ogg", "rb").read())
             output[ind] = (
                 translation_payload[ind][0],
-                {"audioContent": encoded_audio.decode()},
+                {"audioContent": ""},
             )
-            os.remove(audio_file)
-            os.remove("temp.ogg")
     return output
 
 
