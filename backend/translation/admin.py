@@ -12,6 +12,7 @@ class TranslationAdmin(admin.ModelAdmin):
         "task",
         "transcript",
         "target_language",
+        "id",
         "translation_type",
         "updated_at",
         "id",

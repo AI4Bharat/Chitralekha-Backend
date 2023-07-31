@@ -21,7 +21,7 @@ from .models import (
 from datetime import datetime, timedelta
 from .utils import *
 from config import voice_over_payload_offset_size
-from .tasks import celery_integration
+from .tasks import celery_integration, export_voiceover_async
 from django.db.models import Count, F, Sum
 from operator import itemgetter
 from itertools import groupby
@@ -142,8 +142,11 @@ def get_empty_audios(request):
         and "audio_not_generated" in voice_over.payload
     ):
         return Response(
-            {"data": voice_over.payload["audio_not_generated"]},
-            status=status.HTTP_400_BAD_REQUEST,
+            {
+                "data": voice_over.payload["audio_not_generated"],
+                "message": "Sentences with empty audios are returned.",
+            },
+            status=status.HTTP_200_OK,
         )
     else:
         return Response(
@@ -226,12 +229,15 @@ def get_payload(request):
                 - voice_over_payload_offset_size
                 + 1
             )
+            count_cards += 1
         else:
             count_cards = (
                 len(voice_over.translation.payload["payload"])
                 - voice_over_payload_offset_size
                 + 1
             )
+            count_cards += 1
+
         first_offset = voice_over_payload_offset_size // 2 + 1
         start_offset = (
             first_offset + current_offset - 1 * payload_offset_size // 2
@@ -288,60 +294,9 @@ def get_payload(request):
                     "end_time": end_time,
                     "text": voice_over.payload["payload"][str(audio_index)]["text"],
                     "audio": voice_over.payload["payload"][str(audio_index)]["audio"],
-                    # "audio_generated": voice_over.payload["payload"][str(audio_index)][
-                    #     "audio_generated"
-                    # ],
                     "audio_speed": 1,
                 }
             )
-            """
-            if (
-                voice_over.payload
-                and "payload" in voice_over.payload
-                and len(voice_over.payload["payload"].keys()) > 0
-                and audio_index in voice_over.payload["payload"].keys()
-                and "audioContent"
-                in voice_over.payload["payload"][audio_index]["audio"].keys()
-            ):
-                start_time = voice_over.payload["payload"][audio_index]["start_time"]
-                end_time = voice_over.payload["payload"][audio_index]["end_time"]
-                original_duration = get_original_duration(start_time, end_time)
-                input_sentences.append(
-                    (
-                        voice_over.payload["payload"][audio_index]["text"],
-                        voice_over.payload["payload"][audio_index]["audio"],
-                        False,
-                        original_duration,
-                    )
-                )
-            else:
-                start_time = text["start_time"]
-                end_time = text["end_time"]
-                original_duration = get_original_duration(start_time, end_time)
-                input_sentences.append(
-                    (text["target_text"], "", True, original_duration)
-                )
-
-        voiceover_machine_generated = generate_voiceover_payload(
-            input_sentences, task.target_language
-        )
-        for i in range(len(voiceover_machine_generated)):
-            start_time = translation_payload[i][0]["start_time"]
-            end_time = translation_payload[i][0]["end_time"]
-            time_difference = (
-                datetime.strptime(end_time, "%H:%M:%S.%f")
-                - timedelta(
-                    hours=float(start_time.split(":")[0]),
-                    minutes=float(start_time.split(":")[1]),
-                    seconds=float(start_time.split(":")[-1]),
-                )
-            ).strftime("%H:%M:%S.%f")
-            t_d = (
-                float(time_difference.split(":")[0]) * 3600
-                + float(time_difference.split(":")[1]) * 60
-                + float(time_difference.split(":")[2])
-            )
-            """
         payload = {"payload": sentences_list}
     elif voice_over.voice_over_type == "MANUALLY_CREATED":
         if voice_over.payload and "payload" in voice_over.payload:
@@ -575,12 +530,14 @@ def save_voice_over(request):
                     - voice_over_payload_offset_size
                     + 1
                 )
+                count_cards += 1
             else:
                 count_cards = (
                     len(voice_over.translation.payload["payload"])
                     - voice_over_payload_offset_size
                     + 1
                 )
+                count_cards += 1
             first_offset = voice_over_payload_offset_size // 2 + 1
             current_offset = offset - 1
             start_offset = (
@@ -1128,28 +1085,9 @@ def export_voiceover(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         elif export_type == "flac":
-            logging.info(
-                "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
-            )
-            download_from_azure_blob(str(voice_over.azure_url_audio))
-            logging.info(
-                "Downloaded audio from Azure Blob %s", voice_over.azure_url_audio
-            )
-            file_path = voice_over.azure_url_audio.split("/")[-1]
-            AudioSegment.from_file(file_path).export(
-                file_path.split("/")[-1].replace(".ogg", "") + ".flac", format="flac"
-            )
-            logging.info(
-                "Uploading audio flac to Azure Blob %s", voice_over.azure_url_audio
-            )
-            azure_url_audio = upload_audio_to_azure_blob(
-                file_path, export_type, export=True
-            )
-            os.remove(file_path)
-            os.remove(file_path.split("/")[-1].replace(".ogg", "") + ".flac")
             return Response(
                 {
-                    "azure_url": azure_url_audio,
+                    "azure_url": voice_over.azure_url_audio,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -1157,59 +1095,24 @@ def export_voiceover(request):
             logging.info(
                 "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
             )
-            download_from_azure_blob(str(voice_over.azure_url_audio))
-            logging.info(
-                "Downloaded audio from Azure Blob %s", voice_over.azure_url_audio
-            )
-            file_path = voice_over.azure_url_audio.split("/")[-1]
-            AudioSegment.from_file(file_path).export(
-                file_path.split("/")[-1].replace(".ogg", "") + ".mp3", format="mp3"
-            )
-            logging.info(
-                "Uploading audio mp3 to Azure Blob %s", voice_over.azure_url_audio
-            )
-            azure_url_audio = upload_audio_to_azure_blob(
-                file_path, export_type, export=True
-            )
-            os.remove(file_path)
-            os.remove(file_path.split("/")[-1].replace(".ogg", "") + ".mp3")
+            export_voiceover_async.delay(voice_over.task.id, export_type)
             return Response(
                 {
-                    "azure_url": azure_url_audio,
+                    "message": "Please wait. The audio link will be emailed to you.",
                 },
                 status=status.HTTP_200_OK,
             )
         elif export_type == "wav":
-            logging.info(
-                "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
-            )
-            download_from_azure_blob(str(voice_over.azure_url_audio))
-            logging.info(
-                "Downloaded audio from Azure Blob %s", voice_over.azure_url_audio
-            )
-            file_path = voice_over.azure_url_audio.split("/")[-1]
-            AudioSegment.from_file(file_path).export(
-                file_path.split("/")[-1].replace(".ogg", "") + ".wav", format="wav"
-            )
-            logging.info(
-                "Uploading audio wav to Azure Blob %s", voice_over.azure_url_audio
-            )
-            azure_url_audio = upload_audio_to_azure_blob(
-                file_path, export_type, export=True
-            )
-            os.remove(file_path)
-            os.remove(file_path.split("/")[-1].replace(".ogg", "") + ".wav")
+            export_voiceover_async.delay(voice_over.task.id, export_type)
             return Response(
                 {
-                    "azure_url": azure_url_audio,
+                    "message": "Please wait. The audio link will be emailed to you.",
                 },
                 status=status.HTTP_200_OK,
             )
     else:
         return Response(
-            {
-                "message": "exported type only supported formats are : {mp4, mp3, flac, wav} "
-            },
+            {"message": "The supported formats are : {mp4, mp3, flac, wav} "},
             status=status.HTTP_404_NOT_FOUND,
         )
 
