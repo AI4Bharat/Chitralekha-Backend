@@ -141,6 +141,7 @@ def uploadToBlobStorage(file_path, voice_over_obj):
 def upload_audio_to_azure_blob(file_path, export_type, export):
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     if export == False:
+
         full_path_audio = file_path + "final.ogg"
         blob_client_audio = blob_service_client.get_blob_client(
             container=container_name, blob=file_path.split("/")[-1] + ".ogg"
@@ -346,7 +347,7 @@ def generate_tts_output(
             else:
                 audio_not_generated.append(
                     {
-                        "index": ind,
+                        "index": ind + 1,
                         "sentence": text["target_text"],
                         "reason": "TTS API Failed.",
                     }

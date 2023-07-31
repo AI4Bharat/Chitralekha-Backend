@@ -229,12 +229,15 @@ def get_payload(request):
                 - voice_over_payload_offset_size
                 + 1
             )
+            count_cards += 1
         else:
             count_cards = (
                 len(voice_over.translation.payload["payload"])
                 - voice_over_payload_offset_size
                 + 1
             )
+            count_cards += 1
+
         first_offset = voice_over_payload_offset_size // 2 + 1
         start_offset = (
             first_offset + current_offset - 1 * payload_offset_size // 2
@@ -291,60 +294,9 @@ def get_payload(request):
                     "end_time": end_time,
                     "text": voice_over.payload["payload"][str(audio_index)]["text"],
                     "audio": voice_over.payload["payload"][str(audio_index)]["audio"],
-                    # "audio_generated": voice_over.payload["payload"][str(audio_index)][
-                    #     "audio_generated"
-                    # ],
                     "audio_speed": 1,
                 }
             )
-            """
-            if (
-                voice_over.payload
-                and "payload" in voice_over.payload
-                and len(voice_over.payload["payload"].keys()) > 0
-                and audio_index in voice_over.payload["payload"].keys()
-                and "audioContent"
-                in voice_over.payload["payload"][audio_index]["audio"].keys()
-            ):
-                start_time = voice_over.payload["payload"][audio_index]["start_time"]
-                end_time = voice_over.payload["payload"][audio_index]["end_time"]
-                original_duration = get_original_duration(start_time, end_time)
-                input_sentences.append(
-                    (
-                        voice_over.payload["payload"][audio_index]["text"],
-                        voice_over.payload["payload"][audio_index]["audio"],
-                        False,
-                        original_duration,
-                    )
-                )
-            else:
-                start_time = text["start_time"]
-                end_time = text["end_time"]
-                original_duration = get_original_duration(start_time, end_time)
-                input_sentences.append(
-                    (text["target_text"], "", True, original_duration)
-                )
-
-        voiceover_machine_generated = generate_voiceover_payload(
-            input_sentences, task.target_language
-        )
-        for i in range(len(voiceover_machine_generated)):
-            start_time = translation_payload[i][0]["start_time"]
-            end_time = translation_payload[i][0]["end_time"]
-            time_difference = (
-                datetime.strptime(end_time, "%H:%M:%S.%f")
-                - timedelta(
-                    hours=float(start_time.split(":")[0]),
-                    minutes=float(start_time.split(":")[1]),
-                    seconds=float(start_time.split(":")[-1]),
-                )
-            ).strftime("%H:%M:%S.%f")
-            t_d = (
-                float(time_difference.split(":")[0]) * 3600
-                + float(time_difference.split(":")[1]) * 60
-                + float(time_difference.split(":")[2])
-            )
-            """
         payload = {"payload": sentences_list}
     elif voice_over.voice_over_type == "MANUALLY_CREATED":
         if voice_over.payload and "payload" in voice_over.payload:
@@ -578,12 +530,14 @@ def save_voice_over(request):
                     - voice_over_payload_offset_size
                     + 1
                 )
+                count_cards += 1
             else:
                 count_cards = (
                     len(voice_over.translation.payload["payload"])
                     - voice_over_payload_offset_size
                     + 1
                 )
+                count_cards += 1
             first_offset = voice_over_payload_offset_size // 2 + 1
             current_offset = offset - 1
             start_offset = (
