@@ -21,7 +21,7 @@ from .models import (
 from datetime import datetime, timedelta
 from .utils import *
 from config import voice_over_payload_offset_size
-from .tasks import celery_integration
+from .tasks import celery_integration, export_voiceover_async
 from django.db.models import Count, F, Sum
 from operator import itemgetter
 from itertools import groupby
@@ -1085,28 +1085,9 @@ def export_voiceover(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         elif export_type == "flac":
-            logging.info(
-                "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
-            )
-            download_from_azure_blob(str(voice_over.azure_url_audio))
-            logging.info(
-                "Downloaded audio from Azure Blob %s", voice_over.azure_url_audio
-            )
-            file_path = voice_over.azure_url_audio.split("/")[-1]
-            AudioSegment.from_file(file_path).export(
-                file_path.split("/")[-1].replace(".ogg", "") + ".flac", format="flac"
-            )
-            logging.info(
-                "Uploading audio flac to Azure Blob %s", voice_over.azure_url_audio
-            )
-            azure_url_audio = upload_audio_to_azure_blob(
-                file_path, export_type, export=True
-            )
-            os.remove(file_path)
-            os.remove(file_path.split("/")[-1].replace(".ogg", "") + ".flac")
             return Response(
                 {
-                    "azure_url": azure_url_audio,
+                    "azure_url": voice_over.azure_url_audio,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -1114,59 +1095,24 @@ def export_voiceover(request):
             logging.info(
                 "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
             )
-            download_from_azure_blob(str(voice_over.azure_url_audio))
-            logging.info(
-                "Downloaded audio from Azure Blob %s", voice_over.azure_url_audio
-            )
-            file_path = voice_over.azure_url_audio.split("/")[-1]
-            AudioSegment.from_file(file_path).export(
-                file_path.split("/")[-1].replace(".ogg", "") + ".mp3", format="mp3"
-            )
-            logging.info(
-                "Uploading audio mp3 to Azure Blob %s", voice_over.azure_url_audio
-            )
-            azure_url_audio = upload_audio_to_azure_blob(
-                file_path, export_type, export=True
-            )
-            os.remove(file_path)
-            os.remove(file_path.split("/")[-1].replace(".ogg", "") + ".mp3")
+            export_voiceover_async.delay(voice_over.task.id, export_type)
             return Response(
                 {
-                    "azure_url": azure_url_audio,
+                    "message": "Please wait. The audio link will be emailed to you.",
                 },
                 status=status.HTTP_200_OK,
             )
         elif export_type == "wav":
-            logging.info(
-                "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
-            )
-            download_from_azure_blob(str(voice_over.azure_url_audio))
-            logging.info(
-                "Downloaded audio from Azure Blob %s", voice_over.azure_url_audio
-            )
-            file_path = voice_over.azure_url_audio.split("/")[-1]
-            AudioSegment.from_file(file_path).export(
-                file_path.split("/")[-1].replace(".ogg", "") + ".wav", format="wav"
-            )
-            logging.info(
-                "Uploading audio wav to Azure Blob %s", voice_over.azure_url_audio
-            )
-            azure_url_audio = upload_audio_to_azure_blob(
-                file_path, export_type, export=True
-            )
-            os.remove(file_path)
-            os.remove(file_path.split("/")[-1].replace(".ogg", "") + ".wav")
+            export_voiceover_async.delay(voice_over.task.id, export_type)
             return Response(
                 {
-                    "azure_url": azure_url_audio,
+                    "message": "Please wait. The audio link will be emailed to you.",
                 },
                 status=status.HTTP_200_OK,
             )
     else:
         return Response(
-            {
-                "message": "exported type only supported formats are : {mp4, mp3, flac, wav} "
-            },
+            {"message": "The supported formats are : {mp4, mp3, flac, wav} "},
             status=status.HTTP_404_NOT_FOUND,
         )
 
