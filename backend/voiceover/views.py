@@ -142,8 +142,11 @@ def get_empty_audios(request):
         and "audio_not_generated" in voice_over.payload
     ):
         return Response(
-            {"data": voice_over.payload["audio_not_generated"]},
-            status=status.HTTP_400_BAD_REQUEST,
+            {
+                "data": voice_over.payload["audio_not_generated"],
+                "message": "Sentences with empty audios are returned.",
+            },
+            status=status.HTTP_200_OK,
         )
     else:
         return Response(
