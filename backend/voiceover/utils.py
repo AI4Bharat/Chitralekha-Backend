@@ -132,8 +132,12 @@ def uploadToBlobStorage(file_path, voice_over_obj):
         os.remove(file_path + ".mp4")
     upload_json(file_path, voice_over_obj)
     blob_client_audio_url = upload_audio_to_azure_blob(file_path, "", export=False)
-    os.remove(file_path + "final.ogg")
-    os.remove(file_path + "final.wav")
+    try:
+        os.remove(file_path + "final.ogg")
+        os.remove(file_path + "final.wav")
+        os.remove(file_path + "final.flac")
+    except:
+        logging.info("Audios dont exists.")
     os.remove(file_path.split("/")[-1] + ".json")
     return blob_client_url, blob_client_audio_url
 
@@ -141,15 +145,18 @@ def uploadToBlobStorage(file_path, voice_over_obj):
 def upload_audio_to_azure_blob(file_path, export_type, export):
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     if export == False:
-        full_path_audio = file_path + "final.ogg"
+        AudioSegment.from_wav(file_path + "final.wav").export(
+            file_path + "final.flac", format="flac"
+        )
+        full_path_audio = file_path + "final.flac"
         blob_client_audio = blob_service_client.get_blob_client(
-            container=container_name, blob=file_path.split("/")[-1] + ".ogg"
+            container=container_name, blob=file_path.split("/")[-1] + ".flac"
         )
     else:
-        full_path_audio = file_path.replace(".ogg", "") + "." + export_type
+        full_path_audio = file_path.replace(".flac", "") + "." + export_type
         blob_client_audio = blob_service_client.get_blob_client(
             container=container_name,
-            blob=file_path.split("/")[-1].replace(".ogg", "") + "." + export_type,
+            blob=file_path.split("/")[-1].replace(".flac", "") + "." + export_type,
         )
     with open(full_path_audio, "rb") as data:
         try:
@@ -346,7 +353,8 @@ def generate_tts_output(
             else:
                 audio_not_generated.append(
                     {
-                        "index": ind,
+                        "page_number": ind,
+                        "index": ind + 1,
                         "sentence": text["target_text"],
                         "reason": "TTS API Failed.",
                     }
@@ -941,6 +949,19 @@ def integrate_all_audios(file_name, payload, video_duration):
     for fname in audio_file_paths + final_paths:
         if os.path.isfile(fname):
             os.remove(fname)
+
+
+def send_audio_mail_to_user(task, azure_url):
+    if task.user.enable_mail:
+        logging.info("Send Audio email to user %s", azure_url)
+        send_mail(
+            "Audio is generated.",
+            f"Dear User, requested audio been generated. Please copy and paste the link to your browser.{azure_url}",
+            settings.DEFAULT_FROM_EMAIL,
+            [task.user.email],
+        )
+    else:
+        logging.info("Email is not enabled %s", task.user.email)
 
 
 def send_mail_to_user(task):
