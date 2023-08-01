@@ -911,14 +911,23 @@ def integrate_all_audios(file_name, payload, video_duration):
             else:
                 logging.info("Index of Audio : #%s", str(index))
                 original_time = payload["payload"][str(index)]["time_difference"]
-                audio_2_decoded = base64.b64decode(
-                    payload["payload"][str(index)]["audio"]["audioContent"]
-                )
-                with open(file_name + "_" + str(index) + ".ogg", "wb") as out_f23:
-                    out_f23.write(audio_2_decoded)
+                if len(payload["payload"][str(index)]["audio"]["audioContent"]) < 100:
+                    silence_audio = AudioSegment.silent(
+                        duration = original_time * 1000
+                    )
+                    silence_audio.export(
+                        file_name + "_" + str(index) + ".ogg", format="ogg"
+                    )
+                    audio_file_paths.append(file_name + "_" + str(index) + ".ogg")
+                else:
+                    audio_2_decoded = base64.b64decode(
+                        payload["payload"][str(index)]["audio"]["audioContent"]
+                    )
+                    with open(file_name + "_" + str(index) + ".ogg", "wb") as out_f23:
+                        out_f23.write(audio_2_decoded)
 
-                adjust_audio(file_name + "_" + str(index) + ".ogg", original_time, -1)
-                audio_file_paths.append(file_name + "_" + str(index) + ".ogg")
+                    adjust_audio(file_name + "_" + str(index) + ".ogg", original_time, -1)
+                    audio_file_paths.append(file_name + "_" + str(index) + ".ogg")
 
     final_paths = []
     batch_size = math.ceil(len(audio_file_paths) / 20)
