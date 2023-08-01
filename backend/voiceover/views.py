@@ -616,74 +616,68 @@ def save_voice_over(request):
                             voice_over_obj = voice_over_obj_inprogress
                         ts_status = VOICEOVER_EDIT_INPROGRESS
                         voice_over_type = voice_over.voice_over_type
-                        for i in range(len(payload["payload"])):
-                            start_time = payload["payload"][i]["start_time"]
-                            end_time = payload["payload"][i]["end_time"]
-                            time_difference = (
-                                datetime.strptime(end_time, "%H:%M:%S.%f")
-                                - timedelta(
-                                    hours=float(start_time.split(":")[0]),
-                                    minutes=float(start_time.split(":")[1]),
-                                    seconds=float(start_time.split(":")[-1]),
+                        if int(payload["payload"][0]["id"]) == int(offset):
+                            for i in range(len(payload["payload"])):
+                                start_time = payload["payload"][i]["start_time"]
+                                end_time = payload["payload"][i]["end_time"]
+                                time_difference = (
+                                    datetime.strptime(end_time, "%H:%M:%S.%f")
+                                    - timedelta(
+                                        hours=float(start_time.split(":")[0]),
+                                        minutes=float(start_time.split(":")[1]),
+                                        seconds=float(start_time.split(":")[-1]),
+                                    )
+                                ).strftime("%H:%M:%S.%f")
+                                t_d = (
+                                    int(time_difference.split(":")[0]) * 3600
+                                    + int(time_difference.split(":")[1]) * 60
+                                    + float(time_difference.split(":")[2])
                                 )
-                            ).strftime("%H:%M:%S.%f")
-                            t_d = (
-                                int(time_difference.split(":")[0]) * 3600
-                                + int(time_difference.split(":")[1]) * 60
-                                + float(time_difference.split(":")[2])
-                            )
-                            if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
-                                if (
-                                    type(voiceover_machine_generated[i][1]) == dict
-                                    and "audioContent"
-                                    in voiceover_machine_generated[i][1].keys()
-                                ):
+                                if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
                                     if (
-                                        str(start_offset + i)
-                                        not in voice_over_obj.payload["payload"].keys()
-                                    ):
-                                        voice_over_obj.payload["payload"][
-                                            "completed_count"
-                                        ] += 1
-
-                                    elif (
-                                        str(start_offset + i)
-                                        in voice_over_obj.payload["payload"].keys()
-                                        and "audio"
-                                        in voice_over_obj.payload["payload"][
-                                            str(start_offset + i)
-                                        ].keys()
-                                        and type(
-                                            voice_over_obj.payload["payload"][
-                                                str(start_offset + i)
-                                            ]
-                                        )
-                                        == dict
+                                        type(voiceover_machine_generated[i][1]) == dict
                                         and "audioContent"
-                                        not in voice_over_obj.payload["payload"][
-                                            str(start_offset + i)
-                                        ]["audio"]
+                                        in voiceover_machine_generated[i][1].keys()
                                     ):
-                                        voice_over_obj.payload["payload"][
-                                            "completed_count"
-                                        ] += 1
-                                    completed_count = voice_over_obj.payload["payload"][
-                                        "completed_count"
-                                    ]
-                            else:
-                                completed_count = count_cards
-                            voice_over_obj.payload["payload"][str(start_offset + i)] = {
-                                "time_difference": t_d,
-                                "start_time": payload["payload"][i]["start_time"],
-                                "end_time": payload["payload"][i]["end_time"],
-                                "text": payload["payload"][i]["text"],
-                                "audio": voiceover_machine_generated[i][1],
-                                "audio_speed": 1,
-                            }
-                            voice_over_obj.save()
-                            sentences_list.append(
-                                {
-                                    "id": start_offset + i + 1,
+                                        if (
+                                            str(start_offset + i)
+                                            not in voice_over_obj.payload[
+                                                "payload"
+                                            ].keys()
+                                        ):
+                                            voice_over_obj.payload["payload"][
+                                                "completed_count"
+                                            ] += 1
+
+                                        elif (
+                                            str(start_offset + i)
+                                            in voice_over_obj.payload["payload"].keys()
+                                            and "audio"
+                                            in voice_over_obj.payload["payload"][
+                                                str(start_offset + i)
+                                            ].keys()
+                                            and type(
+                                                voice_over_obj.payload["payload"][
+                                                    str(start_offset + i)
+                                                ]
+                                            )
+                                            == dict
+                                            and "audioContent"
+                                            not in voice_over_obj.payload["payload"][
+                                                str(start_offset + i)
+                                            ]["audio"]
+                                        ):
+                                            voice_over_obj.payload["payload"][
+                                                "completed_count"
+                                            ] += 1
+                                        completed_count = voice_over_obj.payload[
+                                            "payload"
+                                        ]["completed_count"]
+                                else:
+                                    completed_count = count_cards
+                                voice_over_obj.payload["payload"][
+                                    str(start_offset + i)
+                                ] = {
                                     "time_difference": t_d,
                                     "start_time": payload["payload"][i]["start_time"],
                                     "end_time": payload["payload"][i]["end_time"],
@@ -691,7 +685,20 @@ def save_voice_over(request):
                                     "audio": voiceover_machine_generated[i][1],
                                     "audio_speed": 1,
                                 }
-                            )
+                                voice_over_obj.save()
+                                sentences_list.append(
+                                    {
+                                        "id": start_offset + i + 1,
+                                        "time_difference": t_d,
+                                        "start_time": payload["payload"][i][
+                                            "start_time"
+                                        ],
+                                        "end_time": payload["payload"][i]["end_time"],
+                                        "text": payload["payload"][i]["text"],
+                                        "audio": voiceover_machine_generated[i][1],
+                                        "audio_speed": 1,
+                                    }
+                                )
                         # delete inprogress payload
                         missing_cards = check_audio_completion(voice_over_obj)
                         # missing_cards = []
@@ -730,7 +737,9 @@ def save_voice_over(request):
                         .first()
                     )
                     voice_over_type = voice_over.voice_over_type
-                    if voice_over_obj is not None:
+                    if voice_over_obj is not None and int(
+                        payload["payload"][0]["id"]
+                    ) == int(offset):
                         for i in range(len(payload["payload"])):
                             start_time = payload["payload"][i]["start_time"]
                             end_time = payload["payload"][i]["end_time"]
