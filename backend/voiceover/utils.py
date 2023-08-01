@@ -704,6 +704,12 @@ def check_audio_completion(voice_over_obj):
                 and type(voice_over_obj.payload["payload"][str(index)]["audio"]) == dict
                 and "audioContent"
                 in voice_over_obj.payload["payload"][str(index)]["audio"].keys()
+                and len(
+                    voice_over_obj.payload["payload"][str(index)]["audio"][
+                        "audioContent"
+                    ]
+                )
+                > 0
             ):
                 continue
             else:
@@ -845,28 +851,43 @@ def integrate_all_audios(file_name, payload, video_duration):
 
     sorted_keys = list(payload["payload"].keys())
     audio_file_paths.append(file_name + "_" + str(0) + ".ogg")
+    empty_audios = []
+    last_valid_index = 0
     for key in sorted_keys:
         index = int(key)
         if str(index) in payload["payload"].keys() and index > 0:
             if str(index - 1) in payload["payload"].keys():
                 current_payload = payload["payload"][str(index)]["start_time"]
-                previous_payload = payload["payload"][str(index - 1)]["end_time"]
+                previous_payload = payload["payload"][str(last_valid_index)]["end_time"]
                 difference_between_payloads = get_original_duration(
                     previous_payload, current_payload
                 )
-                if difference_between_payloads > 0:
+                if difference_between_payloads > 3600 or (
+                    current_payload
+                    == payload["payload"][str(last_valid_index)]["start_time"]
+                ):
+                    empty_audios.append(index)
+                    continue
+                else:
+                    previous_index = last_valid_index
+                    last_valid_index = index
+
+                if (
+                    difference_between_payloads > 0
+                    and difference_between_payloads < 3600
+                ):
                     silence_segment = AudioSegment.silent(
                         duration=difference_between_payloads * 1000
                     )
                     # duration in milliseconds
                     # read wav file to an audio segment
                     audio = AudioSegment.from_file(
-                        file_name + "_" + str(index - 1) + ".ogg"
+                        file_name + "_" + str(previous_index) + ".ogg"
                     )
                     # Add above two audio segments
                     final_audio = audio + silence_segment
                     final_audio.export(
-                        file_name + "_" + str(index - 1) + ".ogg", format="ogg"
+                        file_name + "_" + str(previous_index) + ".ogg", format="ogg"
                     )
             if index == length_payload - 1:
                 original_time = payload["payload"][str(index)]["time_difference"]
@@ -917,13 +938,14 @@ def integrate_all_audios(file_name, payload, video_duration):
                         file_name + "_" + str(index) + ".ogg", format="ogg"
                     )
                     audio_file_paths.append(file_name + "_" + str(index) + ".ogg")
+                elif str(index) in empty_audios:
+                    continue
                 else:
                     audio_2_decoded = base64.b64decode(
                         payload["payload"][str(index)]["audio"]["audioContent"]
                     )
                     with open(file_name + "_" + str(index) + ".ogg", "wb") as out_f23:
                         out_f23.write(audio_2_decoded)
-
                     adjust_audio(
                         file_name + "_" + str(index) + ".ogg", original_time, -1
                     )
@@ -954,7 +976,6 @@ def integrate_all_audios(file_name, payload, video_duration):
     clips = [AudioFileClip(c) for c in final_paths]
     final_clip_1 = concatenate_audioclips(clips)
     final_clip_1.write_audiofile(file_name + "final.wav")
-
     for fname in audio_file_paths + final_paths:
         if os.path.isfile(fname):
             os.remove(fname)
