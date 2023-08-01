@@ -964,10 +964,12 @@ def send_audio_mail_to_user(task, azure_url, user):
     if task.user.enable_mail:
         logging.info("Send Audio email to user %s", azure_url)
         send_mail(
-            f"Audio is generated for {task.video.id} in {task.target_language}",
-            f"<p>The requested audio has been successfully generated. You can access the audio by copying and pasting the following link into your web browser.</p><p>{azure_url}</p>",
+            f"Audio is generated for Video ID - {task.video.id}",
             settings.DEFAULT_FROM_EMAIL,
             [user.email],
+            html_message="<p>The requested audio has been successfully generated. You can access the audio by copying and pasting the following link into your web browser.</p><p>{url}</p>".format(
+                url=azure_url
+            ),
         )
     else:
         logging.info("Email is not enabled %s", task.user.email)
