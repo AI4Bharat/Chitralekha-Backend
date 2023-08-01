@@ -14,6 +14,7 @@ from .utils import (
 )
 from voiceover.models import VoiceOver
 from task.models import Task
+from users.models import User
 import os
 import logging
 from config import (
