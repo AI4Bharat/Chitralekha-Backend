@@ -1096,7 +1096,9 @@ def export_voiceover(request):
             logging.info(
                 "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
             )
-            export_voiceover_async.delay(voice_over.task.id, export_type)
+            export_voiceover_async.delay(
+                voice_over.task.id, export_type, request.user.id
+            )
             return Response(
                 {
                     "message": "Please wait. The audio link will be emailed to you.",
@@ -1104,7 +1106,9 @@ def export_voiceover(request):
                 status=status.HTTP_200_OK,
             )
         elif export_type == "wav":
-            export_voiceover_async.delay(voice_over.task.id, export_type)
+            export_voiceover_async.delay(
+                voice_over.task.id, export_type, request.user.id
+            )
             return Response(
                 {
                     "message": "Please wait. The audio link will be emailed to you.",
