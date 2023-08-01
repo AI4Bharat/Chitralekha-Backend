@@ -140,6 +140,7 @@ def get_empty_audios(request):
         voice_over.payload
         and "payload" in voice_over.payload
         and "audio_not_generated" in voice_over.payload
+        and len(voice_over.payload["audio_not_generated"]) > 0
     ):
         return Response(
             {

@@ -47,7 +47,8 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
 
 
 @shared_task()
-def export_voiceover_async(task_id, export_type):
+def export_voiceover_async(task_id, export_type, user_id):
+    user = User.objects.get(pk=user_id)
     task = Task.objects.get(pk=task_id)
     voice_over = (
         VoiceOver.objects.filter(task__id=task_id)
@@ -69,6 +70,6 @@ def export_voiceover_async(task_id, export_type):
         )
         os.remove(file_path)
         os.remove(file_path.split("/")[-1].replace(".flac", "") + "." + export_type)
-        send_audio_mail_to_user(task, azure_url_audio)
+        send_audio_mail_to_user(task, azure_url_audio, user)
     else:
         logging.info("Error in exporting %s", str(task_id))
