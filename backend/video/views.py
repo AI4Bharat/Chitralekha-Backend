@@ -506,6 +506,14 @@ def download_all(request):
                 type=openapi.TYPE_STRING,
                 description="Gender of video's voice",
             ),
+            "multiple_speaker": openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description="Multiple speaker true or false",
+            ),
+            "speaker_info": openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                description="Speaker info of video",
+            ),
         },
         required=["video_id"],
     ),
@@ -521,6 +529,8 @@ def update_video(request):
     video_id = request.data.get("video_id")
     description = request.data.get("description")
     gender = request.data.get("gender")
+    multiple_speaker = request.data.get("multiple_speaker", "false")
+    speaker_info = request.data.get("speaker_info")
 
     try:
         video = Video.objects.get(id=video_id)
@@ -532,6 +542,12 @@ def update_video(request):
             gender_list = [gender[0] for gender in GENDER]
             if gender.upper() in gender_list:
                 video.gender = gender.upper()
+
+        if multiple_speaker is not None:
+            video.multiple_speaker = multiple_speaker
+
+        if speaker_info is not None:
+            video.speaker_info = speaker_info
 
         video.save()
 
