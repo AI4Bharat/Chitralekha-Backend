@@ -232,13 +232,14 @@ def get_payload(request):
             )
             count_cards += 1
         else:
+            """
             count_cards = (
                 len(voice_over.translation.payload["payload"])
                 - voice_over_payload_offset_size
                 + 1
             )
-            count_cards += 1
-
+            """
+            count_cards = len(voice_over.translation.payload["payload"]) - 1
         first_offset = voice_over_payload_offset_size // 2 + 1
         start_offset = (
             first_offset + current_offset - 1 * payload_offset_size // 2
@@ -300,8 +301,11 @@ def get_payload(request):
             )
         payload = {"payload": sentences_list}
     elif voice_over.voice_over_type == "MANUALLY_CREATED":
+        if end_offset > count_cards:
+            end_offset = end_offset - 1
         if voice_over.payload and "payload" in voice_over.payload:
             count = 0
+
             for i in range(start_offset, end_offset + 1):
                 if str(i) in voice_over.payload["payload"].keys():
                     start_time = voice_over.payload["payload"][str(i)]["start_time"]
@@ -533,12 +537,14 @@ def save_voice_over(request):
                 )
                 count_cards += 1
             else:
+                """
                 count_cards = (
                     len(voice_over.translation.payload["payload"])
                     - voice_over_payload_offset_size
                     + 1
                 )
-                count_cards += 1
+                """
+                count_cards = len(voice_over.translation.payload["payload"]) - 1
             first_offset = voice_over_payload_offset_size // 2 + 1
             current_offset = offset - 1
             start_offset = (
