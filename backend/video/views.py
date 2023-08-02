@@ -257,7 +257,6 @@ def list_recent(request):
     # In the future, if that constraint is removed then we might need to alter the logic.
 
     try:
-
         # Get the relevant videos, based on the audio only param
         video_list = Video.objects.filter(audio_only=is_audio_only)
 
@@ -544,6 +543,8 @@ def update_video(request):
                 video.gender = gender.upper()
 
         if multiple_speaker is not None:
+            multiple_speaker = multiple_speaker.lower()
+
             video.multiple_speaker = multiple_speaker
 
         if speaker_info is not None:
