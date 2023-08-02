@@ -5,9 +5,16 @@ from celery.schedules import crontab
 from datetime import datetime
 from rest_framework.response import Response
 from rest_framework import status
-from .utils import integrate_audio_with_video, uploadToBlobStorage
+from .utils import (
+    integrate_audio_with_video,
+    uploadToBlobStorage,
+    download_from_azure_blob,
+    upload_audio_to_azure_blob,
+    send_audio_mail_to_user,
+)
 from voiceover.models import VoiceOver
 from task.models import Task
+from users.models import User
 import os
 import logging
 from config import (
@@ -15,6 +22,8 @@ from config import (
     connection_string,
     container_name,
 )
+from pydub import AudioSegment
+from backend.celery import celery_app
 
 
 @shared_task()
@@ -33,6 +42,35 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
     voice_over_obj.payload = {"payload": ""}
     voice_over_obj.azure_url = azure_url_video
     voice_over_obj.azure_url_audio = azure_url_audio
-    voice_over_obj.save()
     task.status = "COMPLETE"
+    voice_over_obj.save()
     task.save()
+
+
+@shared_task()
+def export_voiceover_async(task_id, export_type, user_id):
+    user = User.objects.get(pk=user_id)
+    task = Task.objects.get(pk=task_id)
+    voice_over = (
+        VoiceOver.objects.filter(task__id=task_id)
+        .filter(target_language=task.target_language)
+        .filter(status="VOICEOVER_EDIT_COMPLETE")
+        .first()
+    )
+    if voice_over is not None:
+        download_from_azure_blob(str(voice_over.azure_url_audio))
+        logging.info("Downloaded audio from Azure Blob %s", voice_over.azure_url_audio)
+        file_path = voice_over.azure_url_audio.split("/")[-1]
+        AudioSegment.from_file(file_path).export(
+            file_path.split("/")[-1].replace(".flac", "") + "." + export_type,
+            format=export_type,
+        )
+        logging.info("Uploading audio to Azure Blob %s", voice_over.azure_url_audio)
+        azure_url_audio = upload_audio_to_azure_blob(
+            file_path, export_type, export=True
+        )
+        os.remove(file_path)
+        os.remove(file_path.split("/")[-1].replace(".flac", "") + "." + export_type)
+        send_audio_mail_to_user(task, azure_url_audio, user)
+    else:
+        logging.info("Error in exporting %s", str(task_id))

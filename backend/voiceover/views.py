@@ -21,7 +21,7 @@ from .models import (
 from datetime import datetime, timedelta
 from .utils import *
 from config import voice_over_payload_offset_size
-from .tasks import celery_integration
+from .tasks import celery_integration, export_voiceover_async
 from django.db.models import Count, F, Sum
 from operator import itemgetter
 from itertools import groupby
@@ -80,6 +80,80 @@ def get_voice_over_id(task):
                 .first()
             )
     return voice_over_id
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the task id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
+    responses={200: "Returns the empty audios."},
+)
+@api_view(["GET"])
+def get_empty_audios(request):
+    try:
+        task_id = request.query_params["task_id"]
+    except KeyError:
+        return Response(
+            {"message": "Missing required parameters - task_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    voice_over = get_voice_over_id(task)
+    if voice_over is not None:
+        voice_over_id = voice_over.id
+    else:
+        if task.status == "POST_PROCESS":
+            return Response(
+                {"message": "VoiceOver is in Post Process stage."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {"message": "VoiceOver doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Retrieve the voice over object
+    try:
+        voice_over = VoiceOver.objects.get(pk=voice_over_id)
+    except VoiceOver.DoesNotExist:
+        return Response(
+            {"message": "VoiceOver doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if (
+        voice_over.payload
+        and "payload" in voice_over.payload
+        and "audio_not_generated" in voice_over.payload
+        and len(voice_over.payload["audio_not_generated"]) > 0
+    ):
+        return Response(
+            {
+                "data": voice_over.payload["audio_not_generated"],
+                "message": "Sentences with empty audios are returned.",
+            },
+            status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(
+            {"message": "No issues in audios."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 @swagger_auto_schema(
@@ -156,12 +230,15 @@ def get_payload(request):
                 - voice_over_payload_offset_size
                 + 1
             )
+            count_cards += 1
         else:
             count_cards = (
                 len(voice_over.translation.payload["payload"])
                 - voice_over_payload_offset_size
                 + 1
             )
+            count_cards += 1
+
         first_offset = voice_over_payload_offset_size // 2 + 1
         start_offset = (
             first_offset + current_offset - 1 * payload_offset_size // 2
@@ -221,54 +298,6 @@ def get_payload(request):
                     "audio_speed": 1,
                 }
             )
-            """
-            if (
-                voice_over.payload
-                and "payload" in voice_over.payload
-                and len(voice_over.payload["payload"].keys()) > 0
-                and audio_index in voice_over.payload["payload"].keys()
-                and "audioContent"
-                in voice_over.payload["payload"][audio_index]["audio"].keys()
-            ):
-                start_time = voice_over.payload["payload"][audio_index]["start_time"]
-                end_time = voice_over.payload["payload"][audio_index]["end_time"]
-                original_duration = get_original_duration(start_time, end_time)
-                input_sentences.append(
-                    (
-                        voice_over.payload["payload"][audio_index]["text"],
-                        voice_over.payload["payload"][audio_index]["audio"],
-                        False,
-                        original_duration,
-                    )
-                )
-            else:
-                start_time = text["start_time"]
-                end_time = text["end_time"]
-                original_duration = get_original_duration(start_time, end_time)
-                input_sentences.append(
-                    (text["target_text"], "", True, original_duration)
-                )
-
-        voiceover_machine_generated = generate_voiceover_payload(
-            input_sentences, task.target_language
-        )
-        for i in range(len(voiceover_machine_generated)):
-            start_time = translation_payload[i][0]["start_time"]
-            end_time = translation_payload[i][0]["end_time"]
-            time_difference = (
-                datetime.strptime(end_time, "%H:%M:%S.%f")
-                - timedelta(
-                    hours=float(start_time.split(":")[0]),
-                    minutes=float(start_time.split(":")[1]),
-                    seconds=float(start_time.split(":")[-1]),
-                )
-            ).strftime("%H:%M:%S.%f")
-            t_d = (
-                float(time_difference.split(":")[0]) * 3600
-                + float(time_difference.split(":")[1]) * 60
-                + float(time_difference.split(":")[2])
-            )
-            """
         payload = {"payload": sentences_list}
     elif voice_over.voice_over_type == "MANUALLY_CREATED":
         if voice_over.payload and "payload" in voice_over.payload:
@@ -502,12 +531,14 @@ def save_voice_over(request):
                     - voice_over_payload_offset_size
                     + 1
                 )
+                count_cards += 1
             else:
                 count_cards = (
                     len(voice_over.translation.payload["payload"])
                     - voice_over_payload_offset_size
                     + 1
                 )
+                count_cards += 1
             first_offset = voice_over_payload_offset_size // 2 + 1
             current_offset = offset - 1
             start_offset = (
@@ -585,74 +616,68 @@ def save_voice_over(request):
                             voice_over_obj = voice_over_obj_inprogress
                         ts_status = VOICEOVER_EDIT_INPROGRESS
                         voice_over_type = voice_over.voice_over_type
-                        for i in range(len(payload["payload"])):
-                            start_time = payload["payload"][i]["start_time"]
-                            end_time = payload["payload"][i]["end_time"]
-                            time_difference = (
-                                datetime.strptime(end_time, "%H:%M:%S.%f")
-                                - timedelta(
-                                    hours=float(start_time.split(":")[0]),
-                                    minutes=float(start_time.split(":")[1]),
-                                    seconds=float(start_time.split(":")[-1]),
+                        if int(payload["payload"][0]["id"]) == int(offset):
+                            for i in range(len(payload["payload"])):
+                                start_time = payload["payload"][i]["start_time"]
+                                end_time = payload["payload"][i]["end_time"]
+                                time_difference = (
+                                    datetime.strptime(end_time, "%H:%M:%S.%f")
+                                    - timedelta(
+                                        hours=float(start_time.split(":")[0]),
+                                        minutes=float(start_time.split(":")[1]),
+                                        seconds=float(start_time.split(":")[-1]),
+                                    )
+                                ).strftime("%H:%M:%S.%f")
+                                t_d = (
+                                    int(time_difference.split(":")[0]) * 3600
+                                    + int(time_difference.split(":")[1]) * 60
+                                    + float(time_difference.split(":")[2])
                                 )
-                            ).strftime("%H:%M:%S.%f")
-                            t_d = (
-                                int(time_difference.split(":")[0]) * 3600
-                                + int(time_difference.split(":")[1]) * 60
-                                + float(time_difference.split(":")[2])
-                            )
-                            if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
-                                if (
-                                    type(voiceover_machine_generated[i][1]) == dict
-                                    and "audioContent"
-                                    in voiceover_machine_generated[i][1].keys()
-                                ):
+                                if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
                                     if (
-                                        str(start_offset + i)
-                                        not in voice_over_obj.payload["payload"].keys()
-                                    ):
-                                        voice_over_obj.payload["payload"][
-                                            "completed_count"
-                                        ] += 1
-
-                                    elif (
-                                        str(start_offset + i)
-                                        in voice_over_obj.payload["payload"].keys()
-                                        and "audio"
-                                        in voice_over_obj.payload["payload"][
-                                            str(start_offset + i)
-                                        ].keys()
-                                        and type(
-                                            voice_over_obj.payload["payload"][
-                                                str(start_offset + i)
-                                            ]
-                                        )
-                                        == dict
+                                        type(voiceover_machine_generated[i][1]) == dict
                                         and "audioContent"
-                                        not in voice_over_obj.payload["payload"][
-                                            str(start_offset + i)
-                                        ]["audio"]
+                                        in voiceover_machine_generated[i][1].keys()
                                     ):
-                                        voice_over_obj.payload["payload"][
-                                            "completed_count"
-                                        ] += 1
-                                    completed_count = voice_over_obj.payload["payload"][
-                                        "completed_count"
-                                    ]
-                            else:
-                                completed_count = count_cards
-                            voice_over_obj.payload["payload"][str(start_offset + i)] = {
-                                "time_difference": t_d,
-                                "start_time": payload["payload"][i]["start_time"],
-                                "end_time": payload["payload"][i]["end_time"],
-                                "text": payload["payload"][i]["text"],
-                                "audio": voiceover_machine_generated[i][1],
-                                "audio_speed": 1,
-                            }
-                            voice_over_obj.save()
-                            sentences_list.append(
-                                {
-                                    "id": start_offset + i + 1,
+                                        if (
+                                            str(start_offset + i)
+                                            not in voice_over_obj.payload[
+                                                "payload"
+                                            ].keys()
+                                        ):
+                                            voice_over_obj.payload["payload"][
+                                                "completed_count"
+                                            ] += 1
+
+                                        elif (
+                                            str(start_offset + i)
+                                            in voice_over_obj.payload["payload"].keys()
+                                            and "audio"
+                                            in voice_over_obj.payload["payload"][
+                                                str(start_offset + i)
+                                            ].keys()
+                                            and type(
+                                                voice_over_obj.payload["payload"][
+                                                    str(start_offset + i)
+                                                ]
+                                            )
+                                            == dict
+                                            and "audioContent"
+                                            not in voice_over_obj.payload["payload"][
+                                                str(start_offset + i)
+                                            ]["audio"]
+                                        ):
+                                            voice_over_obj.payload["payload"][
+                                                "completed_count"
+                                            ] += 1
+                                        completed_count = voice_over_obj.payload[
+                                            "payload"
+                                        ]["completed_count"]
+                                else:
+                                    completed_count = count_cards
+                                voice_over_obj.payload["payload"][
+                                    str(start_offset + i)
+                                ] = {
                                     "time_difference": t_d,
                                     "start_time": payload["payload"][i]["start_time"],
                                     "end_time": payload["payload"][i]["end_time"],
@@ -660,7 +685,20 @@ def save_voice_over(request):
                                     "audio": voiceover_machine_generated[i][1],
                                     "audio_speed": 1,
                                 }
-                            )
+                                voice_over_obj.save()
+                                sentences_list.append(
+                                    {
+                                        "id": start_offset + i + 1,
+                                        "time_difference": t_d,
+                                        "start_time": payload["payload"][i][
+                                            "start_time"
+                                        ],
+                                        "end_time": payload["payload"][i]["end_time"],
+                                        "text": payload["payload"][i]["text"],
+                                        "audio": voiceover_machine_generated[i][1],
+                                        "audio_speed": 1,
+                                    }
+                                )
                         # delete inprogress payload
                         missing_cards = check_audio_completion(voice_over_obj)
                         # missing_cards = []
@@ -699,7 +737,9 @@ def save_voice_over(request):
                         .first()
                     )
                     voice_over_type = voice_over.voice_over_type
-                    if voice_over_obj is not None:
+                    if voice_over_obj is not None and int(
+                        payload["payload"][0]["id"]
+                    ) == int(offset):
                         for i in range(len(payload["payload"])):
                             start_time = payload["payload"][i]["start_time"]
                             end_time = payload["payload"][i]["end_time"]
@@ -1055,28 +1095,9 @@ def export_voiceover(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         elif export_type == "flac":
-            logging.info(
-                "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
-            )
-            download_from_azure_blob(str(voice_over.azure_url_audio))
-            logging.info(
-                "Downloaded audio from Azure Blob %s", voice_over.azure_url_audio
-            )
-            file_path = voice_over.azure_url_audio.split("/")[-1]
-            AudioSegment.from_file(file_path).export(
-                file_path.split("/")[-1].replace(".ogg", "") + ".flac", format="flac"
-            )
-            logging.info(
-                "Uploading audio flac to Azure Blob %s", voice_over.azure_url_audio
-            )
-            azure_url_audio = upload_audio_to_azure_blob(
-                file_path, export_type, export=True
-            )
-            os.remove(file_path)
-            os.remove(file_path.split("/")[-1].replace(".ogg", "") + ".flac")
             return Response(
                 {
-                    "azure_url": azure_url_audio,
+                    "azure_url": voice_over.azure_url_audio,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -1084,59 +1105,28 @@ def export_voiceover(request):
             logging.info(
                 "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
             )
-            download_from_azure_blob(str(voice_over.azure_url_audio))
-            logging.info(
-                "Downloaded audio from Azure Blob %s", voice_over.azure_url_audio
+            export_voiceover_async.delay(
+                voice_over.task.id, export_type, request.user.id
             )
-            file_path = voice_over.azure_url_audio.split("/")[-1]
-            AudioSegment.from_file(file_path).export(
-                file_path.split("/")[-1].replace(".ogg", "") + ".mp3", format="mp3"
-            )
-            logging.info(
-                "Uploading audio mp3 to Azure Blob %s", voice_over.azure_url_audio
-            )
-            azure_url_audio = upload_audio_to_azure_blob(
-                file_path, export_type, export=True
-            )
-            os.remove(file_path)
-            os.remove(file_path.split("/")[-1].replace(".ogg", "") + ".mp3")
             return Response(
                 {
-                    "azure_url": azure_url_audio,
+                    "message": "Please wait. The audio link will be emailed to you.",
                 },
                 status=status.HTTP_200_OK,
             )
         elif export_type == "wav":
-            logging.info(
-                "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
+            export_voiceover_async.delay(
+                voice_over.task.id, export_type, request.user.id
             )
-            download_from_azure_blob(str(voice_over.azure_url_audio))
-            logging.info(
-                "Downloaded audio from Azure Blob %s", voice_over.azure_url_audio
-            )
-            file_path = voice_over.azure_url_audio.split("/")[-1]
-            AudioSegment.from_file(file_path).export(
-                file_path.split("/")[-1].replace(".ogg", "") + ".wav", format="wav"
-            )
-            logging.info(
-                "Uploading audio wav to Azure Blob %s", voice_over.azure_url_audio
-            )
-            azure_url_audio = upload_audio_to_azure_blob(
-                file_path, export_type, export=True
-            )
-            os.remove(file_path)
-            os.remove(file_path.split("/")[-1].replace(".ogg", "") + ".wav")
             return Response(
                 {
-                    "azure_url": azure_url_audio,
+                    "message": "Please wait. The audio link will be emailed to you.",
                 },
                 status=status.HTTP_200_OK,
             )
     else:
         return Response(
-            {
-                "message": "exported type only supported formats are : {mp4, mp3, flac, wav} "
-            },
+            {"message": "The supported formats are : {mp4, mp3, flac, wav} "},
             status=status.HTTP_404_NOT_FOUND,
         )
 

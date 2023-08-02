@@ -15,6 +15,11 @@ urlpatterns = [
         name="get_voice_over_types",
     ),
     path(
+        "get_empty_audios/",
+        views.get_empty_audios,
+        name="get_empty_audios",
+    ),
+    path(
         "get_payload/",
         views.get_payload,
         name="get_payload",
