@@ -13,7 +13,7 @@ from rest_framework.viewsets import ModelViewSet
 from transcript.models import ORIGINAL_SOURCE, Transcript
 from translation.models import Translation
 from project.decorators import is_project_owner
-from .models import Video, GENDER
+from .models import Video, GENDER, MULTISPEAKER_AGE_GROUP
 from .serializers import VideoSerializer
 from .utils import *
 from django.utils import timezone
@@ -533,6 +533,7 @@ def update_video(request):
 
     try:
         video = Video.objects.get(id=video_id)
+        errors = []
 
         if description is not None:
             video.description = description
@@ -543,21 +544,56 @@ def update_video(request):
                 video.gender = gender.upper()
 
         if multiple_speaker is not None:
-            multiple_speaker = multiple_speaker.lower()
-
             video.multiple_speaker = multiple_speaker
 
         if speaker_info is not None:
-            video.speaker_info = speaker_info
+            speaker_info_for_update = []
+            gender_list = [gender[0] for gender in GENDER]
+            for i in speaker_info:
+                speaker_info_obj = {}
 
-        video.save()
+                if i["name"] is not None:
+                    speaker_info_obj["name"] = i["name"]
 
-        return Response(
-            {
-                "message": "Video updated successfully.",
-            },
-            status=status.HTTP_200_OK,
-        )
+                if i["gender"].upper() in gender_list:
+                    speaker_info_obj["gender"] = i["gender"].upper()
+                else:
+                    errors.append(
+                        {
+                            "message": f"Invalid Gender in : {i}",
+                        }
+                    )
+
+                if i["age"] in MULTISPEAKER_AGE_GROUP:
+                    speaker_info_obj["age"] = i["age"]
+                else:
+                    errors.append(
+                        {
+                            "message": f"Invalid Age in : {i}",
+                        }
+                    )
+
+                if i["id"] is not None:
+                    speaker_info_obj["id"] = i["id"]
+
+                speaker_info_for_update.append(speaker_info_obj)
+
+            video.speaker_info = speaker_info_for_update
+
+        if len(errors) > 0:
+            return Response(
+                {"message": "Invalid Data", "response": errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        else:
+            video.save()
+
+            return Response(
+                {
+                    "message": "Video updated successfully.",
+                },
+                status=status.HTTP_200_OK,
+            )
     except Video.DoesNotExist:
         return Response(
             {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND

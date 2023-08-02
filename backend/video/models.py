@@ -8,6 +8,7 @@ MALE = "MALE"
 FEMALE = "FEMALE"
 
 GENDER = ((MALE, "Male"), (FEMALE, "Female"))
+MULTISPEAKER_AGE_GROUP = ("1-10", "11-20", "21-60", "61-100")
 
 VIDEO_STATUS = (
     ("NEW", "NEW"),
