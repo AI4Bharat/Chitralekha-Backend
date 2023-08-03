@@ -656,6 +656,10 @@ def save_voice_over(request):
                                         type(voiceover_adjusted[i][1]) == dict
                                         and "audioContent"
                                         in voiceover_adjusted[i][1].keys()
+                                        and len(
+                                            voiceover_adjusted[i][1]["audioContent"]
+                                        )
+                                        > 0
                                     ):
                                         if (
                                             str(start_offset + i)
@@ -780,6 +784,8 @@ def save_voice_over(request):
                                     type(voiceover_adjusted[i][1]) == dict
                                     and "audioContent"
                                     in voiceover_adjusted[i][1].keys()
+                                    and len(voiceover_adjusted[i][1]["audioContent"])
+                                    > 0
                                 ):
                                     if (
                                         str(start_offset + i)
@@ -869,6 +875,8 @@ def save_voice_over(request):
                                     type(voiceover_adjusted[i][1]) == dict
                                     and "audioContent"
                                     in voiceover_adjusted[i][1].keys()
+                                    and len(voiceover_adjusted[i][1]["audioContent"])
+                                    > 0
                                 ):
                                     if (
                                         str(start_offset + i)
