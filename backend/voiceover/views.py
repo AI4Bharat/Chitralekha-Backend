@@ -383,7 +383,7 @@ def get_payload(request):
         return Response(
             {
                 "completed_count": voice_over.payload["payload"]["completed_count"],
-                "count_sentences": len(voice_over.translation.payload["payload"]),
+                "sentences_count": len(voice_over.translation.payload["payload"]),
                 "count": count_cards,
                 "next": next,
                 "current": offset,
@@ -713,7 +713,7 @@ def save_voice_over(request):
                                         ],
                                         "end_time": payload["payload"][i]["end_time"],
                                         "text": payload["payload"][i]["text"],
-                                        "audio": voiceover_machine_generated[i][1],
+                                        "audio": voiceover_adjusted[i][1],
                                         "audio_speed": 1,
                                     }
                                 )
