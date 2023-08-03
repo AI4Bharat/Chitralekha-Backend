@@ -232,13 +232,14 @@ def get_payload(request):
             )
             count_cards += 1
         else:
+            """
             count_cards = (
                 len(voice_over.translation.payload["payload"])
                 - voice_over_payload_offset_size
                 + 1
             )
-            count_cards += 1
-
+            """
+            count_cards = len(voice_over.translation.payload["payload"]) - 1
         first_offset = voice_over_payload_offset_size // 2 + 1
         start_offset = (
             first_offset + current_offset - 1 * payload_offset_size // 2
@@ -300,8 +301,11 @@ def get_payload(request):
             )
         payload = {"payload": sentences_list}
     elif voice_over.voice_over_type == "MANUALLY_CREATED":
+        if end_offset > count_cards:
+            end_offset = end_offset - 1
         if voice_over.payload and "payload" in voice_over.payload:
             count = 0
+
             for i in range(start_offset, end_offset + 1):
                 if str(i) in voice_over.payload["payload"].keys():
                     start_time = voice_over.payload["payload"][str(i)]["start_time"]
@@ -379,6 +383,7 @@ def get_payload(request):
         return Response(
             {
                 "completed_count": voice_over.payload["payload"]["completed_count"],
+                "sentences_count": len(voice_over.translation.payload["payload"]),
                 "count": count_cards,
                 "next": next,
                 "current": offset,
@@ -533,12 +538,14 @@ def save_voice_over(request):
                 )
                 count_cards += 1
             else:
+                """
                 count_cards = (
                     len(voice_over.translation.payload["payload"])
                     - voice_over_payload_offset_size
                     + 1
                 )
-                count_cards += 1
+                """
+                count_cards = len(voice_over.translation.payload["payload"]) - 1
             first_offset = voice_over_payload_offset_size // 2 + 1
             current_offset = offset - 1
             start_offset = (
@@ -573,6 +580,14 @@ def save_voice_over(request):
                         translation_payload.append(
                             (voice_over_payload["text"], "", True, original_duration)
                         )
+                    elif voice_over.voice_over_type == "MANUALLY_CREATED":
+                        translation_payload.append(
+                            (
+                                voice_over_payload["text"],
+                                voice_over_payload["audio"],
+                                original_duration,
+                            )
+                        )
                     else:
                         translation_payload.append(
                             (
@@ -582,9 +597,12 @@ def save_voice_over(request):
                                 original_duration,
                             )
                         )
-                voiceover_machine_generated = generate_voiceover_payload(
-                    translation_payload, task.target_language, task
-                )
+                if voice_over.voice_over_type == "MANUALLY_CREATED":
+                    voiceover_adjusted = adjust_voiceover(translation_payload)
+                else:
+                    voiceover_machine_generated = generate_voiceover_payload(
+                        translation_payload, task.target_language, task
+                    )
                 if request.data.get("final"):
                     if (
                         VoiceOver.objects.filter(status=VOICEOVER_EDIT_COMPLETE)
@@ -635,9 +653,13 @@ def save_voice_over(request):
                                 )
                                 if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
                                     if (
-                                        type(voiceover_machine_generated[i][1]) == dict
+                                        type(voiceover_adjusted[i][1]) == dict
                                         and "audioContent"
-                                        in voiceover_machine_generated[i][1].keys()
+                                        in voiceover_adjusted[i][1].keys()
+                                        and len(
+                                            voiceover_adjusted[i][1]["audioContent"]
+                                        )
+                                        > 0
                                     ):
                                         if (
                                             str(start_offset + i)
@@ -682,7 +704,7 @@ def save_voice_over(request):
                                     "start_time": payload["payload"][i]["start_time"],
                                     "end_time": payload["payload"][i]["end_time"],
                                     "text": payload["payload"][i]["text"],
-                                    "audio": voiceover_machine_generated[i][1],
+                                    "audio": voiceover_adjusted[i][1],
                                     "audio_speed": 1,
                                 }
                                 voice_over_obj.save()
@@ -695,7 +717,7 @@ def save_voice_over(request):
                                         ],
                                         "end_time": payload["payload"][i]["end_time"],
                                         "text": payload["payload"][i]["text"],
-                                        "audio": voiceover_machine_generated[i][1],
+                                        "audio": voiceover_adjusted[i][1],
                                         "audio_speed": 1,
                                     }
                                 )
@@ -710,6 +732,9 @@ def save_voice_over(request):
                                 },
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
+                        if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
+                            del voice_over_obj.payload["payload"]["completed_count"]
+                            voice_over_obj.save()
                         file_name = voice_over_obj.video.name
                         time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         file_name = "Chitralekha_Video_{}_{}_{}".format(
@@ -719,8 +744,6 @@ def save_voice_over(request):
                         )
                         file_path = "temporary_video_audio_storage"
                         task.status = "POST_PROCESS"
-                        if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
-                            del voice_over_obj.payload["payload"]["completed_count"]
                         task.save()
                         logging.info("Calling Async Celery Integration")
                         celery_integration.delay(
@@ -758,9 +781,11 @@ def save_voice_over(request):
                             )
                             if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
                                 if (
-                                    type(voiceover_machine_generated[i][1]) == dict
+                                    type(voiceover_adjusted[i][1]) == dict
                                     and "audioContent"
-                                    in voiceover_machine_generated[i][1].keys()
+                                    in voiceover_adjusted[i][1].keys()
+                                    and len(voiceover_adjusted[i][1]["audioContent"])
+                                    > 0
                                 ):
                                     if (
                                         str(start_offset + i)
@@ -801,7 +826,7 @@ def save_voice_over(request):
                                 "start_time": payload["payload"][i]["start_time"],
                                 "end_time": payload["payload"][i]["end_time"],
                                 "text": payload["payload"][i]["text"],
-                                "audio": voiceover_machine_generated[i][1],
+                                "audio": voiceover_adjusted[i][1],
                                 "audio_speed": 1,
                             }
                             sentences_list.append(
@@ -811,7 +836,7 @@ def save_voice_over(request):
                                     "start_time": payload["payload"][i]["start_time"],
                                     "end_time": payload["payload"][i]["end_time"],
                                     "text": payload["payload"][i]["text"],
-                                    "audio": voiceover_machine_generated[i][1],
+                                    "audio": voiceover_adjusted[i][1],
                                     "audio_speed": 1,
                                 }
                             )
@@ -847,9 +872,11 @@ def save_voice_over(request):
                             )
                             if voice_over_obj.voice_over_type == "MANUALLY_CREATED":
                                 if (
-                                    type(voiceover_machine_generated[i][1]) == dict
+                                    type(voiceover_adjusted[i][1]) == dict
                                     and "audioContent"
-                                    in voiceover_machine_generated[i][1].keys()
+                                    in voiceover_adjusted[i][1].keys()
+                                    and len(voiceover_adjusted[i][1]["audioContent"])
+                                    > 0
                                 ):
                                     if (
                                         str(start_offset + i)
@@ -890,7 +917,7 @@ def save_voice_over(request):
                                 "start_time": payload["payload"][i]["start_time"],
                                 "end_time": payload["payload"][i]["end_time"],
                                 "text": payload["payload"][i]["text"],
-                                "audio": voiceover_machine_generated[i][1],
+                                "audio": voiceover_adjusted[i][1],
                                 "audio_speed": 1,
                             }
                             sentences_list.append(
@@ -900,7 +927,7 @@ def save_voice_over(request):
                                     "start_time": payload["payload"][i]["start_time"],
                                     "end_time": payload["payload"][i]["end_time"],
                                     "text": payload["payload"][i]["text"],
-                                    "audio": voiceover_machine_generated[i][1],
+                                    "audio": voiceover_adjusted[i][1],
                                     "audio_speed": 1,
                                 }
                             )
