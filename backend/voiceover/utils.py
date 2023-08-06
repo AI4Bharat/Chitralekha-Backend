@@ -582,17 +582,29 @@ def adjust_voiceover(translation_payload):
     output = [0] * voice_over_payload_offset_size
     for index, (translation_text, audio, duration) in enumerate(translation_payload):
         if type(audio) == dict and "audioContent" in audio.keys():
-            audio_file = "temp.wav"
-            first_audio_decoded = base64.b64decode(audio["audioContent"])
-            with open(audio_file, "wb") as output_f:
-                output_f.write(first_audio_decoded)
-            AudioSegment.from_file("temp.wav").export("temp.ogg", format="ogg")
-            adjust_audio("temp.ogg", translation_payload[index][2], -1)
-            encoded_audio = base64.b64encode(open("temp.ogg", "rb").read())
-            output[index] = (
-                translation_payload[index][0],
-                {"audioContent": encoded_audio.decode()},
-            )
+            if len(audio["audioContent"]) > 400:
+                audio_file = "temp.wav"
+                first_audio_decoded = base64.b64decode(audio["audioContent"])
+                with open(audio_file, "wb") as output_f:
+                    output_f.write(first_audio_decoded)
+                try:
+                    AudioSegment.from_file("temp.wav").export("temp.ogg", format="ogg")
+                except:
+                    audio_file = "temp.ogg"
+                    first_audio_decoded = base64.b64decode(audio["audioContent"])
+                    with open(audio_file, "wb") as output_f:
+                        output_f.write(first_audio_decoded)
+                audio = AudioFileClip(audio_file)
+                # seconds = audio.duration
+                adjust_audio("temp.ogg", translation_payload[index][2], -1)
+                encoded_audio = base64.b64encode(open("temp.ogg", "rb").read())
+                output[index] = (
+                    translation_payload[index][0],
+                    {"audioContent": encoded_audio.decode()},
+                )
+            else:
+                logging.info("Recieved wrong input for %s", translation_text)
+                output[index] = (translation_payload[index][0], "")
         else:
             output[index] = (translation_payload[index][0], "")
     return output
