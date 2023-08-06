@@ -659,7 +659,7 @@ def save_voice_over(request):
                                         and len(
                                             voiceover_adjusted[i][1]["audioContent"]
                                         )
-                                        > 0
+                                        > 400
                                     ):
                                         if (
                                             str(start_offset + i)
@@ -697,16 +697,38 @@ def save_voice_over(request):
                                         ]["completed_count"]
                                 else:
                                     completed_count = count_cards
-                                voice_over_obj.payload["payload"][
+                                if (
                                     str(start_offset + i)
-                                ] = {
-                                    "time_difference": t_d,
-                                    "start_time": payload["payload"][i]["start_time"],
-                                    "end_time": payload["payload"][i]["end_time"],
-                                    "text": payload["payload"][i]["text"],
-                                    "audio": voiceover_adjusted[i][1],
-                                    "audio_speed": 1,
-                                }
+                                    in voice_over_obj.payload["payload"].keys()
+                                ):
+                                    if voiceover_adjusted[i][1] == dict:
+                                        voice_over_obj.payload["payload"][
+                                            str(start_offset + i)
+                                        ] = {
+                                            "time_difference": t_d,
+                                            "start_time": payload["payload"][i][
+                                                "start_time"
+                                            ],
+                                            "end_time": payload["payload"][i][
+                                                "end_time"
+                                            ],
+                                            "text": payload["payload"][i]["text"],
+                                            "audio": voiceover_adjusted[i][1],
+                                            "audio_speed": 1,
+                                        }
+                                else:
+                                    voice_over_obj.payload["payload"][
+                                        str(start_offset + i)
+                                    ] = {
+                                        "time_difference": t_d,
+                                        "start_time": payload["payload"][i][
+                                            "start_time"
+                                        ],
+                                        "end_time": payload["payload"][i]["end_time"],
+                                        "text": payload["payload"][i]["text"],
+                                        "audio": voiceover_adjusted[i][1],
+                                        "audio_speed": 1,
+                                    }
                                 voice_over_obj.save()
                                 sentences_list.append(
                                     {
