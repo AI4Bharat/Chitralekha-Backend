@@ -547,8 +547,31 @@ def update_video(request):
             video.multiple_speaker = multiple_speaker
 
         if speaker_info is not None:
+            # Get the task transcript status for the video, if none or selected source
+            task = (
+                Task.objects.filter(video_id=video_id)
+                .filter(task_type="TRANSCRIPTION_EDIT")
+                .filter(status__in=["SELECTED_SOURCE"])
+            )
+            if not task:
+                errors.append(
+                    {
+                        "message": f"Video's transcript status must be selected source or none",
+                    }
+                )
+
             speaker_info_for_update = []
             gender_list = [gender[0] for gender in GENDER]
+
+            # Find dictionary matching value in list
+            dubplicte_ids = find_duplicates(speaker_info, "id")
+            if dubplicte_ids:
+                errors.append(
+                    {
+                        "message": f"Ids must be unique Age in : {i}",
+                    }
+                )
+
             for i in speaker_info:
                 speaker_info_obj = {}
 
@@ -587,28 +610,6 @@ def update_video(request):
             )
         else:
             video.save()
-
-            # Get the tasks for the video
-            transcripts = Transcript.objects.filter(video_id=video_id)
-            for transcript_task in transcripts:
-                payload_with_speaker = transcript_task.payload["payload"]
-
-                # Updating each dictionary in the list with the new key-value pairs
-                if len(speaker_info_for_update) == 1:
-                    payload_with_speaker = [
-                        dict(d, **{"speaker_id": speaker_info_for_update[0]["id"]})
-                        for d in payload_with_speaker
-                    ]
-                else:
-                    payload_with_speaker = [
-                        dict(d, **{"speaker_id": ""}) for d in payload_with_speaker
-                    ]
-
-                transcript_task_to_be_update = Transcript.objects.get(
-                    id=transcript_task.id
-                )
-                transcript_task_to_be_update.payload["payload"] = payload_with_speaker
-                transcript_task_to_be_update.save()
 
             return Response(
                 {
