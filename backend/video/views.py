@@ -588,6 +588,28 @@ def update_video(request):
         else:
             video.save()
 
+            # Get the tasks for the video
+            transcripts = Transcript.objects.filter(video_id=video_id)
+            for transcript_task in transcripts:
+                payload_with_speaker = transcript_task.payload["payload"]
+
+                # Updating each dictionary in the list with the new key-value pairs
+                if len(speaker_info_for_update) == 1:
+                    payload_with_speaker = [
+                        dict(d, **{"speaker_id": speaker_info_for_update[0]["id"]})
+                        for d in payload_with_speaker
+                    ]
+                else:
+                    payload_with_speaker = [
+                        dict(d, **{"speaker_id": ""}) for d in payload_with_speaker
+                    ]
+
+                transcript_task_to_be_update = Transcript.objects.get(
+                    id=transcript_task.id
+                )
+                transcript_task_to_be_update.payload["payload"] = payload_with_speaker
+                transcript_task_to_be_update.save()
+
             return Response(
                 {
                     "message": "Video updated successfully.",
