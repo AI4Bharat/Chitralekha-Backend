@@ -837,9 +837,6 @@ def change_active_status_of_next_tasks(task, transcript_obj):
 
 
 def modify_payload(offset, limit, payload, start_offset, end_offset, transcript):
-    print("start_offset", start_offset)
-    print("end_offset", end_offset)
-    print("limit", limit)
     count_sentences = len(transcript.payload["payload"])
     total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
     if (
@@ -858,11 +855,6 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
         if end_offset > count_sentences:
             length_2 = end_offset - count_sentences
             length = length - length_2
-            logging.info(
-                "Length of payload {}, end_offset {}, count of sentences {}, after splitting or adding {}".format(
-                    str(length), str(end_offset), str(count_sentences), str(length_2)
-                )
-            )
         for i in range(length):
             if (
                 "text" in payload["payload"][i].keys()
@@ -990,6 +982,17 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                         "text": payload["payload"][i]["text"],
                         "speaker_id": payload["payload"][i]["speaker_id"],
                     }
+                elif (
+                    "text" in payload["payload"][i].keys()
+                    and "text" not in transcript.payload["payload"][start_offset + i]
+                ):
+                    transcript.payload["payload"][start_offset + i] = {
+                        "start_time": payload["payload"][i]["start_time"],
+                        "end_time": payload["payload"][i]["end_time"],
+                        "text": payload["payload"][i]["text"],
+                        "speaker_id": payload["payload"][i].get("speaker_id"),
+                        "target_text": payload["payload"][i]["target_text"],
+                    }
                 else:
                     logging.info("Text missing in payload")
             delete_indices = []
@@ -1004,10 +1007,6 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                 transcript.payload["payload"][ind] = {}
     else:
         logging.info("Limit is greater than length of payload")
-        print("length of payload", len(payload["payload"]))
-        print("end_offset", end_offset)
-        print("count sentences", count_sentences)
-        print("limit", limit)
         if end_offset > count_sentences:
             length = count_sentences - start_offset
             length_2 = len(payload["payload"]) - length
