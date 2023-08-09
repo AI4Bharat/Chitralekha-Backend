@@ -991,7 +991,6 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                         "end_time": payload["payload"][i]["end_time"],
                         "text": payload["payload"][i]["text"],
                         "speaker_id": payload["payload"][i].get("speaker_id"),
-                        "target_text": payload["payload"][i]["target_text"],
                     }
                 else:
                     logging.info("Text missing in payload")
