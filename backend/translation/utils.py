@@ -14,6 +14,8 @@ from config import nmt_url, dhruva_key
 from .metadata import LANG_CODE_TO_NAME, english_noise_tags, target_noise_tags
 import math
 from task.models import Task
+from transcript.utils.timestamp import *
+
 
 ### Utility Functions ###
 def validate_uuid4(val):
@@ -279,6 +281,9 @@ def translation_mg(transcript, target_language, batch_size=25):
                         target = "[" + replace_noise_tag + "] " + target
         except:
             logging.info("Error in replacing noise tags.")
+
+        source["start_time"] = format_timestamp(source["start_time"])
+        source["end_time"] = format_timestamp(source["end_time"])
 
         if "speaker_id" in source.keys():
             payload.append(
