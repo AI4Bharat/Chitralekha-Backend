@@ -41,8 +41,8 @@ services:
     command: python3 -m celery -A backend worker -Q default -n default_worker@%h --concurrency=1 -l DEBUG
     restart: unless-stopped
 
-  celery_tasks:
-    container_name: celery_tasks
+  celery_asr_tts:
+    container_name: celery_asr_tts
     image: server_image
     working_dir: /home/backend
     volumes:
@@ -52,7 +52,7 @@ services:
         condition: service_started
       backend:
         condition: service_started
-    command: python3 -m celery -A backend worker -Q task -n task_worker@%h --concurrency=1 -l DEBUG
+    command: python3 -m celery -A backend worker -Q asr_tts -n asr_tts_worker@%h --concurrency=1 -l DEBUG
     restart: unless-stopped
   
   celery_ytt:
@@ -114,7 +114,9 @@ services:
         condition: service_started
       celery_default:
         condition: service_started
-      celery_tasks:
+      celery_asr_tts:
+        condition: service_started
+      celery_ytt:
         condition: service_started
       # celery_voiceover:
       #   condition: service_started

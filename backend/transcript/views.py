@@ -69,6 +69,7 @@ from config import align_json_url
 import regex
 from .tasks import celery_align_json
 import os
+from .utils.timestamp import *
 
 
 @api_view(["GET"])
@@ -1568,7 +1569,9 @@ def save_transcription(request):
             if request.data.get("final"):
                 if transcript_obj.payload != "" and transcript_obj.payload is not None:
                     num_words = 0
+                    index = -1
                     for idv_transcription in transcript_obj.payload["payload"]:
+                        index += 1
                         if "text" in idv_transcription.keys():
                             cleaned_text = regex.sub(
                                 r"[^\p{L}\s]", "", idv_transcription["text"]
@@ -1577,6 +1580,16 @@ def save_transcription(request):
                                 r"\s+", " ", cleaned_text
                             )  # for removing multiple blank spaces
                             num_words += len(cleaned_text.split(" "))
+                            transcript_obj.payload["payload"][index][
+                                "start_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["start_time"]
+                            )
+                            transcript_obj.payload["payload"][index][
+                                "end_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["end_time"]
+                            )
                     transcript_obj.payload["word_count"] = num_words
                     transcript_obj.save()
                 # celery_align_json.delay(transcript_obj.id)
