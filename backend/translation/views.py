@@ -1114,9 +1114,9 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
             if "text" in payload["payload"][i].keys():
                 if (
                     len(translation.payload["payload"]) > insert_at + i
+                    and "text" in translation.payload["payload"][insert_at + i].keys()
                     and payload["payload"][length + i]["start_time"]
                     == translation.payload["payload"][insert_at + i]["start_time"]
-                    and "text" in translation.payload["payload"][insert_at + i].keys()
                     and payload["payload"][length + i]["end_time"]
                     == translation.payload["payload"][insert_at + i]["end_time"]
                 ):
