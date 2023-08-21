@@ -60,6 +60,7 @@ def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
                 "serviceId": service_id,
                 "language": {"sourceLanguage": lang},
                 "transcriptionFormat": {"value": "srt"},
+                "postProcessors": ["itn", "punctuation"],
             },
             "audio": [{"audioUri": url}],
         }
