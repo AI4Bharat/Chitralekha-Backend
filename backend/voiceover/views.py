@@ -762,19 +762,7 @@ def save_voice_over(request):
                                         }
                                     )
                                 voice_over_obj.save()
-                                sentences_list.append(
-                                    {
-                                        "id": start_offset + i + 1,
-                                        "time_difference": t_d,
-                                        "start_time": payload["payload"][i][
-                                            "start_time"
-                                        ],
-                                        "end_time": payload["payload"][i]["end_time"],
-                                        "text": payload["payload"][i]["text"],
-                                        "audio": voiceover_adjusted[i][1],
-                                        "audio_speed": 1,
-                                    }
-                                )
+
                         # delete inprogress payload
                         missing_cards = check_audio_completion(voice_over_obj)
                         # missing_cards = []
