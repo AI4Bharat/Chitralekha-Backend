@@ -61,6 +61,7 @@ import math
 import json
 import regex
 import requests
+from transcript.utils.timestamp import *
 
 
 @api_view(["GET"])
@@ -1460,6 +1461,17 @@ def save_translation(request):
                                 r"\s+", " ", cleaned_text
                             )  # for removing multiple blank spaces
                             num_words += len(cleaned_text.split(" "))
+                            translation_obj.payload["payload"][index][
+                                "start_time"
+                            ] = format_timestamp(
+                                translation_obj.payload["payload"][index]["start_time"]
+                            )
+                            translation_obj.payload["payload"][index][
+                                "end_time"
+                            ] = format_timestamp(
+                                translation_obj.payload["payload"][index]["end_time"]
+                            )
+
                     translation_obj.payload["word_count"] = num_words
                     translation_obj.save()
                 return Response(
