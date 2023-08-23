@@ -15,7 +15,10 @@ celery_app.config_from_object("django.conf:settings", namespace="CELERY")
 
 # Celery Queue related settings
 celery_app.conf.task_default_queue = "default"
-celery_app.conf.task_routes = {"task.tasks.*": {"queue": "asr_tts"}}
+celery_app.conf.task_routes = {"task.tasks.celery_asr_call": {"queue": "asr_tts"}}
+celery_app.conf.task_routes = {"task.tasks.celery_tts_call": {"queue": "asr_tts"}}
+celery_app.conf.task_routes = {"task.tasks.celery_nmt_call": {"queue": "nmt"}}
+# celery_app.conf.task_routes = {"task.tasks.*": {"queue": "asr_tts"}}
 celery_app.conf.task_routes = {"transcript.tasks.*": {"queue": "ytt"}}
 
 celery_app.conf.beat_schedule = {

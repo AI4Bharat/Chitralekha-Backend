@@ -68,6 +68,7 @@ import logging
 from config import align_json_url
 import regex
 from .tasks import celery_align_json
+from task.tasks import celery_nmt_call
 import os
 from .utils.timestamp import *
 
@@ -820,19 +821,13 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                     project.default_translation_type
                     or organization.default_translation_type
                 )
-                if source_type == None:
+                if source_type == None or source_type == "MACHINE_GENERATED":
                     source_type = "MACHINE_GENERATED"
-                """
-                payloads = generate_translation_payload(
-                    transcript_obj, translation.target_language, [source_type]
-                )
-                """
+                    translation.transcript = transcript_obj
+                    translation.save()
+                    celery_nmt_call.delay(task_id=translation.task.id)
                 translation.transcript = transcript_obj
                 translation.save()
-        tasks.filter(task_type="TRANSLATION_EDIT").update(is_active=True)
-        for task in tasks.filter(task_type="TRANSLATION_EDIT"):
-            print("Send Email to User")
-            send_mail_to_user(task)
     else:
         print("No change in status")
 
