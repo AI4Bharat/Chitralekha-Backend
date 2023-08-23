@@ -903,15 +903,24 @@ def generate_translation_output(request):
         payloads = generate_translation_payload(
             translation.transcript, translation.target_language, [source_type]
         )
-        if type(translation.payload) == dict and "speaker_info" in translation.payload:
-            translation.payload["payload"] = payloads[source_type]["payload"]
-        else:
-            translation.payload = payloads[source_type]
-        translation.save()
-    return Response(
-        {"message": "Payload for translation is generated."},
-        status=status.HTTP_200_OK,
-    )
+        if "payload" not in translation.payload.keys():
+            if (
+                type(translation.payload) == dict
+                and "speaker_info" in translation.payload
+            ):
+                translation.payload["payload"] = payloads[source_type]["payload"]
+            else:
+                translation.payload = payloads[source_type]
+            translation.save()
+        return Response(
+            {"message": "Payload for translation is generated."},
+            status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(
+            {"message": "Please wait while the translation is generated."},
+            status=status.HTTP_200_OK,
+        )
 
 
 def modify_payload(limit, payload, start_offset, end_offset, translation):

@@ -12,6 +12,7 @@ from voiceover.utils import generate_tts_output, send_mail_to_user
 from translation.models import Translation
 import pysrt
 import logging
+from translation.utils import generate_translation_payload
 
 
 def convert_vtt_to_payload(vtt_content):
@@ -143,3 +144,27 @@ def celery_asr_call(task_id):
             send_mail_to_user(task_obj)
     else:
         logging.info("Transcript already exists")
+
+
+@celery_app.task(queue="nmt")
+def celery_nmt_call(task_id):
+    task_obj = Task.objects.get(pk=task_id)
+    translation_obj = Translation.objects.filter(task=task_obj).first()
+    source_type = "MACHINE_GENERATED"
+    if translation_obj is not None and type(translation_obj.payload) != dict:
+        payloads = generate_translation_payload(
+            translation_obj.transcript, translation_obj.target_language, [source_type]
+        )
+        if (
+            type(translation_obj.payload) == dict
+            and "speaker_info" in translation_obj.payload
+        ):
+            translation_obj.payload["payload"] = payloads[source_type]["payload"]
+        else:
+            translation_obj.payload = payloads[source_type]
+        translation_obj.save()
+        task_obj.is_active = True
+        task_obj.save()
+        send_mail_to_user(task_obj)
+    else:
+        logging.info("Translation already exists")
