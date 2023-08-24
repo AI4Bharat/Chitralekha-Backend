@@ -1057,9 +1057,17 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
         last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
             "end_time"
         ]
-        for i in range(len(payload["payload"]), len(payload["payload"]) + 50):
-            if last_valid_end_time > transcript.payload["payload"][i]["start_time"]:
-                transcript.payload["payload"][i]["text"] = {}
+        offset_to_check = start_offset + len(payload["payload"])
+        last_valid_start_time = transcript.payload["payload"][offset_to_check - 1][
+            "start_time"
+        ]
+        for i in range(offset_to_check, offset_to_check + 50):
+            if (
+                "start_time" in transcript.payload["payload"][i].keys()
+                and last_valid_start_time
+                >= transcript.payload["payload"][i]["start_time"]
+            ):
+                transcript.payload["payload"][i] = {}
             else:
                 break
 
