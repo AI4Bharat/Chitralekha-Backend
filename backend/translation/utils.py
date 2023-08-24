@@ -203,7 +203,17 @@ def get_batch_translations_using_indictrans_nmt_api(
 def generate_translation_payload(transcript, target_language, list_compare_sources):
     payloads = {}
     if "MACHINE_GENERATED" in list_compare_sources:
-        translation_machine_generated = translation_mg(transcript, target_language)
+        try:
+            translation_machine_generated = translation_mg(transcript, target_language)
+        except:
+            if transcript.language == "en":
+                transcript.transcript_type = "ORIGINAL_SOURCE"
+                transcript.save()
+                translation_machine_generated = translation_mg(
+                    transcript, target_language
+                )
+                transcript.transcript_type = "MACHINE_GENERATED"
+                transcript.save()
         payloads["MACHINE_GENERATED"] = translation_machine_generated
 
     if "MANUALLY_CREATED" in list_compare_sources:
