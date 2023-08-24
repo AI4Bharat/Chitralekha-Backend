@@ -14,6 +14,9 @@ from config import nmt_url, dhruva_key
 from .metadata import LANG_CODE_TO_NAME, english_noise_tags, target_noise_tags
 import math
 from task.models import Task
+import regex
+from transcript.utils.timestamp import *
+
 
 ### Utility Functions ###
 def validate_uuid4(val):
@@ -173,7 +176,6 @@ def get_batch_translations_using_indictrans_nmt_api(
 
     # Create the input sentences list
     input_sentences = [{"source": sentence} for sentence in sentence_list]
-    # logging.info("Length of input_sentences %s", len(input_sentences))
 
     json_data = {
         "input": input_sentences,
@@ -201,7 +203,17 @@ def get_batch_translations_using_indictrans_nmt_api(
 def generate_translation_payload(transcript, target_language, list_compare_sources):
     payloads = {}
     if "MACHINE_GENERATED" in list_compare_sources:
-        translation_machine_generated = translation_mg(transcript, target_language)
+        try:
+            translation_machine_generated = translation_mg(transcript, target_language)
+        except:
+            if transcript.language == "en":
+                transcript.transcript_type = "ORIGINAL_SOURCE"
+                transcript.save()
+                translation_machine_generated = translation_mg(
+                    transcript, target_language
+                )
+                transcript.transcript_type = "MACHINE_GENERATED"
+                transcript.save()
         payloads["MACHINE_GENERATED"] = translation_machine_generated
 
     if "MANUALLY_CREATED" in list_compare_sources:
@@ -213,21 +225,129 @@ def generate_translation_payload(transcript, target_language, list_compare_sourc
     return payloads
 
 
+def get_ratio_of_words(a):
+    output = []
+    percentage_per_sentence = {}
+    pre_last_part = 0
+    i = 0
+    last = False
+    total = 0
+    while i < len(a):
+        x = a[i]["text"].split(".")
+        list = [len(x) - 1]
+        # if last == False:
+        #     percentage_per_sentence = {}
+        percentage_per_sentence[i] = []
+        # if(i == 0) handle for no dot and having dots.
+        if x[-1] != "":
+            first_part = len(x[-1].split())
+
+            j = i + 1
+            count_words = 0
+            while j != len(a) and "." not in a[j]["text"]:
+                count_words += len(a[j]["text"].split())
+                j += 1
+            last_part = 0
+            if j != len(a):
+                last_part = len(a[j]["text"].split(".")[0].split())
+                # last = True
+            pre_total = total
+            total = first_part + count_words + last_part
+
+            if len(x) == 1 and last == False:
+                # data_tuple = data_tuple + 0 + first_part*100/total
+                # list.append(0)
+                percentage_per_sentence[i].append(first_part * 100 / total)
+            else:
+                if last == True:
+                    # data_tuple = data_tuple + last_part*100/total + first_part*100/total
+                    percentage_per_sentence[i].append(pre_last_part * 100 / pre_total)
+                    list_1 = []
+                    for l in range(len(x) - 2):
+                        list_1.append(100)
+                    if len(list_1) > 0:
+                        percentage_per_sentence[i].extend(list_1)
+                    percentage_per_sentence[i].append(first_part * 100 / total)
+                    # output.append(percentage_per_sentence)
+                    last = False
+                else:
+                    # data_tuple = data_tuple + 0 + first_part*100/total
+                    # list.append(0)
+                    list_1 = []
+                    for l in range(len(x) - 1):
+                        list_1.append(100)
+                    if len(list_1) > 0:
+                        percentage_per_sentence[i].extend(list_1)
+                    percentage_per_sentence[i].append(first_part * 100 / total)
+            # data_tuple = data_tuple + last_part*100/total
+            # tuple_list.append(list)
+
+            j = i + 1
+            count_words = 0
+            while j != len(a) and "." not in a[j]["text"]:
+                percentage_per_sentence[j] = []
+                count_words = len(a[j]["text"].split())
+                percentage_per_sentence[j].append(count_words * 100 / total)
+                j += 1
+
+            if j != len(a):
+                pre_last_part = len(a[j]["text"].split(".")[0].split())
+                last = True
+
+            i = j
+        else:
+            if last == False:
+                list_1 = []
+                for l in range(len(x) - 1):
+                    list_1.append(100)
+                # percentage_per_sentence[i] = []
+                if len(list_1) > 0:
+                    percentage_per_sentence[i].extend(list_1)
+                # output.append(percentage_per_sentence)
+            else:
+                percentage_per_sentence[i].append(last_part * 100 / total)
+                list_1 = []
+                for l in range(len(x) - 2):
+                    list_1.append(100)
+                if len(list_1) > 0:
+                    percentage_per_sentence[i].extend(list_1)
+                # output.append(percentage_per_sentence)
+                last = False
+            i += 1
+    return percentage_per_sentence
+
+
 def translation_mg(transcript, target_language, batch_size=25):
     sentence_list = []
     delete_indices = []
     vtt_output = transcript.payload
-    for index, vtt_line in enumerate(vtt_output["payload"]):
-        if "text" in vtt_line.keys():
-            text = vtt_line["text"]
-            if transcript.language == "en":
-                for noise_tag in english_noise_tags:
-                    text = text.replace(noise_tag, "")
-                sentence_list.append(text)
+    ratio_per_sentence = []
+
+    if (
+        transcript.language == "en"
+        and transcript.transcript_type == "MACHINE_GENERATED"
+    ):
+        ratio_per_sentence = get_ratio_of_words(transcript.payload["payload"])
+        full_transcript = ""
+        for index, vtt_line in enumerate(vtt_output["payload"]):
+            if "text" in vtt_line.keys():
+                text = vtt_line["text"]
+                full_transcript = full_transcript + text
+        sentence_list = full_transcript.split(".")
+        if sentence_list[-1] == "":
+            sentence_list.pop()
+    else:
+        for index, vtt_line in enumerate(vtt_output["payload"]):
+            if "text" in vtt_line.keys():
+                text = vtt_line["text"]
+                if transcript.language == "en":
+                    for noise_tag in english_noise_tags:
+                        text = text.replace(noise_tag, "")
+                    sentence_list.append(text)
+                else:
+                    sentence_list.append(text)
             else:
-                sentence_list.append(text)
-        else:
-            delete_indices.append(index)
+                delete_indices.append(index)
 
     delete_indices.reverse()
     for ind in delete_indices:
@@ -260,6 +380,61 @@ def translation_mg(transcript, target_language, batch_size=25):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    if type(ratio_per_sentence) == dict and len(ratio_per_sentence.keys()) > 0:
+        sum = 0
+        count_sentences = 0
+        translated_sentences = {}
+        current_sentence_ratio_list = []
+        for id, list_ratio in ratio_per_sentence.items():
+            for ratio in list_ratio:
+                sum = sum + ratio
+                current_sentence_ratio_list.append((id, ratio))
+                if sum > 99:
+                    length_translated_sentence = len(
+                        all_translated_sentences[count_sentences]
+                    )
+                    cleaned_text = regex.sub(
+                        r"[^\p{L}\s]", "", all_translated_sentences[count_sentences]
+                    ).lower()
+                    cleaned_text = regex.sub(
+                        r"\s+", " ", cleaned_text
+                    )  # for removing multiple blank spaces
+                    length_translated_sentence = len(cleaned_text.split(" "))
+                    previous_word_index = 0
+                    for id, r in current_sentence_ratio_list:
+                        number_of_words = math.ceil(
+                            (r * length_translated_sentence) / 100
+                        )
+                        if (
+                            previous_word_index + number_of_words
+                            < length_translated_sentence
+                        ):
+                            target_text = " ".join(
+                                all_translated_sentences[count_sentences].split(" ")[
+                                    previous_word_index : previous_word_index
+                                    + number_of_words
+                                ]
+                            )
+                        else:
+                            target_text = " ".join(
+                                all_translated_sentences[count_sentences].split(" ")[
+                                    previous_word_index:
+                                ]
+                            )
+
+                        if id not in translated_sentences:
+                            translated_sentences[id] = target_text
+                        else:
+                            translated_sentences[id] = (
+                                translated_sentences[id] + " " + target_text
+                            )
+                        previous_word_index = previous_word_index + number_of_words
+                    current_sentence_ratio_list = []
+                    count_sentences += 1
+                    sum = 0
+
+        all_translated_sentences = translated_sentences.values()
+
     # Update the translation payload with the generated translations
     payload = []
     for (source, target) in zip(vtt_output["payload"], all_translated_sentences):
@@ -277,8 +452,12 @@ def translation_mg(transcript, target_language, batch_size=25):
                     ]
                     if replace_noise_tag != "nan":
                         target = "[" + replace_noise_tag + "] " + target
+
         except:
             logging.info("Error in replacing noise tags.")
+
+        source["start_time"] = format_timestamp(source["start_time"])
+        source["end_time"] = format_timestamp(source["end_time"])
 
         if "speaker_id" in source.keys():
             payload.append(

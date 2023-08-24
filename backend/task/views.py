@@ -70,6 +70,7 @@ import datetime
 from task.tasks import (
     celery_asr_call,
     celery_tts_call,
+    celery_nmt_call,
     convert_srt_to_payload,
     convert_vtt_to_payload,
 )
@@ -531,11 +532,7 @@ class TaskViewSet(ModelViewSet):
 
                     if type(transcript) == dict:
                         is_active = False
-                    elif source_type == "MANUALLY_UPLOADED":
-                        is_active = False
-                    else:
-                        is_active = True
-
+                    is_active = False
                     new_task = Task(
                         task_type=task_type,
                         video=video,
@@ -566,14 +563,14 @@ class TaskViewSet(ModelViewSet):
                             "message": "Task is successfully created.",
                         }
                     )
-                    if task.is_active:
-                        transcript = self.check_transcript_exists(task.video)
-                        payloads = generate_translation_payload(
-                            transcript, target_language, [source_type]
-                        )
+                    transcript = self.check_transcript_exists(task.video)
+                    if source_type == "MACHINE_GENERATED" and type(transcript) != dict:
+                        logging.info("Calling NMT API for %s", str(task.id))
+                        celery_nmt_call.delay(task_id=task.id)
                     else:
-                        payloads = {source_type: ""}
+                        transcript = self.check_transcript_exists(task.video)
                         transcript = None
+                    payloads = {source_type: ""}
                     translate_obj = Translation(
                         video=task.video,
                         user=task.user,

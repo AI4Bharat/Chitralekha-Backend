@@ -68,7 +68,9 @@ import logging
 from config import align_json_url
 import regex
 from .tasks import celery_align_json
+from task.tasks import celery_nmt_call
 import os
+from .utils.timestamp import *
 
 
 @api_view(["GET"])
@@ -819,19 +821,13 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                     project.default_translation_type
                     or organization.default_translation_type
                 )
-                if source_type == None:
+                if source_type == None or source_type == "MACHINE_GENERATED":
                     source_type = "MACHINE_GENERATED"
-                """
-                payloads = generate_translation_payload(
-                    transcript_obj, translation.target_language, [source_type]
-                )
-                """
+                    translation.transcript = transcript_obj
+                    translation.save()
+                    celery_nmt_call.delay(task_id=translation.task.id)
                 translation.transcript = transcript_obj
                 translation.save()
-        tasks.filter(task_type="TRANSLATION_EDIT").update(is_active=True)
-        for task in tasks.filter(task_type="TRANSLATION_EDIT"):
-            print("Send Email to User")
-            send_mail_to_user(task)
     else:
         print("No change in status")
 
@@ -887,6 +883,19 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                             "start_time": payload["payload"][length + i]["start_time"],
                             "end_time": payload["payload"][length + i]["end_time"],
                             "text": payload["payload"][length + i]["text"],
+                            "speaker_id": payload["payload"][i]["speaker_id"],
+                        },
+                    )
+                elif (
+                    "text" in payload["payload"][i].keys()
+                    and "text" not in transcript.payload["payload"][start_offset + i]
+                ):
+                    transcript.payload["payload"].insert(
+                        start_offset + i + length,
+                        {
+                            "start_time": payload["payload"][i]["start_time"],
+                            "end_time": payload["payload"][i]["end_time"],
+                            "text": payload["payload"][i]["text"],
                             "speaker_id": payload["payload"][i]["speaker_id"],
                         },
                     )
@@ -1036,33 +1045,31 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                 logging.info("Text missing in payload")
         for i in range(length_2):
             if "text" in payload["payload"][i].keys():
-                if (
-                    len(transcript.payload["payload"]) > insert_at + i
-                    and "text" in payload["payload"][length + i].keys()
-                    and "text" in transcript.payload["payload"][insert_at + i].keys()
-                    and payload["payload"][length + i]["start_time"]
-                    == transcript.payload["payload"][insert_at + i]["start_time"]
-                    and payload["payload"][length + i]["end_time"]
-                    == transcript.payload["payload"][insert_at + i]["end_time"]
-                ):
-                    transcript.payload["payload"][insert_at + i] = {
+                transcript.payload["payload"].insert(
+                    insert_at + i,
+                    {
                         "start_time": payload["payload"][length + i]["start_time"],
                         "end_time": payload["payload"][length + i]["end_time"],
                         "text": payload["payload"][length + i]["text"],
                         "speaker_id": payload["payload"][length + i]["speaker_id"],
-                    }
-                else:
-                    transcript.payload["payload"].insert(
-                        insert_at + i,
-                        {
-                            "start_time": payload["payload"][length + i]["start_time"],
-                            "end_time": payload["payload"][length + i]["end_time"],
-                            "text": payload["payload"][length + i]["text"],
-                            "speaker_id": payload["payload"][length + i]["speaker_id"],
-                        },
-                    )
+                    },
+                )
+        last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
+            "end_time"
+        ]
+        offset_to_check = start_offset + len(payload["payload"])
+        last_valid_start_time = transcript.payload["payload"][offset_to_check - 1][
+            "start_time"
+        ]
+        for i in range(offset_to_check, offset_to_check + 50):
+            if (
+                "start_time" in transcript.payload["payload"][i].keys()
+                and last_valid_start_time
+                >= transcript.payload["payload"][i]["start_time"]
+            ):
+                transcript.payload["payload"][i] = {}
             else:
-                logging.info("Text missing in payload")
+                break
 
 
 @swagger_auto_schema(
@@ -1568,7 +1575,9 @@ def save_transcription(request):
             if request.data.get("final"):
                 if transcript_obj.payload != "" and transcript_obj.payload is not None:
                     num_words = 0
+                    index = -1
                     for idv_transcription in transcript_obj.payload["payload"]:
+                        index += 1
                         if "text" in idv_transcription.keys():
                             cleaned_text = regex.sub(
                                 r"[^\p{L}\s]", "", idv_transcription["text"]
@@ -1577,6 +1586,16 @@ def save_transcription(request):
                                 r"\s+", " ", cleaned_text
                             )  # for removing multiple blank spaces
                             num_words += len(cleaned_text.split(" "))
+                            transcript_obj.payload["payload"][index][
+                                "start_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["start_time"]
+                            )
+                            transcript_obj.payload["payload"][index][
+                                "end_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["end_time"]
+                            )
                     transcript_obj.payload["word_count"] = num_words
                     transcript_obj.save()
                 # celery_align_json.delay(transcript_obj.id)
