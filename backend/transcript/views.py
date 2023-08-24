@@ -886,6 +886,19 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                             "speaker_id": payload["payload"][i]["speaker_id"],
                         },
                     )
+                elif (
+                    "text" in payload["payload"][i].keys()
+                    and "text" not in transcript.payload["payload"][start_offset + i]
+                ):
+                    transcript.payload["payload"].insert(
+                        start_offset + i + length,
+                        {
+                            "start_time": payload["payload"][i]["start_time"],
+                            "end_time": payload["payload"][i]["end_time"],
+                            "text": payload["payload"][i]["text"],
+                            "speaker_id": payload["payload"][i]["speaker_id"],
+                        },
+                    )
                 else:
                     logging.info("Text missing in payload")
     elif len(payload["payload"]) < limit:
@@ -1032,33 +1045,23 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                 logging.info("Text missing in payload")
         for i in range(length_2):
             if "text" in payload["payload"][i].keys():
-                if (
-                    len(transcript.payload["payload"]) > insert_at + i
-                    and "text" in payload["payload"][length + i].keys()
-                    and "text" in transcript.payload["payload"][insert_at + i].keys()
-                    and payload["payload"][length + i]["start_time"]
-                    == transcript.payload["payload"][insert_at + i]["start_time"]
-                    and payload["payload"][length + i]["end_time"]
-                    == transcript.payload["payload"][insert_at + i]["end_time"]
-                ):
-                    transcript.payload["payload"][insert_at + i] = {
+                transcript.payload["payload"].insert(
+                    insert_at + i,
+                    {
                         "start_time": payload["payload"][length + i]["start_time"],
                         "end_time": payload["payload"][length + i]["end_time"],
                         "text": payload["payload"][length + i]["text"],
                         "speaker_id": payload["payload"][length + i]["speaker_id"],
-                    }
-                else:
-                    transcript.payload["payload"].insert(
-                        insert_at + i,
-                        {
-                            "start_time": payload["payload"][length + i]["start_time"],
-                            "end_time": payload["payload"][length + i]["end_time"],
-                            "text": payload["payload"][length + i]["text"],
-                            "speaker_id": payload["payload"][length + i]["speaker_id"],
-                        },
-                    )
+                    },
+                )
+        last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
+            "end_time"
+        ]
+        for i in range(len(payload["payload"]), len(payload["payload"]) + 50):
+            if last_valid_end_time > transcript.payload["payload"][i]["start_time"]:
+                transcript.payload["payload"][i]["text"] = {}
             else:
-                logging.info("Text missing in payload")
+                break
 
 
 @swagger_auto_schema(
