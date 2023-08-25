@@ -904,7 +904,10 @@ def generate_translation_output(request):
         payloads = generate_translation_payload(
             translation.transcript, translation.target_language, [source_type]
         )
-        if "payload" not in translation.payload.keys():
+        if type(translation.payload) == str or (
+            type(translation.payload) == dict
+            and "payload" not in translation.payload.keys()
+        ):
             if (
                 type(translation.payload) == dict
                 and "speaker_info" in translation.payload
