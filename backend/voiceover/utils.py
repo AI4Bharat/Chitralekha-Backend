@@ -594,8 +594,6 @@ def adjust_voiceover(translation_payload):
                     first_audio_decoded = base64.b64decode(audio["audioContent"])
                     with open(audio_file, "wb") as output_f:
                         output_f.write(first_audio_decoded)
-                audio = AudioFileClip(audio_file)
-                # seconds = audio.duration
                 adjust_audio("temp.ogg", translation_payload[index][2], -1)
                 encoded_audio = base64.b64encode(open("temp.ogg", "rb").read())
                 output[index] = (
