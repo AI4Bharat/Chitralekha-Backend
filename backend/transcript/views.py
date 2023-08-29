@@ -1061,15 +1061,20 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
         last_valid_start_time = transcript.payload["payload"][offset_to_check - 1][
             "start_time"
         ]
+        delete_indices = []
         for i in range(offset_to_check, offset_to_check + 50):
             if (
                 "start_time" in transcript.payload["payload"][i].keys()
                 and last_valid_start_time
                 >= transcript.payload["payload"][i]["start_time"]
             ):
+                delete_indices.append(i)
                 transcript.payload["payload"][i] = {}
             else:
                 break
+        delete_indices.reverse()
+        for ind in delete_indices:
+            transcript.payload["payload"].pop(ind)
 
 
 @swagger_auto_schema(
