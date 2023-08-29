@@ -1072,7 +1072,8 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                 transcript.payload["payload"][i] = {}
             else:
                 break
-        for ind in reverse(delete_indices):
+        delete_indices.reverse()
+        for ind in delete_indices:
             transcript.payload["payload"].pop(ind)
 
 
