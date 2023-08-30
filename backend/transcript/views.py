@@ -1064,7 +1064,8 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
         delete_indices = []
         for i in range(offset_to_check, offset_to_check + 50):
             if (
-                "start_time" in transcript.payload["payload"][i].keys()
+                i < len(transcript.payload["payload"])
+                and "start_time" in transcript.payload["payload"][i].keys()
                 and last_valid_start_time
                 >= transcript.payload["payload"][i]["start_time"]
             ):
