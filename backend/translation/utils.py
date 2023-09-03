@@ -334,8 +334,12 @@ def translation_mg(transcript, target_language, batch_size=25):
                 text = vtt_line["text"]
                 full_transcript = full_transcript + text
         sentence_list = full_transcript.split(".")
+
         if sentence_list[-1] == "":
             sentence_list.pop()
+        if sentence_list[-1] == "":
+            sentence_list.pop()
+
     else:
         for index, vtt_line in enumerate(vtt_output["payload"]):
             if "text" in vtt_line.keys():
