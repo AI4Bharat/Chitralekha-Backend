@@ -1396,7 +1396,7 @@ def save_transcription(request):
             type(payload) != dict
             or "payload" not in payload.keys()
             or len(payload["payload"]) == 0
-            or "text" not in payload["payload"].keys()
+            or "text" not in payload["payload"][0].keys()
         ):
             return Response(
                 {"message": "Invalid Transcript."}, status=status.HTTP_400_BAD_REQUEST
