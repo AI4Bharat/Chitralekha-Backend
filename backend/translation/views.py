@@ -1231,6 +1231,15 @@ def save_translation(request):
         target_language = translation.target_language
         video = translation.video
         message = None
+        if (
+            type(payload) != dict
+            or "payload" not in payload.keys()
+            or len(payload["payload"]) == 0
+            or "text" not in payload["payload"][0].keys()
+        ):
+            return Response(
+                {"message": "Invalid Translation."}, status=status.HTTP_400_BAD_REQUEST
+            )
         # Check if the transcript has a user
         if task.user != request.user:
             return Response(

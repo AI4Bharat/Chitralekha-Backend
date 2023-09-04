@@ -1392,6 +1392,15 @@ def save_transcription(request):
     # Retrieve the transcript object
     try:
         transcript = Transcript.objects.get(pk=transcript_id)
+        if (
+            type(payload) != dict
+            or "payload" not in payload.keys()
+            or len(payload["payload"]) == 0
+            or "text" not in payload["payload"][0].keys()
+        ):
+            return Response(
+                {"message": "Invalid Transcript."}, status=status.HTTP_400_BAD_REQUEST
+            )
         # Check if the transcript has a user
         if task.user != request.user:
             return Response(
@@ -1446,11 +1455,6 @@ def save_transcription(request):
                     )
 
                     tc_status = TRANSCRIPTION_EDIT_INPROGRESS
-                    if type(payload) != dict or "payload" not in payload.keys():
-                        return Response(
-                            {"message": "Invalid Trascript."},
-                            status=status.HTTP_404_NOT_FOUND,
-                        )
                     if transcript_obj is not None:
                         modify_payload(
                             offset,
