@@ -1952,17 +1952,26 @@ class TaskViewSet(ModelViewSet):
                         transcript = get_export_transcript(
                             request, task.id, export_type
                         )
+                        if "docx" in export_type:
+                            content = b"".join(translation.streaming_content)
+                            print(content)
+                        else:
+                            content = translation.content
                         zf.writestr(
-                            f"{task.video.name}_{time_now}.{export_type}",
-                            transcript.content,
+                            f"{task.video.name}_{time_now}.{export_type}", content
                         )
                     elif "TRANSLATION" in task.task_type:
                         translation = get_export_translation(
                             request, task.id, export_type
                         )
+                        if "docx" in export_type:
+                            content = b"".join(translation.streaming_content)
+                            print(content)
+                        else:
+                            content = translation.content
                         zf.writestr(
                             f"{task.video.name}_{time_now}_{task.target_language}.{export_type}",
-                            translation.content,
+                            content,
                         )
                     else:
                         logging.info("Not a valid task type")
