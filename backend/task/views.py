@@ -1953,8 +1953,7 @@ class TaskViewSet(ModelViewSet):
                             request, task.id, export_type
                         )
                         if "docx" in export_type:
-                            content = b"".join(translation.streaming_content)
-                            print(content)
+                            content = b"".join(transcript.streaming_content)
                         else:
                             content = translation.content
                         zf.writestr(
@@ -1966,7 +1965,6 @@ class TaskViewSet(ModelViewSet):
                         )
                         if "docx" in export_type:
                             content = b"".join(translation.streaming_content)
-                            print(content)
                         else:
                             content = translation.content
                         zf.writestr(
