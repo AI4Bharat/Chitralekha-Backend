@@ -61,16 +61,30 @@ def export_voiceover_async(task_id, export_type, user_id):
         download_from_azure_blob(str(voice_over.azure_url_audio))
         logging.info("Downloaded audio from Azure Blob %s", voice_over.azure_url_audio)
         file_path = voice_over.azure_url_audio.split("/")[-1]
-        AudioSegment.from_file(file_path).export(
-            file_path.split("/")[-1].replace(".flac", "") + "." + export_type,
-            format=export_type,
-        )
+        video_link = task.video.url
+        if bg_music == "true":
+            file_path_music = add_bg_music(
+                os.path.join("temporary_video_audio_storage", file_path.split("/")[-1]),
+                video_link,
+            )
+            AudioSegment.from_file(file_path_music).export(
+                file_path.split("/")[-1].replace(".flac", "") + "." + export_type,
+                format=export_type,
+            )
+        else:
+            AudioSegment.from_file(file_path).export(
+                file_path.split("/")[-1].replace(".flac", "") + "." + export_type,
+                format=export_type,
+            )
         logging.info("Uploading audio to Azure Blob %s", voice_over.azure_url_audio)
         azure_url_audio = upload_audio_to_azure_blob(
             file_path, export_type, export=True
         )
-        os.remove(file_path)
-        os.remove(file_path.split("/")[-1].replace(".flac", "") + "." + export_type)
+        try:
+            os.remove(file_path)
+            os.remove(file_path.split("/")[-1].replace(".flac", "") + "." + export_type)
+        except:
+            logging.info("Error in removing files")
         send_audio_mail_to_user(task, azure_url_audio, user)
     else:
         logging.info("Error in exporting %s", str(task_id))
