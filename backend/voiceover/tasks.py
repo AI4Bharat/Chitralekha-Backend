@@ -11,6 +11,7 @@ from .utils import (
     download_from_azure_blob,
     upload_audio_to_azure_blob,
     send_audio_mail_to_user,
+    add_bg_music,
 )
 from voiceover.models import VoiceOver
 from task.models import Task
@@ -24,6 +25,9 @@ from config import (
 )
 from pydub import AudioSegment
 from backend.celery import celery_app
+import math
+from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_audioclips
+import re
 
 
 @shared_task()
@@ -48,7 +52,7 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
 
 
 @shared_task()
-def export_voiceover_async(task_id, export_type, user_id):
+def export_voiceover_async(task_id, export_type, user_id, bg_music):
     user = User.objects.get(pk=user_id)
     task = Task.objects.get(pk=task_id)
     voice_over = (
