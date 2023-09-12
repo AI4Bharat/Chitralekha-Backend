@@ -1183,6 +1183,7 @@ def get_voice_over_types(request):
 def export_voiceover(request):
     task_id = request.query_params.get("task_id")
     export_type = request.query_params.get("export_type")
+    bg_music = request.query_params.get("bg_music")
     if task_id is None:
         return Response(
             {"message": "missing param : task_id"},
