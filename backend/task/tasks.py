@@ -115,33 +115,37 @@ def celery_tts_call(
     logging.info("Generate TTS output ID %s", str(translation_obj.task.id))
     logging.info("Translation ID %s", str(translation_id))
     logging.info("Empty sentences %s", str(empty_sentences))
-    tts_payload = generate_tts_output(
-        tts_input, target_language, translation, translation_obj, empty_sentences
-    )
-    payloads = tts_payload
-    voiceover_obj = VoiceOver(
-        video=task_obj.video,
-        user=task_obj.user,
-        translation=translation_obj,
-        payload=tts_payload,
-        target_language=task_obj.target_language,
-        task=task_obj,
-        voice_over_type="MACHINE_GENERATED",
-        status="VOICEOVER_SELECT_SOURCE",
-    )
-    voiceover_obj.save()
-    task_obj.is_active = True
-    task_obj.status = "SELECTED_SOURCE"
-    task_obj.save()
-    logging.info("Payload generated for TTS API for %s", str(task_id))
-    if "message" in tts_payload:
-        task_obj.is_active = False
-        task_obj.status = "FAILED"
+    voiceover_obj = VoiceOver.objects.filter(task=task_obj).first()
+    if voiceover_obj is None:
+        tts_payload = generate_tts_output(
+            tts_input, target_language, translation, translation_obj, empty_sentences
+        )
+        payloads = tts_payload
+        voiceover_obj = VoiceOver(
+            video=task_obj.video,
+            user=task_obj.user,
+            translation=translation_obj,
+            payload=tts_payload,
+            target_language=task_obj.target_language,
+            task=task_obj,
+            voice_over_type="MACHINE_GENERATED",
+            status="VOICEOVER_SELECT_SOURCE",
+        )
+        voiceover_obj.save()
+        task_obj.is_active = True
+        task_obj.status = "SELECTED_SOURCE"
         task_obj.save()
-    try:
-        send_mail_to_user(task_obj)
-    except:
-        logging.info("Error in sending mail")
+        logging.info("Payload generated for TTS API for %s", str(task_id))
+        if "message" in tts_payload:
+            task_obj.is_active = False
+            task_obj.status = "FAILED"
+            task_obj.save()
+        try:
+            send_mail_to_user(task_obj)
+        except:
+            logging.info("Error in sending mail")
+    else:
+        logging.info("VoiceOver obj already exists")
 
 
 @celery_app.task(queue="asr_tts")

@@ -1955,7 +1955,7 @@ class TaskViewSet(ModelViewSet):
                         if "docx" in export_type:
                             content = b"".join(transcript.streaming_content)
                         else:
-                            content = translation.content
+                            content = transcript.content
                         zf.writestr(
                             f"{task.video.name}_{time_now}.{export_type}", content
                         )
