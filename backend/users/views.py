@@ -624,8 +624,6 @@ class RoleViewSet(viewsets.ViewSet):
                         update_user_role = True
                     else:
                         check_if_tasks_assign = True
-                else:
-                    check_if_tasks_assign = True
 
                 if check_if_tasks_assign:
                     tasks = Task.objects.filter(user=user).exclude(status="COMPLETE")
