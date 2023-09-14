@@ -2268,6 +2268,7 @@ class TaskViewSet(ModelViewSet):
         description = request.data.get("description")
         eta = request.data.get("eta")
         priority = request.data.get("priority")
+        is_active = request.data.get("is_active")
 
         try:
             task = Task.objects.get(pk=pk)
@@ -2320,6 +2321,8 @@ class TaskViewSet(ModelViewSet):
         if description is not None:
             task.description = description
 
+        if is_active is not None:
+            task.is_active = True
         task.save()
         return Response(
             {"message": "Task is successfully updated."},
