@@ -358,6 +358,8 @@ def translation_mg(transcript, target_language, batch_size=25):
                     sentence_list.append(text)
                 else:
                     sentence_list.append(text)
+                if vtt_line["text"] == "." or vtt_line["text"] == "..":
+                    delete_indices.append(index)
             else:
                 delete_indices.append(index)
 
