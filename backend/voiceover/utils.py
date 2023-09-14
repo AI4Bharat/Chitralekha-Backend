@@ -26,7 +26,6 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 from yt_dlp.extractor import get_info_extractor
 from django.http import HttpRequest
-from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_audioclips
 from mutagen.wave import WAVE
 import numpy
@@ -43,8 +42,6 @@ from django.conf import settings
 from django.core.mail import send_mail
 import operator
 import urllib.parse
-from spleeter.separator import Separator
-import shutil
 
 
 def get_tts_url(language):
@@ -1058,86 +1055,3 @@ def send_mail_to_user(task):
         )
     else:
         logging.info("Email is not enabled %s", task.user.email)
-
-
-def add_bg_music(file_path, video_link):
-    file_name = file_path.replace(".flac", "")
-    ydl = YoutubeDL({"format": "best"})
-    logging.info("Downloading video....  %s", file_name)
-    with YoutubeDL(
-        {"format": "best", "outtmpl": "{}.%(ext)s".format(file_name)}
-    ) as ydl:
-        ydl.download([video_link])
-
-    logging.info("Downloaded mp4/video")
-    video = VideoFileClip(file_name + ".mp4")
-    logging.info("read")
-    audio = video.audio
-
-    audio_file = file_name + ".wav"
-    audio.write_audiofile(audio_file)
-    audio = AudioFileClip(audio_file)
-    count = 1
-    duration_of_clip = 60  # in seconds, duration of final audio clip
-    src_duration = math.ceil(
-        audio.duration
-    )  # in seconds, the duration of the original audio
-    audio_file_paths_bg = []
-
-    for i in range(0, src_duration, duration_of_clip):
-        ffmpeg_extract_subclip(
-            audio_file, i, i + 60, targetname=f"{file_name}_{count}.wav"
-        )
-        audio_file_paths_bg.append(f"{file_name}_{count}.wav")
-        count += 1
-
-    separator = Separator(
-        "spleeter:2stems"
-    )  # Load the 2stems (vocals/accompaniment) model
-    bg_music = []
-    for a_file in audio_file_paths_bg:
-        # Use Spleeter to separate vocals and accompaniment
-        separation = separator.separate_to_file(a_file, "output")
-        temp_file_path = os.path.join(
-            "output", a_file.split("/")[-1].replace(".wav", "")
-        )
-        bg_music.append(temp_file_path + "/accompaniment.wav")
-
-    final_paths = []
-    concatenated_bg_audios = audio_file.replace(".wav", "_bg_final.wav")
-    clips = [AudioFileClip(c) for c in bg_music]
-    final_clip_1 = concatenate_audioclips(clips)
-    final_clip_1.write_audiofile(concatenated_bg_audios)
-
-    sound1 = AudioSegment.from_file(concatenated_bg_audios)
-    AudioSegment.from_file(file_path.split("/")[-1]).export(
-        file_path.replace(".flac", ".wav"), format="wav"
-    )
-    sound2 = AudioSegment.from_file(
-        os.path.join(
-            "temporary_video_audio_storage",
-            file_path.split("/")[-1].replace(".flac", ".wav"),
-        )
-    )
-    audio1 = sound1
-    audio2 = sound2 - 5
-    combined = sound2.overlay(audio1)
-
-    combined.export(file_path.replace(".wav", "_final.wav"), format="wav")
-    for fname in audio_file_paths_bg:
-        if os.path.isfile(fname):
-            os.remove(fname)
-
-    try:
-        shutil.rmtree("output")
-        os.remove(concatenated_bg_audios)
-        os.remove(
-            os.path.join(
-                "temporary_video_audio_storage",
-                file_path.split("/")[-1].replace(".flac", ".wav"),
-            )
-        )
-        os.remove(file_path.replace(".flac", "") + ".mp4")
-    except OSError as e:
-        logging.info("Error: %s - %s." % (e.filename, e.strerror))
-    return file_path.replace(".wav", "_final.wav")
