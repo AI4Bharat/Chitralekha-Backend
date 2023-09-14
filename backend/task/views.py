@@ -2643,14 +2643,31 @@ class TaskViewSet(ModelViewSet):
             )
 
         bad_sentences = []
-        translation = get_translation_id(task)
-        if task.task_type in ["TRANSLATION_EDIT"] and translation:
-            if "COMPLETE" not in translation.status:
-                bad_sentences = get_bad_sentences_in_progress(
-                    translation, task.target_language
-                )
-            else:
-                bad_sentences = get_bad_sentences(translation, task.target_language)
+        if "TRANSLATION" in task.task_type:
+            translation = get_translation_id(task)
+            if translation:
+                if "COMPLETE" not in translation.status:
+                    bad_sentences = get_bad_sentences_in_progress(
+                        translation, task.target_language
+                    )
+                else:
+                    bad_sentences = get_bad_sentences(translation, task.target_language)
+                if len(bad_sentences) > 0:
+                    return Response(
+                        {
+                            "data": bad_sentences,
+                            "message": "Sentences with time issues are returned.",
+                        },
+                        status=status.HTTP_200_OK,
+                    )
+                else:
+                    return Response(
+                        {"message": "There is no issue in sentences."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+        elif "TRANSCRIPTION" in task.task_type:
+            transcript = get_transcript_id(task)
+            bad_sentences = get_bad_sentences_in_progress(transcript, "")
             if len(bad_sentences) > 0:
                 return Response(
                     {
@@ -2661,11 +2678,14 @@ class TaskViewSet(ModelViewSet):
                 )
             else:
                 return Response(
-                    {
-                        "message": "There is no issue in sentences.",
-                    },
+                    {"message": "There is no issue in sentences."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+        else:
+            return Response(
+                {"message": "There is no issue in sentences."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     @is_project_owner
     @action(detail=True, methods=["post"], url_path="reopen_translation_task")
@@ -2703,25 +2723,68 @@ class TaskViewSet(ModelViewSet):
                 task.save()
             else:
                 return Response(
-                    {
-                        "message": "Can not reopen this task.",
-                    },
+                    {"message": "Can not reopen this task."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+        if task.status == "COMPLETE" and "TRANSLATION" in task.task_type:
+            voiceover_obj = (
+                VoiceOver.objects.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .first()
+            )
+            if voiceover_obj is not None:
+                response = [
+                    {
+                        "task_type": task.get_task_type_label,
+                        "target_language": task.get_target_language_label,
+                        "video_name": task.video.name,
+                        "id": task.id,
+                        "video_id": task.video.id,
+                    }
+                ]
+                return Response(
+                    {
+                        "response": response,
+                        "message": "Can't reopen the Translation task as there is a dependent VoiceOver task.",
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+            else:
+                translation_completed_obj = (
+                    Translation.objects.filter(status="TRANSLATION_EDIT_COMPLETE")
+                    .filter(target_language=task.target_language)
+                    .filter(video=task.video)
+                    .first()
+                )
+                translation_inprogress_obj = (
+                    Translation.objects.filter(status="TRANSLATION_EDIT_INPROGRESS")
+                    .filter(target_language=task.target_language)
+                    .filter(video=task.video)
+                    .all()
+                )
+                if (
+                    translation_inprogress_obj is not None
+                    and translation_completed_obj is not None
+                ):
+                    translation_completed_obj.parent = None
+                    translation_completed_obj.save()
+                    translation_inprogress_obj.delete()
+                    translation_completed_obj.status = "TRANSLATION_EDIT_INPROGRESS"
+                    translation_completed_obj.save()
+                    task.status = "REOPEN"
+                    task.save()
+                else:
+                    return Response(
+                        {"message": "Can not reopen this task."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
         else:
             return Response(
-                {
-                    "message": "Can not reopen this task.",
-                },
+                {"message": "Can not reopen this task."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return Response(
-            {
-                "message": "Task is reopened.",
-            },
-            status=status.HTTP_200_OK,
-        )
+        return Response({"message": "Task is reopened."}, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         method="post",
