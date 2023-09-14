@@ -364,6 +364,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
             all_tasks = task_search_by_description(all_tasks, search_dict)
             all_tasks = task_search_by_assignee(all_tasks, search_dict)
+            all_tasks = search_active_task(all_tasks, search_dict)
 
             # filter data based on filter parameters
             all_tasks = task_filter_query(all_tasks, filter_dict)
