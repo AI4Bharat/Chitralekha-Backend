@@ -71,3 +71,8 @@ def get_language_label(target_language):
         if target_language == language[1]:
             return language[0]
     return "-"
+
+def search_active_task(all_tasks, search_dict):
+    if "active" in search_dict:
+        all_tasks = all_tasks.filter(is_active=True)
+    return all_tasks
