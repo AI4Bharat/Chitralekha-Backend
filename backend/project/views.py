@@ -822,6 +822,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Update"] = False
                         if data["task_type"] != "VOICEOVER_EDIT":
                             buttons["Upload"] = True
+                        if "TRANSLATION" in data["task_type"]:
+                            buttons["Reopen"] = True
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if data["status"] == "FAILED":

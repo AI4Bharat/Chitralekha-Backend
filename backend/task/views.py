@@ -78,7 +78,7 @@ import requests
 from django.db.models.functions import Concat
 from django.db.models import Value
 from django.http import HttpRequest
-from transcript.views import export_transcript
+from transcript.views import export_transcript, get_transcript_id
 from translation.views import export_translation, get_translation_id
 from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
