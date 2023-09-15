@@ -396,6 +396,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     buttons["Preview"] = True
                     buttons["Update"] = False
                     buttons["Edit"] = False
+                    if "TRANSLATION" in task["task_type"]:
+                        buttons["Reopen"] = True
                 if task["status"] == "POST_PROCESS":
                     buttons["Update"] = True
                 if task["status"] == "FAILED":
