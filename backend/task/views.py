@@ -2812,19 +2812,20 @@ class TaskViewSet(ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         if task.status == "COMPLETE" and "TRANSLATION" in task.task_type:
-            voiceover_obj = (
-                VoiceOver.objects.filter(video=task.video)
+            voiceover_tasj = (
+                Task.objects.filter(video=task.video)
                 .filter(target_language=task.target_language)
+                .filter(task_type="VOICEOVER_EDIT")
                 .first()
             )
-            if voiceover_obj is not None:
+            if voiceover_task is not None:
                 response = [
                     {
-                        "task_type": voiceover_obj.task.get_task_type_label,
-                        "target_language": voiceover_obj.task.get_target_language_label,
-                        "video_name": voiceover_obj.task.video.name,
-                        "id": voiceover_obj.task.id,
-                        "video_id": voiceover_obj.task.video.id,
+                        "task_type": voiceover_task.get_task_type_label,
+                        "target_language": voiceover_task.get_target_language_label,
+                        "video_name": voiceover_task.video.name,
+                        "id": voiceover_task.id,
+                        "video_id": voiceover_task.video.id,
                     }
                 ]
                 return Response(
