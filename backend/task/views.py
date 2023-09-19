@@ -688,7 +688,8 @@ class TaskViewSet(ModelViewSet):
                 else:
                     status_code = status.HTTP_200_OK
                 return Response(
-                    {"message": detailed_error[0]["message"]}, status=status_code
+                    {"message": detailed_error[0]["message"]},
+                    status=status_code,
                 )
             return Response(
                 {"message": message, "response": response},
@@ -961,7 +962,10 @@ class TaskViewSet(ModelViewSet):
                             video_ids.append(task.video)
                             delete_tasks.append(task)
                             consolidated_error.append(
-                                {"message": message, "count": tts_errors}
+                                {
+                                    "message": message,
+                                    "count": tts_errors,
+                                }
                             )
                             logging.info("Error while calling TTS API")
                             continue
@@ -987,19 +991,7 @@ class TaskViewSet(ModelViewSet):
                             video=task.video,
                             user=task.user,
                             translation=translation,
-                            payload={
-                                "payload": {
-                                    "completed_count": 0,
-                                    "empty_audios": {
-                                        "empty_audios": [
-                                            i
-                                            for i in range(
-                                                len(translation.payload["payload"])
-                                            )
-                                        ]
-                                    },
-                                }
-                            },
+                            payload={"payload": {"completed_count": 0}},
                             target_language=target_language,
                             task=task,
                             voice_over_type=source_type,
@@ -1131,7 +1123,8 @@ class TaskViewSet(ModelViewSet):
                 else:
                     status_code = status.HTTP_200_OK
                 return Response(
-                    {"message": detailed_error[0]["message"]}, status=status_code
+                    {"message": detailed_error[0]["message"]},
+                    status=status_code,
                 )
             return Response(
                 {"message": message, "response": response},
@@ -1477,7 +1470,8 @@ class TaskViewSet(ModelViewSet):
                     status_code = status.HTTP_200_OK
                 logging.info(detailed_error[0]["message"])
                 return Response(
-                    {"message": detailed_error[0]["message"]}, status=status_code
+                    {"message": detailed_error[0]["message"]},
+                    status=status_code,
                 )
             logging.info(message)
             return Response(
@@ -1562,7 +1556,9 @@ class TaskViewSet(ModelViewSet):
             },
             description="Post request body for selecting source",
         ),
-        responses={200: "Scripts created for selected types."},
+        responses={
+            200: "Scripts created for selected types.",
+        },
     )
     @action(
         detail=True,
@@ -1626,7 +1622,10 @@ class TaskViewSet(ModelViewSet):
             response["payloads"] = payloads
             response["task_id"] = task.id
             response["message"] = "Payloads are generated for selected option."
-            return Response(response, status=status.HTTP_200_OK)
+            return Response(
+                response,
+                status=status.HTTP_200_OK,
+            )
         else:
             return Response(
                 {"message": "User is not authorized to modify this task."},
@@ -1644,15 +1643,21 @@ class TaskViewSet(ModelViewSet):
                     description="Type of transcript/translation",
                 ),
                 "payload": openapi.Schema(
-                    type=openapi.TYPE_OBJECT, description="payload"
+                    type=openapi.TYPE_OBJECT,
+                    description="payload",
                 ),
             },
             description="Post request body for selecting source",
         ),
-        responses={200: "Source has been selected"},
+        responses={
+            200: "Source has been selected",
+        },
     )
     @action(
-        detail=True, methods=["POST"], name="Select Source", url_name="select_source"
+        detail=True,
+        methods=["POST"],
+        name="Select Source",
+        url_name="select_source",
     )
     def select_source(self, request, pk=None):
         payload = request.data.get("payload")
@@ -1690,7 +1695,10 @@ class TaskViewSet(ModelViewSet):
                     response = {}
                     response["transcript_id"] = transcription.id
                     response["message"] = "Source is selected successfully."
-                    return Response(response, status=status.HTTP_200_OK)
+                    return Response(
+                        response,
+                        status=status.HTTP_200_OK,
+                    )
             response = generate_transcription(
                 task.video,
                 task.video.language,
@@ -1716,12 +1724,16 @@ class TaskViewSet(ModelViewSet):
                     response = {}
                     response["translation_id"] = translation.id
                     response["message"] = "Source is selected successfully."
-                    return Response(response, status=status.HTTP_200_OK)
+                    return Response(
+                        response,
+                        status=status.HTTP_200_OK,
+                    )
 
             transcript = self.check_transcript_exists(task.video)
             if type(transcript) == dict:
                 return Response(
-                    {"message": transcript["message"]}, status=transcript["status"]
+                    {"message": transcript["message"]},
+                    status=transcript["status"],
                 )
 
             response = self.generate_translation(
@@ -1736,7 +1748,10 @@ class TaskViewSet(ModelViewSet):
             task.status = "SELECTED_SOURCE"
             task.save()
         response["message"] = "Selection of source is successful."
-        return Response(response, status=status.HTTP_200_OK)
+        return Response(
+            response,
+            status=status.HTTP_200_OK,
+        )
 
     @swagger_auto_schema(
         method="DELETE",
@@ -1747,7 +1762,7 @@ class TaskViewSet(ModelViewSet):
                 description=("A boolean to force delete the translation tasks."),
                 type=openapi.TYPE_BOOLEAN,
                 required=False,
-            )
+            ),
         ],
         responses={409: "There are conflicts with this task."},
     )
@@ -1994,7 +2009,9 @@ class TaskViewSet(ModelViewSet):
             },
             description="Post request body for projects which have save_type == new_record",
         ),
-        responses={200: "Transcript has been saved successfully"},
+        responses={
+            200: "Transcript has been saved successfully",
+        },
     )
     @action(detail=False, methods=["delete"], url_path="delete_bulk_tasks")
     def delete_bulk_tasks(self, request, *args, **kwargs):
@@ -2069,7 +2086,10 @@ class TaskViewSet(ModelViewSet):
                 response[
                     "message"
                 ] = "The Transcription task has dependent translation tasks. Do you still want to delete all related translations as well?."
-            return Response(response, status=status.HTTP_409_CONFLICT)
+            return Response(
+                response,
+                status=status.HTTP_409_CONFLICT,
+            )
         return Response(
             {
                 "message": "Task(s) deleted, with all associated transcripts/translations"
@@ -2302,7 +2322,8 @@ class TaskViewSet(ModelViewSet):
 
         task.save()
         return Response(
-            {"message": "Task is successfully updated."}, status=status.HTTP_200_OK
+            {"message": "Task is successfully updated."},
+            status=status.HTTP_200_OK,
         )
 
     @action(detail=False, methods=["patch"], url_path="update_multiple_tasks")
@@ -2375,7 +2396,10 @@ class TaskViewSet(ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
         return Response(
-            {"message": "Task updated successfully."}, status=status.HTTP_200_OK
+            {
+                "message": "Task updated successfully.",
+            },
+            status=status.HTTP_200_OK,
         )
 
     @action(detail=False, methods=["get"], url_path="get_task_types")
@@ -2493,10 +2517,14 @@ class TaskViewSet(ModelViewSet):
             return Response(
                 {"message": "Bad request."}, status=status.HTTP_400_BAD_REQUEST
             )
-        return Response(response, status=status.HTTP_200_OK)
+        return Response(
+            response,
+            status=status.HTTP_200_OK,
+        )
 
     @swagger_auto_schema(
-        method="get", responses={200: "successful", 500: "unable to query celery"}
+        method="get",
+        responses={200: "successful", 500: "unable to query celery"},
     )
     @action(detail=False, methods=["get"], url_path="inspect_asr_queue")
     def inspect_asr_queue(self, request):
@@ -2570,12 +2598,15 @@ class TaskViewSet(ModelViewSet):
             required=["time_spent"],
             properties={
                 "time_spent": openapi.Schema(
-                    type=openapi.TYPE_INTEGER, description="time spent"
-                )
+                    type=openapi.TYPE_INTEGER,
+                    description="time spent",
+                ),
             },
             description="Post request body for updating time spent.",
         ),
-        responses={200: "Updated time spent on task."},
+        responses={
+            200: "Updated time spent on task.",
+        },
     )
     @action(
         detail=True,
@@ -2588,7 +2619,8 @@ class TaskViewSet(ModelViewSet):
             task = Task.objects.get(pk=pk)
         except Task.DoesNotExist:
             return Response(
-                {"message": "Task does not exist"}, status=status.HTTP_404_NOT_FOUND
+                {"message": "Task does not exist"},
+                status=status.HTTP_404_NOT_FOUND,
             )
         time_spent = request.data.get("time_spent", 0)
         if task.time_spent == None:
@@ -2695,20 +2727,19 @@ class TaskViewSet(ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         if task.status == "COMPLETE" and "TRANSLATION" in task.task_type:
-            voiceover_task = (
-                Task.objects.filter(video=task.video)
+            voiceover_obj = (
+                VoiceOver.objects.filter(video=task.video)
                 .filter(target_language=task.target_language)
-                .filter(task_type="VOICEOVER_EDIT")
                 .first()
             )
-            if voiceover_task is not None:
+            if voiceover_obj is not None:
                 response = [
                     {
-                        "task_type": voiceover_task.get_task_type_label,
-                        "target_language": voiceover_task.get_target_language_label,
-                        "video_name": voiceover_task.video.name,
-                        "id": voiceover_task.id,
-                        "video_id": voiceover_task.video.id,
+                        "task_type": voiceover_obj.task.get_task_type_label,
+                        "target_language": voiceover_obj.task.get_target_language_label,
+                        "video_name": voiceover_obj.task.video.name,
+                        "id": voiceover_obj.task.id,
+                        "video_id": voiceover_obj.task.video.id,
                     }
                 ]
                 return Response(
