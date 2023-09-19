@@ -2812,7 +2812,7 @@ class TaskViewSet(ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         if task.status == "COMPLETE" and "TRANSLATION" in task.task_type:
-            voiceover_tasj = (
+            voiceover_task = (
                 Task.objects.filter(video=task.video)
                 .filter(target_language=task.target_language)
                 .filter(task_type="VOICEOVER_EDIT")
