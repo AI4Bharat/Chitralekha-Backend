@@ -1,6 +1,7 @@
 import requests
 from uuid import UUID
 import json
+import webvtt
 from rest_framework.response import Response
 from rest_framework import status
 import logging
@@ -16,6 +17,7 @@ import math
 from task.models import Task
 import regex
 from transcript.utils.timestamp import *
+from yt_dlp import YoutubeDL
 
 
 ### Utility Functions ###
@@ -200,7 +202,32 @@ def get_batch_translations_using_indictrans_nmt_api(
         return str(e)
 
 
-def generate_translation_payload(transcript, target_language, list_compare_sources):
+def convert_payload_format(data):
+    if data:
+        subtitle_url = [item["url"] for item in data if item["ext"] == "vtt"][0]
+        subtitle_payload = requests.get(subtitle_url).text
+    sentences_list = []
+    for vtt_line in webvtt.read_buffer(StringIO(subtitle_payload)):
+        start_time = datetime.datetime.strptime(vtt_line.start, "%H:%M:%S.%f")
+        unix_start_time = datetime.datetime.timestamp(start_time)
+        end_time = datetime.datetime.strptime(vtt_line.end, "%H:%M:%S.%f")
+        unix_end_time = datetime.datetime.timestamp(end_time)
+
+        sentences_list.append(
+            {
+                "start_time": vtt_line.start,
+                "end_time": vtt_line.end,
+                "text": "",
+                "target_text": vtt_line.text,
+                "unix_start_time": unix_start_time,
+                "unix_end_time": unix_end_time,
+            }
+        )
+
+    return json.loads(json.dumps({"payload": sentences_list}))
+
+
+def generate_translation_payload(transcript, target_language, list_compare_sources, url=None):
     payloads = {}
     if "MACHINE_GENERATED" in list_compare_sources:
         try:
@@ -230,6 +257,22 @@ def generate_translation_payload(transcript, target_language, list_compare_sourc
             txt["target_text"] = ""
             payload.append(txt)
         payloads["MANUALLY_CREATED"] = {"payload": payload}
+    if "ORIGINAL_SOURCE" in list_compare_sources:
+        ydl = YoutubeDL({"format": "best"})
+        info = ydl.extract_info(url, download=False)
+        subtitles = None
+        if "subtitles" in info:
+            if target_language in info["subtitles"]:
+                subtitles = info["subtitles"][target_language]
+                if subtitles is not None:
+                    data = convert_payload_format(subtitles)
+                    payloads["ORIGINAL_SOURCE"] = data
+                else:
+                    payloads["ORIGINAL_SOURCE"] = {"payload": []}
+            else:
+                payloads["ORIGINAL_SOURCE"] = {"payload": []}
+        else:
+            payloads["ORIGINAL_SOURCE"] = {"payload": []}
     return payloads
 
 

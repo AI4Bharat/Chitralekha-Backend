@@ -17,6 +17,12 @@ TRANSCRIPT_TYPE = (
 TRANSLATION_TYPE_CHOICES = (
     ("MACHINE_GENERATED", "Machine Generated"),
     ("MANUALLY_CREATED", "Manually Created"),
+    ("ORIGINAL_SOURCE", "Original Source"),
+)
+
+VOICEOVER_TYPE_CHOICES = (
+    ("MACHINE_GENERATED", "Machine Generated"),
+    ("MANUALLY_CREATED", "Manually Created"),
 )
 
 TASK_TYPE = (
@@ -125,7 +131,7 @@ class Organization(models.Model):
     updated_at = models.DateTimeField(verbose_name="updated_at", auto_now=True)
 
     default_voiceover_type = models.CharField(
-        choices=TRANSLATION_TYPE_CHOICES,
+        choices=VOICEOVER_TYPE_CHOICES,
         max_length=35,
         default=None,
         verbose_name="Project Default VoiceOver Type",

@@ -243,13 +243,16 @@ class TaskViewSet(ModelViewSet):
             "task_id": task.id,
         }
 
-    def check_duplicate_tasks(self, request, task_type, target_language, user, videos):
+    def check_duplicate_tasks(
+        self, request, task_type, target_language, user, videos, source_type
+    ):
         duplicate_tasks = []
         duplicate_user_tasks = []
         delete_video = []
         same_language = []
         language_not_supported = []
         gender_not_supported = []
+        original_src_translation = []
 
         for video in videos:
             task = Task.objects.filter(video=video)
@@ -271,6 +274,19 @@ class TaskViewSet(ModelViewSet):
                 ):
                     gender_not_supported.append(video)
 
+                if "TRANSLATION" in task_type and source_type == "ORIGINAL_SOURCE":
+                    transcript_o = Transcript.objects.filter(video=video).first()
+                    if transcript_o is not None:
+                        original_src_translation.append(video)
+
+            if (
+                "TRANSCRIPTION" in task_type
+                and Translation.objects.filter(video=video)
+                .filter(translation_type="ORIGINAL_SOURCE")
+                .first()
+                is not None
+            ):
+                original_src_translation.append(video)
             if task.filter(task_type=task_type).first() is not None:
                 duplicate_tasks.append(task.filter(task_type=task_type).first())
 
@@ -306,6 +322,7 @@ class TaskViewSet(ModelViewSet):
             same_language,
             language_not_supported,
             gender_not_supported,
+            original_src_translation,
         )
 
     def check_translation_exists(self, video, target_language):
@@ -376,8 +393,9 @@ class TaskViewSet(ModelViewSet):
             same_language,
             language_not_supported,
             gender_not_supported,
+            original_src_translation,
         ) = self.check_duplicate_tasks(
-            request, task_type, target_language, user_ids, videos
+            request, task_type, target_language, user_ids, videos, source_type
         )
         response = {}
         video_ids = []
@@ -412,11 +430,6 @@ class TaskViewSet(ModelViewSet):
             for video in delete_video:
                 video_ids.append(video)
                 error_review_tasks.append({"video": video, "task_type": task_type})
-
-        for video in video_ids:
-            videos.remove(video)
-            if len(user_ids) > 0:
-                del user_ids[-1]
 
         if len(duplicate_user_tasks):
             consolidated_error.append(
@@ -506,6 +519,34 @@ class TaskViewSet(ModelViewSet):
                     }
                 )
 
+        if len(original_src_translation) > 0:
+            for video in original_src_translation:
+                video_ids.append(video)
+                detailed_error.append(
+                    {
+                        "video_name": video.name,
+                        "video_url": video.url,
+                        "task_type": self.get_task_type_label(task_type),
+                        "source_language": video.get_language_label,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
+                        "status": "Fail",
+                        "message": "Task creation for Translation failed with source type Original Source as Transcription already exists.",
+                    }
+                )
+            consolidated_error.append(
+                {
+                    "message": "Tasks creation for Translation failed with source type Original Source as Transcription already exists.",
+                    "count": len(original_src_translation),
+                }
+            )
+
+        for video in video_ids:
+            videos.remove(video)
+            if len(user_ids) > 0:
+                del user_ids[-1]
+
         if len(user_ids) > 0:
             if "EDIT" in task_type:
                 permitted = self.has_translate_edit_permission(user_ids[0], videos)
@@ -528,10 +569,7 @@ class TaskViewSet(ModelViewSet):
                             user = User.objects.get(pk=user_id)
                     else:
                         user = user_ids[0]
-                    transcript = self.check_transcript_exists(video)
 
-                    if type(transcript) == dict:
-                        is_active = False
                     is_active = False
                     new_task = Task(
                         task_type=task_type,
@@ -546,8 +584,6 @@ class TaskViewSet(ModelViewSet):
                         is_active=is_active,
                     )
                     new_task.save()
-                    if is_active:
-                        send_mail_to_user(new_task)
                     tasks.append(new_task)
 
                 new_translations = []
@@ -564,13 +600,31 @@ class TaskViewSet(ModelViewSet):
                         }
                     )
                     transcript = self.check_transcript_exists(task.video)
-                    if source_type == "MACHINE_GENERATED" and type(transcript) != dict:
-                        logging.info("Calling NMT API for %s", str(task.id))
-                        celery_nmt_call.delay(task_id=task.id)
+                    if type(transcript) != dict:
+                        if source_type == "MACHINE_GENERATED":
+                            logging.info("Calling NMT API for %s", str(task.id))
+                            celery_nmt_call.delay(task_id=task.id)
+                            payloads = {source_type: ""}
+                        else:
+                            transcript = self.check_transcript_exists(task.video)
+                            payloads = generate_translation_payload(
+                                transcript, target_language, [source_type]
+                            )
+                            task.is_active = True
+                            task.save()
                     else:
-                        transcript = self.check_transcript_exists(task.video)
                         transcript = None
-                    payloads = {source_type: ""}
+                        if source_type == "ORIGINAL_SOURCE":
+                            payloads = generate_translation_payload(
+                                transcript,
+                                target_language,
+                                [source_type],
+                                task.video.url,
+                            )
+                            task.is_active = True
+                            task.save()
+                        else:
+                            payloads = {source_type: ""}
                     translate_obj = Translation(
                         video=task.video,
                         user=task.user,
@@ -723,8 +777,9 @@ class TaskViewSet(ModelViewSet):
             same_language,
             language_not_supported,
             gender_not_supported,
+            original_src_translation,
         ) = self.check_duplicate_tasks(
-            request, task_type, target_language, user_ids, videos
+            request, task_type, target_language, user_ids, videos, source_type
         )
         response = {}
         video_ids = []
@@ -1157,7 +1212,10 @@ class TaskViewSet(ModelViewSet):
             same_language,
             language_not_supported,
             gender_not_supported,
-        ) = self.check_duplicate_tasks(request, task_type, None, user_ids, videos)
+            original_src_translation,
+        ) = self.check_duplicate_tasks(
+            request, task_type, None, user_ids, videos, source_type
+        )
 
         response = {}
         video_ids = []
@@ -1167,6 +1225,7 @@ class TaskViewSet(ModelViewSet):
         error_duplicate_tasks = []
         error_user_tasks = []
         error_review_tasks = []
+        error_original_src_trans = []
         target_language = "-"
 
         if len(duplicate_tasks) > 0:
@@ -1186,10 +1245,28 @@ class TaskViewSet(ModelViewSet):
                 video_ids.append(video)
                 error_review_tasks.append({"video": video, "task_type": task_type})
 
-        for video in video_ids:
-            videos.remove(video)
-            if len(user_ids) > 0:
-                del user_ids[-1]
+        if len(original_src_translation) > 0:
+            for video in original_src_translation:
+                video_ids.append(video)
+                detailed_error.append(
+                    {
+                        "video_name": video.name,
+                        "video_url": video.url,
+                        "task_type": task_type,
+                        "source_language": video.get_language_label,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
+                        "status": "Fail",
+                        "message": "Tasks creation for Transcription failed as Translation exists with source type Original Source.",
+                    }
+                )
+            consolidated_error.append(
+                {
+                    "message": "Tasks creation for Transcription failed as Translation exists with source type Original Source.",
+                    "count": len(original_src_translation),
+                }
+            )
 
         if len(duplicate_user_tasks):
             consolidated_error.append(
@@ -1255,6 +1332,11 @@ class TaskViewSet(ModelViewSet):
                         "message": "Task creation for Transcription Review failed as Translation tasks already exists.",
                     }
                 )
+
+        for video in video_ids:
+            videos.remove(video)
+            if len(user_ids) > 0:
+                del user_ids[-1]
 
         if len(user_ids) > 0:
             if "EDIT" in task_type:
