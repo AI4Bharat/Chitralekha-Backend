@@ -2735,11 +2735,11 @@ class TaskViewSet(ModelViewSet):
             if voiceover_obj is not None:
                 response = [
                     {
-                        "task_type": task.get_task_type_label,
-                        "target_language": task.get_target_language_label,
-                        "video_name": task.video.name,
-                        "id": task.id,
-                        "video_id": task.video.id,
+                        "task_type": voiceover_obj.task.get_task_type_label,
+                        "target_language": voiceover_obj.task.get_target_language_label,
+                        "video_name": voiceover_obj.task.video.name,
+                        "id": voiceover_obj.task.id,
+                        "video_id": voiceover_obj.task.video.id,
                     }
                 ]
                 return Response(
