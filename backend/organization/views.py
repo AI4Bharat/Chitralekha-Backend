@@ -360,7 +360,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             # filter data based on search parameters
             videos = task_search_filter(videos, search_dict, filter_dict)
 
-            all_tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
+            # get all tasks of filtered videos and filter if task id in search field
+            if "task_id" in search_dict and search_dict["task_id"]!=None:
+                all_tasks = Task.objects.filter(pk=search_dict["task_id"],video__in=videos).order_by("-updated_at")
+            else:
+                all_tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
 
             all_tasks = task_search_by_description(all_tasks, search_dict)
             all_tasks = task_search_by_assignee(all_tasks, search_dict)
@@ -437,9 +441,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 # filter data based on search parameters
                 videos = task_search_filter(videos, search_dict, filter_dict)
 
-                all_tasks_in_projects = Task.objects.filter(video__in=videos).order_by(
-                    "-updated_at"
-                )
+                # get all tasks of filtered videos and filter if task id in search field
+                if "task_id" in search_dict and search_dict["task_id"]!=None:
+                    all_tasks_in_projects = Task.objects.filter(pk=search_dict["task_id"],video__in=videos).order_by("-updated_at")
+                else:
+                    all_tasks_in_projects = Task.objects.filter(video__in=videos).order_by("-updated_at")
+
                 if len(projects_only_members) > 0:
                     videos = Video.objects.filter(project_id__in=projects_only_members)
 
