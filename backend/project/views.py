@@ -767,6 +767,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
             all_tasks = Task.objects.filter(video_id__in=videos).order_by("-updated_at")
 
+            all_tasks = task_search_by_task_id(all_tasks,search_dict)
             all_tasks = task_search_by_description(all_tasks, search_dict)
             all_tasks = task_search_by_assignee(all_tasks, search_dict)
 

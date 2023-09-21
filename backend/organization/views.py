@@ -362,6 +362,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
             all_tasks = Task.objects.filter(video__in=videos).order_by("-updated_at")
 
+            all_tasks = task_search_by_task_id(all_tasks,search_dict)
             all_tasks = task_search_by_description(all_tasks, search_dict)
             all_tasks = task_search_by_assignee(all_tasks, search_dict)
             all_tasks = search_active_task(all_tasks, search_dict)
@@ -455,6 +456,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         all_tasks_in_projects | all_tasks_in_projects_assigned
                     )
 
+                all_tasks_in_projects = task_search_by_task_id(all_tasks_in_projects,search_dict)
                 all_tasks_in_projects = task_search_by_description(
                     all_tasks_in_projects, search_dict
                 )
@@ -531,6 +533,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     .order_by("-updated_at")
                 )
 
+                all_tasks = task_search_by_task_id(all_tasks,search_dict)
                 all_tasks = task_search_by_description(all_tasks, search_dict)
                 all_tasks = task_search_by_assignee(all_tasks, search_dict)
 
