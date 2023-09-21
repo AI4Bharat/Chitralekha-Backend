@@ -56,6 +56,10 @@ def task_search_by_assignee(all_tasks, search_dict):
 
     return all_tasks
 
+def task_search_by_task_id(all_tasks,search_dict):
+    if "task_id" in search_dict and search_dict["task_id"]!=None:
+        all_tasks = all_tasks.filter(Q(pk=search_dict["task_id"]))
+    return all_tasks
 
 def task_search_by_description(all_tasks, search_dict):
     if "description" in search_dict and len(search_dict["description"]):
