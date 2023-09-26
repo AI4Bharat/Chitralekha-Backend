@@ -2609,17 +2609,35 @@ class TaskViewSet(ModelViewSet):
 
     @swagger_auto_schema(
         method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "queue",
+                openapi.IN_QUERY,
+                description=("The type of queue to inspect"),
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+        ],
         responses={200: "successful", 500: "unable to query celery"},
     )
-    @action(detail=False, methods=["get"], url_path="inspect_asr_queue")
-    def inspect_asr_queue(self, request):
+    @action(detail=False, methods=["get"], url_path="inspect_queue")
+    def inspect_queue(self, request):
+        queue=request.query_params.get("queue")
+
+        if queue=='nmt':
+            queue_type="task.tasks.celery_nmt_call"
+        elif queue=='tts':
+            queue_type="task.tasks.celery_tts_call"
+        else:
+            queue_type="task.tasks.celery_asr_call"
+
         try:
             task_list = []
             url = f"{flower_url}/api/tasks"
             params = {
                 "state": "STARTED",
                 "sort_by": "received",
-                "name": "task.tasks.celery_asr_call",
+                "name": queue_type,
             }
             if flower_username and flower_password:
                 res = requests.get(
@@ -2634,7 +2652,7 @@ class TaskViewSet(ModelViewSet):
             params = {
                 "state": "RECEIVED",
                 "sort_by": "received",
-                "name": "task.tasks.celery_asr_call",
+                "name": queue_type,
             }
             if flower_username and flower_password:
                 res = requests.get(
