@@ -2625,11 +2625,11 @@ class TaskViewSet(ModelViewSet):
         queue=request.query_params.get("queue")
 
         if queue=='nmt':
-            queue_type="task.tasks.celery_nmt_call"
+            queue_type="celery@nmt_worker"
         elif queue=='tts':
-            queue_type="task.tasks.celery_tts_call"
+            queue_type="celery@asr_tts_worker"
         else:
-            queue_type="task.tasks.celery_asr_call"
+            queue_type="celery@asr_tts_worker"
 
         try:
             task_list = []
@@ -2637,7 +2637,7 @@ class TaskViewSet(ModelViewSet):
             params = {
                 "state": "STARTED",
                 "sort_by": "received",
-                "name": queue_type,
+                "workername": queue_type,
             }
             if flower_username and flower_password:
                 res = requests.get(
@@ -2652,7 +2652,7 @@ class TaskViewSet(ModelViewSet):
             params = {
                 "state": "RECEIVED",
                 "sort_by": "received",
-                "name": queue_type,
+                "workername": queue_type,
             }
             if flower_username and flower_password:
                 res = requests.get(
@@ -2663,7 +2663,10 @@ class TaskViewSet(ModelViewSet):
             data = res.json()
             task_data = list(data.values())
             for elem in task_data:
-                task_list.append(eval(elem["kwargs"])["task_id"])
+                # task_list.append(eval(elem["kwargs"])["task_id"])
+                #Condition to filter asr and tts which are in same worker
+                if eval(elem["kwargs"])["task"].split('.')[2].split('_')[1]==queue:
+                    task_list.append(eval(elem["kwargs"])["task_id"])
             if task_list:
                 task_details = Task.objects.filter(id__in=task_list).values(
                     "id",
