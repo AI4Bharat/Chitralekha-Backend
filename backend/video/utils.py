@@ -241,6 +241,7 @@ def get_video_func(request):
     upload_target_language = request.GET.get("target_language")
     assignee = request.GET.get("assignee")
     upload_task_description = request.GET.get("task_description", "")
+    upload_task_eta = request.GET.get("ETA")
     speaker_info = request.GET.get("speaker_info")
     multiple_speaker = request.GET.get("multiple_speaker", "false")
 
@@ -281,7 +282,7 @@ def get_video_func(request):
         )
 
     organization = project.organization_id
-    default_task_eta = project.default_eta
+    default_task_eta = upload_task_eta or project.default_eta
     default_task_priority = project.default_priority
     default_task_description = upload_task_description or project.default_description
     consolidated_report = []
@@ -687,6 +688,7 @@ def create_video(
     project_id,
     task_description,
     video_description,
+    ETA,
     gender,
     task_type=None,
     target_language=None,
@@ -702,6 +704,7 @@ def create_video(
     new_request.GET["project_id"] = project_id
     new_request.GET["task_description"] = task_description
     new_request.GET["description"] = video_description
+    new_request.GET["ETA"] = ETA
     new_request.GET["create"] = "true"
     new_request.GET["gender"] = gender
     new_request.GET["assignee"] = assignee

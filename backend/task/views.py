@@ -2609,17 +2609,35 @@ class TaskViewSet(ModelViewSet):
 
     @swagger_auto_schema(
         method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "queue",
+                openapi.IN_QUERY,
+                description=("The type of queue to inspect"),
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+        ],
         responses={200: "successful", 500: "unable to query celery"},
     )
-    @action(detail=False, methods=["get"], url_path="inspect_asr_queue")
-    def inspect_asr_queue(self, request):
+    @action(detail=False, methods=["get"], url_path="inspect_queue")
+    def inspect_queue(self, request):
+        queue=request.query_params.get("queue")
+
+        if queue=='nmt':
+            queue_type="celery@nmt_worker"
+        elif queue=='tts':
+            queue_type="celery@asr_tts_worker"
+        else:
+            queue_type="celery@asr_tts_worker"
+
         try:
             task_list = []
             url = f"{flower_url}/api/tasks"
             params = {
                 "state": "STARTED",
                 "sort_by": "received",
-                "name": "task.tasks.celery_asr_call",
+                "workername": queue_type,
             }
             if flower_username and flower_password:
                 res = requests.get(
@@ -2634,7 +2652,7 @@ class TaskViewSet(ModelViewSet):
             params = {
                 "state": "RECEIVED",
                 "sort_by": "received",
-                "name": "task.tasks.celery_asr_call",
+                "workername": queue_type,
             }
             if flower_username and flower_password:
                 res = requests.get(
@@ -2645,7 +2663,10 @@ class TaskViewSet(ModelViewSet):
             data = res.json()
             task_data = list(data.values())
             for elem in task_data:
-                task_list.append(eval(elem["kwargs"])["task_id"])
+                # task_list.append(eval(elem["kwargs"])["task_id"])
+                #Condition to filter asr and tts which are in same worker
+                if eval(elem["kwargs"])["task"].split('.')[2].split('_')[1]==queue:
+                    task_list.append(eval(elem["kwargs"])["task_id"])
             if task_list:
                 task_details = Task.objects.filter(id__in=task_list).values(
                     "id",
