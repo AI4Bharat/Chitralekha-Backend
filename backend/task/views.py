@@ -2648,7 +2648,14 @@ class TaskViewSet(ModelViewSet):
             data = res.json()
             task_data = list(data.values())
             for elem in task_data:
-                task_list.append(eval(elem["kwargs"])["task_id"])
+                if queue == "asr" and elem["name"] == "task.tasks.celery_asr_call":
+                    task_list.append(eval(elem["kwargs"])["task_id"])
+                elif queue == "tts" and elem["name"] == "task.tasks.celery_tts_call":
+                    task_list.append(eval(elem["kwargs"])["task_id"])
+                elif queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call":
+                    task_list.append(eval(elem["kwargs"])["task_id"])
+                else:
+                    pass
             params = {
                 "state": "RECEIVED",
                 "sort_by": "received",
@@ -2663,10 +2670,14 @@ class TaskViewSet(ModelViewSet):
             data = res.json()
             task_data = list(data.values())
             for elem in task_data:
-                # task_list.append(eval(elem["kwargs"])["task_id"])
-                #Condition to filter asr and tts which are in same worker
-                if eval(elem["kwargs"])["task"].split('.')[2].split('_')[1]==queue:
+                if queue == "asr" and elem["name"] == "task.tasks.celery_asr_call":
                     task_list.append(eval(elem["kwargs"])["task_id"])
+                elif queue == "tts" and elem["name"] == "task.tasks.celery_tts_call":
+                    task_list.append(eval(elem["kwargs"])["task_id"])
+                elif queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call":
+                    task_list.append(eval(elem["kwargs"])["task_id"])
+                else:
+                    pass
             if task_list:
                 task_details = Task.objects.filter(id__in=task_list).values(
                     "id",
