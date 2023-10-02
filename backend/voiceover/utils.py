@@ -1,5 +1,6 @@
 import requests
 from uuid import UUID
+import uuid
 import json
 from azure.storage.blob import BlobServiceClient
 import logging
@@ -674,19 +675,20 @@ def generate_voiceover_payload(translation_payload, target_language, task):
                     and len(voice_over["audioContent"]) > 100
                 ):
                     ind = post_generated_audio_indices.pop(0)
-                    audio_file = "temp.wav"
+                    uuid_num = str(uuid.uuid4())
+                    audio_file = "temp_" +  uuid_num +".wav"
                     first_audio_decoded = base64.b64decode(voice_over["audioContent"])
                     with open(audio_file, "wb") as output_f:
                         output_f.write(first_audio_decoded)
-                    AudioSegment.from_wav("temp.wav").export("temp.ogg", format="ogg")
-                    adjust_audio("temp.ogg", translation_payload[ind][3], -1)
-                    encoded_audio = base64.b64encode(open("temp.ogg", "rb").read())
+                    AudioSegment.from_wav(audio_file).export("temp_" +  uuid_num +".ogg", format="ogg")
+                    adjust_audio("temp_" +  uuid_num +".ogg", translation_payload[ind][3], -1)
+                    encoded_audio = base64.b64encode(open("temp_" +  uuid_num +".ogg","rb").read())
                     output[ind] = (
                         translation_payload[ind][0],
                         {"audioContent": encoded_audio.decode()},
                     )
                     os.remove(audio_file)
-                    os.remove("temp.ogg")
+                    os.remove("temp_" +  uuid_num +".ogg")  
                 else:
                     output[ind] = (
                         translation_payload[ind][0],
