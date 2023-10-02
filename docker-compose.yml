@@ -38,7 +38,7 @@ services:
         condition: service_started
       backend:
         condition: service_started
-    command: python3 -m celery -A backend worker -Q default -n default_worker@%h --concurrency=1 -l DEBUG
+    command: python3 -m celery -A backend worker -Q default -n default_worker --concurrency=1 -l DEBUG
     restart: unless-stopped
 
   celery_asr_tts:
@@ -52,7 +52,7 @@ services:
         condition: service_started
       backend:
         condition: service_started
-    command: python3 -m celery -A backend worker -Q asr_tts -n asr_tts_worker@%h --concurrency=1 -l DEBUG
+    command: python3 -m celery -A backend worker -Q asr_tts -n asr_tts_worker --concurrency=1 -l DEBUG
     restart: unless-stopped
 
   celery_nmt:
@@ -66,7 +66,7 @@ services:
         condition: service_started
       backend:
         condition: service_started
-    command: python3 -m celery -A backend worker -Q nmt -n nmt_worker@%h --concurrency=1 -l DEBUG
+    command: python3 -m celery -A backend worker -Q nmt -n nmt_worker --concurrency=1 -l DEBUG
     restart: unless-stopped
 
   # celery_voiceover:

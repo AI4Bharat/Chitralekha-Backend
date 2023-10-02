@@ -1264,6 +1264,9 @@ def save_translation(request):
                         .first()
                         is not None
                     ):
+                        if task.status == "INPROGRESS":
+                            task.status = "COMPLETE"
+                            task.save()
                         return Response(
                             {"message": "Edit Translation already exists."},
                             status=status.HTTP_201_CREATED,
