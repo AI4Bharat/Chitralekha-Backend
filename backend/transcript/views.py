@@ -1430,6 +1430,9 @@ def save_transcription(request):
                         .first()
                         is not None
                     ):
+                        if task.status == "INPROGRESS":
+                            task.status = "COMPLETE"
+                            task.save()
                         return Response(
                             {"message": "Final Edited Transcript already submitted."},
                             status=status.HTTP_201_CREATED,
