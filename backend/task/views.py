@@ -2651,7 +2651,8 @@ class TaskViewSet(ModelViewSet):
                 if queue == "asr" and elem["name"] == "task.tasks.celery_asr_call":
                     task_list.append(eval(elem["kwargs"])["task_id"])
                 elif queue == "tts" and elem["name"] == "task.tasks.celery_tts_call":
-                    task_list.append(eval(elem["kwargs"])["task_id"])
+                    # task_list.append(eval(elem["kwargs"])["task_id"])
+                    task_list.append(eval(elem['args'].split(',')[0].split('(')[1]))
                 elif queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call":
                     task_list.append(eval(elem["kwargs"])["task_id"])
                 else:
@@ -2673,7 +2674,8 @@ class TaskViewSet(ModelViewSet):
                 if queue == "asr" and elem["name"] == "task.tasks.celery_asr_call":
                     task_list.append(eval(elem["kwargs"])["task_id"])
                 elif queue == "tts" and elem["name"] == "task.tasks.celery_tts_call":
-                    task_list.append(eval(elem["kwargs"])["task_id"])
+                    # task_list.append(eval(elem["kwargs"])["task_id"])
+                    task_list.append(eval(elem['args'].split(',')[0].split('(')[1]))
                 elif queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call":
                     task_list.append(eval(elem["kwargs"])["task_id"])
                 else:
