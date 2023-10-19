@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from .models import Translation
 
+
 # Show particular fields in the admin panel
 class TranslationAdmin(admin.ModelAdmin):
     """

@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("voiceover", "0002_alter_voiceover_voice_over_type"),
     ]

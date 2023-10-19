@@ -160,7 +160,6 @@ def get_batch_translations_using_indictrans_nmt_api(
     source_language,
     target_language,
 ):
-
     """Function to get the translation for the input sentences using the IndicTrans NMT API.
     Args:
         sentence_list (str): List of sentences to be translated.
@@ -227,7 +226,9 @@ def convert_payload_format(data):
     return json.loads(json.dumps({"payload": sentences_list}))
 
 
-def generate_translation_payload(transcript, target_language, list_compare_sources, url=None):
+def generate_translation_payload(
+    transcript, target_language, list_compare_sources, url=None
+):
     payloads = {}
     if "MACHINE_GENERATED" in list_compare_sources:
         try:
@@ -494,7 +495,7 @@ def translation_mg(transcript, target_language, batch_size=25):
 
     # Update the translation payload with the generated translations
     payload = []
-    for (source, target) in zip(vtt_output["payload"], all_translated_sentences):
+    for source, target in zip(vtt_output["payload"], all_translated_sentences):
         start_time = datetime.datetime.strptime(source["start_time"], "%H:%M:%S.%f")
         unix_start_time = datetime.datetime.timestamp(start_time)
         end_time = datetime.datetime.strptime(source["end_time"], "%H:%M:%S.%f")

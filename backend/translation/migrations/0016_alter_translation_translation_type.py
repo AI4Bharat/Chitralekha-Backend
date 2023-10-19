@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("translation", "0015_alter_translation_target_language")]
 
     operations = [

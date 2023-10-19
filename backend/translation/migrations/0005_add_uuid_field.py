@@ -5,7 +5,6 @@ import uuid
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("translation", "0004_alter_translation_translation_type"),
     ]

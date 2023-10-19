@@ -772,7 +772,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
             if "search" in request.query_params:
                 search_dict = json.loads(request.query_params["search"])
-            
+
             sort_by = request.query_params.get("sort_by", "updated_at")
             reverse = request.query_params.get("reverse", "False") == "True"
 
@@ -782,11 +782,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
             # filter data based on search parameters
             videos = task_search_filter(videos, search_dict, filter_dict)
 
-            if reverse==True:
-                sort_by = "-"+sort_by
+            if reverse == True:
+                sort_by = "-" + sort_by
             all_tasks = Task.objects.filter(video_id__in=videos).order_by(sort_by)
 
-            all_tasks = task_search_by_task_id(all_tasks,search_dict)
+            all_tasks = task_search_by_task_id(all_tasks, search_dict)
             all_tasks = task_search_by_description(all_tasks, search_dict)
             all_tasks = task_search_by_assignee(all_tasks, search_dict)
 

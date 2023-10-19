@@ -5,7 +5,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("project", "0003_alter_project_managers"),
         ("video", "0010_video_description"),

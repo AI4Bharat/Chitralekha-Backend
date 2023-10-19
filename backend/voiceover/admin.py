@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import VoiceOver
 
+
 # Show particular fields in the admin panel
 class VoiceOverAdmin(admin.ModelAdmin):
     """

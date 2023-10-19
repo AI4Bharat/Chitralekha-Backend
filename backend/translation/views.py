@@ -964,7 +964,6 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                 "text" in payload["payload"][i].keys()
                 and "text" not in translation.payload["payload"][start_offset + i]
             ):
-
                 translation.payload["payload"][start_offset + i] = {
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
@@ -1804,7 +1803,7 @@ def generate_translation(request):
 
     # Update the translation payload with the generated translations
     payload = []
-    for (source, target) in zip(sentence_list, all_translated_sentences):
+    for source, target in zip(sentence_list, all_translated_sentences):
         payload.append(
             {"source": source, "target": target if source.strip() else source}
         )
