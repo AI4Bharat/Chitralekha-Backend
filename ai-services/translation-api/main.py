@@ -52,7 +52,6 @@ indic_language_dict = {
 
 
 def get_inference_params(source_language, target_language):
-
     assert (
         source_language in indic_language_dict.values()
     ), f"Source language {source_language} not supported."
@@ -87,7 +86,6 @@ async def supported_languages():
 @app.get("/lemmatize_sentence")
 @app.post("/lemmatize_sentence")
 async def _lemmatize_sentence(sentence: str, lang: str = "en"):
-
     if lang != "en":
         return "ERROR: Language not supported!"
 
@@ -102,7 +100,6 @@ class SentenceTranslationRequest(BaseModel):
 
 @app.post("/translate_sentence")
 async def translate_sentence(translation_request: SentenceTranslationRequest):
-
     try:
         model, source_lang, target_lang = get_inference_params(
             translation_request.source_language, translation_request.target_language

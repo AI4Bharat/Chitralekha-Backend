@@ -20,7 +20,6 @@ def align_subtitle(subtitle_utils: SubtitleTimestamps) -> dict:
     aligned_srt = {}
 
     for sub in tqdm(subs, leave=False):
-
         alignment = {}
 
         if sub.content == "[Music]":

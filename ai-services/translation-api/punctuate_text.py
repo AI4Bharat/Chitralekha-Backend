@@ -64,7 +64,6 @@ class Punctuation:
         sys.stdout.flush()
 
     def download_model_data(self):
-
         if not os.path.exists(cache + "deployed_models/model_data/transformers_cache"):
             os.makedirs(cache + "deployed_models/model_data/transformers_cache")
 
@@ -166,7 +165,6 @@ class Punctuation:
         return tokenizer, model, train_encoder, punctuation_dict
 
     def get_tokens_and_labels_indices_from_text(self, text):
-
         tokenized_sentence = self.tokenizer.encode(text)
         input_ids = torch.tensor([tokenized_sentence]).to(self.device)
         with torch.no_grad():
@@ -176,7 +174,6 @@ class Punctuation:
         return tokens, label_indices
 
     def punctuate_text_others_sentence(self, sentence):
-
         tokens, label_indices = self.get_tokens_and_labels_indices_from_text(sentence)
 
         new_tokens = []
@@ -306,7 +303,6 @@ class Punctuation:
 
 
 if __name__ == "__main__":
-
     """
 
     punjabi = Punctuation('pa')
