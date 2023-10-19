@@ -994,7 +994,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             transcript_dict = {
                 "language": {
                     "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["language"]],
-                    "label": "Media Language",
+                    "label": "Source Language",
                 },
                 "total_duration": {
                     "value": round(elem["total_duration"].total_seconds() / 3600, 3),
@@ -1009,22 +1009,22 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             translation_dict = {
                 "src_language": {
                     "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["src_language"]],
-                    "label": "Src Language",
+                    "label": "Source Language",
                 },
                 "tgt_language": {
                     "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["tgt_language"]],
-                    "label": "Tgt Language",
+                    "label": "Target Language",
                 },
                 "translation_duration": {
                     "value": round(
                         elem["translation_duration"].total_seconds() / 3600, 3
                     ),
-                    "label": "Translated Duration (Hours)",
+                    "label": "Duration (Hours)",
                     "viewColumns": False,
                 },
                 "transcripts_translated": {
                     "value": elem["transcripts_translated"],
-                    "label": "Translation Tasks Count",
+                    "label": "Tasks Count",
                 },
             }
             translation_data.append(translation_dict)
@@ -1130,11 +1130,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 "num_videos": {"value": elem["num_videos"], "label": "Video count"},
                 "total_transcriptions": {
                     "value": transcript_duration,
-                    "label": "Transcripted Duration (Hours)",
+                    "label": "Duration (Hours)",
                 },
                 "total_translations": {
                     "value": translation_duration,
-                    "label": "Translated Duration (Hours)",
+                    "label": "Duration (Hours)",
                 },
                 "total_word_count": {
                     "value": int(transcript_word_count + translation_word_count),
