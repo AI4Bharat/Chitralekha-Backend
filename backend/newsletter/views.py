@@ -11,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 import webvtt
 from io import StringIO
 import json, sys
-from .models import NEWSLETTER_CATEGORY, Newsletter
+from .models import NEWSLETTER_CATEGORY, Newsletter, SubscribedUsers
 from .serializers import NewsletterSerializer
 from users.models import User
 from rest_framework.response import Response
@@ -48,7 +48,9 @@ class NewsletterViewSet(ModelViewSet):
             )
 
         new_newsletter = Newsletter(
-            content=content, submitter_id=submitter_id, category="NEW_FEATURE"
+            content=content,
+            submitter_id=User.objects.get(pk=submitter_id),
+            category="NEW_FEATURE",
         )
         new_newsletter.save()
         return Response(
@@ -58,15 +60,13 @@ class NewsletterViewSet(ModelViewSet):
 
     @swagger_auto_schema(
         method="post",
-        manual_parameters=[
-            openapi.Parameter(
-                "email",
-                openapi.IN_QUERY,
-                description=("Email Id of user"),
-                type=openapi.TYPE_INTEGER,
-                required=True,
-            ),
-        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "email": openapi.Schema(type=openapi.TYPE_STRING),
+            },
+            required=["email"],
+        ),
         responses={200: "Subscribed Successfully."},
     )
     @action(detail=False, methods=["post"], url_path="subscribe")
