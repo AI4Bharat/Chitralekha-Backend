@@ -2038,8 +2038,12 @@ class TaskViewSet(ModelViewSet):
                             content = b"".join(transcript.streaming_content)
                         else:
                             content = transcript.content
+                        if task.video.project_id.organization_id.id == 16 and len(task.description) > 0:
+                            file_name = f"{task.description}.{export_type}"
+                        else:
+                            file_name = f"{task.video.name}_{time_now}.{export_type}"
                         zf.writestr(
-                            f"{task.video.name}_{time_now}.{export_type}", content
+                            file_name, content
                         )
                     elif "TRANSLATION" in task.task_type:
                         translation = get_export_translation(
@@ -2049,6 +2053,10 @@ class TaskViewSet(ModelViewSet):
                             content = b"".join(translation.streaming_content)
                         else:
                             content = translation.content
+                        if task.video.project_id.organization_id.id == 16 and len(task.description) > 0:
+                            file_name = f"{task.description}.{export_type}"
+                        else:
+                            file_name = f"{task.video.name}_{time_now}.{export_type}"
                         zf.writestr(
                             f"{task.video.name}_{time_now}_{task.target_language}.{export_type}",
                             content,
