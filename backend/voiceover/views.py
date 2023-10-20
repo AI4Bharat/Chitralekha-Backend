@@ -253,6 +253,14 @@ def get_payload(request):
             next = None
             previous = offset - 1
         elif offset == 1:
+            delete_indices = []
+            for index, sentence in enumerate(voice_over.translation.payload["payload"]):
+                if "text" not in sentence.keys():
+                    delete_indices.append(index)
+            delete_indices.reverse()
+            for ind in delete_indices:
+                voice_over.translation.payload["payload"].pop(ind)
+            voice_over.translation.save()
             previous = None
             next = offset + 1
         else:
