@@ -894,20 +894,29 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Info": False,
                         "Reopen": False,
                     }
+                    buttons["Update"] = True
+                    buttons["Delete"] = True
                     if data["status"] == "COMPLETE":
                         buttons["Edit"] = False
                         buttons["Export"] = True
                         buttons["Preview"] = True
                         buttons["Update"] = False
+                        if "TRANSLATION" in data["task_type"]:
+                            buttons["Reopen"] = True
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
-                    if data["status"] in ["FAILED", "REOPEN"]:
+                    if data["status"] == "FAILED":
+                        buttons["Info"] = True
+                        buttons["Reopen"] = True
+                    if data["status"] == "REOPEN":
                         buttons["Info"] = True
                     if data["status"] == "INPROGRESS":
                         buttons["Preview"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
                         buttons["Info"] = False
+                        if data["status"] == "FAILED":
+                            buttons["Reopen"] = False
                     if data["user"]["email"] == request.user.email:
                         if data["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
