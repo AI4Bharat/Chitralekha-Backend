@@ -351,6 +351,13 @@ def get_translation_id(task):
                 .filter(status="TRANSLATION_REVIEWER_ASSIGNED")
                 .first()
             )
+        if task.status == "REOPEN":
+            translation_id = (
+                translation.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .filter(status="TRANSLATION_REVIEW_INPROGRESS")
+                .first()
+            )
         if task.status == "INPROGRESS":
             translation_id = (
                 translation.filter(video=task.video)
