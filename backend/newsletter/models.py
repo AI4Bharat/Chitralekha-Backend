@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django import forms
+from users.models import User
 
 
 NEWSLETTER_CATEGORY = (("NEW_FEATURE", "New Feature"),)
@@ -20,13 +21,10 @@ class Newsletter(models.Model):
         verbose_name="Newsletter UUID",
         primary_key=False,
     )
-    submitter_id = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="newsletter_submitter",
-        verbose_name="newsletter_submitter",
+    submitter_id = models.ForeignKey(
+        User,
+        verbose_name="Submitter User",
+        on_delete=models.CASCADE,
     )
     content = models.TextField(help_text=("Newsletter Content"))
     category = models.CharField(
