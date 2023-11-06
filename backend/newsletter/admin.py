@@ -9,7 +9,13 @@ class NewsletterAdmin(admin.ModelAdmin):
     YoutubeAdmin class to render the youtube admin panel.
     """
 
-    list_display = ("newsletter_uuid", "submitter_id", "content", "category")
+    list_display = (
+        "newsletter_uuid",
+        "submitter_id",
+        "content",
+        "category",
+        "created_at",
+    )
 
 
 class SubscribedUsersAdmin(admin.ModelAdmin):
