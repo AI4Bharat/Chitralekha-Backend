@@ -9,8 +9,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from transcript.models import Transcript
-
-from .metadata import INDIC_TRANS_SUPPORTED_LANGUAGES
+from .metadata import TRANSLATION_SUPPORTED_LANGUAGES
 from .models import (
     Translation,
     MACHINE_GENERATED,
@@ -19,6 +18,11 @@ from .models import (
 )
 from .serializers import TranslationSerializer
 from .utils import get_batch_translations_using_indictrans_nmt_api
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
 
 
 @swagger_auto_schema(
@@ -68,7 +72,9 @@ def retrieve_translation(request):
     # Get the query params
     transcript_id = request.query_params.get("transcript_id")
     target_language = request.query_params.get("target_language")
-    load_latest_translation = request.query_params.get("load_latest_translation", "false")
+    load_latest_translation = request.query_params.get(
+        "load_latest_translation", "false"
+    )
     translation_type = request.query_params.get("translation_type")
 
     # Convert load_latest_translation to boolean
@@ -260,11 +266,17 @@ def save_translation(request):
 
 
 @api_view(["GET"])
+@authentication_classes([])
+@permission_classes([])
 def get_supported_languages(request):
-
-    # Return the allowed translations and model codes
+    """
+    Endpoint to get the supported languages for NMT API
+    """
     return Response(
-        INDIC_TRANS_SUPPORTED_LANGUAGES,
+        [
+            {"label": label, "value": value}
+            for label, value in TRANSLATION_SUPPORTED_LANGUAGES.items()
+        ],
         status=status.HTTP_200_OK,
     )
 
@@ -397,8 +409,10 @@ def generate_translation(request):
 
     # Update the translation payload with the generated translations
     payload = []
-    for (source, target) in zip(sentence_list, all_translated_sentences):
-        payload.append({"source": source, "target": target if source.strip() else source})
+    for source, target in zip(sentence_list, all_translated_sentences):
+        payload.append(
+            {"source": source, "target": target if source.strip() else source}
+        )
     translation.payload = {"translations": payload}
     translation.save()
 

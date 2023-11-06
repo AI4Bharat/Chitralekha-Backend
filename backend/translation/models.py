@@ -1,10 +1,9 @@
 import uuid
-
 from django.contrib.auth import get_user_model
 from django.db import models
 from transcript.models import Transcript
+from .metadata import TRANSLATION_LANGUAGE_CHOICES
 
-from .metadata import LANGUAGE_CHOICES
 
 UPDATED_MACHINE_GENERATED = "umg"
 MACHINE_GENERATED = "mg"
@@ -47,7 +46,9 @@ class Translation(models.Model):
         related_name="translations",
     )
     target_language = models.CharField(
-        choices=LANGUAGE_CHOICES, max_length=4, verbose_name="Target Language"
+        choices=TRANSLATION_LANGUAGE_CHOICES,
+        max_length=4,
+        verbose_name="Target Language",
     )
     user = models.ForeignKey(
         get_user_model(),
