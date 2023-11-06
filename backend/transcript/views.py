@@ -1,12 +1,16 @@
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
-
+from .metadata import TRANSCRIPTION_LANGUAGE_CHOICES, TRANSCRIPTION_SUPPORTED_LANGUAGES
 from .models import (
     Transcript,
     ORIGINAL_SOURCE,
@@ -16,7 +20,7 @@ from .models import (
     MANUALLY_CREATED,
 )
 from .serializers import TranscriptSerializer
-from .utils.asr import get_asr_supported_languages, make_asr_api_call
+from .utils.asr import make_asr_api_call
 
 
 # Define the API views
@@ -443,21 +447,19 @@ def save_transcription(request):
 
 
 @api_view(["GET"])
+@authentication_classes([])
+@permission_classes([])
 def get_supported_languages(request):
     """
     Endpoint to get the supported languages for ASR API
     """
-
-    # Make a call to the FASTAPI endpoint to get the list of supported languages
-    try:
-        return Response(
-            {"data": get_asr_supported_languages()}, status=status.HTTP_200_OK
-        )
-    except Exception:
-        return Response(
-            {"message": "Error while calling ASR API"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+    return Response(
+        [
+            {"label": label, "value": value}
+            for label, value in TRANSCRIPTION_SUPPORTED_LANGUAGES.items()
+        ],
+        status=status.HTTP_200_OK,
+    )
 
 
 ## Define the Transcript ViewSet

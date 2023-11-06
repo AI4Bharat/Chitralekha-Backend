@@ -2,8 +2,8 @@ import uuid
 
 from django.contrib.auth import get_user_model
 from django.db import models
-from translation.metadata import LANGUAGE_CHOICES
 from video.models import Video
+from .metadata import TRANSCRIPTION_LANGUAGE_CHOICES
 
 ORIGINAL_SOURCE = "os"
 UPDATED_ORIGINAL_SOURCE = "uos"
@@ -52,7 +52,7 @@ class Transcript(models.Model):
         related_name="transcripts",
     )
     language = models.CharField(
-        choices=LANGUAGE_CHOICES,
+        choices=TRANSCRIPTION_LANGUAGE_CHOICES,
         max_length=10,
         default="en",
         verbose_name="Transcript Language",
