@@ -832,6 +832,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Reopen"] = True
                     if data["status"] == "REOPEN":
                         buttons["Info"] = True
+                    if data["status"] == "INPROGRESS":
+                        buttons["Preview"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
                         buttons["Info"] = False
@@ -882,6 +884,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Update"] = True
                     if data["status"] in ["FAILED", "REOPEN"]:
                         buttons["Info"] = True
+                    if data["status"] == "INPROGRESS":
+                        buttons["Preview"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
                         buttons["Info"] = False

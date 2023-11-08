@@ -192,11 +192,11 @@ def export_translation(request):
         content = convert_to_paragraph(lines)
     elif export_type == "docx":
         filename = "translation.docx"
-        content = convert_to_paragraph_monolingual(payload)
+        content = convert_to_paragraph_monolingual(payload, task.video.name)
         return convert_to_docx(content)
     elif export_type == "docx-bilingual":
         filename = "translation.docx"
-        content = convert_to_paragraph_bilingual(payload)
+        content = convert_to_paragraph_bilingual(payload, task.video.name)
         return convert_to_docx(content)
     else:
         return Response(
