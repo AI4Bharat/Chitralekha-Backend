@@ -407,6 +407,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     buttons["Reopen"] = True
                 if task["status"] == "REOPEN":
                     buttons["Info"] = True
+                if data["status"] == "INPROGRESS":
+                    buttons["Preview"] = True
                 if task["task_type"] == "VOICEOVER_EDIT":
                     buttons["Preview"] = False
                     buttons["Info"] = False
@@ -507,6 +509,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             buttons["Reopen"] = True
                         if task["status"] == "REOPEN":
                             buttons["Info"] = True
+                        if data["status"] == "INPROGRESS":
+                            buttons["Preview"] = True
                         if task["task_type"] == "VOICEOVER_EDIT":
                             buttons["Preview"] = False
                             buttons["Info"] = False
@@ -574,6 +578,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             buttons["View"] = False
                         if task["status"] == "FAILED":
                             buttons["Info"] = True
+                        if data["status"] == "INPROGRESS":
+                            buttons["Preview"] = True
                         if task["task_type"] == "VOICEOVER_EDIT":
                             buttons["Preview"] = False
                             buttons["Info"] = False
