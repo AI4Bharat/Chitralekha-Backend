@@ -240,7 +240,7 @@ def export_translation(request):
 @api_view(["GET"])
 def retrieve_translation(request):
     """
-    Endpoint to retrive a transcription for a transcription entry
+    Endpoint to retrive a translation for a translation entry
     """
 
     # Check if video_id and language and transcript_type has been passed
@@ -296,9 +296,28 @@ def retrieve_translation(request):
             status=status.HTTP_200_OK,
         )
     else:
-        return Response(
-            {"message": "No translation found"}, status=status.HTTP_404_NOT_FOUND
+        task = (
+            Task.objects.filter(video=video)
+            .filter(target_language=target_language)
+            .filter(task_type="TRANSLATION_EDIT")
+            .first()
         )
+        translation_obj = get_translation_id(task)
+        if translation_obj is not None:
+            translation_payload = translation_obj.payload
+            data = {}
+            data["payload"] = []
+            for segment in translation_payload["payload"]:
+                if "target_text" in segment.keys() and len(segment["target_text"]) > 0:
+                    data["payload"].append(segment)
+            return Response(
+                {"id": translation_obj.id, "data": data},
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {"message": "No translation found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
 
 def get_translation_id(task):
