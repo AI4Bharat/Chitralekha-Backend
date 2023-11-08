@@ -67,7 +67,7 @@ def convert_to_docx(content):
     return response
 
 
-def convert_to_paragraph(lines):
+def convert_to_paragraph(lines, video_name):
     count = 0
     content = ""
     for line in lines:
@@ -77,6 +77,7 @@ def convert_to_paragraph(lines):
     count = 0
     sentences_count = 0
     content = content.replace("\n", " ")
+    content = video_name + "\n" + "\n" + content
     for index, i in enumerate(content):
         count += 1
         if content[index] == "." and sentences_count == 5:
@@ -88,10 +89,10 @@ def convert_to_paragraph(lines):
     return content
 
 
-def convert_to_paragraph_monolingual(payload):
+def convert_to_paragraph_monolingual(payload, video_name):
     lines = []
     content = ""
-    translated_content = ""
+    translated_content = video_name + "\n" + "\n"
     sentences_count = 0
     number_of_paragraphs = math.ceil(len(payload) / 5)
     count_paragraphs = 0
@@ -110,11 +111,11 @@ def convert_to_paragraph_monolingual(payload):
     return content
 
 
-def convert_to_paragraph_bilingual(payload):
+def convert_to_paragraph_bilingual(payload, video_name):
     lines = []
     transcripted_lines = []
     content = ""
-    transcripted_content = ""
+    transcripted_content = video_name + "\n" + "\n"
     translated_content = ""
     sentences_count = 0
     number_of_paragraphs = math.ceil(len(payload) / 5)

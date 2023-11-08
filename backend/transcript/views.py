@@ -186,13 +186,13 @@ def export_transcript(request):
             if "text" in segment.keys():
                 lines.append(segment["text"])
         filename = "transcript.txt"
-        content = convert_to_paragraph(lines)
+        content = convert_to_paragraph(lines, task.video.name)
     elif export_type == "docx":
         for index, segment in enumerate(payload):
             if "text" in segment.keys():
                 lines.append(segment["text"])
         filename = "transcript.txt"
-        content = convert_to_paragraph(lines)
+        content = convert_to_paragraph(lines, task.video.name)
         return convert_to_docx(content)
     elif export_type == "ytt":
         return Response(
