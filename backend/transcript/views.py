@@ -389,9 +389,27 @@ def retrieve_transcription(request):
             status=status.HTTP_200_OK,
         )
     else:
-        return Response(
-            {"message": "No transcript found"}, status=status.HTTP_404_NOT_FOUND
+        task = (
+            Task.objects.filter(video=video)
+            .filter(task_type="TRANSCRIPTION_EDIT")
+            .first()
         )
+        transcript_obj = get_transcript_id(task)
+        if transcript_obj is not None:
+            transcript_payload = transcript_obj.payload
+            data = {}
+            data["payload"] = []
+            for segment in transcript_payload["payload"]:
+                if "text" in segment.keys() and len(segment["text"]) > 0:
+                    data["payload"].append(segment)
+            return Response(
+                {"id": transcript_obj.id, "data": data},
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {"message": "No transcript found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
 
 def generate_transcription(video, lang, user, transcript_type, task, payload):
