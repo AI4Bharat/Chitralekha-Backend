@@ -1517,17 +1517,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
             transcript_dict = {
                 "language": {
                     "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["language"]],
-                    "label": "Media Language",
+                    "label": "Source Language",
                     "viewColumns": False,
                 },
                 "total_duration": {
                     "value": round(elem["total_duration"].total_seconds() / 3600, 3),
-                    "label": "Transcripted Duration (Hours)",
+                    "label": "Duration (Hours)",
                     "viewColumns": False,
                 },
                 "word_count": {
                     "value": elem["word_count"],
-                    "label": "Transcripted Word Count",
+                    "label": "Word Count",
                 },
             }
             transcript_data.append(transcript_dict)
@@ -1549,16 +1549,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     "value": round(
                         elem["translation_duration"].total_seconds() / 3600, 3
                     ),
-                    "label": "Translated Duration (Hours)",
+                    "label": "Duration (Hours)",
                     "viewColumns": False,
                 },
                 "transcripts_translated": {
                     "value": elem["transcripts_translated"],
-                    "label": "Translation Tasks Count",
+                    "label": "Tasks Count",
                 },
                 "word_count": {
                     "value": elem["word_count"],
-                    "label": "Translation Word Count",
+                    "label": "Word Count",
                 },
             }
             translation_data.append(translation_dict)
@@ -1580,12 +1580,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     "value": round(
                         elem["voiceover_duration"].total_seconds() / 3600, 3
                     ),
-                    "label": "Voice Over Duration (Hours)",
+                    "label": "Duration (Hours)",
                     "viewColumns": False,
                 },
                 "voiceovers_completed": {
                     "value": elem["voiceovers_completed"],
-                    "label": "Voice Over Tasks Count",
+                    "label": "Tasks Count",
                 },
             }
             voiceover_data.append(voiceover_dict)
