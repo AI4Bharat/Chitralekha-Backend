@@ -273,10 +273,7 @@ def get_supported_languages(request):
     Endpoint to get the supported languages for NMT API
     """
     return Response(
-        [
-            {"label": label, "value": value}
-            for label, value in TRANSLATION_SUPPORTED_LANGUAGES.items()
-        ],
+        TRANSLATION_SUPPORTED_LANGUAGES,
         status=status.HTTP_200_OK,
     )
 

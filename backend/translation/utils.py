@@ -1,6 +1,7 @@
 import requests
 from uuid import UUID
 from .metadata import LANG_CODE_TO_NAME
+from config import nmt_url, dhruva_key
 
 
 ### Utility Functions ###
