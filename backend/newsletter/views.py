@@ -47,7 +47,7 @@ class NewsletterViewSet(ModelViewSet):
     @is_admin
     def create(self, request, pk=None, *args, **kwargs):
         category = request.data.get("category")
-        content = request.data.get("content_1")
+        content = request.data.get("content")
         submitter_id = request.data.get("submitter_id")
         template_id = request.data.get("template_id")
         BASE_DIR = Path(__file__).resolve().parent.parent
