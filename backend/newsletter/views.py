@@ -109,6 +109,25 @@ class NewsletterViewSet(ModelViewSet):
                 file_html.close()
                 html_file = loader.get_template(requested_html)
                 html_content = html_file.render(context, request)
+        elif template_id == 3:
+            if len(content) != 0:
+                message = base64.b64decode(content).decode("utf-8")
+                f = open('content.html','w')
+                f.write(message)
+                f.close()
+
+                # Parse the file using an HTML parser.
+                parser = html.parser.HTMLParser()
+                with open('content.html', 'rb') as f:
+                    parser.feed(f.read().decode('utf-8'))
+
+                # Check for common HTML errors.
+                if parser.error_list:
+                    return Response(
+                        {"message": "Error in HTML."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                html_content = message
         else:
             return Response(
                 {"message": "Template not supported."},
