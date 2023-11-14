@@ -13,6 +13,19 @@ from config import (
 import subprocess
 import json
 
+def convert_to_webvtt(text):
+    lines = text.split('\n\n')
+    webvtt_content = 'WEBVTT\n\n'
+
+    for line in lines:
+        if line.strip():  # Skip empty lines
+            parts = line.split('\n')
+            timestamp = parts[1]
+            content = '\n'.join(parts[2:])
+            webvtt_content += f"{timestamp} {content}\n"
+
+    return webvtt_content
+
 
 def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
     json_data = json.dumps(
@@ -66,6 +79,7 @@ def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
                 headers={"authorization": dhruva_key},
                 json=json_data,
             )
-            return response.json()["output"][0]["source"]
+
+            return {"status": "SUCCESS", "output": convert_to_webvtt(response.json()["output"][0]["source"])}
         except:
             print("No response received")
