@@ -47,18 +47,23 @@ class NewsletterViewSet(ModelViewSet):
     @is_admin
     def create(self, request, pk=None, *args, **kwargs):
         category = request.data.get("category")
-        content = request.data.get("content_1")
+        content = request.data.get("content")
         submitter_id = request.data.get("submitter_id")
         template_id = request.data.get("template_id")
         BASE_DIR = Path(__file__).resolve().parent.parent
 
+        if content is None or content == "":
+            return Response(
+                {"message": "missing param : content can't be empty"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         if template_id == 1:
-            if content != list or len(content) != 0:
+            if len(content) != 0:
                 final_html_content = ""
                 for c in content:
                     header_variable = c["header"]
                     paragraph_variable = c["paragraph"]
-                    print(header_variable)
                     html_content = """<tr><td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;"><div style="font-family:Muli, Arial, sans-serif;font-size:20px;font-weight:400;line-height:30px;text-align:left;color:#333333;"><h1 style="margin: 0; font-size: 24px; line-height: normal; font-weight: bold;">{header}</h1></div></td></tr><tr><td style="font-size:0px;padding:10px 25px;word-break:break-word;"><p style="border-top: solid 1px #F4F5FB; font-size: 1px; margin: 0px auto; width: 100%;"></p></td></tr><tr><td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;"><div style="font-family:Muli, Arial, sans-serif;font-size:16px;font-weight:400;line-height:20px;text-align:left;color:#333333;"><p style="margin: 0;">{paragraph}</p></div></td></tr>""".format(
                         header=header_variable, paragraph=paragraph_variable
                     )
@@ -77,17 +82,17 @@ class NewsletterViewSet(ModelViewSet):
                 html_file = loader.get_template(requested_html)
                 html_content = html_file.render(context, request)
         elif template_id == 2:
-            if content != list or len(content) != 0:
+            if len(content) != 0:
                 final_html_content = ""
                 for c in content:
                     header_variable = c["header"]
                     paragraph_variable = c["paragraph"]
                     video_poster = c["image"]
-                    src = c["video"]
-                    html_content = """<tr><td style="width:40%;text-align:center;"><div style="font-family:Muli, Arial, sans-serif;font-size:16px;text-align:center;color:#333333;"><video poster={video_poster} style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:220px;font-size:13px;margin-left:20px;" width="45" controls="controls"><source src={src} type="video/mp4" /><a href="https://www.youtube.com/watch?v=QpeQx8bE598"><img src={video_poster} style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:400px;font-size:13px;margin-left:220px;" width="45" alt="image instead of video" /></a></div></td><td style="font-size:0px;padding:10px 25px;word-break:break-word;"><div style="font-family:Muli, Arial, sans-serif;font-size:16px;font-weight:400;line-height:20px;color:#333333;"><h3>{header}</h3><p style="margin-left: 0px;">{paragraph}</p></div></td></tr>""".format(
+                    youtube_url = c["youtube_url"]
+                    html_content = """<tr><td style="width:40%;text-align:center;"><div style="font-family:Muli, Arial, sans-serif;font-size:16px;text-align:center;color:#333333;"><a href={youtube_url}><img src={video_poster} style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:220px;font-size:13px;margin-left:20px;" width="45" alt="image instead of video" /></a></div></td><td style="font-size:0px;padding:10px 25px;word-break:break-word;"><div style="font-family:Muli, Arial, sans-serif;font-size:16px;font-weight:400;line-height:20px;color:#333333;"><h3>{header}</h3><p style="margin-left: 0px;">{paragraph}</p></div></td></tr>""".format(
                         header=header_variable,
                         video_poster=video_poster,
-                        src=src,
+                        youtube_url=youtube_url,
                         paragraph=paragraph_variable,
                     )
                     final_html_content = final_html_content + html_content
@@ -104,14 +109,28 @@ class NewsletterViewSet(ModelViewSet):
                 file_html.close()
                 html_file = loader.get_template(requested_html)
                 html_content = html_file.render(context, request)
+        elif template_id == 3:
+            if len(content) != 0:
+                message = base64.b64decode(content).decode("utf-8")
+                f = open('content.html','w')
+                f.write(message)
+                f.close()
+
+                # Parse the file using an HTML parser.
+                parser = html.parser.HTMLParser()
+                with open('content.html', 'rb') as f:
+                    parser.feed(f.read().decode('utf-8'))
+
+                # Check for common HTML errors.
+                if parser.error_list:
+                    return Response(
+                        {"message": "Error in HTML."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                html_content = message
         else:
             return Response(
                 {"message": "Template not supported."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if content is None or content == "":
-            return Response(
-                {"message": "missing param : content can't be empty"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -161,7 +180,7 @@ class NewsletterViewSet(ModelViewSet):
         newsletter = Newsletter.objects.filter(newsletter_uuid=newsletter_id).first()
         print(newsletter.content)
         send_mail(
-            "E-Newsletter November",
+            "Chitralekha E-Newsletter",
             "",
             settings.DEFAULT_FROM_EMAIL,
             [email],
