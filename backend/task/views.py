@@ -2885,6 +2885,22 @@ class TaskViewSet(ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         if task.status == "COMPLETE" and "TRANSLATION" in task.task_type:
+            translation_review_task=(
+                Task.objects.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .filter(task_type="TRANSLATION_REVIEW")
+                .first()
+            )
+            if (
+                "TRANSLATION_EDIT" in task.task_type
+                and translation_review_task is not None
+                and translation_review_task.is_active==True
+            ):
+                return Response(
+                    {"message": "Can not reopen this task. Corrosponding Translation Review task is active"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+                
             voiceover_task = (
                 Task.objects.filter(video=task.video)
                 .filter(target_language=task.target_language)
@@ -2964,9 +2980,10 @@ class TaskViewSet(ModelViewSet):
                         task.status = "REOPEN"
                         task.save()
                         
-                        voice_over_selected_source_obj.translation = None
-                        voice_over_selected_source_obj.payload = {"payload": {"completed_count": 0}}
-                        voice_over_selected_source_obj.save()
+                        voice_over_selected_source_obj.delete()
+                        voiceover_task.is_active = False
+                        voiceover_task.save()
+
                     
                     else:
                         return Response(
