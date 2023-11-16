@@ -1177,6 +1177,13 @@ def get_voice_over_types(request):
             type=openapi.TYPE_STRING,
             required=True,
         ),
+        openapi.Parameter(
+            "bg_music",
+            openapi.IN_QUERY,
+            description=("export type parameter true/false"),
+            type=openapi.TYPE_BOOLEAN,
+            required=True,
+        ),
     ],
     responses={200: "VO is exported"},
 )
@@ -1184,6 +1191,7 @@ def get_voice_over_types(request):
 def export_voiceover(request):
     task_id = request.query_params.get("task_id")
     export_type = request.query_params.get("export_type")
+    bg_music = request.query_params.get("bg_music")
     if task_id is None:
         return Response(
             {"message": "missing param : task_id"},
@@ -1229,34 +1237,35 @@ def export_voiceover(request):
                 {"message": "Audio was not created for this Voice Over Task."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        elif bg_music == "true":
+            export_voiceover_async.delay(
+                voice_over.task.id, export_type, request.user.id, bg_music
+            )
+            return Response(
+                {"message": "Please wait. The audio link will be emailed to you."},
+                status=status.HTTP_200_OK,
+            )
         elif export_type == "flac":
             return Response(
-                {
-                    "azure_url": voice_over.azure_url_audio,
-                },
-                status=status.HTTP_200_OK,
+                {"azure_url": voice_over.azure_url_audio}, status=status.HTTP_200_OK
             )
         elif export_type == "mp3":
             logging.info(
                 "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
             )
             export_voiceover_async.delay(
-                voice_over.task.id, export_type, request.user.id
+                voice_over.task.id, export_type, request.user.id, bg_music
             )
             return Response(
-                {
-                    "message": "Please wait. The audio link will be emailed to you.",
-                },
+                {"message": "Please wait. The audio link will be emailed to you."},
                 status=status.HTTP_200_OK,
             )
         elif export_type == "wav":
             export_voiceover_async.delay(
-                voice_over.task.id, export_type, request.user.id
+                voice_over.task.id, export_type, request.user.id, bg_music
             )
             return Response(
-                {
-                    "message": "Please wait. The audio link will be emailed to you.",
-                },
+                {"message": "Please wait. The audio link will be emailed to you."},
                 status=status.HTTP_200_OK,
             )
     else:

@@ -2983,6 +2983,7 @@ class TaskViewSet(ModelViewSet):
                         voice_over_selected_source_obj.delete()
                         voiceover_task.is_active = False
                         voiceover_task.save()
+
                     
                     else:
                         return Response(
