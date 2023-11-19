@@ -246,10 +246,19 @@ def get_video_func(request):
     multiple_speaker = request.GET.get("multiple_speaker", "false")
 
     create = create.lower() == "true"
+    project = Project.objects.filter(pk=project_id).first()
+    if project is None:
+        return Response(
+            {"message": "Project is not found. "},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    organization = project.organization_id
     if create:
-        video = Video.objects.filter(url=url).first()
-        if video is not None:
-            if upload_task_type is None:
+        videos = Video.objects.filter(url=url)
+        for video_organization in videos.values_list("project_id__organization_id__id", flat=True):
+            if video_organization == organization.id:
+                video = Video.objects.filter(url=url).filter(project_id__organization_id__id=organization.id).first()
                 return Response(
                     {
                         "message": "Video is already a part of project -> {}.".format(
@@ -274,14 +283,6 @@ def get_video_func(request):
         else:
             gender = "MALE"
 
-    project = Project.objects.filter(pk=project_id).first()
-    if project is None:
-        return Response(
-            {"message": "Project is not found. "},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    organization = project.organization_id
     default_task_eta = upload_task_eta or project.default_eta
     default_task_priority = project.default_priority
     default_task_description = upload_task_description or project.default_description
@@ -324,18 +325,18 @@ def get_video_func(request):
 
         # Create a new DB entry if URL does not exist, else return the existing entry
         video, created = Video.objects.get_or_create(
-            url=url,
-            defaults={
-                "name": title,
-                "duration": duration,
-                "project_id": project,
-                "audio_only": is_audio_only,
-                "language": lang,
-                "description": description,
-                "gender": gender,
-                "multiple_speaker": multiple_speaker,
-            },
-        )
+                url=url,
+                defaults={
+                    "name": title,
+                    "duration": duration,
+                    "project_id": project,
+                    "audio_only": is_audio_only,
+                    "language": lang,
+                    "description": description,
+                    "gender": gender,
+                    "multiple_speaker": multiple_speaker,
+                },
+            )
         serializer = VideoSerializer(video)
         response_data = {
             "video": serializer.data,
@@ -362,7 +363,7 @@ def get_video_func(request):
             else:
                 video.speaker_info = []
             video.save()
-            logging.info("Video is created.")
+            logging.info("Audio is created.")
             default_task_types = (
                 project.default_task_types or organization.default_task_types
             )
@@ -485,20 +486,28 @@ def get_video_func(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     # Create a new DB entry if URL does not exist, else return the existing entry
-    video, created = Video.objects.get_or_create(
-        url=normalized_url,
-        defaults={
-            "name": title,
-            "duration": duration,
-            "project_id": project,
-            "audio_only": is_audio_only,
-            "language": lang,
-            "description": description,
-            "gender": gender,
-            "multiple_speaker": multiple_speaker,
-        },
-    )
-    if created:
+    if create:
+        video = Video.objects.create(
+                name=title,
+                duration=duration,
+                project_id=project,
+                audio_only=is_audio_only,
+                language=lang,
+                description=description,
+                gender=gender,
+                multiple_speaker=multiple_speaker,
+                url=normalized_url
+        )
+    else:
+        video = Video.objects.get(
+                name=title,
+                project_id=project,
+                audio_only=is_audio_only,
+                language=lang,
+                url=normalized_url
+        )
+
+    if create:
         if speaker_info is not None:
             # Check if speakers are unique within the video.
             speakers = set()
@@ -539,7 +548,7 @@ def get_video_func(request):
     else:
         response_data["direct_video_url"] = direct_video_url
 
-    if created:
+    if create:
         default_task_types = (
             project.default_task_types or organization.default_task_types
         )
@@ -624,7 +633,6 @@ def get_video_func(request):
             status=status.HTTP_200_OK,
         )
     else:
-        print("Video already exist", url)
         if assignee is not None:
             user_id = assignee
         else:
