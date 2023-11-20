@@ -325,8 +325,14 @@ class NewsletterViewSet(ModelViewSet):
                 {"message": "User with this Email Id doesn't exist."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        sub_user = SubscribedUsers(user=user)
-        sub_user.save()
+
+        sub_user, created = SubscribedUsers.objects.get_or_create(user=user)
+        if not created:
+            return Response(
+                {"message": "User is already subscribed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         return Response(
             {"message": "Newsletter is successfully subscribed."},
             status=status.HTTP_200_OK,
