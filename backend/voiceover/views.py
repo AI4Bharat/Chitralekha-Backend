@@ -579,6 +579,12 @@ def save_voice_over(request):
                 for index, voice_over_payload in enumerate(payload["payload"]):
                     start_time = voice_over_payload["start_time"]
                     end_time = voice_over_payload["end_time"]
+                    text = voice_over_payload["text"]
+                    if text == "" or len(text) == 0:
+                        return Response(
+                            {"message": "Text can't be empty."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
                     original_duration = get_original_duration(start_time, end_time)
                     if (
                         voice_over.voice_over_type == "MACHINE_GENERATED"
