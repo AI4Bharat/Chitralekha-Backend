@@ -145,6 +145,111 @@ class NewsletterViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+
+    @is_admin
+    @swagger_auto_schema(request_body=NewsletterSerializer)
+    @action(detail=False, methods=["post"], url_path="preview")
+    def preview(self, request, pk=None, *args, **kwargs):
+        category = request.data.get("category")
+        content = request.data.get("content")
+        submitter_id = request.data.get("submitter_id")
+        template_id = request.data.get("template_id")
+        BASE_DIR = Path(__file__).resolve().parent.parent
+
+        if content is None or content == "":
+            return Response(
+                {"message": "missing param : content can't be empty"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if template_id == 1:
+            if len(content) != 0:
+                final_html_content = ""
+                for c in content:
+                    header_variable = c["header"]
+                    paragraph_variable = c["paragraph"]
+                    html_content = """<tr><td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;"><div style="font-family:Muli, Arial, sans-serif;font-size:20px;font-weight:400;line-height:30px;text-align:left;color:#333333;"><h1 style="margin: 0; font-size: 24px; line-height: normal; font-weight: bold;">{header}</h1></div></td></tr><tr><td style="font-size:0px;padding:10px 25px;word-break:break-word;"><p style="border-top: solid 1px #F4F5FB; font-size: 1px; margin: 0px auto; width: 100%;"></p></td></tr><tr><td align="left" style="font-size:0px;padding:10px 25px;word-break:break-word;"><div style="font-family:Muli, Arial, sans-serif;font-size:16px;font-weight:400;line-height:20px;text-align:left;color:#333333;"><p style="margin: 0;">{paragraph}</p></div></td></tr>""".format(
+                        header=header_variable, paragraph=paragraph_variable
+                    )
+                    final_html_content = final_html_content + html_content
+                requested_html = os.path.join(
+                    BASE_DIR, "newsletter", "templates", "cl_newsletter_1.html"
+                )
+                file_html = open(
+                    os.path.join(BASE_DIR, "newsletter", "templates", "variable.html"),
+                    "w",
+                )
+                soup = BeautifulSoup(final_html_content, "html.parser")
+                file_html.write(soup.prettify())
+                context = {"variable": ""}
+                file_html.close()
+                html_file = loader.get_template(requested_html)
+                html_content = html_file.render(context, request)
+        elif template_id == 2:
+            if len(content) != 0:
+                final_html_content = ""
+                for c in content:
+                    header_variable = c["header"]
+                    paragraph_variable = c["paragraph"]
+                    video_poster = c["image"]
+                    youtube_url = c["youtube_url"]
+                    html_content = """<tr><td style="width:40%;text-align:center;"><div style="font-family:Muli, Arial, sans-serif;font-size:16px;text-align:center;color:#333333;"><a href={youtube_url}><img src={video_poster} style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:220px;font-size:13px;margin-left:20px;" width="45" alt="image instead of video" /></a></div></td><td style="font-size:0px;padding:10px 25px;word-break:break-word;"><div style="font-family:Muli, Arial, sans-serif;font-size:16px;font-weight:400;line-height:20px;color:#333333;"><h3>{header}</h3><p style="margin-left: 0px;">{paragraph}</p></div></td></tr>""".format(
+                        header=header_variable,
+                        video_poster=video_poster,
+                        youtube_url=youtube_url,
+                        paragraph=paragraph_variable,
+                    )
+                    final_html_content = final_html_content + html_content
+                requested_html = os.path.join(
+                    BASE_DIR, "newsletter", "templates", "cl_newsletter_1.html"
+                )
+                file_html = open(
+                    os.path.join(BASE_DIR, "newsletter", "templates", "variable.html"),
+                    "w",
+                )
+                soup = BeautifulSoup(final_html_content, "html.parser")
+                file_html.write(soup.prettify())
+                context = {"variable": ""}
+                file_html.close()
+                html_file = loader.get_template(requested_html)
+                html_content = html_file.render(context, request)
+        elif template_id == 3:
+            if len(content) != 0:
+                message = base64.b64decode(content).decode("utf-8")
+                f = open('content.html','w')
+                f.write(message)
+                f.close()
+
+                # Parse the file using an HTML parser.
+                parser = html.parser.HTMLParser()
+                with open('content.html', 'rb') as f:
+                    parser.feed(f.read().decode('utf-8'))
+
+                # Check for common HTML errors.
+                if parser.error_list:
+                    return Response(
+                        {"message": "Error in HTML."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                html_content = message
+        else:
+            return Response(
+                {"message": "Template not supported."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        new_newsletter = Newsletter(
+            content=html_content,
+            submitter_id=User.objects.get(pk=submitter_id),
+            category="NEW_FEATURE",
+        )
+        new_newsletter.save()
+        return Response(
+            {"html": html_content},
+            status=status.HTTP_200_OK,
+        )
+
+
     @swagger_auto_schema(
         method="post",
         request_body=openapi.Schema(
@@ -220,8 +325,14 @@ class NewsletterViewSet(ModelViewSet):
                 {"message": "User with this Email Id doesn't exist."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        sub_user = SubscribedUsers(user=user)
-        sub_user.save()
+
+        sub_user, created = SubscribedUsers.objects.get_or_create(user=user)
+        if not created:
+            return Response(
+                {"message": "User is already subscribed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         return Response(
             {"message": "Newsletter is successfully subscribed."},
             status=status.HTTP_200_OK,
