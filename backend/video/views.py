@@ -13,7 +13,7 @@ from rest_framework.viewsets import ModelViewSet
 from transcript.models import ORIGINAL_SOURCE, Transcript
 from translation.models import Translation
 from project.decorators import is_project_owner
-from .models import Video, GENDER
+from .models import Video, GENDER, MULTISPEAKER_AGE_GROUP
 from .serializers import VideoSerializer
 from .utils import *
 from django.utils import timezone
@@ -258,7 +258,6 @@ def list_recent(request):
     # In the future, if that constraint is removed then we might need to alter the logic.
 
     try:
-
         # Get the relevant videos, based on the audio only param
         video_list = Video.objects.filter(audio_only=is_audio_only)
 
@@ -507,6 +506,14 @@ def download_all(request):
                 type=openapi.TYPE_STRING,
                 description="Gender of video's voice",
             ),
+            "multiple_speaker": openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description="Multiple speaker true or false",
+            ),
+            "speaker_info": openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                description="Speaker info of video",
+            ),
         },
         required=["video_id"],
     ),
@@ -522,9 +529,13 @@ def update_video(request):
     video_id = request.data.get("video_id")
     description = request.data.get("description")
     gender = request.data.get("gender")
+    multiple_speaker = request.data.get("multiple_speaker", "false")
+    speaker_info = request.data.get("speaker_info")
 
+    multiple_speaker = multiple_speaker.lower() == "true"
     try:
         video = Video.objects.get(id=video_id)
+        errors = []
 
         if description is not None:
             video.description = description
@@ -534,14 +545,80 @@ def update_video(request):
             if gender.upper() in gender_list:
                 video.gender = gender.upper()
 
-        video.save()
+        if multiple_speaker is not None:
+            video.multiple_speaker = multiple_speaker
 
-        return Response(
-            {
-                "message": "Video updated successfully.",
-            },
-            status=status.HTTP_200_OK,
-        )
+        if speaker_info is not None:
+            # Get the task transcript status for the video, if none or selected source
+            task = (
+                Task.objects.filter(video_id=video_id)
+                .filter(task_type="TRANSCRIPTION_EDIT")
+                .filter(status__in=["SELECTED_SOURCE"])
+            )
+            if not task:
+                errors.append(
+                    {
+                        "message": f"Video's transcript status must be selected source or none",
+                    }
+                )
+
+            speaker_info_for_update = []
+            gender_list = [gender[0] for gender in GENDER]
+
+            # Find dictionary matching value in list
+            dubplicte_ids = find_duplicates(speaker_info, "id")
+            if dubplicte_ids:
+                errors.append(
+                    {
+                        "message": f"Ids must be unique Age in : {i}",
+                    }
+                )
+
+            for i in speaker_info:
+                speaker_info_obj = {}
+
+                if i["name"] is not None:
+                    speaker_info_obj["name"] = i["name"]
+
+                if i["gender"].upper() in gender_list:
+                    speaker_info_obj["gender"] = i["gender"].upper()
+                else:
+                    errors.append(
+                        {
+                            "message": f"Invalid Gender in : {i}",
+                        }
+                    )
+
+                if i["age"] in MULTISPEAKER_AGE_GROUP:
+                    speaker_info_obj["age"] = i["age"]
+                else:
+                    errors.append(
+                        {
+                            "message": f"Invalid Age in : {i}",
+                        }
+                    )
+
+                if i["id"] is not None:
+                    speaker_info_obj["id"] = i["id"]
+
+                speaker_info_for_update.append(speaker_info_obj)
+
+            video.speaker_info = speaker_info_for_update
+
+        if len(errors) > 0:
+            return Response(
+                {"message": "Invalid Data", "response": errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        else:
+            video.save()
+
+            return Response(
+                {
+                    "message": "Video updated successfully.",
+                },
+                status=status.HTTP_200_OK,
+            )
     except Video.DoesNotExist:
         return Response(
             {"message": "Video not found"}, status=status.HTTP_404_NOT_FOUND
