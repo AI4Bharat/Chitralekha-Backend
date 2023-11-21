@@ -110,8 +110,8 @@ class NewsletterViewSet(ModelViewSet):
                 html_file = loader.get_template(requested_html)
                 html_content = html_file.render(context, request)
         elif template_id == 3:
-            if len(content) != 0:
-                message = base64.b64decode(content).decode("utf-8")
+            if type(content) == dict:
+                message = base64.b64decode(content["html"]).decode("utf-8")
                 f = open('content.html','w')
                 f.write(message)
                 f.close()
