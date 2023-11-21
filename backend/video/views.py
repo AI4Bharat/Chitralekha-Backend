@@ -531,6 +531,7 @@ def update_video(request):
     multiple_speaker = request.data.get("multiple_speaker", "false")
     speaker_info = request.data.get("speaker_info")
 
+    multiple_speaker = multiple_speaker.lower() == "true"
     try:
         video = Video.objects.get(id=video_id)
         errors = []
