@@ -35,6 +35,7 @@ from task.serializers import TaskSerializer
 from project.models import Project
 from project.serializers import ProjectSerializer
 import json
+import datetime
 
 
 regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
@@ -146,6 +147,7 @@ class InviteViewSet(viewsets.ViewSet):
             user.first_name = request.data.get("first_name", "")
             user.last_name = request.data.get("last_name", "")
             user.languages = request.data.get("languages")
+            user.date_joined = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             serialized.save()
             return Response({"message": "User signed up"}, status=status.HTTP_200_OK)
         else:
@@ -165,6 +167,7 @@ class InviteViewSet(viewsets.ViewSet):
         """
         Users to sign up for the first time.
         """
+        get_new_users()
         try:
             invite = Invite.objects.get(invite_code=pk)
         except Invite.DoesNotExist:
