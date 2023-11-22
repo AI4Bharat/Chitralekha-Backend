@@ -281,32 +281,35 @@ def get_payload(request):
         input_sentences = []
         for text, index in translation_payload:
             audio_index = str(start_offset + index)
-            start_time = translation_payload[index][0]["start_time"]
-            end_time = translation_payload[index][0]["end_time"]
-            time_difference = (
-                datetime.strptime(end_time, "%H:%M:%S.%f")
-                - timedelta(
-                    hours=float(start_time.split(":")[0]),
-                    minutes=float(start_time.split(":")[1]),
-                    seconds=float(start_time.split(":")[-1]),
+            if audio_index in voice_over.payload["payload"].keys():
+                start_time = translation_payload[index][0]["start_time"]
+                end_time = translation_payload[index][0]["end_time"]
+                time_difference = (
+                    datetime.strptime(end_time, "%H:%M:%S.%f")
+                    - timedelta(
+                        hours=float(start_time.split(":")[0]),
+                        minutes=float(start_time.split(":")[1]),
+                        seconds=float(start_time.split(":")[-1]),
+                    )
+                ).strftime("%H:%M:%S.%f")
+                t_d = (
+                    float(time_difference.split(":")[0]) * 3600
+                    + float(time_difference.split(":")[1]) * 60
+                    + float(time_difference.split(":")[2])
                 )
-            ).strftime("%H:%M:%S.%f")
-            t_d = (
-                float(time_difference.split(":")[0]) * 3600
-                + float(time_difference.split(":")[1]) * 60
-                + float(time_difference.split(":")[2])
-            )
-            sentences_list.append(
-                {
-                    "id": str(int(audio_index) + 1),
-                    "time_difference": t_d,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "text": voice_over.payload["payload"][str(audio_index)]["text"],
-                    "audio": voice_over.payload["payload"][str(audio_index)]["audio"],
-                    "audio_speed": 1,
-                }
-            )
+                sentences_list.append(
+                    {
+                        "id": str(int(audio_index) + 1),
+                        "time_difference": t_d,
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "text": voice_over.payload["payload"][str(audio_index)]["text"],
+                        "audio": voice_over.payload["payload"][str(audio_index)][
+                            "audio"
+                        ],
+                        "audio_speed": 1,
+                    }
+                )
         payload = {"payload": sentences_list}
     elif voice_over.voice_over_type == "MANUALLY_CREATED":
         if end_offset > count_cards:
