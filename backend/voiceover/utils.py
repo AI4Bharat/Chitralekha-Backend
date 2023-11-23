@@ -521,42 +521,21 @@ def get_bad_sentences_in_progress(translation_obj, target_language):
                 )
             else:
                 pass
+        if (
+                ("text" in text.keys() and len(text['text'])<1)
+                or ("target_text" in text.keys() and len(text['target_text'])<1)
+            ):
+            problem_sentences.append(
+                    {
+                        "page_number": (ind // 50) + 1,
+                        "index": (ind % 50) + 1,
+                        "start_time": text["start_time"],
+                        "end_time": text["end_time"],
+                        "text": text["text"],
+                        "target_text": text["target_text"],
+                    }
+                )
     return problem_sentences
-
-def get_empty_cards(obj, task, isTranscription):
-    empty_cards=[]
-    data = obj.payload
-    for ind, textCard in enumerate(data["payload"]):
-        if isTranscription==False:
-            if (
-                ("text" in textCard.keys() and len(textCard['text'])<1)
-                or ("target_text" in textCard.keys() and len(textCard['target_text'])<1)
-            ):
-                empty_cards.append(
-                    {
-                        "page_number": (ind // 50) + 1,
-                        "index": (ind % 50) + 1,
-                        "start_time": textCard["start_time"],
-                        "end_time": textCard["end_time"],
-                        "text": textCard["text"],
-                        "target_text": textCard["target_text"],
-                    }
-                )
-        else:
-            if (
-                "text" in textCard.keys()
-                and len(textCard['text'])<1
-            ):
-                empty_cards.append(
-                    {
-                        "page_number": (ind // 50) + 1,
-                        "index": (ind % 50) + 1,
-                        "start_time": textCard["start_time"],
-                        "end_time": textCard["end_time"],
-                        "text": textCard["text"],
-                    }
-                )
-    return empty_cards
 
 
 def process_translation_payload(translation_obj, target_language):

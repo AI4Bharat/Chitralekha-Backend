@@ -35,7 +35,7 @@ from .models import (
     TRANSLATION_REVIEW_INPROGRESS,
     TRANSLATION_REVIEW_COMPLETE,
 )
-from voiceover.utils import process_translation_payload, get_bad_sentences_in_progress, get_empty_cards
+from voiceover.utils import process_translation_payload, get_bad_sentences_in_progress
 from .decorators import is_translation_editor
 from .serializers import TranslationSerializer
 from .utils import (
@@ -723,8 +723,7 @@ def send_mail_to_user(task):
 
 def check_if_translation_correct(translation_obj, task):
     bad_sentences = get_bad_sentences_in_progress(translation_obj, task)
-    empty_cards=get_empty_cards(translation_obj,task,False)
-    if len(bad_sentences) > 0 or len(empty_cards)>0:
+    if len(bad_sentences) > 0:
         translation = (
             Translation.objects.filter(target_language=translation_obj.target_language)
             .filter(video=task.video)
@@ -751,18 +750,10 @@ def check_if_translation_correct(translation_obj, task):
             translation_obj.status = "TRANSLATION_SELECT_SOURCE"
         task.save()
         translation_obj.save()
-        if len(bad_sentences) > 0:
-            response = {
-                "data": bad_sentences,
-                "message": "Translation task couldn't be completed. Please correct the following sentences.",
-            }
-        elif len(empty_cards)>0:
-            response = {
-                "data": empty_cards,
-                "message": "Translation task cannot be completed. The following cards are empty.",
-            }
-        else:
-            pass
+        response = {
+            "data": bad_sentences,
+            "message": "Translation task couldn't be completed. Please correct the following sentences.",
+        }
         return response
     return None
 
