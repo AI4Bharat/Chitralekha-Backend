@@ -839,7 +839,7 @@ def check_if_transcription_correct(transcription_obj, task):
         
         response = {
             "data": bad_sentences,
-            "message": "Translation task couldn't be completed. Please correct the sentences with time issue and remove empty cards.",
+            "message": "Transcription task couldn't be completed. Please correct the sentences with time issue and remove empty cards.",
         }
         return response
     return None
