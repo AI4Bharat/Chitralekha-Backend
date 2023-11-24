@@ -465,6 +465,7 @@ def get_bad_sentences_in_progress(translation_obj, target_language):
                     "end_time": text["end_time"],
                     "text": text["text"],
                     "target_text": text["target_text"],
+                    "issue_type": "Time issue in the sentence."
                 }
             )
         if ind != 0 and ind < len(translation["payload"]):
@@ -495,6 +496,7 @@ def get_bad_sentences_in_progress(translation_obj, target_language):
                         "end_time": text["end_time"],
                         "text": text["text"],
                         "target_text": text["target_text"],
+                        "issue_type": "Time issue in the sentence."
                     }
                 )
             elif ("text" in text.keys() and text["end_time"] > (str(0) + str(translation_obj.video.duration) + str(".000"))):
@@ -506,6 +508,7 @@ def get_bad_sentences_in_progress(translation_obj, target_language):
                         "end_time": text["end_time"],
                         "text": text["text"],
                         "target_text": text["target_text"],
+                        "issue_type": "Time issue in the sentence."
                     }
                 )
             elif "text" in text.keys() and text["start_time"] == text["end_time"]:
@@ -517,6 +520,7 @@ def get_bad_sentences_in_progress(translation_obj, target_language):
                         "end_time": text["end_time"],
                         "text": text["text"],
                         "target_text": text["target_text"],
+                        "issue_type": "Time issue in the sentence."
                     }
                 )
             else:
@@ -533,9 +537,98 @@ def get_bad_sentences_in_progress(translation_obj, target_language):
                         "end_time": text["end_time"],
                         "text": text["text"],
                         "target_text": text["target_text"],
+                        "issue_type": "Empty card is not allowed."
                     }
                 )
     return problem_sentences
+
+def get_bad_sentences_in_progress_for_transcription(transcription_obj, target_language):
+    problem_sentences = []
+    translation = transcription_obj.payload
+    compare_with_index = -1
+    last_valid_index = -1
+    for ind, text in enumerate(translation["payload"]):
+        if (
+            "text" in text.keys()
+            and not compare_time(text["end_time"], text["start_time"])[0]
+        ):
+            problem_sentences.append(
+                {
+                    "index": (ind % 50) + 1,
+                    "page_number": (ind // 50) + 1,
+                    "start_time": text["start_time"],
+                    "end_time": text["end_time"],
+                    "text": text["text"],
+                    "issue_type": "Time issue in the sentence."
+                }
+            )
+        if ind != 0 and ind < len(translation["payload"]):
+            compare = False
+            if "text" in translation["payload"][ind - 1] and "text" in text.keys():
+                compare_with_index = ind - 1
+                last_valid_index = ind
+                compare = True
+            elif (
+                "text" in text.keys() and "text" not in translation["payload"][ind - 1]
+            ):
+                compare_with_index = last_valid_index
+                compare = True
+            else:
+                pass
+            if (
+                compare
+                and compare_time(
+                    translation["payload"][compare_with_index]["end_time"],
+                    text["start_time"],
+                )[0]
+            ):
+                problem_sentences.append(
+                    {
+                        "index": (ind % 50) + 1,
+                        "page_number": (ind // 50) + 1,
+                        "start_time": text["start_time"],
+                        "end_time": text["end_time"],
+                        "text": text["text"],
+                        "issue_type": "Time issue in the sentence."
+                    }
+                )
+            elif ("text" in text.keys() and text["end_time"] > (str(0) + str(transcription_obj.video.duration) + str(".000"))):
+                problem_sentences.append(
+                    {
+                        "index": (ind % 50) + 1,
+                        "page_number": (ind // 50) + 1,
+                        "start_time": text["start_time"],
+                        "end_time": text["end_time"],
+                        "text": text["text"],
+                        "issue_type": "Time issue in the sentence."
+                    }
+                )
+            elif "text" in text.keys() and text["start_time"] == text["end_time"]:
+                problem_sentences.append(
+                    {
+                        "index": (ind % 50) + 1,
+                        "page_number": (ind // 50) + 1,
+                        "start_time": text["start_time"],
+                        "end_time": text["end_time"],
+                        "text": text["text"],
+                        "issue_type": "Time issue in the sentence."
+                    }
+                )
+            else:
+                pass
+        if ("text" in text.keys() and len(text['text'])<1):
+            problem_sentences.append(
+                    {
+                        "page_number": (ind // 50) + 1,
+                        "index": (ind % 50) + 1,
+                        "start_time": text["start_time"],
+                        "end_time": text["end_time"],
+                        "text": text["text"],
+                        "issue_type": "Empty card is not allowed."
+                    }
+                )
+    return problem_sentences
+                
 
 
 def process_translation_payload(translation_obj, target_language):
