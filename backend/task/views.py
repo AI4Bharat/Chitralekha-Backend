@@ -2783,7 +2783,7 @@ class TaskViewSet(ModelViewSet):
                     return Response(
                         {
                             "data": bad_sentences,
-                            "message": "Sentences with time issues are returned.",
+                            "message": "Sentences with issues are returned.",
                         },
                         status=status.HTTP_200_OK,
                     )
@@ -2799,7 +2799,7 @@ class TaskViewSet(ModelViewSet):
                 return Response(
                     {
                         "data": bad_sentences,
-                        "message": "Sentences with time issues are returned.",
+                        "message": "Sentences with issues are returned.",
                     },
                     status=status.HTTP_200_OK,
                 )

@@ -46,6 +46,7 @@ from .models import (
     TRANSCRIPTION_REVIEW_COMPLETE,
 )
 
+from voiceover.utils import get_bad_sentences_in_progress_for_transcription
 from .decorators import is_transcript_editor
 from .serializers import TranscriptSerializer
 from .utils.asr import get_asr_supported_languages, make_asr_api_call
@@ -805,6 +806,44 @@ def send_mail_to_user(task):
         logging.info("Email is not enabled %s", task.user.email)
 
 
+def check_if_transcription_correct(transcription_obj, task):
+    bad_sentences = get_bad_sentences_in_progress_for_transcription(transcription_obj, task)
+    if len(bad_sentences)>0:
+        transcription = (
+            Transcript.objects.filter(video=task.video)
+            .filter(status="TRANSCRIPTION_EDIT_INPROGRESS")
+            .first()
+        )
+        if transcription is not None:
+            transcription_obj.status = "TRANSCRIPTION_EDIT_INPROGRESS"
+            transcription_obj.parent_transcript=transcription.parent_transcript
+            transcription_obj.save()
+            transcription.parent_transcript = None
+            transcription.save()
+            transcription.delete()
+            task.status = "INPROGRESS"
+            task.save()
+        else:
+            transcription = (
+                Transcript.objects.filter(video=task.video)
+                .filter(status="TRANSCRIPTION_SELECT_SOURCE")
+                .first()
+            )
+            transcription.parent_transcript = None
+            transcription.save()
+            transcription.delete()
+            task.status = "SELECTED_SOURCE"
+            transcription_obj.status = "TRANSCRIPTION_SELECT_SOURCE"
+            task.save()
+            transcription_obj.save()
+        
+        response = {
+            "data": bad_sentences,
+            "message": "Transcription task couldn't be completed. Please correct the sentences with time issue and remove empty cards.",
+        }
+        return response
+    return None
+
 def change_active_status_of_next_tasks(task, transcript_obj):
     tasks = Task.objects.filter(video=task.video)
     activate_translations = True
@@ -1473,6 +1512,15 @@ def save_transcription(request):
                     transcript_obj.save()
                     task.status = "COMPLETE"
                     task.save()
+                    response = check_if_transcription_correct(transcript_obj, task)
+                    if type(response) == dict:
+                        return Response(
+                            {
+                                "data": response["data"],
+                                "message": response["message"],
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
                     change_active_status_of_next_tasks(task, transcript_obj)
                 else:
                     transcript_obj = (
@@ -1563,6 +1611,15 @@ def save_transcription(request):
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
+                        response = check_if_transcription_correct(transcript_obj, task)
+                        if type(response) == dict:
+                            return Response(
+                                {
+                                    "data": response["data"],
+                                    "message": response["message"],
+                                },
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
                         change_active_status_of_next_tasks(task, transcript_obj)
                 else:
                     tc_status = TRANSCRIPTION_REVIEW_INPROGRESS
