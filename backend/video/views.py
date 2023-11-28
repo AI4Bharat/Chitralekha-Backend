@@ -35,7 +35,8 @@ from video.tasks import create_videos_async
 from organization.models import Organization
 from config import *
 from collections import Counter
-
+from rest_framework.views import APIView
+import config
 
 accepted_languages = [
     "as",
@@ -90,6 +91,41 @@ required_fields_org = [
     "Video Description",
     "ETA" 
 ]
+
+
+class TransliterationAPIView(APIView):
+    def get(self, request, target_language, data, *args, **kwargs):
+        json_data = {
+            "input": [{"source": data}],
+            "config": {
+                "language": {
+                    "sourceLanguage": "en",
+                    "targetLanguage": target_language,
+                },
+                "isSentence": False,
+            },
+        }
+        logging.info("Calling Transliteration API")
+        response_transliteration = requests.post(
+            config.transliteration_url,
+            headers={"authorization": config.dhruva_key},
+            json=json_data,
+        )
+
+        transliteration_output = response_transliteration.json()
+        if response_transliteration.status_code == 200:
+            response = {
+                "error": "",
+                "input": data,
+                "result": transliteration_output["output"][0]["target"],
+                "success": True,
+            }
+        else:
+            response = {"error": "", "input": data, "result": [], "success": False}
+        return Response(
+            response,
+            status=status.HTTP_200_OK,
+        )
 
 
 @swagger_auto_schema(
