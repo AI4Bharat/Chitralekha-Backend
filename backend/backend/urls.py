@@ -20,6 +20,8 @@ from rest_framework import routers, permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from drf_yasg.generators import OpenAPISchemaGenerator
+from video.views import TransliterationAPIView
+
 
 ## Utility Classes
 class BothHttpAndHttpsSchemaGenerator(OpenAPISchemaGenerator):
@@ -68,6 +70,11 @@ urlpatterns = [
     path("transcript/", include("transcript.urls")),
     path("voiceover/", include("voiceover.urls")),
     path("youtube/", include("youtube.urls")),
+    path(
+        "api/generic/transliteration/<str:target_language>/<str:data>/",
+        TransliterationAPIView.as_view(),
+        name="transliteration-api",
+    ),
     path("newsletter/", include("newsletter.urls")),
     re_path(
         r"^swagger(?P<format>\.json|\.yaml)$",
