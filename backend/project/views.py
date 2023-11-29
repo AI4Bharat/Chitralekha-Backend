@@ -1482,7 +1482,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
             .values("language")
         )
         transcript_statistics = (
-            prj_transcriptions.annotate(total_duration=Sum(F("video__duration")))
+            prj_transcriptions.annotate(transcripts=Count("id"))
+            .annotate(total_duration=Sum(F("video__duration")))
             .annotate(word_count=Sum(Cast(F("payload__word_count"), FloatField())))
             .order_by("-total_duration")
         )
@@ -1524,6 +1525,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     "value": round(elem["total_duration"].total_seconds() / 3600, 3),
                     "label": "Duration (Hours)",
                     "viewColumns": False,
+                },
+                "transcripts": {
+                    "value": elem["transcripts"],
+                    "label": "Tasks Count",
                 },
                 "word_count": {
                     "value": elem["word_count"],

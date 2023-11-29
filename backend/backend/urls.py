@@ -75,6 +75,7 @@ urlpatterns = [
         TransliterationAPIView.as_view(),
         name="transliteration-api",
     ),
+    path("newsletter/", include("newsletter.urls")),
     re_path(
         r"^swagger(?P<format>\.json|\.yaml)$",
         schema_view.without_ui(cache_timeout=0),

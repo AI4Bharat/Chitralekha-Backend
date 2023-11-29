@@ -2783,7 +2783,7 @@ class TaskViewSet(ModelViewSet):
                     return Response(
                         {
                             "data": bad_sentences,
-                            "message": "Sentences with time issues are returned.",
+                            "message": "Sentences with issues are returned.",
                         },
                         status=status.HTTP_200_OK,
                     )
@@ -2799,7 +2799,7 @@ class TaskViewSet(ModelViewSet):
                 return Response(
                     {
                         "data": bad_sentences,
-                        "message": "Sentences with time issues are returned.",
+                        "message": "Sentences with issues are returned.",
                     },
                     status=status.HTTP_200_OK,
                 )
@@ -2815,67 +2815,45 @@ class TaskViewSet(ModelViewSet):
             )
 
     @is_project_owner
+    @swagger_auto_schema(
+        method="post",
+        manual_parameters=[
+            openapi.Parameter(
+                "delete_voiceover_and_reopen",
+                openapi.IN_QUERY,
+                description=("Delete dependent voiceover and reopen('true'/'false')"),
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+        ],
+    )
     @action(detail=True, methods=["post"], url_path="reopen_translation_task")
     def reopen_translation_task(self, request, pk, *args, **kwargs):
+        delete_voiceover_and_reopen=request.query_params.get("delete_voiceover_and_reopen")
+        if delete_voiceover_and_reopen=='true':
+            delete_voiceover_and_reopen=True
+        else:
+            delete_voiceover_and_reopen=False
+        
         try:
             task = Task.objects.get(pk=pk)
         except Task.DoesNotExist:
             return Response(
                 {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
             )
-
         if task.status == "FAILED" and "TRANSLATION" in task.task_type:
-            translation_completed_obj = (
-                Translation.objects.filter(status="TRANSLATION_EDIT_COMPLETE")
-                .filter(target_language=task.target_language)
-                .filter(video=task.video)
-                .first()
-            )
-            translation_inprogress_obj = (
-                Translation.objects.filter(status="TRANSLATION_EDIT_INPROGRESS")
-                .filter(target_language=task.target_language)
-                .filter(video=task.video)
-                .all()
-            )
-            if (
-                translation_inprogress_obj is not None
-                and translation_completed_obj is not None
-            ):
-                translation_completed_obj.parent = None
-                translation_completed_obj.save()
-                translation_inprogress_obj.delete()
-                translation_completed_obj.status = "TRANSLATION_EDIT_INPROGRESS"
-                translation_completed_obj.save()
-                task.status = "REOPEN"
-                task.save()
-            else:
-                return Response(
-                    {"message": "Can not reopen this task."},
-                    status=status.HTTP_400_BAD_REQUEST,
+            if "TRANSLATION_REVIEW" in task.task_type:
+                translation_completed_obj = (
+                    Translation.objects.filter(status="TRANSLATION_REVIEW_COMPLETE")
+                    .filter(target_language=task.target_language)
+                    .filter(video=task.video)
+                    .first()
                 )
-        if task.status == "COMPLETE" and "TRANSLATION" in task.task_type:
-            voiceover_task = (
-                Task.objects.filter(video=task.video)
-                .filter(target_language=task.target_language)
-                .filter(task_type="VOICEOVER_EDIT")
-                .first()
-            )
-            if voiceover_task is not None:
-                response = [
-                    {
-                        "task_type": voiceover_task.get_task_type_label,
-                        "target_language": voiceover_task.get_target_language_label,
-                        "video_name": voiceover_task.video.name,
-                        "id": voiceover_task.id,
-                        "video_id": voiceover_task.video.id,
-                    }
-                ]
-                return Response(
-                    {
-                        "response": response,
-                        "message": "Can't reopen the Translation task as there is a dependent VoiceOver task.",
-                    },
-                    status=status.HTTP_409_CONFLICT,
+                translation_inprogress_obj = (
+                    Translation.objects.filter(status="TRANSLATION_REVIEW_INPROGRESS")
+                    .filter(target_language=task.target_language)
+                    .filter(video=task.video)
+                    .all()
                 )
             else:
                 translation_completed_obj = (
@@ -2890,6 +2868,156 @@ class TaskViewSet(ModelViewSet):
                     .filter(video=task.video)
                     .all()
                 )
+            if (
+                translation_inprogress_obj is not None
+                and translation_completed_obj is not None
+            ):
+                translation_completed_obj.parent = None
+                translation_completed_obj.save()
+                translation_inprogress_obj.delete()
+                translation_completed_obj.status = "TRANSLATION_REVIEW_INPROGRESS" if "TRANSLATION_REVIEW" in task.task_type else "TRANSLATION_EDIT_INPROGRESS"
+                translation_completed_obj.save()
+                task.status = "REOPEN"
+                task.save()
+            else:
+                return Response(
+                    {"message": "Can not reopen this task."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        if task.status == "COMPLETE" and "TRANSLATION" in task.task_type:
+            translation_review_task=(
+                Task.objects.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .filter(task_type="TRANSLATION_REVIEW")
+                .first()
+            )
+            if (
+                "TRANSLATION_EDIT" in task.task_type
+                and translation_review_task is not None
+                and translation_review_task.is_active==True
+            ):
+                return Response(
+                    {"message": "Can not reopen this task. Corrosponding Translation Review task is active"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+                
+            voiceover_task = (
+                Task.objects.filter(video=task.video)
+                .filter(target_language=task.target_language)
+                .filter(task_type="VOICEOVER_EDIT")
+                .first()
+            )
+            if voiceover_task is not None:
+                if delete_voiceover_and_reopen==False:
+                    response = [
+                        {
+                            "task_type": voiceover_task.get_task_type_label,
+                            "target_language": voiceover_task.get_target_language_label,
+                            "video_name": voiceover_task.video.name,
+                            "id": voiceover_task.id,
+                            "video_id": voiceover_task.video.id,
+                        }
+                    ]
+                    return Response(
+                        {
+                            "response": response,
+                            "message": "Can't reopen the Translation task as there is a dependent VoiceOver task.",
+                        },
+                        status=status.HTTP_409_CONFLICT,
+                    )
+                else:
+                    if "TRANSLATION_REVIEW" in task.task_type:
+                        translation_completed_obj = (
+                            Translation.objects.filter(status="TRANSLATION_REVIEW_COMPLETE")
+                            .filter(target_language=task.target_language)
+                            .filter(video=task.video)
+                            .first()
+                        )
+                        translation_inprogress_obj = (
+                            Translation.objects.filter(status="TRANSLATION_REVIEW_INPROGRESS")
+                            .filter(target_language=task.target_language)
+                            .filter(video=task.video)
+                            .all()
+                        )
+
+                    else:
+                        translation_completed_obj = (
+                            Translation.objects.filter(status="TRANSLATION_EDIT_COMPLETE")
+                            .filter(target_language=task.target_language)
+                            .filter(video=task.video)
+                            .first()
+                        )
+                        translation_inprogress_obj = (
+                            Translation.objects.filter(status="TRANSLATION_EDIT_INPROGRESS")
+                            .filter(target_language=task.target_language)
+                            .filter(video=task.video)
+                            .all()
+                        )
+                    voice_over_selected_source_obj = (
+                            VoiceOver.objects.filter(status="VOICEOVER_SELECT_SOURCE")
+                            .filter(video=task.video)
+                            .filter(target_language=task.target_language)
+                            .first()
+                        )
+                    voice_over_inprogress_obj = (
+                            VoiceOver.objects.filter(status="VOICEOVER_EDIT_INPROGRESS")
+                            .filter(video=task.video)
+                            .filter(target_language=task.target_language)
+                            .first()
+                        )
+                    
+                    if (
+                        translation_inprogress_obj is not None
+                        and translation_completed_obj is not None
+                        and voice_over_selected_source_obj is not None
+                        and voice_over_inprogress_obj is None
+                    ):
+                        translation_completed_obj.parent = None
+                        translation_completed_obj.save()
+                        translation_inprogress_obj.delete()
+                        translation_completed_obj.status = "TRANSLATION_REVIEW_INPROGRESS" if "TRANSLATION_REVIEW" in task.task_type else "TRANSLATION_EDIT_INPROGRESS"
+                        translation_completed_obj.save()
+                        task.status = "REOPEN"
+                        task.save()
+                        
+                        voice_over_selected_source_obj.delete()
+                        voiceover_task.is_active = False
+                        voiceover_task.save()
+
+                    
+                    else:
+                        return Response(
+                            {"message": "Can not reopen this task."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+            else:
+                if "TRANSLATION_REVIEW" in task.task_type:
+                    translation_completed_obj = (
+                        Translation.objects.filter(status="TRANSLATION_REVIEW_COMPLETE")
+                        .filter(target_language=task.target_language)
+                        .filter(video=task.video)
+                        .first()
+                    )
+                    translation_inprogress_obj = (
+                        Translation.objects.filter(status="TRANSLATION_REVIEW_INPROGRESS")
+                        .filter(target_language=task.target_language)
+                        .filter(video=task.video)
+                        .all()
+                    )
+                else:
+                    translation_completed_obj = (
+                        Translation.objects.filter(status="TRANSLATION_EDIT_COMPLETE")
+                        .filter(target_language=task.target_language)
+                        .filter(video=task.video)
+                        .first()
+                    )
+                    translation_inprogress_obj = (
+                        Translation.objects.filter(status="TRANSLATION_EDIT_INPROGRESS")
+                        .filter(target_language=task.target_language)
+                        .filter(video=task.video)
+                        .all()
+                    )
+
                 if (
                     translation_inprogress_obj is not None
                     and translation_completed_obj is not None
@@ -2897,7 +3025,7 @@ class TaskViewSet(ModelViewSet):
                     translation_completed_obj.parent = None
                     translation_completed_obj.save()
                     translation_inprogress_obj.delete()
-                    translation_completed_obj.status = "TRANSLATION_EDIT_INPROGRESS"
+                    translation_completed_obj.status = "TRANSLATION_REVIEW_INPROGRESS" if "TRANSLATION_REVIEW" in task.task_type else "TRANSLATION_EDIT_INPROGRESS"
                     translation_completed_obj.save()
                     task.status = "REOPEN"
                     task.save()

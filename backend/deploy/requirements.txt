@@ -12,12 +12,13 @@ drf-yasg==1.21.3
 mutagen==1.45.1
 djoser
 boto3>=1.24
-click>=8.1
+click==7.1.2
+spleeter==2.4.0
 WhiteNoise
 gunicorn
 python-docx
 azure-storage-blob
-celery==5.2.7
+celery
 redis==4.5.1
 git+https://github.com/mher/flower
 pydub
