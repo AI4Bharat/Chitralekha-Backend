@@ -23,6 +23,7 @@ from voiceover.utils import (
     send_mail_to_user,
     get_bad_sentences,
     get_bad_sentences_in_progress,
+    get_bad_sentences_in_progress_for_transcription
 )
 from transcript.models import (
     Transcript,
@@ -2794,7 +2795,7 @@ class TaskViewSet(ModelViewSet):
                     )
         elif "TRANSCRIPTION" in task.task_type:
             transcript = get_transcript_id(task)
-            bad_sentences = get_bad_sentences_in_progress(transcript, "")
+            bad_sentences = get_bad_sentences_in_progress_for_transcription(transcript, "")
             if len(bad_sentences) > 0:
                 return Response(
                     {
