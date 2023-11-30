@@ -1,0 +1,11 @@
+pydub
+webvtt-py
+yt-dlp
+ffmpeg
+gevent
+webrtcvad
+fastapi[all]
+azure-storage-blob
+pydub
+moviepy
+spleeter
