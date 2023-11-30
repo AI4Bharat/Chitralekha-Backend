@@ -11,7 +11,6 @@ from .utils import (
     download_from_azure_blob,
     upload_audio_to_azure_blob,
     send_audio_mail_to_user,
-    add_bg_music,
 )
 from voiceover.models import VoiceOver
 from task.models import Task
@@ -22,6 +21,7 @@ from config import (
     storage_account_key,
     connection_string,
     container_name,
+    bg_music_url,
 )
 from pydub import AudioSegment
 from backend.celery import celery_app
@@ -67,28 +67,29 @@ def export_voiceover_async(task_id, export_type, user_id, bg_music):
         file_path = voice_over.azure_url_audio.split("/")[-1]
         video_link = task.video.url
         if bg_music == "true":
-            file_path_music = add_bg_music(
-                os.path.join("temporary_video_audio_storage", file_path.split("/")[-1]),
-                video_link,
+            json_data = json.dumps(
+                {"azure_audio_url": voice_over.azure_url_audio,"youtube_url": video_link}
             )
-            AudioSegment.from_file(file_path_music).export(
-                file_path.split("/")[-1].replace(".flac", "") + "." + export_type,
-                format=export_type,
+            response = requests.post(
+                bg_music_url,
+                json=json_data,
             )
+            logging.info("Response Received")
+            file_path_music = response.json()["output"]
         else:
             AudioSegment.from_file(file_path).export(
                 file_path.split("/")[-1].replace(".flac", "") + "." + export_type,
                 format=export_type,
             )
-        logging.info("Uploading audio to Azure Blob %s", voice_over.azure_url_audio)
-        azure_url_audio = upload_audio_to_azure_blob(
-            file_path, export_type, export=True
-        )
-        try:
-            os.remove(file_path)
-            os.remove(file_path.split("/")[-1].replace(".flac", "") + "." + export_type)
-        except:
-            logging.info("Error in removing files")
+            logging.info("Uploading audio to Azure Blob %s", voice_over.azure_url_audio)
+            azure_url_audio = upload_audio_to_azure_blob(
+                file_path, export_type, export=True
+            )
+            try:
+                os.remove(file_path)
+                os.remove(file_path.split("/")[-1].replace(".flac", "") + "." + export_type)
+            except:
+                logging.info("Error in removing files")
         send_audio_mail_to_user(task, azure_url_audio, user)
     else:
         logging.info("Error in exporting %s", str(task_id))

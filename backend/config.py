@@ -15,6 +15,7 @@ nmt_url = os.getenv("NMT_API_URL")
 youtube_api_key = os.getenv("YOUTUBE_API_KEY")
 align_json_url = os.getenv("ALIGN_JSON_URL")
 transliteration_url = os.getenv("TRANSLITERATION_URL")
+bg_music_url = os.getenv("BG_MUSIC_API_URL")
 
 storage_account_key = os.getenv("AZURE_STORAGE_ACCOUNT_KEY")
 connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
