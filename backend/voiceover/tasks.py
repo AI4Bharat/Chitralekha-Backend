@@ -28,6 +28,8 @@ from backend.celery import celery_app
 import math
 from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_audioclips
 import re
+import json
+import requests
 
 
 @shared_task()
@@ -72,10 +74,10 @@ def export_voiceover_async(task_id, export_type, user_id, bg_music):
             )
             response = requests.post(
                 bg_music_url,
-                json=json_data,
+                data=json_data,
             )
             logging.info("Response Received")
-            file_path_music = response.json()["output"]
+            azure_url_audio = response.json()["output"]
         else:
             AudioSegment.from_file(file_path).export(
                 file_path.split("/")[-1].replace(".flac", "") + "." + export_type,
