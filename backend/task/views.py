@@ -2461,6 +2461,10 @@ class TaskViewSet(ModelViewSet):
                     permission = self.has_translate_review_permission(
                         user_obj, [task.video]
                     )
+                elif task.task_type == "VOICEOVER_EDIT":
+                    permission = self.has_voice_over_edit_permission(
+                        user_obj, [task.video]
+                    )
                 else:
                     logging.info("Not a Valid Type")
 
