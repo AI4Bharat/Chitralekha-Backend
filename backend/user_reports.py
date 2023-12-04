@@ -24,6 +24,7 @@ from django.utils.timezone import localdate, localtime, now
 from users.models import User
 from video.models import Video
 import logging
+from organization.models import Organization
 
 
 def get_completed_tasks():
@@ -238,7 +239,14 @@ def get_new_users():
         users_in_org = users.filter(organization=org_owner.organization)
         new_users = []
         for user in users_in_org:
-            new_users.append({"Email": user.email, "Role": user.role})
+            new_users.append(
+                {
+                    "Email": user.email,
+                    "Role": user.get_role_label,
+                    "Name": user.first_name + " " + user.last_name,
+                    "Languages": ", ".join(user.languages),
+                }
+            )
         if len(new_users) > 0:
             df = pd.DataFrame.from_records(new_users)
             blankIndex = [""] * len(df)

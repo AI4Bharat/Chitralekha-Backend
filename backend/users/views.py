@@ -167,7 +167,6 @@ class InviteViewSet(viewsets.ViewSet):
         """
         Users to sign up for the first time.
         """
-        get_new_users()
         try:
             invite = Invite.objects.get(invite_code=pk)
         except Invite.DoesNotExist:
