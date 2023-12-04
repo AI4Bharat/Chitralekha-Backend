@@ -31,11 +31,16 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=0, hour=1),  # execute everyday at 1 am
     },
     "Send_mail_to_org_owners": {
-        "task": "send_new_users_to_org_owner"
-        "schedule": crontab(minute=0, hour=1),  # execute everyday at 1 am
+        "task": "send_new_users_to_org_owner",
+        "schedule": crontab(minute=1, hour=1),  # execute everyday at 1 am
+    },
     "Send_mail_to_users": {
-        "task": "send_eta_reminders()"
-        "schedule": crontab(minute=0, hour=1),  # execute everyday at 1 am
+        "task": "send_eta_reminders",
+        "schedule": crontab(minute=2, hour=1),  # execute everyday at 1 am
+    },
+    "Send_newsletters": {
+        "task": "send_newsletter",
+        "schedule": crontab(minute=3, hour=1),  # execute everyday at 1 am
     },
 }
 
