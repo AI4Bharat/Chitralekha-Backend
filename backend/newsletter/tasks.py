@@ -2,6 +2,9 @@ from celery import shared_task
 from backend.celery import celery_app
 from .models import SubscribedUsers, Newsletter
 from django.utils import timezone
+from django.conf import settings
+from django.core.mail import send_mail
+import logging
 
 
 @shared_task(name="send_newsletter")
