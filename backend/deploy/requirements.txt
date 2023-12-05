@@ -18,6 +18,7 @@ gunicorn
 python-docx
 azure-storage-blob
 celery==5.2.7
+beautifulsoup4
 redis==4.5.1
 git+https://github.com/mher/flower
 pydub
