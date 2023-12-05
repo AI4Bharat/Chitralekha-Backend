@@ -147,6 +147,12 @@ class NewsletterViewSet(ModelViewSet):
             category="NEW_FEATURE",
         )
         new_newsletter.save()
+        html_content_f = html_content
+        html_content = ""
+        try:
+            os.remove(os.path.join(BASE_DIR, "newsletter", "templates", temp_file))
+        except:
+            print("Error in Removing files.")
         return Response(
             {"message": "Newsletter is successfully submitted."},
             status=status.HTTP_200_OK,
@@ -249,8 +255,15 @@ class NewsletterViewSet(ModelViewSet):
                 {"message": "Template not supported."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        html_content_f = html_content
+        html_content = ""
+        try:
+            os.remove(os.path.join(BASE_DIR, "newsletter", "templates", temp_file))
+        except:
+            print("Error in Removing files.")
         return Response(
-            {"html": html_content},
+            {"html": html_content_f},
             status=status.HTTP_200_OK,
         )
 
