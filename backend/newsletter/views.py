@@ -30,6 +30,7 @@ import os
 from bs4 import BeautifulSoup
 from django.core.mail import send_mail
 from django.conf import settings
+import uuid
 
 
 class NewsletterViewSet(ModelViewSet):
@@ -71,16 +72,19 @@ class NewsletterViewSet(ModelViewSet):
                 requested_html = os.path.join(
                     BASE_DIR, "newsletter", "templates", "cl_newsletter_1.html"
                 )
+                uuid_num = str(uuid.uuid4())
+                temp_file = "variable_" + uuid_num + ".html"
                 file_html = open(
-                    os.path.join(BASE_DIR, "newsletter", "templates", "variable.html"),
-                    "w",
+                    os.path.join(BASE_DIR, "newsletter", "templates", temp_file), "w"
                 )
                 soup = BeautifulSoup(final_html_content, "html.parser")
                 file_html.write(soup.prettify())
-                context = {"variable": ""}
+                dynamic_template_name = temp_file
+                context = {"dynamic_template_name": dynamic_template_name}
                 file_html.close()
                 html_file = loader.get_template(requested_html)
                 html_content = html_file.render(context, request)
+                html_file = ""
         elif template_id == 2:
             if len(content) != 0:
                 final_html_content = ""
@@ -99,27 +103,30 @@ class NewsletterViewSet(ModelViewSet):
                 requested_html = os.path.join(
                     BASE_DIR, "newsletter", "templates", "cl_newsletter_1.html"
                 )
+                uuid_num = str(uuid.uuid4())
+                temp_file = "variable_" + uuid_num + ".html"
                 file_html = open(
-                    os.path.join(BASE_DIR, "newsletter", "templates", "variable.html"),
-                    "w",
+                    os.path.join(BASE_DIR, "newsletter", "templates", temp_file), "w"
                 )
                 soup = BeautifulSoup(final_html_content, "html.parser")
                 file_html.write(soup.prettify())
-                context = {"variable": ""}
+                dynamic_template_name = temp_file
+                context = {"dynamic_template_name": dynamic_template_name}
                 file_html.close()
                 html_file = loader.get_template(requested_html)
                 html_content = html_file.render(context, request)
+                html_file = ""
         elif template_id == 3:
             if type(content) == dict:
                 message = base64.b64decode(content["html"]).decode("utf-8")
-                f = open('content.html','w')
+                f = open("content.html", "w")
                 f.write(message)
                 f.close()
 
                 # Parse the file using an HTML parser.
                 parser = html.parser.HTMLParser()
-                with open('content.html', 'rb') as f:
-                    parser.feed(f.read().decode('utf-8'))
+                with open("content.html", "rb") as f:
+                    parser.feed(f.read().decode("utf-8"))
 
                 # Check for common HTML errors.
                 if parser.error_list:
@@ -144,7 +151,6 @@ class NewsletterViewSet(ModelViewSet):
             {"message": "Newsletter is successfully submitted."},
             status=status.HTTP_200_OK,
         )
-
 
     @is_admin
     @swagger_auto_schema(request_body=NewsletterSerializer)
@@ -175,16 +181,19 @@ class NewsletterViewSet(ModelViewSet):
                 requested_html = os.path.join(
                     BASE_DIR, "newsletter", "templates", "cl_newsletter_1.html"
                 )
+                uuid_num = str(uuid.uuid4())
+                temp_file = "variable_" + uuid_num + ".html"
                 file_html = open(
-                    os.path.join(BASE_DIR, "newsletter", "templates", "variable.html"),
-                    "w",
+                    os.path.join(BASE_DIR, "newsletter", "templates", temp_file), "w"
                 )
                 soup = BeautifulSoup(final_html_content, "html.parser")
                 file_html.write(soup.prettify())
-                context = {"variable": ""}
+                dynamic_template_name = temp_file
+                context = {"dynamic_template_name": dynamic_template_name}
                 file_html.close()
                 html_file = loader.get_template(requested_html)
                 html_content = html_file.render(context, request)
+                html_file = ""
         elif template_id == 2:
             if len(content) != 0:
                 final_html_content = ""
@@ -203,27 +212,30 @@ class NewsletterViewSet(ModelViewSet):
                 requested_html = os.path.join(
                     BASE_DIR, "newsletter", "templates", "cl_newsletter_1.html"
                 )
+                uuid_num = str(uuid.uuid4())
+                temp_file = "variable_" + uuid_num + ".html"
                 file_html = open(
-                    os.path.join(BASE_DIR, "newsletter", "templates", "variable.html"),
-                    "w",
+                    os.path.join(BASE_DIR, "newsletter", "templates", temp_file), "w"
                 )
                 soup = BeautifulSoup(final_html_content, "html.parser")
                 file_html.write(soup.prettify())
-                context = {"variable": ""}
+                dynamic_template_name = temp_file
+                context = {"dynamic_template_name": dynamic_template_name}
                 file_html.close()
                 html_file = loader.get_template(requested_html)
                 html_content = html_file.render(context, request)
+                html_file = ""
         elif template_id == 3:
             if len(content) != 0:
                 message = base64.b64decode(content).decode("utf-8")
-                f = open('content.html','w')
+                f = open("content.html", "w")
                 f.write(message)
                 f.close()
 
                 # Parse the file using an HTML parser.
                 parser = html.parser.HTMLParser()
-                with open('content.html', 'rb') as f:
-                    parser.feed(f.read().decode('utf-8'))
+                with open("content.html", "rb") as f:
+                    parser.feed(f.read().decode("utf-8"))
 
                 # Check for common HTML errors.
                 if parser.error_list:
@@ -237,18 +249,10 @@ class NewsletterViewSet(ModelViewSet):
                 {"message": "Template not supported."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        new_newsletter = Newsletter(
-            content=html_content,
-            submitter_id=User.objects.get(pk=submitter_id),
-            category="NEW_FEATURE",
-        )
-        new_newsletter.save()
         return Response(
             {"html": html_content},
             status=status.HTTP_200_OK,
         )
-
 
     @swagger_auto_schema(
         method="post",
