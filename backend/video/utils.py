@@ -734,3 +734,16 @@ def create_video(
     new_request.GET["task_type"] = task_type
     new_request.GET["target_language"] = target_language
     return get_video_func(new_request)
+
+
+def find_duplicates(data, key):
+    temp = []
+    duplicates = []
+
+    for dictionary in data:
+        if dictionary[key] not in temp:
+            temp.append(dictionary[key])
+        else:
+            duplicates.append(dictionary[key])
+
+    return duplicates

@@ -100,7 +100,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text=("Indicates whether mailing is enable or not."),
     )
 
-    date_joined = models.DateTimeField(verbose_name="date joined", default=timezone.now)
+    date_joined = models.DateTimeField(
+        verbose_name="date joined", blank=True, null=True
+    )
 
     activity_at = models.DateTimeField(
         verbose_name="last annotation activity by the user", auto_now=True
