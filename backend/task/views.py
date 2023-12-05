@@ -2926,7 +2926,7 @@ class TaskViewSet(ModelViewSet):
                     return Response(
                         {
                             "response": response,
-                            "message": "Can't reopen the Translation task as there is a dependent VoiceOver task.",
+                            "message": "There is a dependant VoiceOver task. Do you still want to reopen this task?",
                         },
                         status=status.HTTP_409_CONFLICT,
                     )
