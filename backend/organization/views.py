@@ -316,7 +316,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 "reverse",
                 openapi.IN_QUERY,
                 description=("Orderby parameter"),
-                type=openapi.TYPE_STRING,
+                type=openapi.TYPE_BOOLEAN,
                 required=False,
             ),
             openapi.Parameter(
@@ -354,7 +354,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             if "search" in request.query_params:
                 search_dict = json.loads(request.query_params["search"])
             sort_by = request.query_params.get("sort_by", "updated_at")
-            reverse = request.query_params.get("reverse", "False") == "True"
+            reverse = request.query_params.get("reverse", False)
 
         except Organization.DoesNotExist:
             return Response(

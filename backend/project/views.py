@@ -734,7 +734,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 "reverse",
                 openapi.IN_QUERY,
                 description=("Orderby parameter"),
-                type=openapi.TYPE_STRING,
+                type=openapi.TYPE_BOOLEAN,
                 required=False,
             ),
             openapi.Parameter(
@@ -772,9 +772,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
             if "search" in request.query_params:
                 search_dict = json.loads(request.query_params["search"])
-            
+
             sort_by = request.query_params.get("sort_by", "updated_at")
-            reverse = request.query_params.get("reverse", "False") == "True"
+            reverse = request.query_params.get("reverse", False)
 
             project = Project.objects.get(pk=pk)
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
