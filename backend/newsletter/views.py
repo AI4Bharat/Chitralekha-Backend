@@ -1,7 +1,12 @@
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
@@ -31,6 +36,38 @@ from bs4 import BeautifulSoup
 from django.core.mail import send_mail
 from django.conf import settings
 import uuid
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "email",
+            openapi.IN_QUERY,
+            description=("Email of user"),
+            type=openapi.TYPE_STRING,
+            required=False,
+        ),
+    ],
+    responses={200: "Unsubscribed successfully."},
+)
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def unsubscribe(request):
+    email = request.GET.get("email")
+    try:
+        sub_user = SubscribedUsers.objects.get(email=email)
+    except SubscribedUsers.DoesNotExist:
+        return Response(
+            {"message": "User is not subscribed."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    sub_user.delete()
+    return Response(
+        {"message": "Unsubscribed Successfully."},
+        status=status.HTTP_200_OK,
+    )
 
 
 class NewsletterViewSet(ModelViewSet):
@@ -283,7 +320,7 @@ class NewsletterViewSet(ModelViewSet):
     )
     @action(detail=False, methods=["post"], url_path="send_mail_temp")
     def send_mail_temp(self, request):
-        for subscribed_user in SubscribedUsers.all():
+        for subscribed_user in SubscribedUsers.objects.all():
             subscribed_user.email = subscribed_user.user.email
             subscribed_user.save()
         newsletter_id = request.data.get("newsletter_id")
@@ -322,7 +359,7 @@ class NewsletterViewSet(ModelViewSet):
             properties={
                 "email": openapi.Schema(type=openapi.TYPE_STRING),
                 "user_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                "subscribe":openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                "subscribe": openapi.Schema(type=openapi.TYPE_BOOLEAN),
             },
             required=["email", "user_id"],
         ),
@@ -350,7 +387,9 @@ class NewsletterViewSet(ModelViewSet):
             )
 
         if subscribe == True:
-            sub_user, created = SubscribedUsers.objects.get_or_create(user=user, email=email)
+            sub_user, created = SubscribedUsers.objects.get_or_create(
+                user=user, email=email
+            )
             if not created:
                 return Response(
                     {"message": "User is already subscribed."},
@@ -364,7 +403,7 @@ class NewsletterViewSet(ModelViewSet):
         else:
             try:
                 sub_user = SubscribedUsers.objects.get(user=user)
-            except SubscribedUser.DoesNotExist:
+            except SubscribedUsers.DoesNotExist:
                 return Response(
                     {"message": "User is not subscribed."},
                     status=status.HTTP_400_BAD_REQUEST,

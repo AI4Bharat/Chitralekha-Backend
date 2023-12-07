@@ -20,12 +20,17 @@ def send_newsletter():
         for newsletter in newsletters:
             for subscribed_user in subscribed_users:
                 logging.info("Sending Mail to %s", subscribed_user.user.email)
+                cont = newsletter.content.replace(
+                    "{user_email_id}", subscribed_user.email
+                )
+                newsletter.content = cont
+                newsletter.save()
                 try:
                     send_mail(
                         "Chitralekha - Newsletter",
                         "",
                         settings.DEFAULT_FROM_EMAIL,
-                        [subscribed_user.user.email],
+                        [subscribed_user.email],
                         html_message=newsletter.content,
                     )
                 except:
