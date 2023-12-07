@@ -283,6 +283,9 @@ class NewsletterViewSet(ModelViewSet):
     )
     @action(detail=False, methods=["post"], url_path="send_mail_temp")
     def send_mail_temp(self, request):
+        for subscribed_user in SubscribedUsers.all():
+            subscribed_user.email = subscribed_user.user.email
+            subscribed_user.save()
         newsletter_id = request.data.get("newsletter_id")
         email = request.data.get("email")
 
@@ -300,7 +303,6 @@ class NewsletterViewSet(ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         newsletter = Newsletter.objects.filter(newsletter_uuid=newsletter_id).first()
-        print(newsletter.content)
         send_mail(
             "Chitralekha E-Newsletter",
             "",
@@ -319,8 +321,10 @@ class NewsletterViewSet(ModelViewSet):
             type=openapi.TYPE_OBJECT,
             properties={
                 "email": openapi.Schema(type=openapi.TYPE_STRING),
+                "user_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "subscribe":openapi.Schema(type=openapi.TYPE_BOOLEAN),
             },
-            required=["email"],
+            required=["email", "user_id"],
         ),
         responses={200: "Subscribed Successfully."},
     )
@@ -328,29 +332,45 @@ class NewsletterViewSet(ModelViewSet):
     def subscribe(self, request):
         categories = request.data.get("categories")
         email = request.data.get("email")
+        user_id = request.data.get("user_id")
+        subscribe = request.data.get("subscribe", True)
 
-        if email is None:
+        if email is None or user_id is None:
             return Response(
-                {"message": "missing param : Email can't be empty"},
+                {"message": "missing param : Email or user_id can't be empty"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.get(pk=user_id)
         except:
             return Response(
                 {"message": "User with this Email Id doesn't exist."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        sub_user, created = SubscribedUsers.objects.get_or_create(user=user)
-        if not created:
-            return Response(
-                {"message": "User is already subscribed."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        if subscribe == True:
+            sub_user, created = SubscribedUsers.objects.get_or_create(user=user, email=email)
+            if not created:
+                return Response(
+                    {"message": "User is already subscribed."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        return Response(
-            {"message": "Newsletter is successfully subscribed."},
-            status=status.HTTP_200_OK,
-        )
+            return Response(
+                {"message": "Newsletter is successfully subscribed."},
+                status=status.HTTP_200_OK,
+            )
+        else:
+            try:
+                sub_user = SubscribedUsers.objects.get(user=user)
+            except SubscribedUser.DoesNotExist:
+                return Response(
+                    {"message": "User is not subscribed."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            sub_user.delete()
+            return Response(
+                {"message": "User is unsubscribed."},
+                status=status.HTTP_200_OK,
+            )
