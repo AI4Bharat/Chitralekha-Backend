@@ -36,6 +36,7 @@ from bs4 import BeautifulSoup
 from django.core.mail import send_mail
 from django.conf import settings
 import uuid
+from django.shortcuts import render
 
 
 @swagger_auto_schema(
@@ -64,10 +65,7 @@ def unsubscribe(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     sub_user.delete()
-    return Response(
-        {"message": "Unsubscribed Successfully."},
-        status=status.HTTP_200_OK,
-    )
+    return render(request, 'unsubscribe.html')
 
 
 class NewsletterViewSet(ModelViewSet):
