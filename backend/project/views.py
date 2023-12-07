@@ -724,6 +724,20 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 required=True,
             ),
             openapi.Parameter(
+                "sort_by",
+                openapi.IN_QUERY,
+                description=("Sorting parameter"),
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "reverse",
+                openapi.IN_QUERY,
+                description=("Orderby parameter"),
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
                 "filter",
                 openapi.IN_QUERY,
                 description=("Offset parameter"),
@@ -758,6 +772,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
             if "search" in request.query_params:
                 search_dict = json.loads(request.query_params["search"])
+            
+            sort_by = request.query_params.get("sort_by", "updated_at")
+            reverse = request.query_params.get("reverse", "False") == "True"
 
             project = Project.objects.get(pk=pk)
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
@@ -765,7 +782,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
             # filter data based on search parameters
             videos = task_search_filter(videos, search_dict, filter_dict)
 
-            all_tasks = Task.objects.filter(video_id__in=videos).order_by("-updated_at")
+            if reverse==True:
+                sort_by = "-"+sort_by
+            all_tasks = Task.objects.filter(video_id__in=videos).order_by(sort_by)
 
             all_tasks = task_search_by_task_id(all_tasks,search_dict)
             all_tasks = task_search_by_description(all_tasks, search_dict)
@@ -778,7 +797,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 or request.user.is_superuser
                 or request.user.id == project.organization_id.organization_owner_id
             ):
-                all_tasks = all_tasks.filter(user=request.user).order_by("-updated_at")
+                all_tasks = all_tasks.filter(user=request.user).order_by(sort_by)
 
             total_count = len(all_tasks)
             total_pages = math.ceil(total_count / int(limit))
@@ -875,20 +894,29 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Info": False,
                         "Reopen": False,
                     }
+                    buttons["Update"] = True
+                    buttons["Delete"] = True
                     if data["status"] == "COMPLETE":
                         buttons["Edit"] = False
                         buttons["Export"] = True
                         buttons["Preview"] = True
                         buttons["Update"] = False
+                        if "TRANSLATION" in data["task_type"]:
+                            buttons["Reopen"] = True
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
-                    if data["status"] in ["FAILED", "REOPEN"]:
+                    if data["status"] == "FAILED":
+                        buttons["Info"] = True
+                        buttons["Reopen"] = True
+                    if data["status"] == "REOPEN":
                         buttons["Info"] = True
                     if data["status"] == "INPROGRESS":
                         buttons["Preview"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
                         buttons["Info"] = False
+                        if data["status"] == "FAILED":
+                            buttons["Reopen"] = False
                     if data["user"]["email"] == request.user.email:
                         if data["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
