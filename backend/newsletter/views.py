@@ -411,3 +411,55 @@ class NewsletterViewSet(ModelViewSet):
                 {"message": "User is unsubscribed."},
                 status=status.HTTP_200_OK,
             )
+
+    @swagger_auto_schema(
+        method="patch",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "email": openapi.Schema(type=openapi.TYPE_STRING),
+                "user_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+            },
+            required=["email", "user_id"],
+        ),
+        responses={200: "Subscribed Successfully."},
+    )
+    @action(detail=False, methods=["patch"], url_path="update_email")
+    def update_email(self, request):
+        categories = request.data.get("categories")
+        email = request.data.get("email")
+        user_id = request.data.get("user_id")
+
+        if email is None or user_id is None:
+            return Response(
+                {"message": "missing param : Email or user_id can't be empty"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"message": "This user does not exist."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            sub_user = SubscribedUsers.objects.get(user=user)
+        except SubscribedUsers.DoesNotExist:
+            return Response(
+                {"message": "User is not subscribed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if sub_user.email == email:
+            return Response(
+                {"message": "Already subscribed with this email."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        sub_user.email = email
+        sub_user.save()
+        return Response(
+            {"message": "Email is updated successfully."},
+            status=status.HTTP_200_OK,
+        )
