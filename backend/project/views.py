@@ -82,7 +82,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 ids = request.data.get("user_id", "")
             else:
                 return Response(
-                    {"message": "key does not match"},
+                    {"message": "Missing params: user_id"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             user = User.objects.filter(id__in=ids).filter(has_accepted_invite=True)
@@ -274,7 +274,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             ids = request.data.get("user_id", "")
         else:
             return Response(
-                {"message": "key does not match"},
+                {"message": "Missing params: user_id"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -353,7 +353,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             ids = request.data.get("user_id", "")
         else:
             return Response(
-                {"message": "key does not match"},
+                {"message": "Missing params: user_id"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:

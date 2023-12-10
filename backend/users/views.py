@@ -581,7 +581,7 @@ class RoleViewSet(viewsets.ViewSet):
                 )
             elif (role == "ORG_OWNER") or (role == "ADMIN"):
                 return Response(
-                    {"message": f"Role must not be update as {role}"},
+                    {"message": f"Role can not be updated as {role}"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             elif user.role == "PROJECT_MANAGER":
@@ -634,7 +634,7 @@ class RoleViewSet(viewsets.ViewSet):
                         serialized_dict = json.loads(json.dumps(serializer.data))
                         return Response(
                             {
-                                "message": "Reassign tasks to relevant users, than try to update role",
+                                "message": "Assign following tasks to the appropriate users and then proceed to update the role.",
                                 "data": serialized_dict,
                             },
                             status=status.HTTP_200_OK,

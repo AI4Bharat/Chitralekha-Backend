@@ -504,6 +504,6 @@ def upload_to_youtube(request):
 
     else:
         return Response(
-            {"message": "Task ids list requeired"},
+            {"message": "Missing Params: task_ids"},
             status=status.HTTP_400_BAD_REQUEST,
         )
