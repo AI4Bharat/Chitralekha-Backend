@@ -614,7 +614,7 @@ def convert_to_rt(payload, task_type):
     if "TRANSCRIPTION" in task_type:
         for index, segment in enumerate(payload):
             start_time_str = segment["start_time"]
-            end_time_str = end_time["end_time"]
+            end_time_str = segment["end_time"]
             lines.append("<Time begin=" + f"{start_time_str}" + " end=" + f"{end_time_str}" + " />" + "<clear/> " +" " + segment["text"])
     else:
         for index, segment in enumerate(payload):
