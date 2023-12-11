@@ -52,6 +52,7 @@ class SubscribedUsers(models.Model):
         blank=False,
     )
     subscribed_categories = forms.MultipleChoiceField()
+    email = models.EmailField(verbose_name="email_address", null=True, blank=True)
 
     def __str__(self):
         return str(self.user.email)

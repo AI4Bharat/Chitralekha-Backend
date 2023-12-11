@@ -1,7 +1,12 @@
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
@@ -31,6 +36,36 @@ from bs4 import BeautifulSoup
 from django.core.mail import send_mail
 from django.conf import settings
 import uuid
+from django.shortcuts import render
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "email",
+            openapi.IN_QUERY,
+            description=("Email of user"),
+            type=openapi.TYPE_STRING,
+            required=False,
+        ),
+    ],
+    responses={200: "Unsubscribed successfully."},
+)
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def unsubscribe(request):
+    email = request.GET.get("email")
+    try:
+        sub_user = SubscribedUsers.objects.get(email=email)
+    except SubscribedUsers.DoesNotExist:
+        return Response(
+            {"message": "User is not subscribed."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    sub_user.delete()
+    return render(request, 'unsubscribe.html')
 
 
 class NewsletterViewSet(ModelViewSet):
@@ -283,6 +318,9 @@ class NewsletterViewSet(ModelViewSet):
     )
     @action(detail=False, methods=["post"], url_path="send_mail_temp")
     def send_mail_temp(self, request):
+        for subscribed_user in SubscribedUsers.objects.all():
+            subscribed_user.email = subscribed_user.user.email
+            subscribed_user.save()
         newsletter_id = request.data.get("newsletter_id")
         email = request.data.get("email")
 
@@ -300,7 +338,6 @@ class NewsletterViewSet(ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         newsletter = Newsletter.objects.filter(newsletter_uuid=newsletter_id).first()
-        print(newsletter.content)
         send_mail(
             "Chitralekha E-Newsletter",
             "",
@@ -319,8 +356,10 @@ class NewsletterViewSet(ModelViewSet):
             type=openapi.TYPE_OBJECT,
             properties={
                 "email": openapi.Schema(type=openapi.TYPE_STRING),
+                "user_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "subscribe": openapi.Schema(type=openapi.TYPE_BOOLEAN),
             },
-            required=["email"],
+            required=["email", "user_id"],
         ),
         responses={200: "Subscribed Successfully."},
     )
@@ -328,29 +367,99 @@ class NewsletterViewSet(ModelViewSet):
     def subscribe(self, request):
         categories = request.data.get("categories")
         email = request.data.get("email")
+        user_id = request.data.get("user_id")
+        subscribe = request.data.get("subscribe", True)
 
-        if email is None:
+        if email is None or user_id is None:
             return Response(
-                {"message": "missing param : Email can't be empty"},
+                {"message": "missing param : Email or user_id can't be empty"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.get(pk=user_id)
         except:
             return Response(
                 {"message": "User with this Email Id doesn't exist."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        sub_user, created = SubscribedUsers.objects.get_or_create(user=user)
-        if not created:
+        if subscribe == True:
+            sub_user, created = SubscribedUsers.objects.get_or_create(
+                user=user, email=email
+            )
+            if not created:
+                return Response(
+                    {"message": "User is already subscribed."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             return Response(
-                {"message": "User is already subscribed."},
+                {"message": "Newsletter is successfully subscribed."},
+                status=status.HTTP_200_OK,
+            )
+        else:
+            try:
+                sub_user = SubscribedUsers.objects.get(user=user)
+            except SubscribedUsers.DoesNotExist:
+                return Response(
+                    {"message": "User is not subscribed."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            sub_user.delete()
+            return Response(
+                {"message": "User is unsubscribed."},
+                status=status.HTTP_200_OK,
+            )
+
+    @swagger_auto_schema(
+        method="patch",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "email": openapi.Schema(type=openapi.TYPE_STRING),
+                "user_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+            },
+            required=["email", "user_id"],
+        ),
+        responses={200: "Subscribed Successfully."},
+    )
+    @action(detail=False, methods=["patch"], url_path="update_email")
+    def update_email(self, request):
+        categories = request.data.get("categories")
+        email = request.data.get("email")
+        user_id = request.data.get("user_id")
+
+        if email is None or user_id is None:
+            return Response(
+                {"message": "missing param : Email or user_id can't be empty"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"message": "This user does not exist."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            sub_user = SubscribedUsers.objects.get(user=user)
+        except SubscribedUsers.DoesNotExist:
+            return Response(
+                {"message": "User is not subscribed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if sub_user.email == email:
+            return Response(
+                {"message": "Already subscribed with this email."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        sub_user.email = email
+        sub_user.save()
         return Response(
-            {"message": "Newsletter is successfully subscribed."},
+            {"message": "Email is updated successfully."},
             status=status.HTTP_200_OK,
         )

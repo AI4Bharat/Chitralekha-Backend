@@ -332,9 +332,7 @@ def upload_to_youtube(request):
                         caption_file = uploadToLocalDir(file_name, serialized_data)
                 else:
                     response_obj["status"] = "Fail"
-                    response_obj[
-                        "message"
-                    ] = "Please complete related task type to generate file."
+                    response_obj["message"] = "Please complete relevant tasks."
                     task_responses.append(response_obj)
                     continue
             except Exception as e:
@@ -475,7 +473,9 @@ def upload_to_youtube(request):
                     % insert_request["id"]
                 )
                 response_obj["status"] = "Success"
-                response_obj["message"] = "Caption track has been added"
+                response_obj[
+                    "message"
+                ] = "Successfully caption is added to youtube video"
 
                 task_responses.append(response_obj)
                 continue
@@ -504,6 +504,6 @@ def upload_to_youtube(request):
 
     else:
         return Response(
-            {"message": "Task ids list must be present"},
+            {"message": "Missing Params: task_ids"},
             status=status.HTTP_400_BAD_REQUEST,
         )
