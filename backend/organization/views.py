@@ -355,7 +355,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 search_dict = json.loads(request.query_params["search"])
             sort_by = request.query_params.get("sort_by", "updated_at")
             reverse = request.query_params.get("reverse", False)
-
+            reverse = reverse.lower() == "true"
         except Organization.DoesNotExist:
             return Response(
                 {"message": "Organization does not exist"},
@@ -376,8 +376,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             # filter data based on search parameters
             videos = task_search_filter(videos, search_dict, filter_dict)
 
-            if reverse==True:
-                sort_by = "-"+sort_by
+            if reverse == True:
+                sort_by = "-" + sort_by
             all_tasks = Task.objects.filter(video_id__in=videos).order_by(sort_by)
 
             all_tasks = task_search_by_task_id(all_tasks,search_dict)
@@ -458,8 +458,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 # filter data based on search parameters
                 videos = task_search_filter(videos, search_dict, filter_dict)
 
+                if reverse == True:
+                    sort_by = "-" + sort_by
                 all_tasks_in_projects = Task.objects.filter(video__in=videos).order_by(
-                    "-updated_at"
+                    sort_by
                 )
                 if len(projects_only_members) > 0:
                     videos = Video.objects.filter(project_id__in=projects_only_members)
@@ -548,11 +550,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 videos = Video.objects.all()
                 # filter data based on search parameters
                 videos = task_search_filter(videos, search_dict, filter_dict)
-
+                if reverse == True:
+                    sort_by = "-" + sort_by
                 all_tasks = (
                     Task.objects.filter(user=user)
                     .filter(video__in=videos)
-                    .order_by("-updated_at")
+                    .order_by(sort_by)
                 )
 
                 all_tasks = task_search_by_task_id(all_tasks,search_dict)
