@@ -1,3 +1,4 @@
+import datetime
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
@@ -25,9 +26,10 @@ from translation.utils import (
     translation_mg,
     convert_to_docx,
     convert_to_paragraph,
+    convert_to_rt,
+    convert_scc_format,
 )
 from .metadata import TRANSCRIPTION_LANGUAGE_CHOICES, TRANSCRIPTION_SUPPORTED_LANGUAGES
-
 from .models import (
     Transcript,
     TRANSCRIPT_TYPE,
@@ -50,6 +52,7 @@ from voiceover.utils import get_bad_sentences_in_progress_for_transcription
 from .decorators import is_transcript_editor
 from .serializers import TranscriptSerializer
 from .utils.asr import get_asr_supported_languages, make_asr_api_call
+from .utils.TTML import generate_ttml
 from .utils.ytt_align import *
 from users.models import User
 from rest_framework.response import Response
@@ -77,7 +80,7 @@ from .utils.timestamp import *
 @api_view(["GET"])
 def get_transcript_export_types(request):
     return Response(
-        {"export_types": ["srt", "vtt", "txt", "docx", "ytt"]},
+        {"export_types": ["srt", "vtt", "txt", "docx", "ytt", "sbv", "TTML", "scc", "rt"]},
         status=status.HTTP_200_OK,
     )
 
@@ -95,7 +98,7 @@ def get_transcript_export_types(request):
         openapi.Parameter(
             "export_type",
             openapi.IN_QUERY,
-            description=("export type parameter srt/vtt/txt/ytt"),
+            description=("export type parameter srt/vtt/txt/docx/ytt/sbv/TTML/scc/rt"),
             type=openapi.TYPE_STRING,
             required=True,
         ),
@@ -125,11 +128,11 @@ def export_transcript(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    supported_types = ["srt", "vtt", "txt", "docx", "ytt"]
+    supported_types = ["srt", "vtt", "txt", "docx", "ytt", "sbv", "TTML", "scc", "rt"]
     if export_type not in supported_types:
         return Response(
             {
-                "message": "exported type only supported formats are : {srt, vtt, txt, docx, ytt} "
+                "message": "exported type only supported formats are : {srt, vtt, txt, docx, ytt, sbv, TTML, scc, rt}"
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -237,6 +240,47 @@ def export_transcript(request):
             )
         os.remove(file_location)
         return response
+
+    elif export_type == "sbv":
+        for index, segment in enumerate(payload):
+            lines.append(
+                segment["start_time"]
+                + ","
+                + segment["end_time"]
+                + "\n"
+                + segment["text"]
+                + "\n"
+            )
+        filename = "transcript.sbv"
+        content = "\n".join(lines)
+
+    elif export_type == "TTML":
+        lines = generate_ttml(payload)
+        for index, segment in enumerate(payload):
+
+            lines.append(
+                "\t\t\t<p xml:id='subtitle"
+                + str(index + 1)
+                + "' begin='"
+                + segment["start_time"]
+                + "' end='"
+                + segment["end_time"]
+                + "' style='s1'>"
+                + segment["text"].replace(",", "<br/>")
+                + "</p>"
+            )
+        lines.append("\t\t</div>\n" + "\t</body>\n" + "</tt>\n")
+        filename = "transcript.TTML"
+        content = "\n".join(lines)
+
+    elif export_type == "scc":
+        filename = "transcript.scc"
+        content = convert_scc_format(payload, task.task_type)
+
+    elif export_type == "rt":
+        lines = []
+        content = convert_to_rt(payload, task.task_type)
+        filename = "translation.rt"
     else:
         return Response(
             {"message": "This type is not supported."},
@@ -836,7 +880,7 @@ def check_if_transcription_correct(transcription_obj, task):
             transcription_obj.status = "TRANSCRIPTION_SELECT_SOURCE"
             task.save()
             transcription_obj.save()
-        
+
         response = {
             "data": bad_sentences,
             "message": "Transcription task couldn't be completed. Please correct the following sentences.",
