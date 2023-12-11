@@ -613,21 +613,13 @@ def convert_to_rt(payload, task_type):
     lines.append('<Window\n  Width    = "640"\n  Height   = "480"\n  WordWrap = "true"\n  Loop     = "true"\n  bgcolor  = "black"\n>\n<Font\n  Color = "white"\n  Face  = "Arial"\n  Size  = "+2"\n>\n<center>\n<b>\n')
     if "TRANSCRIPTION" in task_type:
         for index, segment in enumerate(payload):
-            start_time = start_times = [datetime.datetime.strptime("00:%02d:%02d.0" % (m, s), time_format) for m, s in [divmod(index * 16, 60)]][0]
-            end_time = end_times = [datetime.datetime.strptime("00:%02d:%02d.0" % (m, s), time_format) for m, s in [divmod((index + 1) * 16, 60)]][0]
-
-            start_time_str = start_time.strftime("%H:%M:%S.%f")[:-5]
-            end_time_str = end_time.strftime("%H:%M:%S.%f")[:-5]
-
+            start_time_str = segment["start_time"]
+            end_time_str = end_time["end_time"]
             lines.append("<Time begin=" + f"{start_time_str}" + " end=" + f"{end_time_str}" + " />" + "<clear/> " +" " + segment["text"])
     else:
         for index, segment in enumerate(payload):
-            start_time = start_times = [datetime.datetime.strptime("00:%02d:%02d.0" % (m, s), time_format) for m, s in [divmod(index * 16, 60)]][0]
-            end_time = end_times = [datetime.datetime.strptime("00:%02d:%02d.0" % (m, s), time_format) for m, s in [divmod((index + 1) * 16, 60)]][0]
-
-            start_time_str = start_time.strftime("%H:%M:%S.%f")[:-5]
-            end_time_str = end_time.strftime("%H:%M:%S.%f")[:-5]
-
+            start_time_str = segment["start_time"]
+            end_time_str = segment["end_time"]
             lines.append("<Time begin=" + f"{start_time_str}" + " end=" + f"{end_time_str}" + " />" + "<clear/> " +" " + segment["target_text"])
     lines.append("</b>\n</center>")
     content = "\n".join(lines)
