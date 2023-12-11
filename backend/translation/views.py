@@ -47,6 +47,8 @@ from .utils import (
     convert_to_paragraph,
     convert_to_paragraph_monolingual,
     convert_to_paragraph_bilingual,
+    convert_to_rt,
+    convert_scc_format,
     generate_translation_payload,
     set_fail_for_translation_task,
 )
@@ -70,7 +72,7 @@ from transcript.utils.timestamp import *
 @api_view(["GET"])
 def get_translation_export_types(request):
     return Response(
-        {"export_types": ["srt", "vtt", "txt", "docx", "docx-bilingual"]},
+        {"export_types": ["srt", "vtt", "txt", "docx", "docx-bilingual", "sbv", "TTML", "scc", "rt"]},
         status=status.HTTP_200_OK,
     )
 
@@ -88,7 +90,7 @@ def get_translation_export_types(request):
         openapi.Parameter(
             "export_type",
             openapi.IN_QUERY,
-            description=("export type parameter srt/vtt/txt/docx/docx-bilingual/sbv/TTML/scc"),
+            description=("export type parameter srt/vtt/txt/docx/docx-bilingual/sbv/TTML/scc/rt"),
             type=openapi.TYPE_STRING,
             required=True,
         ),
@@ -145,15 +147,16 @@ def export_translation(request):
             speaker["label"]: speaker["value"] for speaker in speaker_info
         }
 
-    supported_types = ["srt", "vtt", "txt", "docx", "docx-bilingual", "sbv", "TTML", "scc","rt"]
+    supported_types = ["srt", "vtt", "txt", "docx", "docx-bilingual", "scc", "sbv", "TTML", "rt"]
     if export_type not in supported_types:
         return Response(
             {
-                "message": "exported type only supported formats are : {srt, vtt, txt, docx, docx-bilingual, sbv, TTML, scc, rt} "
+                "message": "exported type only supported formats are : {srt, vtt, txt, docx, docx-bilingual, sbv, TTML, scc, rt}"
             },
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    lines = []
     if export_type == "srt":
         for index, segment in enumerate(payload):
             if "text" in segment.keys():
@@ -192,7 +195,7 @@ def export_translation(request):
             if "text" in segment.keys():
                 lines.append(segment["target_text"])
         filename = "translation.txt"
-        content = convert_to_paragraph(lines)
+        content = convert_to_paragraph(lines, task.video.name)
     elif export_type == "docx":
         filename = "translation.docx"
         content = convert_to_paragraph_monolingual(payload, task.video.name)
@@ -235,52 +238,12 @@ def export_translation(request):
         content = "\n".join(lines)
 
     elif export_type == "scc":
-
-        def convert_to_unicode_hex(payload):
-            unicode_hex = []
-            for char in payload:
-                for c in char:
-                    unicode_hex.append(format(ord(c), "x").zfill(4))
-            return " ".join(unicode_hex)
-
-        def convert_scc_format(payload):
-            lines = translation.payload["payload"]
-            output = "Scenarist_SCC V1.0\n\n"
-            scc_lines = []
-            time = 0
-            for line in lines:
-                line_hex = convert_to_unicode_hex(line)
-                line_time = (
-                    "00:"
-                    + str(time // 60).zfill(2)
-                    + ":"
-                    + str(time % 60).zfill(2)
-                    + ":00"
-                )
-                scc_line = line_time + "\t" + line_hex
-                scc_lines.append(scc_line)
-                time += 16
-            return output + "\n".join(scc_lines)
-
-        filename = "tarnslation.scc"
-        content = convert_scc_format(payload=payload)
-
+        content = convert_scc_format(payload, task.task_type)
+        filename = "translation.scc"
     elif export_type == "rt":
-        time_format = "%H:%M:%S.%f"
-        lines.append('<Window\n  Width    = "640"\n  Height   = "480"\n  WordWrap = "true"\n  Loop     = "true"\n  bgcolor  = "black"\n>\n<Font\n  Color = "white"\n  Face  = "Arial"\n  Size  = "+2"\n>\n<center>\n<b>\n')
-
-        for index, segment in enumerate(payload):
-            start_time = start_times = [datetime.datetime.strptime("00:%02d:%02d.0" % (m, s), time_format) for m, s in [divmod(index * 16, 60)]][0]
-            end_time = end_times = [datetime.datetime.strptime("00:%02d:%02d.0" % (m, s), time_format) for m, s in [divmod((index + 1) * 16, 60)]][0]
-
-            start_time_str = start_time.strftime("%H:%M:%S.%f")[:-5]
-            end_time_str = end_time.strftime("%H:%M:%S.%f")[:-5]
-
-            lines.append(
-                "<Time begin=" + f"{start_time_str}" + " end=" + f"{end_time_str}" + " />" + "<clear/> " +" " + segment["target_text"] )
-        lines.append("</b>\n</center>")
+        lines = []
+        content = convert_to_rt(payload, task.task_type)
         filename = "translation.rt"
-        content = "\n".join(lines)
 
     else:
         return Response(
