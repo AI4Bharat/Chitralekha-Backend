@@ -7,4 +7,7 @@ router = routers.DefaultRouter()
 
 router.register(r"", views.NewsletterViewSet, basename="newsletter")
 
-urlpatterns = router.urls
+urlpatterns = [
+    path("", include(router.urls)),
+    path("unsubscribe", views.unsubscribe, name="unsubscribe"),
+]

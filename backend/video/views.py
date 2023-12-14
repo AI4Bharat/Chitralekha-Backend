@@ -594,7 +594,7 @@ def update_video(request):
             if not task:
                 errors.append(
                     {
-                        "message": f"Video's transcript status must be selected source or none",
+                        "message": f"Video's transcript status must be Selected Source or None",
                     }
                 )
 
@@ -643,7 +643,7 @@ def update_video(request):
 
         if len(errors) > 0:
             return Response(
-                {"message": "Invalid Data", "response": errors},
+                {"message": errors[0]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         else:

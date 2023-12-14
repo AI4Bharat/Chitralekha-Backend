@@ -1,3 +1,4 @@
+import datetime
 from io import StringIO
 import webvtt
 from django.shortcuts import get_object_or_404
@@ -11,6 +12,7 @@ from rest_framework.decorators import (
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from transcript.utils.TTML import generate_ttml
 from transcript.models import Transcript
 from video.models import Video
 from task.models import Task
@@ -20,6 +22,7 @@ from django.http import HttpRequest
 from django.core.files.base import ContentFile
 import requests
 from .metadata import TRANSLATION_SUPPORTED_LANGUAGES, TRANSLATION_LANGUAGE_CHOICES
+from transcript.utils.TTML import generate_ttml
 from .models import (
     Translation,
     MACHINE_GENERATED,
@@ -44,6 +47,8 @@ from .utils import (
     convert_to_paragraph,
     convert_to_paragraph_monolingual,
     convert_to_paragraph_bilingual,
+    convert_to_rt,
+    convert_scc_format,
     generate_translation_payload,
     set_fail_for_translation_task,
 )
@@ -67,7 +72,7 @@ from transcript.utils.timestamp import *
 @api_view(["GET"])
 def get_translation_export_types(request):
     return Response(
-        {"export_types": ["srt", "vtt", "txt", "docx", "docx-bilingual"]},
+        {"export_types": ["srt", "vtt", "txt", "docx", "docx-bilingual", "sbv", "TTML", "scc", "rt"]},
         status=status.HTTP_200_OK,
     )
 
@@ -85,7 +90,7 @@ def get_translation_export_types(request):
         openapi.Parameter(
             "export_type",
             openapi.IN_QUERY,
-            description=("export type parameter srt/vtt/txt/docx/docx-bilingual"),
+            description=("export type parameter srt/vtt/txt/docx/docx-bilingual/sbv/TTML/scc/rt"),
             type=openapi.TYPE_STRING,
             required=True,
         ),
@@ -142,15 +147,16 @@ def export_translation(request):
             speaker["label"]: speaker["value"] for speaker in speaker_info
         }
 
-    lines = []
-    supported_types = ["srt", "vtt", "txt", "docx", "docx-bilingual"]
+    supported_types = ["srt", "vtt", "txt", "docx", "docx-bilingual", "scc", "sbv", "TTML", "rt"]
     if export_type not in supported_types:
         return Response(
             {
-                "message": "exported type only supported formats are : {srt, vtt, txt, docx, docx-bilingual} "
+                "message": "exported type only supported formats are : {srt, vtt, txt, docx, docx-bilingual, sbv, TTML, scc, rt}"
             },
             status=status.HTTP_404_NOT_FOUND,
         )
+
+    lines = []
     if export_type == "srt":
         for index, segment in enumerate(payload):
             if "text" in segment.keys():
@@ -189,7 +195,7 @@ def export_translation(request):
             if "text" in segment.keys():
                 lines.append(segment["target_text"])
         filename = "translation.txt"
-        content = convert_to_paragraph(lines)
+        content = convert_to_paragraph(lines, task.video.name)
     elif export_type == "docx":
         filename = "translation.docx"
         content = convert_to_paragraph_monolingual(payload, task.video.name)
@@ -198,6 +204,47 @@ def export_translation(request):
         filename = "translation.docx"
         content = convert_to_paragraph_bilingual(payload, task.video.name)
         return convert_to_docx(content)
+
+    elif export_type == "sbv":
+        for index, segment in enumerate(payload):
+            lines.append(
+                segment["start_time"]
+                + ","
+                + segment["end_time"]
+                + "\n"
+                + segment["target_text"]
+                + "\n"
+            )
+        filename = "translation.sbv"
+        content = "\n".join(lines)
+
+    elif export_type == "TTML":
+        lines = generate_ttml(payload)
+        for index, segment in enumerate(payload):
+
+            lines.append(
+                "\t\t\t<p xml:id='subtitle"
+                + str(index + 1)
+                + "' begin='"
+                + segment["start_time"]
+                + "' end='"
+                + segment["end_time"]
+                + "' style='s1'>"
+                + segment["target_text"].replace(",", "<br/>")
+                + "</p>"
+            )
+        lines.append("\t\t</div>\n" + "\t</body>\n" + "</tt>\n")
+        filename = "translation.TTML"
+        content = "\n".join(lines)
+
+    elif export_type == "scc":
+        content = convert_scc_format(payload, task.task_type)
+        filename = "translation.scc"
+    elif export_type == "rt":
+        lines = []
+        content = convert_to_rt(payload, task.task_type)
+        filename = "translation.rt"
+
     else:
         return Response(
             {"message": "This type is not supported."},

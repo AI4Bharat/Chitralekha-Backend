@@ -4,6 +4,8 @@ from .models import User
 from django.contrib.auth import password_validation
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
+from newsletter.serializers import SubscribedUsersSerializers
+from newsletter.models import SubscribedUsers
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -100,6 +102,17 @@ class UserUpdateSerializerOrgOwner(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     organization = OrganizationSerializer(read_only=True)
     role_label = serializers.CharField(source="get_role_label")
+    subscribed_info = serializers.SerializerMethodField()
+
+    def get_subscribed_info(self, obj):
+        subscribed_obj = SubscribedUsers.objects.filter(
+            user=obj).first()
+        if subscribed_obj is not None:
+            subscribed = True
+            return {"subscribed": subscribed, "email": subscribed_obj.email}
+        else:
+            subscribed = False
+            return {"subscribed": subscribed, "email": ""}
 
     class Meta:
         model = User
@@ -118,6 +131,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "unverified_email",
             "date_joined",
             "languages",
+            "subscribed_info",
         ]
         read_only_fields = [
             "id",

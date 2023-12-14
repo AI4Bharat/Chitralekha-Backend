@@ -577,13 +577,13 @@ class RoleViewSet(viewsets.ViewSet):
             if user.role == role:
                 return Response(
                     {
-                        "message": "User has same role as requested",
+                        "message": "Different role required",
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             elif (role == "ORG_OWNER") or (role == "ADMIN"):
                 return Response(
-                    {"message": f"User's role must not be update as {role}"},
+                    {"message": f"Role can not be updated as {role}"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             elif user.role == "PROJECT_MANAGER":
@@ -593,7 +593,7 @@ class RoleViewSet(viewsets.ViewSet):
 
                     return Response(
                         {
-                            "message": "Please remove user from project manager",
+                            "message": "Reassign tasks to relevant users before role updated as PROJECT_MANAGER",
                             "data": serializer_project.data,
                         },
                         status=status.HTTP_400_BAD_REQUEST,
@@ -634,7 +634,7 @@ class RoleViewSet(viewsets.ViewSet):
                         serialized_dict = json.loads(json.dumps(serializer.data))
                         return Response(
                             {
-                                "message": "Please assign task to relevant user",
+                                "message": "Assign following tasks to the appropriate users and then proceed to update the role.",
                                 "data": serialized_dict,
                             },
                             status=status.HTTP_400_BAD_REQUEST,
@@ -646,12 +646,12 @@ class RoleViewSet(viewsets.ViewSet):
                     user.role = role
                     user.save()
                     response = {
-                        "message": "User's role is successfully updated.",
+                        "message": "Role is successfully updated.",
                     }
                     status_code = status.HTTP_200_OK
                 else:
                     response = {
-                        "message": "Unable to update user role",
+                        "message": "Unable to update role",
                     }
                     status_code = status.HTTP_400_BAD_REQUEST
             else:

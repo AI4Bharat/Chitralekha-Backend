@@ -69,19 +69,19 @@ services:
     command: python3 -m celery -A backend worker -Q nmt -n nmt_worker --concurrency=1 -l DEBUG
     restart: unless-stopped
 
-  # celery_voiceover:
-  #   container_name: celery_voiceover
-  #   image: server_image
-  #   working_dir: /home/backend
-  #   volumes:
-  #     - ./backend:/home/backend
-  #   depends_on:
-  #     redis:
-  #       condition: service_started
-  #     backend:
-  #       condition: service_started
-  #   command: python3 -m celery -A backend worker -Q voiceover -n voiceover_worker@%h --concurrency=1 -l DEBUG
-  #   restart: unless-stopped
+  celery_newsletter:
+    container_name: celery_newsletter
+    image: server_image
+    working_dir: /home/backend
+    volumes:
+      - ./backend:/home/backend
+    depends_on:
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+    command: python3 -m celery -A backend worker -Q newsletter -n newsletter_worker@%h --concurrency=1 -l DEBUG
+    restart: unless-stopped
 
   celery_beat:
     container_name: celery_beat
