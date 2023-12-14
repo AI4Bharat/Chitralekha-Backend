@@ -774,7 +774,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 search_dict = json.loads(request.query_params["search"])
 
             sort_by = request.query_params.get("sort_by", "updated_at")
-            reverse = request.query_params.get("reverse", "False")
+            reverse = request.query_params.get("reverse", "True")
             reverse = reverse.lower() == "true"
             project = Project.objects.get(pk=pk)
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
