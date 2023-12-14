@@ -873,14 +873,12 @@ def check_if_transcription_correct(transcription_obj, task):
                 .filter(status="TRANSCRIPTION_SELECT_SOURCE")
                 .first()
             )
-            transcription.parent_transcript = None
-            transcription.save()
-            transcription.delete()
-            task.status = "SELECTED_SOURCE"
+            transcription_obj.parent_transcript = None
             transcription_obj.status = "TRANSCRIPTION_SELECT_SOURCE"
-            task.save()
             transcription_obj.save()
-
+            task.status = "SELECTED_SOURCE"
+            transcription.delete()
+            task.save()
         response = {
             "data": bad_sentences,
             "message": "Transcription task couldn't be completed. Please correct the following sentences.",
