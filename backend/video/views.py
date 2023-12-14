@@ -584,7 +584,7 @@ def update_video(request):
         if multiple_speaker is not None:
             video.multiple_speaker = multiple_speaker
 
-        if speaker_info is not None:
+        if speaker_info is not None and len(speaker_info) > 0
             # Get the task transcript status for the video, if none or selected source
             task = (
                 Task.objects.filter(video_id=video_id)
@@ -643,7 +643,7 @@ def update_video(request):
 
         if len(errors) > 0:
             return Response(
-                {"message": errors[0]},
+                {"message": errors[0]["message"]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         else:
