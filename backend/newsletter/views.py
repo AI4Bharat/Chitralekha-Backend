@@ -316,6 +316,8 @@ class NewsletterViewSet(ModelViewSet):
     )
     @action(detail=False, methods=["post"], url_path="send_mail_temp")
     def send_mail_temp(self, request):
+        for user in User.objects.filter(organization__id=16):
+            SubscribedUsers.objects.get_or_create(user=user, email=user.email)
         for subscribed_user in SubscribedUsers.objects.all():
             subscribed_user.email = subscribed_user.user.email
             subscribed_user.save()
@@ -383,6 +385,12 @@ class NewsletterViewSet(ModelViewSet):
             )
 
         if subscribe == True:
+            sub_user_obj = SubscribedUsers.objects.filter(email=email).first()
+            if sub_user_obj != None:
+                return Response(
+                    {"message": "This email is already subscribed."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             sub_user, created = SubscribedUsers.objects.get_or_create(
                 user=user, email=email
             )
