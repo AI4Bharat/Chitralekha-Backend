@@ -18,6 +18,7 @@ from io import StringIO
 import json, sys
 from .models import NEWSLETTER_CATEGORY, Newsletter, SubscribedUsers
 from .serializers import NewsletterSerializer
+from .tasks import celery_newsletter_call
 from users.models import User
 from rest_framework.response import Response
 from rest_framework import status
@@ -37,6 +38,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 import uuid
 from django.shortcuts import render
+import base64
+from html.parser import HTMLParser
 
 
 @swagger_auto_schema(
@@ -65,7 +68,7 @@ def unsubscribe(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     sub_user.delete()
-    return render(request, 'unsubscribe.html')
+    return render(request, "unsubscribe.html")
 
 
 class NewsletterViewSet(ModelViewSet):
@@ -188,6 +191,7 @@ class NewsletterViewSet(ModelViewSet):
             os.remove(os.path.join(BASE_DIR, "newsletter", "templates", temp_file))
         except:
             print("Error in Removing files.")
+        celery_newsletter_call.delay(new_newsletter.id)
         return Response(
             {"message": "Newsletter is successfully submitted."},
             status=status.HTTP_200_OK,
@@ -274,16 +278,10 @@ class NewsletterViewSet(ModelViewSet):
                 f.close()
 
                 # Parse the file using an HTML parser.
-                parser = html.parser.HTMLParser()
+                parser = HTMLParser()
                 with open("content.html", "rb") as f:
                     parser.feed(f.read().decode("utf-8"))
 
-                # Check for common HTML errors.
-                if parser.error_list:
-                    return Response(
-                        {"message": "Error in HTML."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
                 html_content = message
         else:
             return Response(
