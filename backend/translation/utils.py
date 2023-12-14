@@ -18,7 +18,58 @@ from task.models import Task
 import regex
 from transcript.utils.timestamp import *
 from yt_dlp import YoutubeDL
+import pandas as pd
 
+
+def convert_to_scc(subtitles):
+    scc_lines = ["Scenarist_SCC V1.0"]
+
+    for index, (timecode, text) in enumerate(subtitles, start=1):
+        scc_line = convert_timecode(timecode)  + "\t94ae 94ae 9420 9420 947a 947a 97a2 97a2 " + text_to_hex(text) + "92 942c 942c 8080 8080 942f 942f"
+        scc_lines.append(scc_line)
+    str1 = "\n\n".join(scc_lines)
+    return str1
+
+def convert_timecode(timecode):
+    parts = timecode.split(" --> ")
+    return f"{convert_timestamp(parts[0])}"
+
+def convert_timestamp(timestamp):
+    # Convert HH:MM:SS.sss to frames (assuming 30 frames per second)
+    hours, minutes, seconds = map(float, timestamp.replace(",", ".").split(":"))
+    total_frames = int((hours * 3600 + minutes * 60 + seconds) * 30)
+    return f"{total_frames // 1800:02d}:{(total_frames % 1800) // 30:02d}:{(total_frames % 30) * 2:02d}:00"
+
+def text_to_hex(text):
+    hex_values = ''.join([format(ord(char), 'x') for char in text])
+    formatted_output = ' '.join([hex_values[i:i+4] for i in range(0, len(hex_values), 4)])
+    return formatted_output
+
+
+def convert_scc_format(payload, task_type):
+    if "TRANSCRIPTION" in task_type:
+        output_list = [
+        (
+            f"{item['start_time']} --> {item['end_time']}",
+            item['text']
+        )
+        for item in payload
+        ]
+    else:
+        output_list = [
+        (
+            f"{item['start_time']} --> {item['end_time']}",
+            item['target_text']
+        )
+        for item in payload
+        ]
+    scc_content = convert_to_scc(output_list)
+    """
+    with open("scc_content.txt", "w") as scc_filename:
+    	df = pd.DataFrame({'data': [scc_content]})
+    	df.to_csv('test.txt', sep='\t', index=False)
+    """
+    return scc_content
 
 ### Utility Functions ###
 def validate_uuid4(val):
@@ -554,3 +605,22 @@ def set_fail_for_translation_task(task):
     if translation_task is not None:
         translation_task.status = "FAILED"
         translation_task.save()
+
+
+def convert_to_rt(payload, task_type):
+    lines = []
+    time_format = "%H:%M:%S.%f"
+    lines.append('<Window\n  Width    = "640"\n  Height   = "480"\n  WordWrap = "true"\n  Loop     = "true"\n  bgcolor  = "black"\n>\n<Font\n  Color = "white"\n  Face  = "Arial"\n  Size  = "+2"\n>\n<center>\n<b>\n')
+    if "TRANSCRIPTION" in task_type:
+        for index, segment in enumerate(payload):
+            start_time_str = segment["start_time"]
+            end_time_str = segment["end_time"]
+            lines.append("<Time begin=" + f"{start_time_str}" + " end=" + f"{end_time_str}" + " />" + "<clear/> " +" " + segment["text"])
+    else:
+        for index, segment in enumerate(payload):
+            start_time_str = segment["start_time"]
+            end_time_str = segment["end_time"]
+            lines.append("<Time begin=" + f"{start_time_str}" + " end=" + f"{end_time_str}" + " />" + "<clear/> " +" " + segment["target_text"])
+    lines.append("</b>\n</center>")
+    content = "\n".join(lines)
+    return content
