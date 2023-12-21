@@ -9,8 +9,10 @@ from video.models import Video
 from video.serializers import VideoSerializer
 from users.models import User
 from .models import Project
+from .tasks import *
 from .serializers import ProjectSerializer
 from .decorators import is_project_owner, is_particular_project_owner
+from .utils import get_reports_for_users
 from users.serializers import UserFetchSerializer, UserProfileSerializer
 from task.models import Task
 from task.serializers import TaskSerializer, TaskStatusSerializer
@@ -41,6 +43,7 @@ from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from voiceover.metadata import VOICEOVER_LANGUAGE_CHOICES
 from organization.utils import *
 import logging
+from django.http import HttpRequest
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -1327,6 +1330,26 @@ class ProjectViewSet(viewsets.ModelViewSet):
         url_name="get_report_users",
     )
     @is_particular_project_owner
+    def send_report_users_email(self, request, pk=None, *args, **kwargs):
+        try:
+            prj = Project.objects.get(pk=pk)
+        except Project.DoesNotExist:
+            return Response(
+                {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        send_email_with_users_report.delay(prj.id, request.user.id)
+        return Response(
+            {"message": "Reports will be emailed."}, status=status.HTTP_200_OK
+        )
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="Get Report Users",
+        url_name="get_report_users",
+    )
+    @is_particular_project_owner
     def get_report_users(self, request, pk=None, *args, **kwargs):
         try:
             prj = Project.objects.get(pk=pk)
@@ -1334,158 +1357,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        project_members = (
-            User.objects.filter(projects__pk=pk)
-            .filter(has_accepted_invite=True)
-            .values(name=Concat("first_name", Value(" "), "last_name"), mail=F("email"))
-            .order_by("mail")
-        )
-        user_statistics = (
-            project_members.annotate(
-                tasks_assigned_count=Count(
-                    "task", filter=Q(task__video__project_id=prj.id)
-                )
-            )
-            .annotate(
-                tasks_completed_count=Count(
-                    "task",
-                    filter=Q(task__status="COMPLETE")
-                    & Q(task__video__project_id=prj.id),
-                )
-            )
-            .annotate(
-                task_completion_percentage=Cast(
-                    F("tasks_completed_count"), FloatField()
-                )
-                / Cast(F("tasks_assigned_count"), FloatField())
-                * 100
-            )
-            .annotate(
-                average_completion_time=Avg(
-                    Case(
-                        When(
-                            (
-                                Q(task__status="COMPLETE")
-                                & Q(
-                                    task__updated_at__lt=(
-                                        datetime(2023, 4, 5, 17, 0, 0)
-                                    )
-                                )
-                            ),
-                            then=(
-                                Extract(
-                                    F("task__updated_at") - F("task__created_at"),
-                                    "epoch",
-                                )
-                            ),
-                        ),
-                        When(
-                            (
-                                Q(task__status="COMPLETE")
-                                & Q(
-                                    task__updated_at__gte=(
-                                        datetime(2023, 4, 5, 17, 0, 0)
-                                    )
-                                )
-                            ),
-                            then=F("task__time_spent"),
-                        ),
-                        default=0,
-                        output_field=IntegerField(),
-                    ),
-                    filter=Q(task__status="COMPLETE"),
-                )
-            )
-            .exclude(tasks_assigned_count=0)
-        ).order_by("mail")
-        word_count_transcript_statistics = (
-            project_members.annotate(
-                transcript_word_count=Sum(
-                    Cast(F("transcript__payload__word_count"), FloatField()),
-                    filter=(
-                        Q(transcript__video__project_id=prj.id)
-                        & Q(transcript__status="TRANSCRIPTION_EDIT_COMPLETE")
-                    ),
-                ),
-            )
-        ).order_by(
-            "mail"
-        )  # fetching transcript word count
-        word_count_translation_statistics = (
-            project_members.annotate(
-                translation_word_count=Sum(
-                    Cast(F("translation__payload__word_count"), FloatField()),
-                    filter=(
-                        Q(translation__video__project_id=prj.id)
-                        & Q(translation__status="TRANSLATION_EDIT_COMPLETE")
-                    ),
-                )
-            )
-        ).order_by(
-            "mail"
-        )  # fetching translation word count
-        user_data = []
-        word_count_idx = 0
-        for elem in user_statistics:
-            while (
-                word_count_idx < len(word_count_translation_statistics)
-                and elem["name"]
-                != word_count_translation_statistics[word_count_idx]["name"]
-            ):  # to skip names not present in user_statistics
-                word_count_idx += 1
-            if word_count_idx >= len(word_count_translation_statistics):
-                break
-            avg_time = (
-                0
-                if elem["average_completion_time"] is None
-                else round(elem["average_completion_time"] / 3600, 3)
-            )
-            word_count_translation = (
-                0
-                if word_count_translation_statistics[word_count_idx][
-                    "translation_word_count"
-                ]
-                is None
-                else word_count_translation_statistics[word_count_idx][
-                    "translation_word_count"
-                ]
-            )
-            word_count_transcript = (
-                0
-                if word_count_transcript_statistics[word_count_idx][
-                    "transcript_word_count"
-                ]
-                is None
-                else word_count_transcript_statistics[word_count_idx][
-                    "transcript_word_count"
-                ]
-            )
-            user_dict = {
-                "name": {"value": elem["name"], "label": "Name", "viewColumns": False},
-                "mail": {"value": elem["mail"], "label": "Email", "viewColumns": False},
-                "tasks_assigned_count": {
-                    "value": elem["tasks_assigned_count"],
-                    "label": "Assigned Tasks",
-                },
-                "tasks_completed_count": {
-                    "value": elem["tasks_completed_count"],
-                    "label": "Completed Tasks",
-                },
-                "tasks_completion_perc": {
-                    "value": round(elem["task_completion_percentage"], 2),
-                    "label": "Task Completion Index(%)",
-                },
-                "avg_comp_time": {
-                    "value": float("{:.2f}".format(avg_time)),
-                    "label": "Avg. Completion Time (Hours)",
-                },
-                "word_count": {
-                    "value": int(word_count_translation + word_count_transcript),
-                    "label": "Word count",
-                },
-            }
-            user_data.append(user_dict)
-            word_count_idx += 1
+        user_data = get_reports_for_users(pk)
         return Response(user_data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
