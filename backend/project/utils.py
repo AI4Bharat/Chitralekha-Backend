@@ -186,19 +186,12 @@ def send_mail_with_report(project_id, user_data, user):
     # Attach the CSV file to the email
     email.attach_file(csv_file_path)
 
-    # Send the email using send_mail
+    # Send the email
     try:
-        send_mail(
-            subject,
-            body,
-            from_email,
-            [to_email],
-            fail_silently=False,
-            attachments=email.attachments,
-        )
+        email.send()
     except:
         logging.info("Unable to send Email.")
-    # os.remove(csv_file_path)
+    os.remove(csv_file_path)
 
 
 def get_project_report_users_email(project_id, user):
