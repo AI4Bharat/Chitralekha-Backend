@@ -6,7 +6,7 @@ import logging
 
 
 @celery_app.task(queue="newsletter")
-def celery_newsletter_call(newsletter_id):
+def celery_newsletter_call(newsletter_id, subject):
     logging.info("Sending Newsletter")
     subscribed_users = SubscribedUsers.objects.all()
     newsletter = Newsletter.objects.get(pk=newsletter_id)
@@ -17,7 +17,7 @@ def celery_newsletter_call(newsletter_id):
         newsletter.save()
         try:
             send_mail(
-                "Chitralekha - Newsletter",
+                subject,
                 "",
                 settings.DEFAULT_FROM_EMAIL,
                 [subscribed_user.email],
