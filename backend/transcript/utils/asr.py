@@ -55,15 +55,27 @@ def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
         else:
             return None
 
-        json_data = {
-            "config": {
-                "serviceId": service_id,
-                "language": {"sourceLanguage": lang},
-                "transcriptionFormat": {"value": "srt"},
-                "postProcessors": ["itn", "punctuation"],
-            },
-            "audio": [{"audioUri": url}],
-        }
+        if lang not in ["kn", "gu", "ur", "ml"]:
+            json_data = {
+                "config": {
+                    "serviceId": service_id,
+                    "language": {"sourceLanguage": lang},
+                    "transcriptionFormat": {"value": "srt"},
+                    "postProcessors": ["itn", "punctuation"],
+                    "preProcessors": ["vad"],
+                },
+                "audio": [{"audioUri": url}],
+            }
+        else:
+            json_data = {
+                "config": {
+                    "serviceId": service_id,
+                    "language": {"sourceLanguage": lang},
+                    "transcriptionFormat": {"value": "srt"},
+                    "preProcessors": ["vad"],
+                },
+                "audio": [{"audioUri": url}],
+            }
         logging.info("Sending request to indic model.")
         try:
             response = requests.post(
