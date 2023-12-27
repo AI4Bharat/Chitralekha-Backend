@@ -2,7 +2,6 @@
 TRANSCRIPTION_LANGUAGE_CHOICES = [
     ("en", "English"),
     ("hi", "Hindi"),
-    ("as", "Assamese"),
     ("bn", "Bengali"),
     ("gu", "Gujarati"),
     ("kn", "Kannada"),
@@ -12,10 +11,11 @@ TRANSCRIPTION_LANGUAGE_CHOICES = [
     ("pa", "Punjabi"),
     ("ta", "Tamil"),
     ("te", "Telugu"),
+    ("sa", "Sanskrit"),
+    ("ur": "Urdu"),
 ]
 
 TRANSCRIPTION_SUPPORTED_LANGUAGES = {
-    "Assamese": "as",
     "Bengali": "bn",
     "English": "en",
     "Gujarati": "gu",
@@ -25,6 +25,8 @@ TRANSCRIPTION_SUPPORTED_LANGUAGES = {
     "Marathi": "mr",
     "Oriya": "or",
     "Punjabi": "pa",
+    "Sanskrit": "sa",
     "Tamil": "ta",
     "Telugu": "te",
+    "Urdu": "ur",
 }
