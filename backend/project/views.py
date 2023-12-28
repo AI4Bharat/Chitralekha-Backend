@@ -12,7 +12,7 @@ from .models import Project
 from .tasks import *
 from .serializers import ProjectSerializer
 from .decorators import is_project_owner, is_particular_project_owner
-from .utils import get_reports_for_users, get_reports_for_languages
+from .utils import *
 from users.serializers import UserFetchSerializer, UserProfileSerializer
 from task.models import Task
 from task.serializers import TaskSerializer, TaskStatusSerializer
@@ -41,7 +41,6 @@ from voiceover.models import VoiceOver
 import json, math
 from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from voiceover.metadata import VOICEOVER_LANGUAGE_CHOICES
-from organization.utils import *
 import logging
 from django.http import HttpRequest
 
