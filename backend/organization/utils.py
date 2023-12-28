@@ -21,12 +21,26 @@ from project.models import Project
 from project.views import ProjectViewSet
 from django.http import HttpRequest
 import pandas as pd
-from project.utils import send_mail_with_report
 from transcript.models import Transcript
 from translation.models import Translation
 from voiceover.models import VoiceOver
 from video.models import Video
 from task.models import Task
+
+
+def send_mail_with_report(subject, body, user, csv_file_path):
+    from_email = settings.DEFAULT_FROM_EMAIL
+    to_email = user.email
+    email = EmailMessage(subject, body, from_email, [to_email])
+    # Attach the CSV file to the email
+    email.attach_file(csv_file_path)
+
+    # Send the email
+    try:
+        email.send()
+    except:
+        logging.info("Unable to send Email.")
+    os.remove(csv_file_path)
 
 
 def get_project_report_users(project_id, user):
@@ -36,6 +50,12 @@ def get_project_report_users(project_id, user):
     ret = data.get_report_users(new_request, project_id)
     return ret.data
 
+def get_project_report_languages(self, project_id, user):
+    data = ProjectViewSet(detail=True)
+    new_request = HttpRequest()
+    new_request.user = user
+    ret = data.get_report_languages(new_request, project_id)
+    return ret.data
 
 def task_search_filter(videos, search_dict, filter_dict):
     if search_dict is not None:
