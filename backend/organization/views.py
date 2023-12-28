@@ -27,7 +27,6 @@ from transcript.models import Transcript
 from translation.models import Translation
 import json
 from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
-from project.views import ProjectViewSet
 from django.http import HttpRequest
 from django.db.models import Q
 import logging
@@ -35,7 +34,6 @@ import math
 from django.db.models import Value
 from django.db.models.functions import Concat
 from .utils import *
-from project.views import ProjectViewSet
 from .tasks import *
 
 
@@ -621,13 +619,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
-
-    def get_project_report_languages(self, project_id, user):
-        data = ProjectViewSet(detail=True)
-        new_request = HttpRequest()
-        new_request.user = user
-        ret = data.get_report_languages(new_request, project_id)
-        return ret.data
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
