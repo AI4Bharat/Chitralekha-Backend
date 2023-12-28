@@ -217,6 +217,14 @@ def get_org_report_languages_email(org_id, user):
         df.to_csv(file_name, index=False)
         csv_file_paths.append(file_name)
 
+    for section in ["transcript_stats", "translation_stats", "voiceover_stats"]:
+        if section in data:
+            for entry in data[section]:
+                keys_to_remove = [key for key in entry.keys() if isinstance(entry[key], dict) and 'label' in entry[key]]
+                for key in keys_to_remove:
+                    label = entry[key]['label']
+                    entry[label] = entry[key]['value']
+                    del entry[key]
     current_time = datetime.now()
     write_csv_pandas(
         "transcript_stats_{}_{}.csv".format(org_id, current_time),
