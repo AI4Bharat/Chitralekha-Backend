@@ -10,6 +10,9 @@ from .utils import (
     get_org_report_projects_email,
 )
 from users.models import User
+from azure.storage.blob import BlobServiceClient
+from datetime import datetime, timedelta
+from config import storage_account_key, connection_string, reports_container_name
 
 
 @shared_task()

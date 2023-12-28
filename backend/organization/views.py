@@ -797,52 +797,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             user_data.append(user_dict)
         return Response(user_data, status=status.HTTP_200_OK)
 
-    def format_completion_time(self, completion_time):
-        if completion_time < 60 * 60:
-            full_time = (
-                str(int(completion_time // 60))
-                + "m "
-                + str(int(completion_time % 60))
-                + "s"
-            )
-        elif completion_time >= 60 * 60 and completion_time < 24 * 60 * 60:
-            full_time = (
-                str(int(completion_time // (60 * 60)))
-                + "h "
-                + str(int((completion_time % (60 * 60)) // 60))
-                + "m"
-            )
-        elif completion_time >= 24 * 60 * 60 and completion_time < 30 * 24 * 60 * 60:
-            full_time = (
-                str(int(completion_time // (24 * 60 * 60)))
-                + "d "
-                + str(int((completion_time % (24 * 60 * 60)) // (60 * 60)))
-                + "h"
-            )
-        elif (
-            completion_time >= 30 * 24 * 60 * 60
-            and completion_time < 12 * 30 * 24 * 60 * 60
-        ):
-            full_time = (
-                str(int(completion_time // (30 * 24 * 60 * 60)))
-                + "m "
-                + str(int((completion_time % (30 * 24 * 60 * 60)) // (24 * 60 * 60)))
-                + "d"
-            )
-        else:
-            full_time = (
-                str(int(completion_time // (12 * 30 * 24 * 60 * 60)))
-                + "y "
-                + str(
-                    int(
-                        (completion_time % (12 * 30 * 24 * 60 * 60))
-                        // (30 * 24 * 60 * 60)
-                    )
-                )
-                + "m"
-            )
-        return full_time
-
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
         detail=True,
@@ -876,65 +830,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        projects_in_org = Project.objects.filter(organization_id=org).all()
-        all_project_report = []
-        if len(projects_in_org) > 0:
-            for project in projects_in_org:
-                project_report = get_project_report_languages(
-                    project.id, request.user
-                )
-                for keys, values in project_report.items():
-                    for report in values:
-                        report["project"] = {"value": project.title, "label": "Project", "viewColumns": False}
-                all_project_report.append(project_report)
-
-        aggregated_project_report = {"transcript_stats": [], "translation_stats": [], "voiceover_stats": []}
-        for project_report in all_project_report:
-            if type(project_report) == dict:
-                if (
-                    "transcript_stats" in project_report.keys()
-                    and len(project_report["transcript_stats"]) > 0
-                ):
-
-                    for i in range(len(project_report["transcript_stats"])):
-                        new_stats = dict(
-                            reversed(
-                                list(project_report["transcript_stats"][i].items())
-                            )
-                        )
-                        project_report["transcript_stats"][i] = new_stats
-                    dict(reversed(list(report.items())))
-                    aggregated_project_report["transcript_stats"].extend(
-                        project_report["transcript_stats"]
-                    )
-                if (
-                    "translation_stats" in project_report.keys()
-                    and len(project_report["translation_stats"]) > 0
-                ):
-                    for i in range(len(project_report["translation_stats"])):
-                        new_stats = dict(
-                            reversed(
-                                list(project_report["translation_stats"][i].items())
-                            )
-                        )
-                        project_report["translation_stats"][i] = new_stats
-                    aggregated_project_report["translation_stats"].extend(
-                        project_report["translation_stats"]
-                    )
-                if (
-                    "voiceover_stats" in project_report.keys()
-                    and len(project_report["voiceover_stats"]) > 0
-                ):
-                    for i in range(len(project_report["voiceover_stats"])):
-                        new_stats = dict(
-                            reversed(
-                                list(project_report["voiceover_stats"][i].items())
-                            )
-                        )
-                        project_report["voiceover_stats"][i] = new_stats
-                    aggregated_project_report["voiceover_stats"].extend(
-                        project_report["voiceover_stats"]
-                    )
+        aggregated_project_report = get_org_report_languages(pk, user)
         return Response(aggregated_project_report, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
@@ -1034,7 +930,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-
+        project_data = get_org_report_projects(pk, request.user)
         return Response(project_data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
