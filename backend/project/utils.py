@@ -201,29 +201,29 @@ def send_mail_with_report(subject, body, user, csv_file_paths):
 
     if len(report_urls) == 1:
         try:
+            reports_message = """<p>The requested report has been successfully generated. <br><br><a href={url} target="_blank">Click Here</a> to access the reports.</p>""".format(
+                url=report_urls[0]
+            )
             send_mail(
-                    subject,
-                    """The requested report has been successfully generated. You can access the report by copying and pasting the following link into your web browser.<br>
-                    {url}""".format(
-                        url=report_urls[0]
-                    ),
-                    settings.DEFAULT_FROM_EMAIL,
-                    [user.email],
+                subject,
+                "",
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                html_message=reports_message,
             )
         except:
             logging.info("Email Can't be sent.")
     else:
         try:
+            reports_msg = """<p>The requested report has been successfully generated. <br><br><a href={url_1} target="_blank">Click Here</a> to access the Transcription reports.<br><br><a href={url_2} target="_blank">Click Here</a> to access the Translation reports.<br><br><a href={url_3} target="_blank">Click Here</a> to access the VoiceOver reports.</p>""".format(
+                url_1=report_urls[0], url_2=report_urls[1], url_3=report_urls[2]
+            )
             send_mail(
-                    subject,
-                    """The requested report has been successfully generated. You can access the report by copying and pasting the following link into your web browser.<br>
-                    {url_1} <br> {url_2} <br> {url_3}""".format(
-                        url_1=report_urls[0],
-                        url_2=report_urls[1],
-                        url_3=report_urls[2],
-                    ),
-                    settings.DEFAULT_FROM_EMAIL,
-                    [user.email],
+                subject,
+                "",
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                html_message=reports_msg,
             )
         except:
             logging.info("Email Can't be sent.")
@@ -367,16 +367,18 @@ def get_project_report_users_email(project_id, user):
     # Write DataFrame to a CSV file
     df.to_csv(csv_file_path, index=False)
 
-    # Create an EmailMessage object
-    subject = f"User Reports for Project - {project.title}"
+    formatted_date = current_time.strftime("%d %b")
+    subject = f"User Reports for Project - {project.title} - {formatted_date}"
     body = "Please find the attached CSV file."
     send_mail_with_report(subject, body, user, [csv_file_path])
 
 
 def get_project_report_languages_email(project_id, user):
+    project = Project.objects.get(pk=project_id)
     data = get_reports_for_languages(project_id)
 
     csv_file_paths = []
+
     def write_csv_pandas(file_name, data_list):
         df = pd.DataFrame(data_list)
         df.to_csv(file_name, index=False)
@@ -384,13 +386,24 @@ def get_project_report_languages_email(project_id, user):
 
     current_time = datetime.now()
     # Write CSV files using pandas
-    write_csv_pandas("transcript_stats_{}_{}.csv".format(project_id, current_time), data['transcript_stats'])
-    write_csv_pandas("translation_stats_{}_{}.csv".format(project_id, current_time), data['translation_stats'])
-    write_csv_pandas("voiceover_stats_{}_{}.csv".format(project_id, current_time), data['voiceover_stats'])
+    write_csv_pandas(
+        "transcript_stats_{}_{}.csv".format(project_id, current_time),
+        data["transcript_stats"],
+    )
+    write_csv_pandas(
+        "translation_stats_{}_{}.csv".format(project_id, current_time),
+        data["translation_stats"],
+    )
+    write_csv_pandas(
+        "voiceover_stats_{}_{}.csv".format(project_id, current_time),
+        data["voiceover_stats"],
+    )
 
-    subject = f"Languages Reports for Project - {project_id}"
+    formatted_date = current_time.strftime("%d %b")
+    subject = f"Languages Reports for Project - {project.title} - {formatted_date}"
     body = "Please find the attached CSV file."
     send_mail_with_report(subject, body, user, csv_file_paths)
+
 
 def task_search_filter(videos, search_dict, filter_dict):
     if search_dict is not None:
