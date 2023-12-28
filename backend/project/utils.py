@@ -169,23 +169,7 @@ def get_reports_for_users(pk):
     return user_data
 
 
-def send_mail_with_report(project_id, user_data, user):
-    project = Project.objects.get(pk=project_id)
-    columns = [field["label"] for field in user_data[0].values()]
-
-    # Extract data values from the 'value' field of each dictionary
-    data = [[field["value"] for field in row.values()] for row in user_data]
-    current_time = datetime.now()
-
-    # Create a DataFrame
-    df = pd.DataFrame(data, columns=columns)
-    csv_file_path = "project_user_reports_{}_{}.csv".format(project_id, current_time)
-    # Write DataFrame to a CSV file
-    df.to_csv(csv_file_path, index=False)
-
-    # Create an EmailMessage object
-    subject = f"User Reports for Project - {project.title}"
-    body = "Please find the attached CSV file."
+def send_mail_with_report(subject, body, user, csv_file_path):
     from_email = settings.DEFAULT_FROM_EMAIL
     to_email = user.email
     email = EmailMessage(subject, body, from_email, [to_email])
@@ -322,9 +306,25 @@ def get_reports_for_languages(pk):
 
 def get_project_report_users_email(project_id, user):
     user_data = get_reports_for_users(project_id)
-    send_mail_with_report(project_id, user_data, user)
+    project = Project.objects.get(pk=project_id)
+    columns = [field["label"] for field in user_data[0].values()]
+
+    # Extract data values from the 'value' field of each dictionary
+    data = [[field["value"] for field in row.values()] for row in user_data]
+    current_time = datetime.now()
+
+    # Create a DataFrame
+    df = pd.DataFrame(data, columns=columns)
+    csv_file_path = "project_user_reports_{}_{}.csv".format(project_id, current_time)
+    # Write DataFrame to a CSV file
+    df.to_csv(csv_file_path, index=False)
+
+    # Create an EmailMessage object
+    subject = f"User Reports for Project - {project.title}"
+    body = "Please find the attached CSV file."
+    send_mail_with_report(subject, body, user, csv_file_path)
 
 
 def get_project_report_languages_email(project_id, user):
     languages_data = get_reports_for_languages(project_id)
-    send_mail_with_languages_report(project_id, language_data, user)
+    send_mail_with_report(subject, body, user, csv_file_path)
