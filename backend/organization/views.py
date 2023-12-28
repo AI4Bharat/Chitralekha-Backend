@@ -27,13 +27,14 @@ from transcript.models import Transcript
 from translation.models import Translation
 import json
 from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
-from project.views import ProjectViewSet
 from django.http import HttpRequest
 from django.db.models import Q
 import logging
 import math
 from django.db.models import Value
 from django.db.models.functions import Concat
+from project.utils import *
+from .tasks import *
 from .utils import *
 
 
@@ -380,7 +381,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 sort_by = "-" + sort_by
             all_tasks = Task.objects.filter(video_id__in=videos).order_by(sort_by)
 
-            all_tasks = task_search_by_task_id(all_tasks,search_dict)
+            all_tasks = task_search_by_task_id(all_tasks, search_dict)
             all_tasks = task_search_by_description(all_tasks, search_dict)
             all_tasks = task_search_by_assignee(all_tasks, search_dict)
             all_tasks = search_active_task(all_tasks, search_dict)
@@ -478,7 +479,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         all_tasks_in_projects | all_tasks_in_projects_assigned
                     )
 
-                all_tasks_in_projects = task_search_by_task_id(all_tasks_in_projects,search_dict)
+                all_tasks_in_projects = task_search_by_task_id(
+                    all_tasks_in_projects, search_dict
+                )
                 all_tasks_in_projects = task_search_by_description(
                     all_tasks_in_projects, search_dict
                 )
@@ -558,7 +561,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     .order_by(sort_by)
                 )
 
-                all_tasks = task_search_by_task_id(all_tasks,search_dict)
+                all_tasks = task_search_by_task_id(all_tasks, search_dict)
                 all_tasks = task_search_by_description(all_tasks, search_dict)
                 all_tasks = task_search_by_assignee(all_tasks, search_dict)
 
@@ -618,19 +621,85 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    def get_project_report_users(self, project_id, user):
-        data = ProjectViewSet(detail=True)
-        new_request = HttpRequest()
-        new_request.user = user
-        ret = data.get_report_users(new_request, project_id)
-        return ret.data
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="Send Report Users Email",
+        url_name="send_users_report_email",
+    )
+    @is_particular_organization_owner
+    def send_users_report_email(self, request, pk=None, *args, **kwargs):
+        try:
+            organization = Organization.objects.get(pk=pk)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        send_email_with_users_report.delay(organization.id, request.user.id)
+        return Response(
+            {"message": "Reports will be emailed."}, status=status.HTTP_200_OK
+        )
 
-    def get_project_report_languages(self, project_id, user):
-        data = ProjectViewSet(detail=True)
-        new_request = HttpRequest()
-        new_request.user = user
-        ret = data.get_report_languages(new_request, project_id)
-        return ret.data
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="Send Report Tasks Email",
+        url_name="send_tasks_report_email",
+    )
+    @is_particular_organization_owner
+    def send_tasks_report_email(self, request, pk=None, *args, **kwargs):
+        try:
+            org = Organization.objects.get(pk=pk)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        send_email_with_tasks_report.delay(org.id, request.user.id)
+        return Response(
+            {"message": "Reports will be emailed."}, status=status.HTTP_200_OK
+        )
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="Send Report Projects Email",
+        url_name="send_projects_report_email",
+    )
+    @is_particular_organization_owner
+    def send_projects_report_email(self, request, pk=None, *args, **kwargs):
+        try:
+            org = Organization.objects.get(pk=pk)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        send_email_with_projects_report.delay(org.id, request.user.id)
+        return Response(
+            {"message": "Reports will be emailed."}, status=status.HTTP_200_OK
+        )
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="Send Report Languages Email",
+        url_name="Send_languages_report_email",
+    )
+    @is_particular_organization_owner
+    def send_languages_report_email(self, request, pk=None, *args, **kwargs):
+        try:
+            organization = Organization.objects.get(pk=pk)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        send_email_with_languages_report.delay(organization.id, request.user.id)
+        return Response(
+            {"message": "Reports will be emailed."}, status=status.HTTP_200_OK
+        )
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
@@ -652,7 +721,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         all_project_report = []
         if len(projects_in_org) > 0:
             for project in projects_in_org:
-                project_report = self.get_project_report_users(project.id, request.user)
+                project_report = get_project_report_users(project.id, request.user)
                 for report in project_report:
                     report["project"] = {"value": project.title, "label": "Project"}
                     all_project_report.append(report)
@@ -729,52 +798,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             user_data.append(user_dict)
         return Response(user_data, status=status.HTTP_200_OK)
 
-    def format_completion_time(self, completion_time):
-        if completion_time < 60 * 60:
-            full_time = (
-                str(int(completion_time // 60))
-                + "m "
-                + str(int(completion_time % 60))
-                + "s"
-            )
-        elif completion_time >= 60 * 60 and completion_time < 24 * 60 * 60:
-            full_time = (
-                str(int(completion_time // (60 * 60)))
-                + "h "
-                + str(int((completion_time % (60 * 60)) // 60))
-                + "m"
-            )
-        elif completion_time >= 24 * 60 * 60 and completion_time < 30 * 24 * 60 * 60:
-            full_time = (
-                str(int(completion_time // (24 * 60 * 60)))
-                + "d "
-                + str(int((completion_time % (24 * 60 * 60)) // (60 * 60)))
-                + "h"
-            )
-        elif (
-            completion_time >= 30 * 24 * 60 * 60
-            and completion_time < 12 * 30 * 24 * 60 * 60
-        ):
-            full_time = (
-                str(int(completion_time // (30 * 24 * 60 * 60)))
-                + "m "
-                + str(int((completion_time % (30 * 24 * 60 * 60)) // (24 * 60 * 60)))
-                + "d"
-            )
-        else:
-            full_time = (
-                str(int(completion_time // (12 * 30 * 24 * 60 * 60)))
-                + "y "
-                + str(
-                    int(
-                        (completion_time % (12 * 30 * 24 * 60 * 60))
-                        // (30 * 24 * 60 * 60)
-                    )
-                )
-                + "m"
-            )
-        return full_time
-
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
         detail=True,
@@ -790,117 +813,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-
-        org_videos = Video.objects.filter(project_id__organization_id=pk)
-        task_orgs = Task.objects.filter(video__in=org_videos)
-        tasks_list = []
-        for task in task_orgs:
-            if task.description is not None:
-                description = task.description
-            elif task.video.description is not None:
-                description = task.video.description
-            else:
-                description = None
-
-            if "COMPLETE" in task.status:
-                datetime_str = task.updated_at
-                updated_at_str = task.updated_at.strftime("%m-%d-%Y %H:%M:%S.%f")
-                updated_at_datetime_object = datetime.strptime(
-                    updated_at_str, "%m-%d-%Y %H:%M:%S.%f"
-                )
-                compare_with = "05-04-2023 17:00:00.000"
-                compare_with_datetime_object = datetime.strptime(
-                    compare_with, "%m-%d-%Y %H:%M:%S.%f"
-                )
-
-                if updated_at_datetime_object < compare_with_datetime_object:
-                    time_spent = float(
-                        "{:.2f}".format(
-                            (task.updated_at - task.created_at).total_seconds()
-                        )
-                    )
-                else:
-                    time_spent = task.time_spent
-                completion_time = self.format_completion_time(time_spent)
-            else:
-                completion_time = None
-
-            word_count = 0
-            if "Translation" in task.get_task_type_label:
-                try:
-                    translation_obj = Translation.objects.filter(task=task).first()
-                    word_count = translation_obj.payload["word_count"]
-                except:
-                    pass
-            elif "Transcription" in task.get_task_type_label:
-                try:
-                    transcript_obj = Transcript.objects.filter(task=task).first()
-                    word_count = transcript_obj.payload["word_count"]
-                except:
-                    pass
-            elif "VoiceOver" in task.get_task_type_label:
-                word_count = "-"
-
-            tasks_list.append(
-                {
-                    "project_name": {
-                        "value": task.video.project_id.title,
-                        "label": "Project Name",
-                        "viewColumns": False,
-                    },
-                    "video_name": {
-                        "value": task.video.name, 
-                        "label": "Video Name",
-                        "viewColumns": False,
-                    },
-                    "video_url": {
-                        "value": task.video.url,
-                        "label": "Video URL",
-                        "display": "exclude",
-                    },
-                    "duration": {
-                        "value": str(task.video.duration),
-                        "label": "Duration",
-                    },
-                    "task_type": {
-                        "value": task.get_task_type_label,
-                        "label": "Task Type",
-                        "viewColumns": False
-                    },
-                    "task_description": {
-                        "value": description,
-                        "label": "Task Description",
-                        "display": "exclude",
-                    },
-                    "source_language": {
-                        "value": task.get_src_language_label,
-                        "label": "Source Langauge",
-                        "viewColumns": False,
-                    },
-                    "target_language": {
-                        "value": task.get_target_language_label,
-                        "label": "Target Langauge",
-                        "viewColumns": False,
-                    },
-                    "assignee": {
-                        "value": task.user.email, 
-                        "label": "Assignee",
-                    },
-                    "status": {
-                        "value": task.get_task_status_label, 
-                        "label": "Status"
-                    },
-                    "completion_time": {
-                        "value": completion_time,
-                        "label": "Completion Time",
-                        "display": "exclude",
-                    },
-                    "word_count": {
-                        "value": word_count,
-                        "label": "Word Count",
-                    }
-                }
-            )
+        tasks_list = get_org_report_tasks(pk, request.user)
         return Response(tasks_list, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
@@ -918,65 +831,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        projects_in_org = Project.objects.filter(organization_id=org).all()
-        all_project_report = []
-        if len(projects_in_org) > 0:
-            for project in projects_in_org:
-                project_report = self.get_project_report_languages(
-                    project.id, request.user
-                )
-                for keys, values in project_report.items():
-                    for report in values:
-                        report["project"] = {"value": project.title, "label": "Project", "viewColumns": False}
-                all_project_report.append(project_report)
-
-        aggregated_project_report = {"transcript_stats": [], "translation_stats": [], "voiceover_stats": []}
-        for project_report in all_project_report:
-            if type(project_report) == dict:
-                if (
-                    "transcript_stats" in project_report.keys()
-                    and len(project_report["transcript_stats"]) > 0
-                ):
-
-                    for i in range(len(project_report["transcript_stats"])):
-                        new_stats = dict(
-                            reversed(
-                                list(project_report["transcript_stats"][i].items())
-                            )
-                        )
-                        project_report["transcript_stats"][i] = new_stats
-                    dict(reversed(list(report.items())))
-                    aggregated_project_report["transcript_stats"].extend(
-                        project_report["transcript_stats"]
-                    )
-                if (
-                    "translation_stats" in project_report.keys()
-                    and len(project_report["translation_stats"]) > 0
-                ):
-                    for i in range(len(project_report["translation_stats"])):
-                        new_stats = dict(
-                            reversed(
-                                list(project_report["translation_stats"][i].items())
-                            )
-                        )
-                        project_report["translation_stats"][i] = new_stats
-                    aggregated_project_report["translation_stats"].extend(
-                        project_report["translation_stats"]
-                    )
-                if (
-                    "voiceover_stats" in project_report.keys()
-                    and len(project_report["voiceover_stats"]) > 0
-                ):
-                    for i in range(len(project_report["voiceover_stats"])):
-                        new_stats = dict(
-                            reversed(
-                                list(project_report["voiceover_stats"][i].items())
-                            )
-                        )
-                        project_report["voiceover_stats"][i] = new_stats
-                    aggregated_project_report["voiceover_stats"].extend(
-                        project_report["voiceover_stats"]
-                    )
+        aggregated_project_report = get_org_report_languages(pk, request.user)
         return Response(aggregated_project_report, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
@@ -1076,101 +931,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        org_projects = (
-            Project.objects.filter(organization_id=pk)
-            .values("title", "id")
-            .order_by("id")
-        )
-
-        project_stats = (
-            org_projects.annotate(num_videos=Count("video"))
-        )
-
-        video_duration_transcripts = (
-            org_projects.annotate(
-                total_transcriptions=Sum(
-                    "video__duration",
-                    filter=Q(video__transcripts__status="TRANSCRIPTION_EDIT_COMPLETE"),
-                )
-            )
-        )
-
-        video_duration_translations = (
-            org_projects.annotate(
-                total_translations=Sum(
-                    "video__duration",
-                    filter=Q(
-                        video__translation_video__status="TRANSLATION_EDIT_COMPLETE"
-                    ),
-                )
-            )
-        )
-
-        word_count_transcripts = (
-            org_projects.annotate(
-                word_count = Sum(Cast(F("video__transcripts__payload__word_count"), FloatField()),
-                    filter=Q(video__transcripts__status__in=["TRANSCRIPTION_EDIT_COMPLETE"])
-                )
-            )
-        )
-
-        word_count_translations = (
-            org_projects.annotate(
-                word_count = Sum(Cast(F("video__translation_video__payload__word_count"), FloatField()),
-                    filter=Q(video__translation_video__status__in=["TRANSLATION_EDIT_COMPLETE"])
-                )
-            )
-        )
-
-        project_data = []
-        idx = 0
-        for elem in project_stats:
-            manager_names = Project.objects.get(pk=elem["id"]).managers.all()
-            manager_list = []
-            for manager_name in manager_names:
-                manager_list.append(
-                    manager_name.first_name + " " + manager_name.last_name
-                )
-            transcript_duration = (
-                None
-                if video_duration_transcripts[idx]["total_transcriptions"] is None
-                else round(video_duration_transcripts[idx]["total_transcriptions"].total_seconds() / 3600, 3)
-            )
-            transcript_word_count = (
-                0
-                if word_count_transcripts[idx]["word_count"] is None
-                else word_count_transcripts[idx]["word_count"]
-            )
-            translation_duration = (
-                None
-                if video_duration_translations[idx]["total_translations"] is None
-                else round(video_duration_translations[idx]["total_translations"].total_seconds() / 3600, 3)
-            )
-            translation_word_count = (
-                0
-                if word_count_translations[idx]["word_count"] is None
-                else word_count_translations[idx]["word_count"]
-            )
-            project_dict = {
-                "title": {"value": elem["title"], "label": "Title", "viewColumns": False},
-                "managers__username": {"value": manager_list, "label": "Managers", "viewColumns": False},
-                "num_videos": {"value": elem["num_videos"], "label": "Video count"},
-                "total_transcriptions": {
-                    "value": transcript_duration,
-                    "label": "Duration (Hours)",
-                },
-                "total_translations": {
-                    "value": translation_duration,
-                    "label": "Duration (Hours)",
-                },
-                "total_word_count": {
-                    "value": int(transcript_word_count + translation_word_count),
-                    "label": "Total Word Count",
-                }
-            }
-            project_data.append(project_dict)
-            idx += 1
-
+        project_data = get_org_report_projects(pk, request.user)
         return Response(project_data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})

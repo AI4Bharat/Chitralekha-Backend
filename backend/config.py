@@ -20,6 +20,7 @@ bg_music_url = os.getenv("BG_MUSIC_API_URL")
 storage_account_key = os.getenv("AZURE_STORAGE_ACCOUNT_KEY")
 connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 container_name = os.getenv("AZURE_STORAGE_CONTAINER_NAME")
+reports_container_name = os.getenv("AZURE_STORAGE_REPORTS_CONTAINER_NAME")
 
 flower_url = os.getenv("FLOWER_URL", "http://localhost:5555")
 flower_auth = os.getenv("FLOWER_BASIC_AUTH", None)
