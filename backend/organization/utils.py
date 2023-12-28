@@ -57,29 +57,29 @@ def send_mail_with_report(subject, body, user, csv_file_paths):
 
     if len(report_urls) == 1:
         try:
+            reports_message = """<p>The requested report has been successfully generated. <br><br><a href={url} target="_blank">Click Here</a> to access the reports.</p>""".format(
+                url=report_urls[0]
+            )
             send_mail(
                 subject,
-                """The requested report has been successfully generated. You can access the report by copying and pasting the following link into your web browser.<br>
-                    {url}""".format(
-                    url=report_urls[0]
-                ),
+                "",
                 settings.DEFAULT_FROM_EMAIL,
                 [user.email],
+                html_message=reports_message,
             )
         except:
             logging.info("Email Can't be sent.")
     else:
         try:
+            reports_msg = """<p>The requested report has been successfully generated. <br><br><a href={url_1} target="_blank">Click Here</a> to access the Transcription reports.<br><br><a href={url_2} target="_blank">Click Here</a> to access the Translation reports.<br><br><a href={url_3} target="_blank">Click Here</a> to access the VoiceOver reports.</p>""".format(
+                url_1=report_urls[0], url_2=report_urls[1], url_3=report_urls[2]
+            )
             send_mail(
                 subject,
-                """The requested report has been successfully generated. You can access the report by copying and pasting the following link into your web browser.<br>
-                    {url_1} <br> {url_2} <br> {url_3}""".format(
-                    url_1=report_urls[0],
-                    url_2=report_urls[1],
-                    url_3=report_urls[2],
-                ),
+                "",
                 settings.DEFAULT_FROM_EMAIL,
                 [user.email],
+                html_message=reports_msg,
             )
         except:
             logging.info("Email Can't be sent.")
@@ -134,10 +134,13 @@ def get_org_report_users_email(org_id, user):
     current_time = datetime.now()
 
     df = pd.DataFrame(data, columns=columns)
-    csv_file_path = "organization_user_reports_{}_{}.csv".format(org_id, current_time)
+    csv_file_path = "organization_user_reports_{}_{}.csv".format(
+        org.title, current_time
+    )
     df.to_csv(csv_file_path, index=False)
 
-    subject = f"User Reports for Organization - {org_id}"
+    formatted_date = current_time.strftime("%d %b")
+    subject = f"User Reports for Organization - {org.title} - {formatted_date}"
     body = "Please find the attached CSV file."
     send_mail_with_report(subject, body, user, [csv_file_path])
 
@@ -205,6 +208,7 @@ def get_org_report_languages(org_id, user):
 
 
 def get_org_report_languages_email(org_id, user):
+    org = Organization.objects.get(pk=org_id)
     data = get_org_report_languages(org_id, user)
     csv_file_paths = []
 
@@ -227,7 +231,8 @@ def get_org_report_languages_email(org_id, user):
         data["voiceover_stats"],
     )
 
-    subject = f"Languages Reports for Organization - {org_id}"
+    formatted_date = current_time.strftime("%d %b")
+    subject = f"Languages Reports for Organization - {org.title} - {formatted_date}"
     body = "Please find the attached CSV file."
     send_mail_with_report(subject, body, user, csv_file_paths)
 
@@ -386,6 +391,7 @@ def get_org_report_tasks(pk, user):
 
 
 def get_org_report_tasks_email(org_id, user):
+    org = Organization.objects.get(pk=org_id)
     tasks_list = get_org_report_tasks(org_id, user)
     columns = [field["label"] for field in tasks_list[0].values()]
 
@@ -396,7 +402,8 @@ def get_org_report_tasks_email(org_id, user):
     csv_file_path = "organization_tasks_reports_{}_{}.csv".format(org_id, current_time)
     df.to_csv(csv_file_path, index=False)
 
-    subject = f"Tasks Reports for Organization - {org_id}"
+    formatted_date = current_time.strftime("%d %b")
+    subject = f"Tasks Reports for Organization - {org.title} - {formatted_date}"
     body = "Please find the attached CSV file."
     send_mail_with_report(subject, body, user, [csv_file_path])
 
@@ -500,6 +507,7 @@ def get_org_report_projects(pk, user):
 
 
 def get_org_report_projects_email(org_id, user):
+    org = Organization.objects.get(pk=org_id)
     projects_list = get_org_report_projects(org_id, user)
     columns = [field["label"] for field in projects_list[0].values()]
 
@@ -512,6 +520,7 @@ def get_org_report_projects_email(org_id, user):
     )
     df.to_csv(csv_file_path, index=False)
 
-    subject = f"Projects Reports for Organization - {org_id}"
+    formatted_date = current_time.strftime("%d %b")
+    subject = f"Projects Reports for Organization - {org.title} - {formatted_date}"
     body = "Please find the attached CSV file."
     send_mail_with_report(subject, body, user, [csv_file_path])
