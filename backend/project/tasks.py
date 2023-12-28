@@ -4,7 +4,7 @@ import logging
 import pandas as pd
 import datetime
 from django.core.mail import send_mail, EmailMessage
-from .utils import get_project_report_users_email
+from .utils import get_project_report_users_email, get_project_report_languages_email
 from users.models import User
 
 
