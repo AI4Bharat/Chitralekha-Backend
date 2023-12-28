@@ -39,8 +39,8 @@ celery_app.conf.beat_schedule = {
         "task": "send_eta_reminders",
         "schedule": crontab(minute=2, hour=1),  # execute everyday at 1 am
     },
-    "Send_newsletters": {
-        "task": "send_newsletter",
+    "Delete_reports": {
+        "task": "delete_reports",
         "schedule": crontab(minute=3, hour=1),  # execute everyday at 1 am
     },
 }
