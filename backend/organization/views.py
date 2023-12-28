@@ -625,10 +625,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=["GET"],
         name="Send Report Users Email",
-        url_name="Send_report_users_email",
+        url_name="send_users_report_email",
     )
     @is_particular_organization_owner
-    def send_report_users_email(self, request, pk=None, *args, **kwargs):
+    def send_users_report_email(self, request, pk=None, *args, **kwargs):
         try:
             organization = Organization.objects.get(pk=pk)
         except Organization.DoesNotExist:
@@ -645,10 +645,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=["GET"],
         name="Send Report Tasks Email",
-        url_name="send_report_tasks_email",
+        url_name="send_tasks_report_email",
     )
     @is_particular_organization_owner
-    def send_report_tasks_email(self, request, pk=None, *args, **kwargs):
+    def send_tasks_report_email(self, request, pk=None, *args, **kwargs):
         try:
             org = Organization.objects.get(pk=pk)
         except Organization.DoesNotExist:
@@ -665,10 +665,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=["GET"],
         name="Send Report Projects Email",
-        url_name="send_report_projects_email",
+        url_name="send_projects_report_email",
     )
     @is_particular_organization_owner
-    def send_report_projects_email(self, request, pk=None, *args, **kwargs):
+    def send_projects_report_email(self, request, pk=None, *args, **kwargs):
         try:
             org = Organization.objects.get(pk=pk)
         except Organization.DoesNotExist:
@@ -685,10 +685,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=["GET"],
         name="Send Report Languages Email",
-        url_name="Send_report_languages_email",
+        url_name="Send_languages_report_email",
     )
     @is_particular_organization_owner
-    def send_report_languages_email(self, request, pk=None, *args, **kwargs):
+    def send_languages_report_email(self, request, pk=None, *args, **kwargs):
         try:
             organization = Organization.objects.get(pk=pk)
         except Organization.DoesNotExist:
@@ -880,7 +880,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         all_project_report = []
         if len(projects_in_org) > 0:
             for project in projects_in_org:
-                project_report = self.get_project_report_languages(
+                project_report = get_project_report_languages(
                     project.id, request.user
                 )
                 for keys, values in project_report.items():
