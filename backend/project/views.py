@@ -1326,26 +1326,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=["GET"],
-        name="Send Users Report Email",
-        url_name="send_users_report_email",
-    )
-    @is_particular_project_owner
-    def send_users_report_email(self, request, pk=None, *args, **kwargs):
-        try:
-            prj = Project.objects.get(pk=pk)
-        except Project.DoesNotExist:
-            return Response(
-                {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
-            )
-        send_email_with_users_report.delay(prj.id, request.user.id)
-        return Response(
-            {"message": "Reports will be emailed."}, status=status.HTTP_200_OK
-        )
-
-    @swagger_auto_schema(method="get", responses={200: "Success"})
-    @action(
-        detail=True,
-        methods=["GET"],
         name="Send Languages Report Email",
         url_name="send_langauges_report_email",
     )

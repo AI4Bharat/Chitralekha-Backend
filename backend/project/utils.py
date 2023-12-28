@@ -26,6 +26,13 @@ from transcript.models import Transcript
 from translation.models import Translation
 from voiceover.models import VoiceOver
 from video.models import Video
+from azure.storage.blob import BlobServiceClient
+from config import (
+    storage_account_key,
+    connection_string,
+    reports_container_name
+)
+from django.conf import settings
 
 
 def get_reports_for_users(pk):
@@ -169,19 +176,60 @@ def get_reports_for_users(pk):
     return user_data
 
 
-def send_mail_with_report(subject, body, user, csv_file_path):
-    from_email = settings.DEFAULT_FROM_EMAIL
-    to_email = user.email
-    email = EmailMessage(subject, body, from_email, [to_email])
-    # Attach the CSV file to the email
-    email.attach_file(csv_file_path)
+def send_mail_with_report(subject, body, user, csv_file_paths):
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+    report_urls = []
 
-    # Send the email
-    try:
-        email.send()
-    except:
-        logging.info("Unable to send Email.")
-    os.remove(csv_file_path)
+    for file_path in csv_file_paths:
+        blob_client = blob_service_client.get_blob_client(
+            container=reports_container_name, blob=file_path
+        )
+        with open(file_path, "rb") as data:
+            try:
+                if not blob_client.exists():
+                    blob_client.upload_blob(data)
+                    logging.info("Report uploaded successfully!")
+                    logging.info(blob_client.url)
+                else:
+                    blob_client.delete_blob()
+                    logging.info("Old Report deleted successfully!")
+                    blob_client.upload_blob(data)
+                    logging.info("New Report uploaded successfully!")
+            except Exception as e:
+                logging.info("This report can't be uploaded")
+        report_urls.append(blob_client.url)
+
+    if len(report_urls) == 1:
+        try:
+            send_mail(
+                    subject,
+                    """The requested report has been successfully generated. You can access the report by copying and pasting the following link into your web browser.<br>
+                    {url}""".format(
+                        url=report_urls[0]
+                    ),
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+            )
+        except:
+            logging.info("Email Can't be sent.")
+    else:
+        try:
+            send_mail(
+                    subject,
+                    """The requested report has been successfully generated. You can access the report by copying and pasting the following link into your web browser.<br>
+                    {url_1} <br> {url_2} <br> {url_3}""".format(
+                        url_1=report_urls[0],
+                        url_2=report_urls[1],
+                        url_3=report_urls[2],
+                    ),
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+            )
+        except:
+            logging.info("Email Can't be sent.")
+
+    for file_path in csv_file_paths:
+        os.remove(file_path)
 
 
 def get_reports_for_languages(pk):
@@ -322,9 +370,24 @@ def get_project_report_users_email(project_id, user):
     # Create an EmailMessage object
     subject = f"User Reports for Project - {project.title}"
     body = "Please find the attached CSV file."
-    send_mail_with_report(subject, body, user, csv_file_path)
+    send_mail_with_report(subject, body, user, [csv_file_path])
 
 
 def get_project_report_languages_email(project_id, user):
-    languages_data = get_reports_for_languages(project_id)
-    send_mail_with_report(subject, body, user, csv_file_path)
+    data = get_reports_for_languages(project_id)
+
+    csv_file_paths = []
+    def write_csv_pandas(file_name, data_list):
+        df = pd.DataFrame(data_list)
+        df.to_csv(file_name, index=False)
+        csv_file_paths.append(file_name)
+
+    current_time = datetime.now()
+    # Write CSV files using pandas
+    write_csv_pandas("transcript_stats_{}_{}.csv".format(project_id, current_time), data['transcript_stats'])
+    write_csv_pandas("translation_stats_{}_{}.csv".format(project_id, current_time), data['translation_stats'])
+    write_csv_pandas("voiceover_stats_{}_{}.csv".format(project_id, current_time), data['voiceover_stats'])
+
+    subject = f"Languages Reports for Project - {project_id}"
+    body = "Please find the attached CSV file."
+    send_mail_with_report(subject, body, user, csv_file_paths)

@@ -26,21 +26,66 @@ from translation.models import Translation
 from voiceover.models import VoiceOver
 from video.models import Video
 from task.models import Task
+from azure.storage.blob import BlobServiceClient
+from config import storage_account_key, connection_string, reports_container_name
+from django.conf import settings
+import logging
 
 
-def send_mail_with_report(subject, body, user, csv_file_path):
-    from_email = settings.DEFAULT_FROM_EMAIL
-    to_email = user.email
-    email = EmailMessage(subject, body, from_email, [to_email])
-    # Attach the CSV file to the email
-    email.attach_file(csv_file_path)
+def send_mail_with_report(subject, body, user, csv_file_paths):
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+    report_urls = []
 
-    # Send the email
-    try:
-        email.send()
-    except:
-        logging.info("Unable to send Email.")
-    os.remove(csv_file_path)
+    for file_path in csv_file_paths:
+        blob_client = blob_service_client.get_blob_client(
+            container=reports_container_name, blob=file_path
+        )
+        with open(file_path, "rb") as data:
+            try:
+                if not blob_client.exists():
+                    blob_client.upload_blob(data)
+                    logging.info("Report uploaded successfully!")
+                    logging.info(blob_client.url)
+                else:
+                    blob_client.delete_blob()
+                    logging.info("Old Report deleted successfully!")
+                    blob_client.upload_blob(data)
+                    logging.info("New Report uploaded successfully!")
+            except Exception as e:
+                logging.info("This report can't be uploaded")
+        report_urls.append(blob_client.url)
+
+    if len(report_urls) == 1:
+        try:
+            send_mail(
+                subject,
+                """The requested report has been successfully generated. You can access the report by copying and pasting the following link into your web browser.<br>
+                    {url}""".format(
+                    url=report_urls[0]
+                ),
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+            )
+        except:
+            logging.info("Email Can't be sent.")
+    else:
+        try:
+            send_mail(
+                subject,
+                """The requested report has been successfully generated. You can access the report by copying and pasting the following link into your web browser.<br>
+                    {url_1} <br> {url_2} <br> {url_3}""".format(
+                    url_1=report_urls[0],
+                    url_2=report_urls[1],
+                    url_3=report_urls[2],
+                ),
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+            )
+        except:
+            logging.info("Email Can't be sent.")
+
+    for file_path in csv_file_paths:
+        os.remove(file_path)
 
 
 def get_project_report_users(project_id, user):
@@ -50,12 +95,14 @@ def get_project_report_users(project_id, user):
     ret = data.get_report_users(new_request, project_id)
     return ret.data
 
-def get_project_report_languages(self, project_id, user):
+
+def get_project_report_languages(project_id, user):
     data = ProjectViewSet(detail=True)
     new_request = HttpRequest()
     new_request.user = user
     ret = data.get_report_languages(new_request, project_id)
     return ret.data
+
 
 def task_search_filter(videos, search_dict, filter_dict):
     if search_dict is not None:
@@ -144,36 +191,146 @@ def get_org_report_users_email(org_id, user):
     current_time = datetime.now()
 
     df = pd.DataFrame(data, columns=columns)
-    csv_file_path = "organization_user_reports_{}_{}.csv".format(org.id, current_time)
+    csv_file_path = "organization_user_reports_{}_{}.csv".format(org_id, current_time)
     df.to_csv(csv_file_path, index=False)
 
-    subject = f"User Reports for Organization - {org.title}"
+    subject = f"User Reports for Organization - {org_id}"
     body = "Please find the attached CSV file."
-    send_mail_with_report(subject, body, user, csv_file_path)
+    send_mail_with_report(subject, body, user, [csv_file_path])
+
+
+def get_org_report_languages(org_id, user):
+    projects_in_org = Project.objects.filter(organization_id__id=org_id).all()
+    all_project_report = []
+    if len(projects_in_org) > 0:
+        for project in projects_in_org:
+            project_report = get_project_report_languages(project.id, user)
+            for keys, values in project_report.items():
+                for report in values:
+                    report["project"] = {
+                        "value": project.title,
+                        "label": "Project",
+                        "viewColumns": False,
+                    }
+            all_project_report.append(project_report)
+
+    aggregated_project_report = {
+        "transcript_stats": [],
+        "translation_stats": [],
+        "voiceover_stats": [],
+    }
+    for project_report in all_project_report:
+        if type(project_report) == dict:
+            if (
+                "transcript_stats" in project_report.keys()
+                and len(project_report["transcript_stats"]) > 0
+            ):
+                for i in range(len(project_report["transcript_stats"])):
+                    new_stats = dict(
+                        reversed(list(project_report["transcript_stats"][i].items()))
+                    )
+                    project_report["transcript_stats"][i] = new_stats
+                dict(reversed(list(report.items())))
+                aggregated_project_report["transcript_stats"].extend(
+                    project_report["transcript_stats"]
+                )
+            if (
+                "translation_stats" in project_report.keys()
+                and len(project_report["translation_stats"]) > 0
+            ):
+                for i in range(len(project_report["translation_stats"])):
+                    new_stats = dict(
+                        reversed(list(project_report["translation_stats"][i].items()))
+                    )
+                    project_report["translation_stats"][i] = new_stats
+                aggregated_project_report["translation_stats"].extend(
+                    project_report["translation_stats"]
+                )
+            if (
+                "voiceover_stats" in project_report.keys()
+                and len(project_report["voiceover_stats"]) > 0
+            ):
+                for i in range(len(project_report["voiceover_stats"])):
+                    new_stats = dict(
+                        reversed(list(project_report["voiceover_stats"][i].items()))
+                    )
+                    project_report["voiceover_stats"][i] = new_stats
+                aggregated_project_report["voiceover_stats"].extend(
+                    project_report["voiceover_stats"]
+                )
+    return aggregated_project_report
 
 
 def get_org_report_languages_email(org_id, user):
-    org = Organization.objects.get(pk=org_id)
-    projects_in_org = Project.objects.filter(organization_id=org).all()
-    user_data = []
-    if len(projects_in_org) > 0:
-        for project in projects_in_org:
-            project_report = get_project_report_users(project.id, user)
-            for report in project_report:
-                report["project"] = {"value": project.title, "label": "Project"}
-                user_data.append(report)
-    columns = [field["label"] for field in user_data[0].values()]
+    data = get_org_report_languages(org_id, user)
+    csv_file_paths = []
 
-    data = [[field["value"] for field in row.values()] for row in user_data]
+    def write_csv_pandas(file_name, data_list):
+        df = pd.DataFrame(data_list)
+        df.to_csv(file_name, index=False)
+        csv_file_paths.append(file_name)
+
     current_time = datetime.now()
+    write_csv_pandas(
+        "transcript_stats_{}_{}.csv".format(org_id, current_time),
+        data["transcript_stats"],
+    )
+    write_csv_pandas(
+        "translation_stats_{}_{}.csv".format(org_id, current_time),
+        data["translation_stats"],
+    )
+    write_csv_pandas(
+        "voiceover_stats_{}_{}.csv".format(org_id, current_time),
+        data["voiceover_stats"],
+    )
 
-    df = pd.DataFrame(data, columns=columns)
-    csv_file_path = "organization_user_reports_{}_{}.csv".format(org.id, current_time)
-    df.to_csv(csv_file_path, index=False)
-
-    subject = f"User Reports for Project - {org.title}"
+    subject = f"Languages Reports for Organization - {org_id}"
     body = "Please find the attached CSV file."
-    send_mail_with_report(subject, body, user, csv_file_path)
+    send_mail_with_report(subject, body, user, csv_file_paths)
+
+
+def format_completion_time(self, completion_time):
+    if completion_time < 60 * 60:
+        full_time = (
+            str(int(completion_time // 60))
+            + "m "
+            + str(int(completion_time % 60))
+            + "s"
+        )
+    elif completion_time >= 60 * 60 and completion_time < 24 * 60 * 60:
+        full_time = (
+            str(int(completion_time // (60 * 60)))
+            + "h "
+            + str(int((completion_time % (60 * 60)) // 60))
+            + "m"
+        )
+    elif completion_time >= 24 * 60 * 60 and completion_time < 30 * 24 * 60 * 60:
+        full_time = (
+            str(int(completion_time // (24 * 60 * 60)))
+            + "d "
+            + str(int((completion_time % (24 * 60 * 60)) // (60 * 60)))
+            + "h"
+        )
+    elif (
+        completion_time >= 30 * 24 * 60 * 60
+        and completion_time < 12 * 30 * 24 * 60 * 60
+    ):
+        full_time = (
+            str(int(completion_time // (30 * 24 * 60 * 60)))
+            + "m "
+            + str(int((completion_time % (30 * 24 * 60 * 60)) // (24 * 60 * 60)))
+            + "d"
+        )
+    else:
+        full_time = (
+            str(int(completion_time // (12 * 30 * 24 * 60 * 60)))
+            + "y "
+            + str(
+                int((completion_time % (12 * 30 * 24 * 60 * 60)) // (30 * 24 * 60 * 60))
+            )
+            + "m"
+        )
+    return full_time
 
 
 def get_org_report_tasks(pk, user):
@@ -205,7 +362,7 @@ def get_org_report_tasks(pk, user):
                 )
             else:
                 time_spent = task.time_spent
-            completion_time = self.format_completion_time(time_spent)
+            completion_time = format_completion_time(time_spent)
         else:
             completion_time = None
 
@@ -298,7 +455,7 @@ def get_org_report_tasks_email(org_id, user):
 
     subject = f"Tasks Reports for Organization - {org_id}"
     body = "Please find the attached CSV file."
-    send_mail_with_report(subject, body, user, csv_file_path)
+    send_mail_with_report(subject, body, user, [csv_file_path])
 
 
 def get_org_report_projects(pk, user):
@@ -414,4 +571,4 @@ def get_org_report_projects_email(org_id, user):
 
     subject = f"Projects Reports for Organization - {org_id}"
     body = "Please find the attached CSV file."
-    send_mail_with_report(subject, body, user, csv_file_path)
+    send_mail_with_report(subject, body, user, [csv_file_path])
