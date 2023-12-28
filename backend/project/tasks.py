@@ -12,3 +12,9 @@ from users.models import User
 def send_email_with_users_report(project_id, user_id):
     user = User.objects.get(pk=user_id)
     get_project_report_users_email(project_id, user)
+
+
+@shared_task()
+def send_email_with_languages_report(project_id, user_id):
+    user = User.objects.get(pk=user_id)
+    get_project_report_languages_email(project_id, user)

@@ -12,7 +12,7 @@ from .models import Project
 from .tasks import *
 from .serializers import ProjectSerializer
 from .decorators import is_project_owner, is_particular_project_owner
-from .utils import get_reports_for_users
+from .utils import get_reports_for_users, get_reports_for_languages
 from users.serializers import UserFetchSerializer, UserProfileSerializer
 from task.models import Task
 from task.serializers import TaskSerializer, TaskStatusSerializer
@@ -1326,11 +1326,51 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=["GET"],
-        name="Get Report Users",
-        url_name="get_report_users",
+        name="Send Users Report Email",
+        url_name="send_users_report_email",
     )
     @is_particular_project_owner
-    def send_report_users_email(self, request, pk=None, *args, **kwargs):
+    def send_users_report_email(self, request, pk=None, *args, **kwargs):
+        try:
+            prj = Project.objects.get(pk=pk)
+        except Project.DoesNotExist:
+            return Response(
+                {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        send_email_with_users_report.delay(prj.id, request.user.id)
+        return Response(
+            {"message": "Reports will be emailed."}, status=status.HTTP_200_OK
+        )
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="Send Languages Report Email",
+        url_name="send_langauges_report_email",
+    )
+    @is_particular_project_owner
+    def send_languages_report_email(self, request, pk=None, *args, **kwargs):
+        try:
+            prj = Project.objects.get(pk=pk)
+        except Project.DoesNotExist:
+            return Response(
+                {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        send_email_with_languages_report.delay(prj.id, request.user.id)
+        return Response(
+            {"message": "Reports will be emailed."}, status=status.HTTP_200_OK
+        )
+
+    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @action(
+        detail=True,
+        methods=["GET"],
+        name="Send Users Report Email",
+        url_name="send_users_report_email",
+    )
+    @is_particular_project_owner
+    def send_users_report_email(self, request, pk=None, *args, **kwargs):
         try:
             prj = Project.objects.get(pk=pk)
         except Project.DoesNotExist:
@@ -1375,128 +1415,5 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        prj_videos = Video.objects.filter(project_id=pk)
-        prj_transcriptions = (
-            Transcript.objects.filter(video__in=prj_videos)
-            .filter(status="TRANSCRIPTION_EDIT_COMPLETE")
-            .values("language")
-        )
-        transcript_statistics = (
-            prj_transcriptions.annotate(transcripts=Count("id"))
-            .annotate(total_duration=Sum(F("video__duration")))
-            .annotate(word_count=Sum(Cast(F("payload__word_count"), FloatField())))
-            .order_by("-total_duration")
-        )
-        prj_translations = (
-            Translation.objects.filter(video__in=prj_videos)
-            .filter(status="TRANSLATION_EDIT_COMPLETE")
-            .values(
-                src_language=F("video__language"), tgt_language=F("target_language")
-            )
-        )
-        translation_statistics = (
-            prj_translations.annotate(transcripts_translated=Count("id"))
-            .annotate(translation_duration=Sum(F("video__duration")))
-            .annotate(word_count=Sum(Cast(F("payload__word_count"), FloatField())))
-            .order_by("-translation_duration")
-        )
-        prj_voiceovers = (
-            VoiceOver.objects.filter(video__in=prj_videos)
-            .filter(status="VOICEOVER_EDIT_COMPLETE")
-            .values(
-                src_language=F("video__language"), tgt_language=F("target_language")
-            )
-        )
-        voiceover_statistics = (
-            prj_voiceovers.annotate(voiceovers_completed=Count("id"))
-            .annotate(voiceover_duration=Sum(F("video__duration")))
-            .order_by("-voiceover_duration")
-        )
-
-        transcript_data = []
-        for elem in transcript_statistics:
-            transcript_dict = {
-                "language": {
-                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["language"]],
-                    "label": "Source Language",
-                    "viewColumns": False,
-                },
-                "total_duration": {
-                    "value": round(elem["total_duration"].total_seconds() / 3600, 3),
-                    "label": "Duration (Hours)",
-                    "viewColumns": False,
-                },
-                "transcripts": {
-                    "value": elem["transcripts"],
-                    "label": "Tasks Count",
-                },
-                "word_count": {
-                    "value": elem["word_count"],
-                    "label": "Word Count",
-                },
-            }
-            transcript_data.append(transcript_dict)
-
-        translation_data = []
-        for elem in translation_statistics:
-            translation_dict = {
-                "src_language": {
-                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["src_language"]],
-                    "label": "Source Langauge",
-                    "viewColumns": False,
-                },
-                "tgt_language": {
-                    "value": dict(TRANSLATION_LANGUAGE_CHOICES)[elem["tgt_language"]],
-                    "label": "Target Language",
-                    "viewColumns": False,
-                },
-                "translation_duration": {
-                    "value": round(
-                        elem["translation_duration"].total_seconds() / 3600, 3
-                    ),
-                    "label": "Duration (Hours)",
-                    "viewColumns": False,
-                },
-                "transcripts_translated": {
-                    "value": elem["transcripts_translated"],
-                    "label": "Tasks Count",
-                },
-                "word_count": {
-                    "value": elem["word_count"],
-                    "label": "Word Count",
-                },
-            }
-            translation_data.append(translation_dict)
-
-        voiceover_data = []
-        for elem in voiceover_statistics:
-            voiceover_dict = {
-                "src_language": {
-                    "value": dict(VOICEOVER_LANGUAGE_CHOICES)[elem["src_language"]],
-                    "label": "Source Language",
-                    "viewColumns": False,
-                },
-                "tgt_language": {
-                    "value": dict(VOICEOVER_LANGUAGE_CHOICES)[elem["tgt_language"]],
-                    "label": "Target Language",
-                    "viewColumns": False,
-                },
-                "voiceover_duration": {
-                    "value": round(
-                        elem["voiceover_duration"].total_seconds() / 3600, 3
-                    ),
-                    "label": "Duration (Hours)",
-                    "viewColumns": False,
-                },
-                "voiceovers_completed": {
-                    "value": elem["voiceovers_completed"],
-                    "label": "Tasks Count",
-                },
-            }
-            voiceover_data.append(voiceover_dict)
-        res = {
-            "transcript_stats": transcript_data,
-            "translation_stats": translation_data,
-            "voiceover_stats": voiceover_data,
-        }
-        return Response(res, status=status.HTTP_200_OK)
+        language_data = get_reports_for_languages(pk)
+        return Response(language_data, status=status.HTTP_200_OK)
