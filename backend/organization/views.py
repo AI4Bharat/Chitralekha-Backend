@@ -33,8 +33,9 @@ import logging
 import math
 from django.db.models import Value
 from django.db.models.functions import Concat
-from .utils import *
+from project.utils import *
 from .tasks import *
+from .utils import *
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -830,7 +831,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        aggregated_project_report = get_org_report_languages(pk, user)
+        aggregated_project_report = get_org_report_languages(pk, request.user)
         return Response(aggregated_project_report, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
