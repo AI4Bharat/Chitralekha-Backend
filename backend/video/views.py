@@ -103,6 +103,7 @@ class TransliterationAPIView(APIView):
                     "targetLanguage": target_language,
                 },
                 "isSentence": False,
+                "numSuggestions": 5,
             },
         }
         logging.info("Calling Transliteration API")
