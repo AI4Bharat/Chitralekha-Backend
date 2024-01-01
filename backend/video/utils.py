@@ -495,7 +495,7 @@ def get_video_func(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if title[-4:] == ".mp4":
+    if title[-4:] == ".mp4" and "youtube.com" not in normalized_url:
         return Response(
             {"message": "Invalid file type. Mp4 is not supported"},
             status=status.HTTP_400_BAD_REQUEST,
