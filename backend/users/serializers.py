@@ -105,14 +105,22 @@ class UserProfileSerializer(serializers.ModelSerializer):
     subscribed_info = serializers.SerializerMethodField()
 
     def get_subscribed_info(self, obj):
-        subscribed_obj = SubscribedUsers.objects.filter(
-            user=obj).first()
+        subscribed_obj = SubscribedUsers.objects.filter(user=obj).first()
         if subscribed_obj is not None:
-            subscribed = True
-            return {"subscribed": subscribed, "email": subscribed_obj.email}
+            return {
+                "categories": subscribed_obj.subscribed_categories,
+                "email": subscribed_obj.email,
+            }
         else:
-            subscribed = False
-            return {"subscribed": subscribed, "email": ""}
+            subscribed_obj = SubscribedUsers.objects.create(
+                user=obj,
+                email=obj.email,
+                subscribed_categories=["Release", "Downtime", "General"],
+            )
+            return {
+                "categories": subscribed_obj.subscribed_categories,
+                "email": subscribed_obj.email,
+            }
 
     class Meta:
         model = User
