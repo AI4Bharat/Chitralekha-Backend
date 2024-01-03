@@ -3,6 +3,7 @@ from .models import SubscribedUsers, Newsletter
 from django.conf import settings
 from django.core.mail import send_mail
 import logging
+from config import app_name
 
 
 @celery_app.task(queue="newsletter")
@@ -17,7 +18,7 @@ def celery_newsletter_call(newsletter_id):
         newsletter.save()
         try:
             send_mail(
-                "Chitralekha - Newsletter",
+                f"{app_name} - Newsletter",
                 "",
                 settings.DEFAULT_FROM_EMAIL,
                 [subscribed_user.email],
