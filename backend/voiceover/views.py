@@ -20,7 +20,7 @@ from .models import (
 )
 from datetime import datetime, timedelta
 from .utils import *
-from config import voice_over_payload_offset_size
+from config import voice_over_payload_offset_size, app_name
 from .tasks import celery_integration, export_voiceover_async
 from django.db.models import Count, F, Sum
 from operator import itemgetter
@@ -796,7 +796,8 @@ def save_voice_over(request):
                             voice_over_obj.save()
                         file_name = voice_over_obj.video.name
                         time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        file_name = "Chitralekha_Video_{}_{}_{}".format(
+                        file_name = "{}_Video_{}_{}_{}".format(
+                            app_name,
                             voice_over_obj.video.id,
                             time_now,
                             voice_over_obj.target_language,

@@ -40,7 +40,7 @@ import uuid
 from django.shortcuts import render
 import base64
 from html.parser import HTMLParser
-
+from config import app_name
 
 @swagger_auto_schema(
     method="get",
@@ -339,7 +339,7 @@ class NewsletterViewSet(ModelViewSet):
             )
         newsletter = Newsletter.objects.filter(newsletter_uuid=newsletter_id).first()
         send_mail(
-            "Chitralekha E-Newsletter",
+            f"{app_name} E-Newsletter",
             "",
             settings.DEFAULT_FROM_EMAIL,
             [email],

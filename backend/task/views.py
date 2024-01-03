@@ -2080,7 +2080,7 @@ class TaskViewSet(ModelViewSet):
         )
         response[
             "Content-Disposition"
-        ] = f"attachment; filename=Chitralekha_{time_now}_all.zip"
+        ] = f"attachment; filename={app_name}_{time_now}_all.zip"
         return response
 
     @swagger_auto_schema(
