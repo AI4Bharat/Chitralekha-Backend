@@ -69,7 +69,7 @@ import logging
 from django.conf import settings
 from django.core.mail import send_mail
 import logging
-from config import align_json_url
+from config import align_json_url, app_name
 import regex
 from .tasks import celery_align_json
 from task.tasks import celery_nmt_call
@@ -223,7 +223,7 @@ def export_transcript(request):
                 )
                 time_now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
                 file_location = (
-                    "Chitralekha_Video_{}_{}".format(transcript.video.id, time_now)
+                    "{}_Video_{}_{}".format(app_name, transcript.video.id, time_now)
                     + ".ytt"
                 )
             ytt_genorator(data, file_location, prev_line_in=0, mode="data")
@@ -1972,7 +1972,7 @@ def generate_ytt_for_transcript(request):
                     data = align_json_api(transcript)
                     time_now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
                     file_location = (
-                        "Chitralekha_Video_{}_{}".format(transcript.video.id, time_now)
+                        "{}_Video_{}_{}".format(app_name, transcript.video.id, time_now)
                         + ".ytt"
                     )
                     ytt_genorator(data, file_location, prev_line_in=0, mode="data")
