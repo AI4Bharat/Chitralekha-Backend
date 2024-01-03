@@ -21,7 +21,7 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from drf_yasg.generators import OpenAPISchemaGenerator
 from video.views import TransliterationAPIView
-
+from config import app_name
 
 ## Utility Classes
 class BothHttpAndHttpsSchemaGenerator(OpenAPISchemaGenerator):
@@ -44,9 +44,9 @@ router = routers.DefaultRouter()
 # Add the swagger view
 schema_view = get_schema_view(
     openapi.Info(
-        title="Chitralekha API Docs",
+        title=app_name + " API Docs",
         default_version="v1",
-        description="API documentation for Chitralekha Platform.",
+        description=f"API documentation for {app_name} Platform.",
         terms_of_service="https://www.google.com/policies/terms/",
         contact=openapi.Contact(email="contact@snippets.local"),
         license=openapi.License(name="BSD License"),

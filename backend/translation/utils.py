@@ -11,7 +11,7 @@ from django.http import HttpResponse, StreamingHttpResponse
 from io import StringIO, BytesIO
 import os
 import datetime
-from config import nmt_url, dhruva_key
+from config import nmt_url, dhruva_key, app_name
 from .metadata import LANG_CODE_TO_NAME, english_noise_tags, target_noise_tags
 import math
 from task.models import Task

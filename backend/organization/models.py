@@ -6,6 +6,7 @@ import secrets
 import string
 from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from django.contrib.postgres.fields import ArrayField
+from config import frontend_url
 
 TRANSCRIPT_TYPE = (
     ("ORIGINAL_SOURCE", "Original Source"),
@@ -221,7 +222,7 @@ class Invite(models.Model):
                     organization_name = "be the Org Owner."
                 send_mail(
                     "Invitation to join Organization",
-                    f"Hello! You are invited to {organization_name}. Your Invite link is: https://chitralekha.ai4bharat.org/#/invite/{invite.invite_code}",
+                    f"Hello! You are invited to {organization_name}. Your Invite link is: {frontend_url}/#/invite/{invite.invite_code}",
                     settings.DEFAULT_FROM_EMAIL,
                     [user.email],
                 )
