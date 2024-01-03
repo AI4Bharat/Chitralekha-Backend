@@ -14,6 +14,7 @@ from users.models import User
 import pandas as pd
 from pretty_html_table import build_table
 from django.conf import settings
+from config import app_name
 
 
 def send_mail_csv_upload(user_id, email_data):
@@ -55,7 +56,7 @@ def send_mail_csv_upload(user_id, email_data):
     logging.info("Sending Mail to %s", user.email)
     try:
         send_mail(
-            "Chitralekha - CSV Upload Reports",
+            f"{app_name} - CSV Upload Reports",
             message,
             settings.DEFAULT_FROM_EMAIL,
             [user.email],

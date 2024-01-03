@@ -35,6 +35,7 @@ backend_default_translation_type = "MACHINE_GENERATED"
 backend_default_transcript_type = "MACHINE_GENERATED"
 backend_default_voice_over_type = "MACHINE_GENERATED"
 voice_over_payload_offset_size = 3
+app_name = os.getenv("APP_NAME")
 
 allowed_roles = {
     "TRANSCRIPTION_EDIT": ["TRANSCRIPT_EDITOR", "UNIVERSAL_EDITOR"],
@@ -49,5 +50,5 @@ DEFAULT_SPEAKER = {
     "name": "default",
     "gender": "male",
     "age": "21-60",
-    "id": "default_speaker_chitralekha",
+    "id": "default_speaker",
 }

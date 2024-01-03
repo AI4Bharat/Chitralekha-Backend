@@ -525,7 +525,7 @@ def download_all(request):
     )
     response[
         "Content-Disposition"
-    ] = f"attachment; filename=Chitralekha_{time_now}_all.zip"
+    ] = f"attachment; filename={config.app_name}_{time_now}_all.zip"
     return response
 
 
