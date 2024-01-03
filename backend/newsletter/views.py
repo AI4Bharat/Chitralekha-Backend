@@ -42,6 +42,7 @@ import base64
 from html.parser import HTMLParser
 from config import app_name
 
+
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
@@ -50,6 +51,13 @@ from config import app_name
             openapi.IN_QUERY,
             description=("Email of user"),
             type=openapi.TYPE_STRING,
+            required=False,
+        ),
+        openapi.Parameter(
+            "categories",
+            openapi.IN_QUERY,
+            description=("categories"),
+            type=openapi.TYPE_OBJECT,
             required=False,
         ),
     ],
@@ -67,8 +75,13 @@ def unsubscribe(request):
             {"message": "User is not subscribed."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    sub_user.delete()
-    return render(request, "unsubscribe.html")
+    categories = request.GET.get("categories")
+    sub_user.categories = categories
+    sub_user.save()
+    return Response(
+        {"message": "User unsubscribed successfully."},
+        status=status.HTTP_200_OK,
+    )
 
 
 class NewsletterViewSet(ModelViewSet):
@@ -99,7 +112,7 @@ class NewsletterViewSet(ModelViewSet):
             )
 
         if subject is None or len(subject) == 0:
-            subject = "Chitralekha E-Newsletter"
+            subject = f"{app_name} Newsletter"
         else:
             subject = subject
         if template_id == 1:
@@ -166,17 +179,6 @@ class NewsletterViewSet(ModelViewSet):
                 f.write(message)
                 f.close()
 
-                # Parse the file using an HTML parser.
-                parser = html.parser.HTMLParser()
-                with open("content.html", "rb") as f:
-                    parser.feed(f.read().decode("utf-8"))
-
-                # Check for common HTML errors.
-                if parser.error_list:
-                    return Response(
-                        {"message": "Error in HTML."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
                 html_content = message
         else:
             return Response(
@@ -187,7 +189,7 @@ class NewsletterViewSet(ModelViewSet):
         new_newsletter = Newsletter(
             content=html_content,
             submitter_id=User.objects.get(pk=submitter_id),
-            category="NEW_FEATURE",
+            category=category,
         )
         new_newsletter.save()
         html_content_f = html_content
@@ -281,12 +283,6 @@ class NewsletterViewSet(ModelViewSet):
                 f = open("content.html", "w")
                 f.write(message)
                 f.close()
-
-                # Parse the file using an HTML parser.
-                parser = HTMLParser()
-                with open("content.html", "rb") as f:
-                    parser.feed(f.read().decode("utf-8"))
-
                 html_content = message
         else:
             return Response(
@@ -356,20 +352,20 @@ class NewsletterViewSet(ModelViewSet):
         )
 
     @swagger_auto_schema(
-        method="post",
+        method="patch",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
                 "email": openapi.Schema(type=openapi.TYPE_STRING),
                 "user_id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                "subscribe": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                "categories": openapi.Schema(type=openapi.TYPE_OBJECT),
             },
             required=["email", "user_id"],
         ),
-        responses={200: "Subscribed Successfully."},
+        responses={200: "Categories updated successfully."},
     )
-    @action(detail=False, methods=["post"], url_path="subscribe")
-    def subscribe(self, request):
+    @action(detail=False, methods=["patch"], url_path="update_subscription")
+    def update_subscription(self, request):
         categories = request.data.get("categories")
         email = request.data.get("email")
         user_id = request.data.get("user_id")
@@ -390,38 +386,20 @@ class NewsletterViewSet(ModelViewSet):
             )
 
         if subscribe == True:
-            sub_user_obj = SubscribedUsers.objects.filter(email=email).first()
-            if sub_user_obj != None:
-                return Response(
-                    {"message": "This email is already subscribed."},
-                    status=status.HTTP_400_BAD_REQUEST,
+            sub_user = SubscribedUsers.objects.get(user=user)
+            if sub_user is None:
+                SubscribedUsers.objects.create(
+                    user=user, email=email, subscribed_categories=categories
                 )
-            sub_user, created = SubscribedUsers.objects.get_or_create(
-                user=user, email=email
-            )
-            if not created:
-                return Response(
-                    {"message": "User is already subscribed."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            else:
+                subscribed_categories = ",".join(sub_user.subscribed_categories)
+                sub_user.subscribed_categories = categories
+                sub_user.save()
 
-            return Response(
-                {"message": "Newsletter is successfully subscribed."},
-                status=status.HTTP_200_OK,
-            )
-        else:
-            try:
-                sub_user = SubscribedUsers.objects.get(user=user)
-            except SubscribedUsers.DoesNotExist:
-                return Response(
-                    {"message": "User is not subscribed."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            sub_user.delete()
-            return Response(
-                {"message": "User is unsubscribed."},
-                status=status.HTTP_200_OK,
-            )
+        return Response(
+            {"message": "Subscription is updated successfully."},
+            status=status.HTTP_200_OK,
+        )
 
     @swagger_auto_schema(
         method="patch",
