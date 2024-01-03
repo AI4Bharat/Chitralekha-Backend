@@ -89,6 +89,7 @@ class NewsletterViewSet(ModelViewSet):
         content = request.data.get("content")
         submitter_id = request.data.get("submitter_id")
         template_id = request.data.get("template_id")
+        subject = request.data.get("subject")
         BASE_DIR = Path(__file__).resolve().parent.parent
 
         if content is None or content == "":
@@ -97,6 +98,10 @@ class NewsletterViewSet(ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if subject is None or len(subject) == 0:
+            subject = "Chitralekha E-Newsletter"
+        else:
+            subject = subject
         if template_id == 1:
             if len(content) != 0:
                 final_html_content = ""
@@ -191,7 +196,7 @@ class NewsletterViewSet(ModelViewSet):
             os.remove(os.path.join(BASE_DIR, "newsletter", "templates", temp_file))
         except:
             print("Error in Removing files.")
-        celery_newsletter_call.delay(new_newsletter.id)
+        celery_newsletter_call.delay(new_newsletter.id, subject)
         return Response(
             {"message": "Newsletter is successfully submitted."},
             status=status.HTTP_200_OK,

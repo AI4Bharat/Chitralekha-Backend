@@ -7,7 +7,7 @@ from config import app_name
 
 
 @celery_app.task(queue="newsletter")
-def celery_newsletter_call(newsletter_id):
+def celery_newsletter_call(newsletter_id, subject):
     logging.info("Sending Newsletter")
     subscribed_users = SubscribedUsers.objects.all()
     newsletter = Newsletter.objects.get(pk=newsletter_id)
