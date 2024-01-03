@@ -25,6 +25,7 @@ from users.models import User
 from video.models import Video
 import logging
 from organization.models import Organization
+from config import app_name
 
 
 def get_completed_tasks():
@@ -87,7 +88,7 @@ def get_completed_tasks():
                 )
                 logging.info("Sending Mail to %s", manager.email)
                 send_mail(
-                    "Chitralekha - Completed Tasks Report",
+                    f"{app_name} - Completed Tasks Report",
                     message,
                     settings.DEFAULT_FROM_EMAIL,
                     [manager.email],
@@ -157,7 +158,7 @@ def get_new_tasks():
                 )
                 logging.info("Sending Mail to %s", manager.email)
                 send_mail(
-                    "Chitralekha - Tasks Assignment Status Report",
+                    f"{app_name} - Tasks Assignment Status Report",
                     message,
                     settings.DEFAULT_FROM_EMAIL,
                     [manager.email],
@@ -216,7 +217,7 @@ def get_eta_reminders():
             )
             logging.info("Sending Mail to %s", user.email)
             send_mail(
-                "Chitralekha - Due Tasks",
+                f"{app_name} - Due Tasks",
                 message,
                 settings.DEFAULT_FROM_EMAIL,
                 [user.email],
@@ -272,7 +273,7 @@ def get_new_users():
             )
             logging.info("Sending Mail to %s", org_owner.email)
             send_mail(
-                "Chitralekha - New Users",
+                f"{app_name} - New Users",
                 message,
                 settings.DEFAULT_FROM_EMAIL,
                 [org_owner.email],

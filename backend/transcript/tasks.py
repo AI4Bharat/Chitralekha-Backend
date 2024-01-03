@@ -9,6 +9,7 @@ from config import (
     storage_account_key,
     connection_string,
     container_name,
+    app_name,
 )
 from json_to_ytt import *
 import os
@@ -31,7 +32,7 @@ def celery_align_json(transcript_id):
                 print("Error in calling align json API")
             time_now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
             file_name = (
-                "Chitralekha_Video_{}_{}".format(transcript_obj.video.id, time_now)
+                "{}_Video_{}_{}".format(app_name, transcript_obj.video.id, time_now)
                 + ".ytt"
             )
             try:

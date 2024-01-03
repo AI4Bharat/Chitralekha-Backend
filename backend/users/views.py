@@ -490,7 +490,7 @@ class UserViewSet(viewsets.ViewSet):
                 required=False,
             ),
         ],
-        responses={200: "Get all members of Chitralekha"},
+        responses={200: "Get all members who have signed up."},
     )
     @action(detail=False, methods=["GET"], name="Get all members", url_name="all_users")
     @is_admin
