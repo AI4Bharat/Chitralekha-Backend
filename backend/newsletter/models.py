@@ -6,7 +6,25 @@ from django import forms
 from users.models import User
 
 
-NEWSLETTER_CATEGORY = (("NEW_FEATURE", "New Feature"),)
+NEWSLETTER_CATEGORY = (
+    ("RELEASE", "Release"),
+    ("DOWNTIME", "Downtime"),
+    ("GENERAL", "General"),
+)
+
+
+def default_subscribed_categories():
+    return ["Release", "Downtime", "General"]
+
+
+def validate_category_choices(value):
+    valid_choices = [choice[0] for choice in NEWSLETTER_CATEGORY]
+    for item in value:
+        if item not in valid_choices:
+            raise ValidationError(
+                _("'%(value)s' is not a valid choice."),
+                params={"value": item},
+            )
 
 
 class Newsletter(models.Model):
@@ -51,7 +69,11 @@ class SubscribedUsers(models.Model):
         null=False,
         blank=False,
     )
-    subscribed_categories = forms.MultipleChoiceField()
+    subscribed_categories = ArrayField(
+        models.CharField(max_length=20, choices=NEWSLETTER_CATEGORY),
+        validators=[validate_category_choices],
+        default=default_subscribed_categories,
+    )
     email = models.EmailField(verbose_name="email_address", null=True, blank=True)
 
     def __str__(self):
