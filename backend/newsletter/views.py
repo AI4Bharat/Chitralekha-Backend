@@ -76,7 +76,7 @@ def unsubscribe(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     categories = request.GET.get("categories")
-    sub_user.categories = categories
+    sub_user.subscribed_categories = categories.split(',')
     sub_user.save()
     return Response(
         {"message": "User unsubscribed successfully."},
@@ -317,10 +317,9 @@ class NewsletterViewSet(ModelViewSet):
     )
     @action(detail=False, methods=["post"], url_path="send_mail_temp")
     def send_mail_temp(self, request):
-        for user in User.objects.filter(organization__id=16):
-            SubscribedUsers.objects.get_or_create(user=user, email=user.email)
         for subscribed_user in SubscribedUsers.objects.all():
             subscribed_user.email = subscribed_user.user.email
+            subscribed_user.subscribed_categories = ["Release", "Downtime", "General"]
             subscribed_user.save()
         newsletter_id = request.data.get("newsletter_id")
         email = request.data.get("email")

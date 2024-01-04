@@ -13,20 +13,19 @@ def celery_newsletter_call(newsletter_id, subject):
     newsletter = Newsletter.objects.get(pk=newsletter_id)
     for subscribed_user in subscribed_users:
         if newsletter.category in subscribed_user.subscribed_categories:
-            logging.info("Sending Mail to %s", subscribed_user.user.email)
+            logging.info("Sending Mail to %s", subscribed_user.email)
             subscribed_categories = ",".join(subscribed_user.subscribed_categories)
             unsubscribe_link = f"{frontend_url}/#/newsletter/unsubscribe?email={subscribed_user.email}&categories={subscribed_categories}"
             cont = newsletter.content.replace("{unsubscribe_link}", unsubscribe_link)
-            newsletter.content = cont
-            newsletter.save()
             try:
                 send_mail(
-                    f"{app_name} - Newsletter",
                     subject,
+                    "",
                     settings.DEFAULT_FROM_EMAIL,
                     [subscribed_user.email],
-                    html_message=newsletter.content,
+                    html_message=cont,
                 )
             except:
                 logging.info("Mail can't be sent.")
-        logging.info("User is not subscribed to this cateogry.")
+        else:
+            logging.info("User is not subscribed to this cateogry.")
