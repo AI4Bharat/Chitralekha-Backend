@@ -3,7 +3,7 @@ from .models import SubscribedUsers, Newsletter
 from django.conf import settings
 from django.core.mail import send_mail
 import logging
-from config import app_name
+from config import app_name, frontend_url
 
 
 @celery_app.task(queue="newsletter")
@@ -15,7 +15,7 @@ def celery_newsletter_call(newsletter_id, subject):
         if newsletter.category in subscribed_user.subscribed_categories:
             logging.info("Sending Mail to %s", subscribed_user.user.email)
             subscribed_categories = ",".join(subscribed_user.subscribed_categories)
-            unsubscribe_link = f"https://dev.chitralekha.ai4bharat.org/newsletter/unsubscribe?email={subscribed_user.email}&categories={subscribed_categories}"
+            unsubscribe_link = f"{frontend_url}/#/newsletter/unsubscribe?email={subscribed_user.email}&categories={subscribed_categories}"
             cont = newsletter.content.replace("{unsubscribe_link}", unsubscribe_link)
             newsletter.content = cont
             newsletter.save()
