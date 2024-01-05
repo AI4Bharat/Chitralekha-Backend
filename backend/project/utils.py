@@ -35,13 +35,22 @@ from config import (
 from django.conf import settings
 
 
-def get_reports_for_users(pk):
+def get_reports_for_users(pk, offset, limit):
+    offset = offset - 1
+    start = offset * int(limit)
+    end = start + int(limit)
+    subquery = (
+        User.objects.filter(projects__pk=pk, has_accepted_invite=True)
+        .order_by("email")
+        .values("id")[start:end]
+    )
+
     project_members = (
-        User.objects.filter(projects__pk=pk)
-        .filter(has_accepted_invite=True)
+        User.objects.filter(id__in=subquery)
         .values(name=Concat("first_name", Value(" "), "last_name"), mail=F("email"))
         .order_by("mail")
     )
+
     user_statistics = (
         project_members.annotate(
             tasks_assigned_count=Count("task", filter=Q(task__video__project_id=pk))
@@ -87,6 +96,7 @@ def get_reports_for_users(pk):
         )
         .exclude(tasks_assigned_count=0)
     ).order_by("mail")
+
     word_count_transcript_statistics = (
         project_members.annotate(
             transcript_word_count=Sum(
