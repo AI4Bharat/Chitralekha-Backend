@@ -1361,7 +1361,26 @@ class ProjectViewSet(viewsets.ModelViewSet):
             {"message": "Reports will be emailed."}, status=status.HTTP_200_OK
         )
 
-    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @swagger_auto_schema(
+        method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description=("Limit parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "offset",
+                openapi.IN_QUERY,
+                description=("Offset parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+        ],
+        responses={200: "List of org tasks"},
+    )
     @action(
         detail=True,
         methods=["GET"],
@@ -1370,13 +1389,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
     )
     @is_particular_project_owner
     def get_report_users(self, request, pk=None, *args, **kwargs):
+        limit = int(request.query_params["limit"])
+        offset = int(request.query_params["offset"])
         try:
             prj = Project.objects.get(pk=pk)
         except Project.DoesNotExist:
             return Response(
                 {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        user_data = get_reports_for_users(pk)
+        user_data = get_reports_for_users(pk, offset, limit)
         return Response(user_data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
