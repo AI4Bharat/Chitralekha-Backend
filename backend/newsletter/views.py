@@ -317,10 +317,6 @@ class NewsletterViewSet(ModelViewSet):
     )
     @action(detail=False, methods=["post"], url_path="send_mail_temp")
     def send_mail_temp(self, request):
-        for subscribed_user in SubscribedUsers.objects.all():
-            subscribed_user.email = subscribed_user.user.email
-            subscribed_user.subscribed_categories = ["Release", "Downtime", "General"]
-            subscribed_user.save()
         newsletter_id = request.data.get("newsletter_id")
         email = request.data.get("email")
 
