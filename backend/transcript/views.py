@@ -1909,6 +1909,16 @@ def get_transcription_report(request):
                 "value": round(elem["total_duration"].total_seconds() / 3600, 3),
                 "label": "Transcripted Duration (Hours)",
             },
+            "transcripts_completed": {
+                "value": len(
+                    transcripts.filter(language=elem["language"]).filter(
+                        video__project_id__organization_id__title=elem[
+                            "video__project_id__organization_id__title"
+                        ]
+                    )
+                ),
+                "label": "Transcription Tasks Count",
+            },
         }
         transcript_data.append(transcript_dict)
 

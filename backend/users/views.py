@@ -23,6 +23,7 @@ from .serializers import (
 from organization.models import Invite, Organization
 from organization.serializers import InviteGenerationSerializer
 from organization.decorators import is_admin, is_organization_owner
+from project.decorators import is_project_owner
 from users.models import LANG_CHOICES, User
 from rest_framework.decorators import action
 from django.db.models import Q
@@ -531,7 +532,19 @@ class RoleViewSet(viewsets.ViewSet):
         """
         Get all choices of role.
         """
-        data = [{"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES]
+        if not request.user.is_anonymous:
+            user_role = request.user.role
+            if user_role == "ORG_OWNER":
+                data = [{"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES[:8]]
+            elif user_role == "PROJECT_MANAGER":
+                data = [{"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES[:7]]
+            elif user_role == "ADMIN":
+                data = [{"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES[:9]]
+            else:
+                data = [{"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES[:9]]
+        else:
+            data = [{"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES[:9]]
+
         return Response(data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
@@ -558,7 +571,7 @@ class RoleViewSet(viewsets.ViewSet):
         name="Update user role",
         url_name="update_user_role",
     )
-    @is_organization_owner
+    @is_project_owner
     def update_user_role(self, request, *args, **kwargs):
         """
         API Endpoint to store parameter of youtube
