@@ -1910,7 +1910,13 @@ def get_transcription_report(request):
                 "label": "Transcripted Duration (Hours)",
             },
             "transcripts_completed": {
-                "value": len(transcripts),
+                "value": len(
+                    transcripts.filter(language=elem["language"]).filter(
+                        video__project_id__organization_id__title=elem[
+                            "video__project_id__organization_id__title"
+                        ]
+                    )
+                ),
                 "label": "Transcription Tasks Count",
             },
         }

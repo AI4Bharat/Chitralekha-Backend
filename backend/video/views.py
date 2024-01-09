@@ -114,19 +114,7 @@ class TransliterationAPIView(APIView):
         )
 
         transliteration_output = response_transliteration.json()
-        if response_transliteration.status_code == 200:
-            response = {
-                "error": "",
-                "input": data,
-                "result": transliteration_output["output"][0]["target"],
-                "success": True,
-            }
-        else:
-            response = {"error": "", "input": data, "result": [], "success": False}
-        return Response(
-            response,
-            status=status.HTTP_200_OK,
-        )
+        return Response(transliteration_output, status=status.HTTP_200_OK)
 
 
 @swagger_auto_schema(
