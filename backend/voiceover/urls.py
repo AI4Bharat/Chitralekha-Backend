@@ -20,6 +20,11 @@ urlpatterns = [
         name="get_empty_audios",
     ),
     path(
+        "update_completed_count/",
+        views.update_completed_count,
+        name="update_completed_count",
+    ),
+    path(
         "get_payload/",
         views.get_payload,
         name="get_payload",
