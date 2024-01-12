@@ -155,6 +155,75 @@ def get_empty_audios(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the task id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+        openapi.Parameter(
+            "offset",
+            openapi.IN_QUERY,
+            description=("Offset number"),
+            type=openapi.TYPE_INTEGER,
+            required=False,
+        ),
+    ],
+    responses={200: "Returns the Translated Audio."},
+)
+@api_view(["GET"])
+def update_completed_count(request):
+    try:
+        task_id = request.query_params["task_id"]
+    except KeyError:
+        return Response(
+            {"message": "Missing required parameters - task_id or offset"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    voice_over = get_voice_over_id(task)
+    completed_count = 0
+
+    if voice_over is not None:
+        voice_over_id = voice_over.id
+    try:
+        voice_over = VoiceOver.objects.get(pk=voice_over_id)
+    except VoiceOver.DoesNotExist:
+        return Response(
+            {"message": "VoiceOver doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    audios_list = len(voice_over.payload["payload"])
+    empty_audio_list = []
+    try:
+        for i in range(len(voice_over.payload["payload"]) - 1):
+            if "audio" in voice_over.payload["payload"][str(i)].keys() and voice_over.payload["payload"][str(i)]["audio"] == "":
+                empty_audio_list.append(i)
+            else:
+                completed_count += 1
+        voice_over.payload["payload"]["completed_count"] = completed_count
+        voice_over.save()
+    except:
+        print("Error in processing")
+    count = request.query_params.get("offset")
+    if count != None and int(count) > 0:
+        voice_over.payload["payload"]["completed_count"] = int(count)
+        voice_over.save()
+    return Response({"message": "Count updated."}, status=status.HTTP_200_OK)
+
 
 @swagger_auto_schema(
     method="get",
