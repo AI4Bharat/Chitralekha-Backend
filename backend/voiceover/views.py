@@ -222,7 +222,7 @@ def update_completed_count(request):
     if count != None and int(count) > 0:
         voice_over.payload["payload"]["completed_count"] = int(count)
         voice_over.save()
-    return Reponse({"message": "Count updated."}, status=status.HTTP_200_OK)
+    return Response({"message": "Count updated."}, status=status.HTTP_200_OK)
 
 
 @swagger_auto_schema(
