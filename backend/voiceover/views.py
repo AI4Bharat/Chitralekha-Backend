@@ -208,16 +208,20 @@ def update_completed_count(request):
 
     audios_list = len(voice_over.payload["payload"])
     empty_audio_list = []
-    for i in range(len(voice_over.payload["payload"])):
-        if "audio" in voice_over.payload["payload"][i].keys() and voice_over.payload["payload"][i]["audio"] == "":
-            empty_audio_list.append(i)
-        else:
-            completed_count += 1
-    voice_over.payload["payload"]["completed_count"] = completed_count
-    voice_over.save()
-    count = request.query_params["offset"]
+    try:
+        for i in range(len(voice_over.payload["payload"]) - 1):
+            if "audio" in voice_over.payload["payload"][str(i)].keys() and voice_over.payload["payload"][str(i)]["audio"] == "":
+                empty_audio_list.append(i)
+            else:
+                completed_count += 1
+        voice_over.payload["payload"]["completed_count"] = completed_count
+        voice_over.save()
+    except:
+        print("Error in processing")
+    count = request.query_params.get("offset")
     if count != None and int(count) > 0:
         voice_over.payload["payload"]["completed_count"] = int(count)
+        voice_over.save()
     return Reponse({"message": "Count updated."}, status=status.HTTP_200_OK)
 
 
