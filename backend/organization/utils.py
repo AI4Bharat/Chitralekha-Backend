@@ -19,6 +19,7 @@ import os
 from organization.models import Organization
 from project.models import Project
 from project.views import ProjectViewSet
+from project.utils import *
 from django.http import HttpRequest
 import pandas as pd
 from transcript.models import Transcript
@@ -97,11 +98,8 @@ def get_project_report_users(project_id, user):
 
 
 def get_project_report_languages(project_id, user):
-    data = ProjectViewSet(detail=True)
-    new_request = HttpRequest()
-    new_request.user = user
-    ret = data.get_report_languages(new_request, project_id)
-    return ret.data
+    ret = get_reports_for_languages(project_id)
+    return ret
 
 
 def get_language_label(target_language):
@@ -289,9 +287,13 @@ def format_completion_time(completion_time):
     return full_time
 
 
-def get_org_report_tasks(pk, user):
+def get_org_report_tasks(pk, user, limit, offset):
+    start_offset = (int(offset) - 1) * int(limit)
+    end_offset = start_offset + int(limit)
+
     org_videos = Video.objects.filter(project_id__organization_id=pk)
-    task_orgs = Task.objects.filter(video__in=org_videos)
+    task_orgs = Task.objects.filter(video__in=org_videos)[start_offset:end_offset]
+
     tasks_list = []
     for task in task_orgs:
         if task.description is not None:
@@ -416,10 +418,13 @@ def get_org_report_tasks_email(org_id, user):
     send_mail_with_report(subject, body, user, [csv_file_path])
 
 
-def get_org_report_projects(pk, user):
+def get_org_report_projects(pk, user, limit, offset):
+    start_offset = (int(offset) - 1) * int(limit)
+    end_offset = start_offset + int(limit)
+
     org_projects = (
         Project.objects.filter(organization_id=pk).values("title", "id").order_by("id")
-    )
+    )[start_offset:end_offset]
 
     project_stats = org_projects.annotate(num_videos=Count("video"))
 
