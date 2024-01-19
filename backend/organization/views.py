@@ -798,7 +798,26 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             user_data.append(user_dict)
         return Response(user_data, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @swagger_auto_schema(
+        method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description=("Limit parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "offset",
+                openapi.IN_QUERY,
+                description=("Offset parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+        ],
+        responses={200: "Report of organization tasks."},
+    )
     @action(
         detail=True,
         methods=["GET"],
@@ -807,16 +826,47 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     )
     @is_particular_organization_owner
     def get_tasks_report(self, request, pk=None, *args, **kwargs):
+        limit = int(request.query_params["limit"])
+        offset = int(request.query_params["offset"])
+
+        start_offset = (int(offset) - 1) * int(limit)
+        end_offset = start_offset + int(limit)
         try:
             org = Organization.objects.get(pk=pk)
         except Organization.DoesNotExist:
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        tasks_list = get_org_report_tasks(pk, request.user)
+        tasks_list = get_org_report_tasks(pk, request.user, limit, offset)
         return Response(tasks_list, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @swagger_auto_schema(
+        method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description=("Limit parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "offset",
+                openapi.IN_QUERY,
+                description=("Offset parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "task_type",
+                openapi.IN_QUERY,
+                description=("Task Type"),
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+        ],
+        responses={200: "Report of organization languages."},
+    )
     @action(
         detail=True,
         methods=["GET"],
@@ -825,6 +875,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     )
     @is_particular_organization_owner
     def get_report_languages(self, request, pk=None, *args, **kwargs):
+        limit = int(request.query_params["limit"])
+        offset = int(request.query_params["offset"])
+        task_type = request.query_params["task_type"]
         try:
             org = Organization.objects.get(pk=pk)
         except Organization.DoesNotExist:
@@ -832,7 +885,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
         aggregated_project_report = get_org_report_languages(pk, request.user)
-        return Response(aggregated_project_report, status=status.HTTP_200_OK)
+        start_offset = (int(offset) - 1) * int(limit)
+        end_offset = start_offset + int(limit)
+        return Response(
+            aggregated_project_report[task_type][start_offset:end_offset],
+            status=status.HTTP_200_OK,
+        )
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
@@ -916,7 +974,26 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         }
         return Response(res, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @swagger_auto_schema(
+        method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description=("Limit parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "offset",
+                openapi.IN_QUERY,
+                description=("Offset parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+        ],
+        responses={200: "Report of organization projects."},
+    )
     @action(
         detail=True,
         methods=["GET"],
@@ -925,14 +1002,21 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     )
     @is_particular_organization_owner
     def get_report_projects(self, request, pk=None, *args, **kwargs):
+        limit = int(request.query_params["limit"])
+        offset = int(request.query_params["offset"])
+
+        start_offset = (int(offset) - 1) * int(limit)
+        end_offset = start_offset + int(limit)
         try:
             org = Organization.objects.get(pk=pk)
         except Organization.DoesNotExist:
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        project_data = get_org_report_projects(pk, request.user)
-        return Response(project_data, status=status.HTTP_200_OK)
+        project_data = get_org_report_projects(pk, request.user, limit, offset)
+        return Response(
+            project_data[start_offset:end_offset], status=status.HTTP_200_OK
+        )
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(

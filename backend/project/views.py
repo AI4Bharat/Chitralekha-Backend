@@ -1400,7 +1400,33 @@ class ProjectViewSet(viewsets.ModelViewSet):
         user_data = get_reports_for_users(pk, offset, limit)
         return Response(user_data, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(method="get", responses={200: "Success"})
+    @swagger_auto_schema(
+        method="get",
+        manual_parameters=[
+            openapi.Parameter(
+                "limit",
+                openapi.IN_QUERY,
+                description=("Limit parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "offset",
+                openapi.IN_QUERY,
+                description=("Offset parameter"),
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+            openapi.Parameter(
+                "task_type",
+                openapi.IN_QUERY,
+                description=("Task Type"),
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+        ],
+        responses={200: "List of project languages."},
+    )
     @action(
         detail=True,
         methods=["GET"],
@@ -1409,6 +1435,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
     )
     @is_particular_project_owner
     def get_report_languages(self, request, pk=None, *args, **kwargs):
+        limit = int(request.query_params["limit"])
+        offset = int(request.query_params["offset"])
+        task_type = request.query_params["task_type"]
         try:
             prj = Project.objects.get(pk=pk)
         except Project.DoesNotExist:
@@ -1416,4 +1445,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
         language_data = get_reports_for_languages(pk)
-        return Response(language_data, status=status.HTTP_200_OK)
+        start_offset = (int(offset) - 1) * int(limit)
+        end_offset = start_offset + int(limit)
+        return Response(language_data[task_type][start_offset:end_offset], status=status.HTTP_200_OK)
