@@ -718,14 +718,23 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             )
 
         projects_in_org = Project.objects.filter(organization_id=organization).all()
+        prj_videos = Video.objects.filter(project_id=pk)
+        prj_transcriptions = (
+            Transcript.objects.filter(video__in=prj_videos)
+            .filter(status="TRANSCRIPTION_EDIT_COMPLETE")
+            .values("language")
+            .annotate(transcripts=Count("id"))
+        )
         all_project_report = []
         if len(projects_in_org) > 0:
             for project in projects_in_org:
-                project_report = get_project_report_users(project.id, request.user)
+                project_report = get_reports_for_languages(
+                    project_id, limit, offset, task_type
+                )
                 for report in project_report:
                     report["project"] = {"value": project.title, "label": "Project"}
                     all_project_report.append(report)
-        return Response(all_project_report, status=status.HTTP_200_OK)
+        return Response({"reports": all_project_report, "total_count": 11}, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
     @action(
@@ -837,8 +846,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        tasks_list = get_org_report_tasks(pk, request.user, limit, offset)
-        return Response(tasks_list, status=status.HTTP_200_OK)
+        tasks_list, total_count = get_org_report_tasks(pk, request.user, limit, offset)
+        return Response({"reports":tasks_list, "total_count": total_count}, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         method="get",
@@ -888,7 +897,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         start_offset = (int(offset) - 1) * int(limit)
         end_offset = start_offset + int(limit)
         return Response(
-            aggregated_project_report[task_type][start_offset:end_offset],
+            {"reports":aggregated_project_report[task_type][start_offset:end_offset], "total_count": len(aggregated_project_report)},
             status=status.HTTP_200_OK,
         )
 
@@ -1015,7 +1024,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             )
         project_data = get_org_report_projects(pk, request.user, limit, offset)
         return Response(
-            project_data[start_offset:end_offset], status=status.HTTP_200_OK
+            {"reports": project_data[start_offset:end_offset], "total_count": len(project_data)}, status=status.HTTP_200_OK
         )
 
     @swagger_auto_schema(method="get", responses={200: "Success"})
