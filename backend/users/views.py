@@ -621,7 +621,7 @@ class RoleViewSet(viewsets.ViewSet):
                         update_user_role = True
                     else:
                         check_if_tasks_assign = True
-                if user.role == "TRANSLATION_EDITOR":
+                elif user.role == "TRANSLATION_EDITOR":
                     if (
                         (role == "TRANSLATION_REVIEWER")
                         or (role == "UNIVERSAL_EDITOR")
@@ -630,7 +630,7 @@ class RoleViewSet(viewsets.ViewSet):
                         update_user_role = True
                     else:
                         check_if_tasks_assign = True
-                if user.role == "VOICEOVER_EDITOR":
+                elif user.role == "VOICEOVER_EDITOR":
                     if (
                         (role == "VOICEOVER_REVIEWER")
                         or (role == "UNIVERSAL_EDITOR")
@@ -639,6 +639,32 @@ class RoleViewSet(viewsets.ViewSet):
                         update_user_role = True
                     else:
                         check_if_tasks_assign = True
+                elif user.role == "TRANSCRIPT_REVIEWER":
+                    if (
+                        (role == "UNIVERSAL_EDITOR")
+                        or (role == "PROJECT_MANAGER")
+                    ):
+                        update_user_role = True
+                    else:
+                        check_if_tasks_assign = True
+                elif user.role == "TRANSLATION_REVIEWER":
+                    if (
+                        (role == "UNIVERSAL_EDITOR")
+                        or (role == "PROJECT_MANAGER")
+                    ):
+                        update_user_role = True
+                    else:
+                        check_if_tasks_assign = True
+                elif user.role == "UNIVERSAL_EDITOR":
+                    if role == "PROJECT_MANAGER":
+                        update_user_role = True
+                    else:
+                        check_if_tasks_assign = True
+                else:
+                    return Response(
+                        {"message": "Please enter a valid role"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
                 if check_if_tasks_assign:
                     tasks = Task.objects.filter(user=user).exclude(status="COMPLETE")
