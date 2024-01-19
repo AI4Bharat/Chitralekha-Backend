@@ -1398,7 +1398,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
         user_data = get_reports_for_users(pk, offset, limit)
-        return Response(user_data, status=status.HTTP_200_OK)
+        return Response({"reports": user_data, "total_count": len(user_data)}, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         method="get",
@@ -1447,4 +1447,4 @@ class ProjectViewSet(viewsets.ModelViewSet):
         language_data = get_reports_for_languages(pk)
         start_offset = (int(offset) - 1) * int(limit)
         end_offset = start_offset + int(limit)
-        return Response(language_data[task_type][start_offset:end_offset], status=status.HTTP_200_OK)
+        return Response({"reports": language_data[task_type][start_offset:end_offset], "total_count": len(language_data)}, status=status.HTTP_200_OK)

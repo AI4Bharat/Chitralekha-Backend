@@ -292,6 +292,7 @@ def get_org_report_tasks(pk, user, limit, offset):
     end_offset = start_offset + int(limit)
 
     org_videos = Video.objects.filter(project_id__organization_id=pk)
+    total_count = len(Task.objects.filter(video__in=org_videos))
     task_orgs = Task.objects.filter(video__in=org_videos)[start_offset:end_offset]
 
     tasks_list = []
@@ -397,7 +398,7 @@ def get_org_report_tasks(pk, user, limit, offset):
                 },
             }
         )
-    return tasks_list
+    return tasks_list, total_count
 
 
 def get_org_report_tasks_email(org_id, user):
