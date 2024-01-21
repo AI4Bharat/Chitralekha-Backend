@@ -43,7 +43,6 @@ def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
             return eval(output)
         except:
             logging.info("Error in ASR API")
-            traceback.print_stack()
             return None
     else:
         if lang == "hi":
