@@ -409,6 +409,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "Delete": False,
                     "Info": False,
                     "Reopen": False,
+                    "Regenerate": False,
                 }
                 buttons["Update"] = True
                 buttons["Delete"] = True
@@ -520,6 +521,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "Delete": False,
                         "Info": False,
                         "Reopen": False,
+                        "Regenerate": False,
                     }
                     if user in task_o.video.project_id.managers.all():
                         buttons["Update"] = True
@@ -596,6 +598,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "Delete": False,
                         "Info": False,
                         "Reopen": False,
+                        "Regenerate": False,
                     }
                     if task["status"] == "COMPLETE":
                         buttons["Export"] = True

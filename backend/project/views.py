@@ -900,6 +900,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Upload": False,
                         "Info": False,
                         "Reopen": False,
+                        "Regenerate": False,
                     }
                     buttons["Update"] = True
                     buttons["Delete"] = True
