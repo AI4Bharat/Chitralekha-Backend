@@ -834,6 +834,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Upload": False,
                         "Info": False,
                         "Reopen": False,
+                        "Regenerate": False,
                     }
                     buttons["Update"] = True
                     buttons["Delete"] = True
@@ -850,7 +851,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Update"] = True
                     if data["status"] == "FAILED":
                         buttons["Info"] = True
-                        buttons["Reopen"] = True
+                        if data["is_active"] == False:
+                            buttons["Regenerate"] = True
+                        else:
+                            buttons["Reopen"] = False
                     if data["status"] == "REOPEN":
                         buttons["Info"] = True
                     if data["status"] == "INPROGRESS":
@@ -860,6 +864,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Info"] = False
                         if data["status"] == "FAILED":
                             buttons["Reopen"] = False
+                            buttons["Regenerate"] = False
                     if data["user"]["email"] == request.user.email:
                         if data["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
@@ -903,22 +908,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Export"] = True
                         buttons["Preview"] = True
                         buttons["Update"] = False
-                        if "TRANSLATION" in data["task_type"]:
-                            buttons["Reopen"] = True
-                    if data["status"] == "POST_PROCESS":
-                        buttons["Update"] = True
-                    if data["status"] == "FAILED":
-                        buttons["Info"] = True
-                        buttons["Reopen"] = True
-                    if data["status"] == "REOPEN":
+                    if data["status"] in ["FAILED", "REOPEN"]:
                         buttons["Info"] = True
                     if data["status"] == "INPROGRESS":
                         buttons["Preview"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
                         buttons["Info"] = False
-                        if data["status"] == "FAILED":
-                            buttons["Reopen"] = False
                     if data["user"]["email"] == request.user.email:
                         if data["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
