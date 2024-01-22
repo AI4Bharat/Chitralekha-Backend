@@ -41,14 +41,12 @@ def get_language_label(target_language):
             return language[0]
     return "-"
 
-def get_reports_for_users(pk, offset, limit):
-    offset = offset - 1
-    start = offset * int(limit)
-    end = start + int(limit)
+
+def get_reports_for_users(pk, start, end):
     subquery = (
         User.objects.filter(projects__pk=pk, has_accepted_invite=True)
         .order_by("email")
-        .values("id")[start:end]
+        .values("id")
     )
 
     project_members = (
@@ -57,7 +55,7 @@ def get_reports_for_users(pk, offset, limit):
         .order_by("mail")
     )
 
-    user_statistics = (
+    all_user_statistics = (
         project_members.annotate(
             tasks_assigned_count=Count("task", filter=Q(task__video__project_id=pk))
         )
@@ -102,7 +100,8 @@ def get_reports_for_users(pk, offset, limit):
         )
         .exclude(tasks_assigned_count=0)
     ).order_by("mail")
-
+    total_count = len(all_user_statistics)
+    user_statistics = all_user_statistics[start:end]
     word_count_transcript_statistics = (
         project_members.annotate(
             transcript_word_count=Sum(
@@ -189,7 +188,7 @@ def get_reports_for_users(pk, offset, limit):
         }
         user_data.append(user_dict)
     word_count_idx += 1
-    return user_data
+    return user_data, total_count
 
 
 def send_mail_with_report(subject, body, user, csv_file_paths):
@@ -369,7 +368,7 @@ def get_reports_for_languages(pk):
 
 
 def get_project_report_users_email(project_id, user):
-    user_data = get_reports_for_users(project_id)
+    user_data, total_count = get_reports_for_users(project_id)
     project = Project.objects.get(pk=project_id)
     columns = [field["label"] for field in user_data[0].values()]
 

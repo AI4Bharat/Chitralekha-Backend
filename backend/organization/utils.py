@@ -31,6 +31,7 @@ from azure.storage.blob import BlobServiceClient
 from config import storage_account_key, connection_string, reports_container_name
 from django.conf import settings
 import logging
+from collections import defaultdict
 
 
 def send_mail_with_report(subject, body, user, csv_file_paths):
@@ -107,6 +108,7 @@ def get_language_label(target_language):
         if target_language == language[1]:
             return language[0]
     return "-"
+
 
 def search_active_task(all_tasks, search_dict):
     if "active" in search_dict:
@@ -218,10 +220,14 @@ def get_org_report_languages_email(org_id, user):
     for section in ["transcript_stats", "translation_stats", "voiceover_stats"]:
         if section in data:
             for entry in data[section]:
-                keys_to_remove = [key for key in entry.keys() if isinstance(entry[key], dict) and 'label' in entry[key]]
+                keys_to_remove = [
+                    key
+                    for key in entry.keys()
+                    if isinstance(entry[key], dict) and "label" in entry[key]
+                ]
                 for key in keys_to_remove:
-                    label = entry[key]['label']
-                    entry[label] = entry[key]['value']
+                    label = entry[key]["label"]
+                    entry[label] = entry[key]["value"]
                     del entry[key]
     current_time = datetime.now()
     write_csv_pandas(
@@ -423,9 +429,11 @@ def get_org_report_projects(pk, user, limit, offset):
     start_offset = (int(offset) - 1) * int(limit)
     end_offset = start_offset + int(limit)
 
-    org_projects = (
+    all_org_projects = (
         Project.objects.filter(organization_id=pk).values("title", "id").order_by("id")
-    )[start_offset:end_offset]
+    )
+    total_count = len(all_org_projects)
+    org_projects = all_org_projects[start_offset:end_offset]
 
     project_stats = org_projects.annotate(num_videos=Count("video"))
 
@@ -517,7 +525,7 @@ def get_org_report_projects(pk, user, limit, offset):
         }
         project_data.append(project_dict)
         idx += 1
-    return project_data
+    return project_data, total_count
 
 
 def get_org_report_projects_email(org_id, user):
@@ -538,3 +546,53 @@ def get_org_report_projects_email(org_id, user):
     subject = f"Projects Reports for Organization - {org.title} - {formatted_date}"
     body = "Please find the attached CSV file."
     send_mail_with_report(subject, body, user, [csv_file_path])
+
+
+def paginate_reports(project_users_data, limit):
+    project_data = defaultdict(list)
+    page_number = 0
+    i = 0
+    reminder = 0
+    end_idx = 0
+    while i < len(project_users_data):
+        count = 0
+        page_number += 1
+        while count < limit and i < len(project_users_data):
+            if reminder == 0:
+                if project_users_data[i][1] <= limit - count:
+                    project_data[page_number].append(
+                        (
+                            project_users_data[i][0],
+                            end_idx,
+                            end_idx + project_users_data[i][1] - 1,
+                        )
+                    )
+                    count += project_users_data[i][1]
+                    i = i + 1
+                    reminder = 0
+                    end_idx = 0
+                else:
+                    project_data[page_number].append(
+                        (project_users_data[i][0], end_idx, end_idx + limit - count - 1)
+                    )
+                    reminder = project_users_data[i][1] - (limit - count)
+                    end_idx = project_users_data[i][1] - reminder
+                    count = limit
+            else:
+                if reminder <= limit - count:
+                    project_data[page_number].append(
+                        (project_users_data[i][0], end_idx, end_idx + reminder - 1)
+                    )
+                    count += reminder
+                    i = i + 1
+                    reminder = 0
+                    end_idx = 0
+                else:
+                    project_data[page_number].append(
+                        (project_users_data[i][0], end_idx, end_idx + limit - count - 1)
+                    )
+                    reminder = reminder - (limit - count)
+                    end_idx = project_users_data[i][1] - reminder
+                    count = limit
+
+    return project_data
