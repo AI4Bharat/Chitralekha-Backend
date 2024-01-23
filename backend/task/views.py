@@ -2840,7 +2840,7 @@ class TaskViewSet(ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         elif "TRANSCRIPTION" in task.task_type:
-            if Transcript.objects.filter(task=task_obj).first() is None:
+            if Transcript.objects.filter(task=task).first() is None:
                 return Response(
                     {"message": "Failed to retrieve response from ASR API. Please regenerate the response."},
                     status=status.HTTP_400_BAD_REQUEST,
