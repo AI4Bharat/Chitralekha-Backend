@@ -409,6 +409,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "Delete": False,
                     "Info": False,
                     "Reopen": False,
+                    "Regenerate": False,
                 }
                 buttons["Update"] = True
                 buttons["Delete"] = True
@@ -423,7 +424,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     buttons["Update"] = True
                 if task["status"] == "FAILED":
                     buttons["Info"] = True
-                    buttons["Reopen"] = True
+                    if task["is_active"] == True:
+                        buttons["Reopen"] = True
+                    else:
+                        buttons["Regenerate"] = True
                 if task["status"] == "REOPEN":
                     buttons["Info"] = True
                 if task["status"] == "INPROGRESS":
@@ -433,6 +437,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     buttons["Info"] = False
                     if task["status"] == "FAILED":
                         buttons["Reopen"] = False
+                        buttons["Regenerate"] = False
                 if task["user"]["email"] == request.user.email:
                     if task["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                         buttons["Edit"] = True
@@ -516,6 +521,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "Delete": False,
                         "Info": False,
                         "Reopen": False,
+                        "Regenerate": False,
                     }
                     if user in task_o.video.project_id.managers.all():
                         buttons["Update"] = True
@@ -529,7 +535,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             buttons["Update"] = True
                         if task["status"] == "FAILED":
                             buttons["Info"] = True
-                            buttons["Reopen"] = True
+                            if task["is_active"] == False:
+                                buttons["Regenerate"] = True
+                            else:
+                                buttons["Reopen"] = True
                         if task["status"] == "REOPEN":
                             buttons["Info"] = True
                         if task["status"] == "INPROGRESS":
@@ -539,6 +548,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             buttons["Info"] = False
                             if task["status"] == "FAILED":
                                 buttons["Reopen"] = False
+                                buttons["Regenerate"] = False
                     if task["user"]["email"] == request.user.email:
                         if task["status"] not in ["COMPLETE", "POST_PROCESS", "FAILED"]:
                             buttons["Edit"] = True
@@ -588,6 +598,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         "Delete": False,
                         "Info": False,
                         "Reopen": False,
+                        "Regenerate": False,
                     }
                     if task["status"] == "COMPLETE":
                         buttons["Export"] = True

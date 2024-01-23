@@ -2765,6 +2765,34 @@ class TaskViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @action(detail=True, methods=["get"], url_path="regenerate_response")
+    def regenerate_response(self, request, pk, *args, **kwargs):
+        try:
+            task = Task.objects.get(pk=pk)
+        except Task.DoesNotExist:
+            return Response(
+                {"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if task.task_type == "TRANSCRIPTION_EDIT":
+            celery_asr_call.delay(task_id=task.id)
+            api = "Transcription"
+        elif task.task_type == "TRANSLATION_EDIT":
+            celery_nmt_call.delay(task_id=task.id)
+            api = "Translation"
+        elif task.task_type == "VOICEOVER_EDIT":
+            celery_tts_call.delay(task_id=task.id)
+            api = "TTS"
+        else:
+            return Response(
+                {"message": "Invalid task"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            {"message": f"{api} API is being processed."}, status=status.HTTP_200_OK
+        )
+
+
     @action(detail=True, methods=["get"], url_path="get_fail_info")
     def get_fail_info(self, request, pk, *args, **kwargs):
         try:
@@ -2797,7 +2825,17 @@ class TaskViewSet(ModelViewSet):
                         {"message": "There is no issue in sentences."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
+            else:
+                return Response(
+                    {"message": "Failed to retrieve response from Translation API. Please regenerate the response."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         elif "TRANSCRIPTION" in task.task_type:
+            if Transcript.objects.filter(task=task).first() is None:
+                return Response(
+                    {"message": "Failed to retrieve response from Transcription API. Please regenerate the response."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             transcript = get_transcript_id(task)
             bad_sentences = get_bad_sentences_in_progress_for_transcription(transcript, "")
             if len(bad_sentences) > 0:
