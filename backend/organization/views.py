@@ -916,11 +916,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "value": elem["tasks_completed_count"],
                     "label": "Completed Tasks",
                 },
-                "task_completion_percentage": {
+                "tasks_completion_perc": {
                     "value": round(elem["task_completion_percentage"], 2),
                     "label": "Task Completion Index(%)",
                 },
-                "average_comp_time": {
+                "avg_comp_time": {
                     "value": avg_time,
                     "label": "Avg. Completion Time (Hours)",
                 },
