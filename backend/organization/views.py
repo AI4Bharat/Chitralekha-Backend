@@ -772,7 +772,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     project_report_user[2] + 1,
                 )
                 for report in project_report:
-                    report["project"] = {"value": project_report_user[0], "label": "Project"}
+                    report["project"] = {
+                        "value": project_report_user[0],
+                        "label": "Project",
+                    }
                     all_project_report.append(report)
         return Response(
             {"reports": all_project_report, "total_count": total_count},
@@ -844,8 +847,46 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             )
             .exclude(tasks_assigned_count=0)
         )
-        user_statistics = all_user_statistics[start: end]
+        user_statistics = all_user_statistics[start:end]
         total_count = len(all_user_statistics)
+
+        user_data = []
+        word_count_idx = 0
+        for elem in user_statistics:
+            transcript_word_count = User.objects.filter(
+                transcript__video__project_id__organization_id__id=pk,
+                transcript__status="TRANSCRIPTION_EDIT_COMPLETE",
+                transcript__task__user__email=elem["mail"],
+            ).aggregate(
+                transcript_word_count=Sum(
+                    Cast("transcript__payload__word_count", FloatField())
+                )
+            )
+
+            transcript_result = (
+                transcript_word_count["transcript_word_count"]
+                if transcript_word_count["transcript_word_count"] is not None
+                else 0.0
+            )
+
+            translation_word_count = User.objects.filter(
+                translation__video__project_id__organization_id__id=pk,
+                translation__status="TRANSLATION_EDIT_COMPLETE",
+                translation__task__user__email=elem["mail"],
+            ).aggregate(
+                translation_word_count=Sum(
+                    Cast("translation__payload__word_count", FloatField())
+                )
+            )
+
+            translation_result = (
+                translation_word_count["translation_word_count"]
+                if translation_word_count["translation_word_count"] is not None
+                else 0.0
+            )
+            elem["word_count_translation"] = int(translation_result)
+            elem["word_count_transcript"] = int(transcript_result)
+
         user_data = []
         for elem in user_statistics:
             avg_time = (
@@ -868,13 +909,25 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     "value": round(elem["task_completion_percentage"], 2),
                     "label": "Task Completion Index(%)",
                 },
-                "average_completion_time": {
+                "average_comp_time": {
                     "value": avg_time,
-                    "label": "Avg. Completion Time (in seconds)",
+                    "label": "Avg. Completion Time (Hours)",
+                },
+                "word_count": {
+                    "value": elem["word_count_translation"]
+                    + elem["word_count_transcript"],
+                    "label": "Word count",
+                },
+                "project": {
+                    "value": "",
+                    "label": "",
                 },
             }
             user_data.append(user_dict)
-        return Response({"reports": user_data,"total_count": total_count}, status=status.HTTP_200_OK)
+        return Response(
+            {"reports": user_data, "total_count": total_count},
+            status=status.HTTP_200_OK,
+        )
 
     @swagger_auto_schema(
         method="get",
