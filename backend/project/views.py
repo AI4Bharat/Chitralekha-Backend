@@ -955,6 +955,56 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
 
     @is_organization_owner
+    @action(
+        detail=False,
+        methods=["POST"],
+        name="Create Bulk Projects",
+        url_name="create_bulk_projects",
+    )
+    def create_bulk_projects(self, request, pk=None, *args, **kwargs):
+        titles = request.data.get("titles")
+        project_id = request.data.get("project_id")
+        project_obj = Project.objects.get(pk=project_id)
+        project_data = ProjectSerializer(project_obj)
+        # print(project_data)
+        serialized_dict = json.loads(json.dumps(project_data.data))
+        managers_id = []
+        data_list = project_data['managers'].value
+        print(data_list)
+
+        # Extract 'id' fields using a list comprehension
+        managers_id= [user_dict['id'] for user_dict in data_list]
+        print(serialized_dict)
+
+        for title in titles:
+            project_data_1 = {
+                'title': title,
+                'organization_id': project_data['organization_id'].value,
+                'managers_id': managers_id,
+                'default_transcript_type': project_data['default_transcript_type'].value,
+                'default_voiceover_type': project_data['default_voiceover_type'].value,
+                'default_translation_type': project_data['default_translation_type'].value,
+                'default_task_types': project_data['default_task_types'].value,
+                'default_target_languages': project_data['default_target_languages'].value,
+                'default_task_eta': project_data['default_eta'].value,
+                'default_task_priority': project_data['default_priority'].value,
+                'video_integration': project_data['video_integration'].value,
+                'default_task_description': project_data['default_description'].value,
+                'description': project_data['description'].value,
+            }
+            # Create a request object with the necessary dat
+            new_request = HttpRequest()
+            new_request.user = request.user
+            new_request.data = project_data_1
+            # Call the post method to create a project
+            single_project_data = self.create(new_request)
+        return Response(
+            {"message": "Projects are successfully created."},
+            status=status.HTTP_200_OK,
+        )
+
+
+    @is_organization_owner
     def create(self, request, pk=None, *args, **kwargs):
         """
         Create a Project
@@ -968,6 +1018,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
         default_translation_type = request.data.get("default_translation_type")
         default_task_types = request.data.get("default_task_types")
         default_target_languages = None
+        default_task_eta = request.data.get("default_task_eta")
+        default_task_priority = request.data.get("default_task_priority")
+        default_task_description = request.data.get("default_task_description")
+        video_integration = request.data.get("video_integration")
 
         if title is None or organization_id is None or len(managers_id) == 0:
             return Response(
@@ -1014,9 +1068,23 @@ class ProjectViewSet(viewsets.ModelViewSet):
             default_translation_type=default_translation_type,
             default_task_types=default_task_types,
             default_target_languages=default_target_languages,
+            description=description,
         )
         project.save()
+        if default_task_priority is not None:
+            project.default_priority = default_task_priority
 
+        if default_task_description is not None:
+            project.default_description = default_task_description
+
+        if description is not None:
+            project.description = description
+
+        if video_integration is not None:
+            if type(video_integration) == bool:
+                project.video_integration = video_integration
+
+        project.save()
         for manager_id in managers_id:
             managers = []
             try:
