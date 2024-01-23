@@ -208,6 +208,7 @@ def celery_nmt_call(task_id):
         )
         if type(payloads[source_type]) == Response:
             task_obj.status = "FAILED"
+            task_obj.is_active = False
             task_obj.save()
         else:
             if (

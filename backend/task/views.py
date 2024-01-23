@@ -2777,20 +2777,11 @@ class TaskViewSet(ModelViewSet):
         if task.task_type == "TRANSCRIPTION_EDIT":
             celery_asr_call.delay(task_id=task.id)
             api = "ASR"
-            task.is_active = True
-            task.status = "SELECTED_SOURCE"
-            task.save()
         elif task.task_type == "TRANSLATION_EDIT":
             celery_nmt_call.delay(task_id=task.id)
-            task.is_active = True
-            task.status = "SELECTED_SOURCE"
-            task.save()
             api = "NMT"
         elif task.task_type == "VOICEOVER_EDIT":
             celery_tts_call.delay(task_id=task.id)
-            task.is_active = True
-            task.status = "SELECTED_SOURCE"
-            task.save()
             api = "TTS"
         else:
             return Response(
