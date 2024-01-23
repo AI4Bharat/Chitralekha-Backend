@@ -2776,10 +2776,10 @@ class TaskViewSet(ModelViewSet):
 
         if task.task_type == "TRANSCRIPTION_EDIT":
             celery_asr_call.delay(task_id=task.id)
-            api = "ASR"
+            api = "Transcription"
         elif task.task_type == "TRANSLATION_EDIT":
             celery_nmt_call.delay(task_id=task.id)
-            api = "NMT"
+            api = "Translation"
         elif task.task_type == "VOICEOVER_EDIT":
             celery_tts_call.delay(task_id=task.id)
             api = "TTS"
@@ -2827,13 +2827,13 @@ class TaskViewSet(ModelViewSet):
                     )
             else:
                 return Response(
-                    {"message": "Failed to retrieve response from NMT API. Please regenerate the response."},
+                    {"message": "Failed to retrieve response from Translation API. Please regenerate the response."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         elif "TRANSCRIPTION" in task.task_type:
             if Transcript.objects.filter(task=task).first() is None:
                 return Response(
-                    {"message": "Failed to retrieve response from ASR API. Please regenerate the response."},
+                    {"message": "Failed to retrieve response from Transcription API. Please regenerate the response."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             transcript = get_transcript_id(task)
