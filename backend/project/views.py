@@ -851,10 +851,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Update"] = True
                     if data["status"] == "FAILED":
                         buttons["Info"] = True
-                        if data["is_active"] == False:
+                        if data["is_active"] == True:
                             buttons["Regenerate"] = True
                         else:
-                            buttons["Reopen"] = False
+                            buttons["Reopen"] = True
                     if data["status"] == "REOPEN":
                         buttons["Info"] = True
                     if data["status"] == "INPROGRESS":
