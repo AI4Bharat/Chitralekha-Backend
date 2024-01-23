@@ -171,6 +171,7 @@ def celery_asr_call(task_id):
                     status="TRANSCRIPTION_SELECT_SOURCE",
                 )
                 task_obj.is_active = True
+                task_obj.status = "SELECTED_SOURCE"
                 task_obj.save()
                 transcript_obj.save()
                 send_mail_to_user(task_obj)
@@ -219,6 +220,7 @@ def celery_nmt_call(task_id):
             else:
                 translation_obj.payload = payloads[source_type]
             translation_obj.save()
+            task_obj.status = "SELECTED_SOURCE"
             task_obj.is_active = True
             task_obj.save()
             send_mail_to_user(task_obj)
