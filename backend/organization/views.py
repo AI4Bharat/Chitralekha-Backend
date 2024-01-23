@@ -424,7 +424,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     buttons["Update"] = True
                 if task["status"] == "FAILED":
                     buttons["Info"] = True
-                    if task["is_active"] == False:
+                    if task["is_active"] == True:
                         buttons["Reopen"] = True
                     else:
                         buttons["Regenerate"] = True
@@ -535,7 +535,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             buttons["Update"] = True
                         if task["status"] == "FAILED":
                             buttons["Info"] = True
-                            if task["is_active"] == True:
+                            if task["is_active"] == False:
                                 buttons["Regenerate"] = True
                             else:
                                 buttons["Reopen"] = True
