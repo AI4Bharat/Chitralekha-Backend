@@ -23,7 +23,7 @@ from voiceover.utils import (
     send_mail_to_user,
     get_bad_sentences,
     get_bad_sentences_in_progress,
-    get_bad_sentences_in_progress_for_transcription
+    get_bad_sentences_in_progress_for_transcription,
 )
 from transcript.models import (
     Transcript,
@@ -70,6 +70,7 @@ from django.http import HttpResponse
 import datetime
 from task.tasks import (
     celery_asr_call,
+    celery_ekstep_asr_call,
     celery_tts_call,
     celery_nmt_call,
     convert_srt_to_payload,
@@ -1598,7 +1599,11 @@ class TaskViewSet(ModelViewSet):
         payloads = {}
         if "MACHINE_GENERATED" in list_compare_sources:
             if is_async == True:
-                celery_asr_call.delay(task_id=task.id)
+                if task.video.project_id.organization_id.id == 3:
+
+                    celery_ekstep_asr_call.delay(task_id=task.id)
+                else:
+                    celery_asr_call.delay(task_id=task.id)
                 payloads["MACHINE_GENERATED"] = {"payload": []}
             else:
                 transcribed_data = make_asr_api_call(
@@ -2629,20 +2634,20 @@ class TaskViewSet(ModelViewSet):
                 description=("The type of queue to inspect"),
                 type=openapi.TYPE_STRING,
                 required=True,
-            ),
+            )
         ],
         responses={200: "successful", 500: "unable to query celery"},
     )
     @action(detail=False, methods=["get"], url_path="inspect_queue")
     def inspect_queue(self, request):
-        queue=request.query_params.get("queue")
+        queue = request.query_params.get("queue")
 
-        if queue=='nmt':
-            queue_type="celery@nmt_worker"
-        elif queue=='tts':
-            queue_type="celery@asr_tts_worker"
+        if queue == "nmt":
+            queue_type = "celery@nmt_worker"
+        elif queue == "tts":
+            queue_type = "celery@asr_tts_worker"
         else:
-            queue_type="celery@asr_tts_worker"
+            queue_type = "celery@asr_tts_worker"
 
         try:
             task_list = []
