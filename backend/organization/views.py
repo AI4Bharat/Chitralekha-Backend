@@ -931,7 +931,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 },
                 "project": {
                     "value": "",
-                    "label": "",
+                    "label": "Project",
                 },
             }
             user_data.append(user_dict)

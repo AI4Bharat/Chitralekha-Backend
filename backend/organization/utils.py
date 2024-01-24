@@ -432,7 +432,7 @@ def get_org_report_projects(pk, user, limit, offset):
     all_org_projects = (
         Project.objects.filter(organization_id=pk).values("title", "id").order_by("id")
     )
-    total_count = len(all_org_projects)
+    total_count = all_org_projects.count()
     org_projects = all_org_projects[start_offset:end_offset]
 
     project_stats = org_projects.annotate(num_videos=Count("video"))
