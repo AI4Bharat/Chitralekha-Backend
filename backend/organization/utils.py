@@ -349,6 +349,11 @@ def get_org_report_tasks(pk, user, limit, offset):
 
         tasks_list.append(
             {
+                "task_id": {
+                    "value": task.id,
+                    "label": "Task Id",
+                    "viewColumns": False,
+                },
                 "project_name": {
                     "value": task.video.project_id.title,
                     "label": "Project Name",
@@ -503,6 +508,7 @@ def get_org_report_projects(pk, user, limit, offset):
             else word_count_translations[idx]["word_count"]
         )
         project_dict = {
+            "id": {"value": elem["id"], "label": "Id", "viewColumns": False},
             "title": {"value": elem["title"], "label": "Title", "viewColumns": False},
             "managers__username": {
                 "value": manager_list,

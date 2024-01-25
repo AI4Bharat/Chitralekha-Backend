@@ -784,7 +784,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
                 for report in project_report:
                     report["project"] = {
-                        "value": project_report_user[0],
+                        "value": Project.objects.get(pk=project_report_user[0]).title,
                         "label": "Project",
                     }
                     all_project_report.append(report)
