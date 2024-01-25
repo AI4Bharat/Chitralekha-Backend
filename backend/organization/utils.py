@@ -18,6 +18,7 @@ from django.core.mail import send_mail, EmailMessage
 import os
 from organization.models import Organization
 from project.models import Project
+from users.models import User
 from project.views import ProjectViewSet
 from project.utils import *
 from django.http import HttpRequest
@@ -90,12 +91,14 @@ def send_mail_with_report(subject, body, user, csv_file_paths):
         os.remove(file_path)
 
 
-def get_project_report_users(project_id, user):
+def get_project_report_users(project_id, user, limit):
     data = ProjectViewSet(detail=True)
     new_request = HttpRequest()
     new_request.user = user
+    new_request.query_params = {"offset": 1, "limit": limit}
+    params = {"offset": 1, "limit": limit}
     ret = data.get_report_users(new_request, project_id)
-    return ret.data
+    return ret.data["reports"]
 
 
 def get_project_report_languages(project_id, user):
@@ -124,7 +127,8 @@ def get_org_report_users_email(org_id, user):
     user_data = []
     if len(projects_in_org) > 0:
         for project in projects_in_org:
-            project_report = get_project_report_users(project.id, user)
+            limit = len(User.objects.filter(projects__pk=project.id, has_accepted_invite=True))
+            project_report = get_project_report_users(project.id, user, limit)
             for report in project_report:
                 report["project"] = {"value": project.title, "label": "Project"}
                 user_data.append(report)
@@ -414,7 +418,8 @@ def get_org_report_tasks(pk, user, limit, offset):
 
 def get_org_report_tasks_email(org_id, user):
     org = Organization.objects.get(pk=org_id)
-    tasks_list = get_org_report_tasks(org_id, user)
+    limit = len(Task.objects.filter(video__project_id__organization_id__id=org.id))
+    tasks_list, _ = get_org_report_tasks(org_id, user, limit, 1)
     columns = [field["label"] for field in tasks_list[0].values()]
 
     data = [[field["value"] for field in row.values()] for row in tasks_list]
@@ -536,7 +541,8 @@ def get_org_report_projects(pk, user, limit, offset):
 
 def get_org_report_projects_email(org_id, user):
     org = Organization.objects.get(pk=org_id)
-    projects_list = get_org_report_projects(org_id, user)
+    projects_count = len(Project.objects.filter(organization_id=org.id))
+    projects_list, _ = get_org_report_projects(org_id, user, projects_count, 1)
     columns = [field["label"] for field in projects_list[0].values()]
 
     data = [[field["value"] for field in row.values()] for row in projects_list]

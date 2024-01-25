@@ -349,7 +349,9 @@ def get_reports_for_languages(pk):
 
 
 def get_project_report_users_email(project_id, user):
-    user_data, total_count = get_reports_for_users(project_id)
+    start = 0
+    end = len(User.objects.filter(projects__pk=project_id, has_accepted_invite=True))
+    user_data, _ = get_reports_for_users(project_id, start, end)
     project = Project.objects.get(pk=project_id)
     columns = [field["label"] for field in user_data[0].values()]
 
