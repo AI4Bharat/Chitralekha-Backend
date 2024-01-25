@@ -80,7 +80,21 @@ services:
         condition: service_started
       backend:
         condition: service_started
-    command: python3 -m celery -A backend worker -Q newsletter -n newsletter_worker@%h --concurrency=1 -l DEBUG
+    command: python3 -m celery -A backend worker -Q newsletter -n newsletter_worker --concurrency=1 -l DEBUG
+    restart: unless-stopped
+
+  celery_ekstep_asr:
+    container_name: celery_ekstep_asr
+    image: server_image
+    working_dir: /home/backend
+    volumes:
+      - ./backend:/home/backend
+    depends_on:
+      redis:
+        condition: service_started
+      backend:
+        condition: service_started
+    command: python3 -m celery -A backend worker -Q ekstep_asr -n ekstep_asr_worker --concurrency=1 -l DEBUG
     restart: unless-stopped
 
   celery_beat:
