@@ -13,6 +13,7 @@ from translation.models import Translation
 import pysrt
 import logging
 from translation.utils import generate_translation_payload
+from rest_framework.response import Response
 
 
 def convert_vtt_to_payload(vtt_content):
@@ -215,6 +216,7 @@ def celery_asr_call(task_id):
                     status="TRANSCRIPTION_SELECT_SOURCE",
                 )
                 task_obj.is_active = True
+                task_obj.status = "SELECTED_SOURCE"
                 task_obj.save()
                 transcript_obj.save()
                 send_mail_to_user(task_obj)
@@ -234,6 +236,9 @@ def celery_asr_call(task_id):
                 task_obj.save()
                 transcript_obj.save()
                 send_mail_to_user(task_obj)
+        else:
+            task_obj.status = "FAILED"
+            task_obj.save()
     else:
         logging.info("Transcript already exists")
 
@@ -247,16 +252,22 @@ def celery_nmt_call(task_id):
         payloads = generate_translation_payload(
             translation_obj.transcript, translation_obj.target_language, [source_type]
         )
-        if (
-            type(translation_obj.payload) == dict
-            and "speaker_info" in translation_obj.payload
-        ):
-            translation_obj.payload["payload"] = payloads[source_type]["payload"]
+        if type(payloads[source_type]) == Response:
+            task_obj.status = "FAILED"
+            task_obj.is_active = False
+            task_obj.save()
         else:
-            translation_obj.payload = payloads[source_type]
-        translation_obj.save()
-        task_obj.is_active = True
-        task_obj.save()
-        send_mail_to_user(task_obj)
+            if (
+                type(translation_obj.payload) == dict
+                and "speaker_info" in translation_obj.payload
+            ):
+                translation_obj.payload["payload"] = payloads[source_type]["payload"]
+            else:
+                translation_obj.payload = payloads[source_type]
+            translation_obj.save()
+            task_obj.status = "SELECTED_SOURCE"
+            task_obj.is_active = True
+            task_obj.save()
+            send_mail_to_user(task_obj)
     else:
         logging.info("Translation already exists")
