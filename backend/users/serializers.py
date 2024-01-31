@@ -140,6 +140,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "date_joined",
             "languages",
             "subscribed_info",
+            "tips"
         ]
         read_only_fields = [
             "id",

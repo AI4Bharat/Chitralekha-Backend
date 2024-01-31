@@ -132,6 +132,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         ),
     )
 
+    tips = models.BooleanField(
+        verbose_name="tips for flow",
+        default=True,
+        help_text=("Checks if the user is first time or not to display user guide."),
+    )
+
     organization = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True)
 
     unverified_email = models.EmailField(blank=True)

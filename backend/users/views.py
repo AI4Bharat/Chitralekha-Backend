@@ -283,6 +283,40 @@ class UserViewSet(viewsets.ViewSet):
         serialized = UserProfileSerializer(request.user)
         return Response(serialized.data, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        method="patch",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "tips": openapi.Schema(
+                    type=openapi.TYPE_BOOLEAN, format="tips", description="tips"
+                )
+            },
+            required=["tips"],
+        ),
+        
+    )
+    @action(detail=False, methods=["patch"], url_path="tips", url_name="update_tips")
+    def update_tips(self, request, pk=None):
+        """
+        Checks if first-time-user and updates tip settings
+        """
+        user = request.user
+        tip_setting = request.data.get('tips', None)
+
+        if tip_setting is None:
+            return Response({'error': 'Tips setting is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not isinstance(tip_setting, bool):
+            return Response({'error': 'Tips setting must be a boolean value'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user.tips = tip_setting
+        user.save()
+        
+        return Response(
+                {"message": "Tips updated successfully"}, status=status.HTTP_200_OK
+            )
+
     @swagger_auto_schema(responses={200: UserProfileSerializer})
     @action(detail=True, methods=["get"], url_path="fetch")
     def fetch_other_profile(self, request, pk=None):
