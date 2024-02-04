@@ -3,6 +3,7 @@ import json
 import redis
 from glossary.models import Glossary
 from users.models import User
+import logging
 
 
 redis_server_host = "localhost"
@@ -51,12 +52,12 @@ class TMXRepository:
     def upsert(self, key, value):
         try:
             client = self.get_redis_instance()
-            # log_info(f"Key to TMX DB: {key}",None)
-            # log_info(f"Value to TMX DB: {value}",None)
+            logging.info(f"Key to TMX DB: {key}")
+            logging.info(f"Value to TMX DB: {value}")
             client.set(key, json.dumps(value))
             return 1
         except Exception as e:
-            log_exception("Exception in TMXREPO: upsert | Cause: " + str(e), None, e)
+            logging.info("Exception in TMXREPO: upsert | Cause: " + str(e))
             return None
 
     def delete(self, keys):
@@ -65,7 +66,7 @@ class TMXRepository:
             client.delete(*keys)
             return 1
         except Exception as e:
-            log_exception("Exception in TMXREPO: delete | Cause: " + str(e), None, e)
+            logging.info("Exception in TMXREPO: delete | Cause: " + str(e))
             return None
 
     def search(self, key_list):
@@ -78,7 +79,7 @@ class TMXRepository:
                     result.append(json.loads(val))
             return result
         except Exception as e:
-            log_exception("Exception in TMXREPO: search | Cause: " + str(e), None, e)
+            logging.info("Exception in TMXREPO: search | Cause: " + str(e))
             return None
 
     def get_all_records(self, key_list):
@@ -93,7 +94,7 @@ class TMXRepository:
                     result.append(json.loads(val))
             return result
         except Exception as e:
-            log_exception("Exception in TMXREPO: search | Cause: " + str(e), None, e)
+            logging.info("Exception in TMXREPO: search | Cause: " + str(e))
             return None
 
     # Inserts the object into mongo collection
@@ -115,7 +116,7 @@ class TMXRepository:
             res_user = col.find({"locale": locale, "userID": user_id}, {"_id": False})
             if res_user:
                 for record in res_user:
-                    # log_info(f"Test68 USER TMX RECORDS: {record}",None)
+                    logging.info(f"USER TMX RECORDS: {record}")
                     user += 1
         if tmx_org_enabled:
             res_org = col.find({"locale": locale, "orgID": org_id}, {"_id": False})

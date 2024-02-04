@@ -5,6 +5,7 @@ from datetime import datetime
 import uuid
 import requests
 from .tmxrepo import TMXRepository
+import logging
 
 
 repo = TMXRepository()
@@ -67,7 +68,7 @@ class TMXService:
                     tmx_record["hash"] = hash_dict[hash_key]
                     repo.upsert(tmx_record["hash"], tmx_record)
         self.push_tmx_metadata(tmx_input, None)
-        # log_info("Translations pushed to TMX!", None)
+        logging.info("Translations pushed to TMX!")
         return {"message": "Glossary entry created", "status": "SUCCESS"}
 
     # Method to push tmx related metadata
@@ -88,7 +89,7 @@ class TMXService:
 
     # Method to delete records from TMX store.
     def delete_from_tmx_store(self, tmx_input):
-        log_info("Deleting to Glossary......", None)
+        logging.info("Deleting to Glossary......")
         hashes = []
         if "sentences" not in tmx_input.keys():
             try:
@@ -110,16 +111,14 @@ class TMXService:
                     for tmx_del in tmx_to_be_deleted:
                         hashes.append(tmx_del["hash"])
                     repo.delete(hashes)
-                    log_info("Glossary deleted!", None)
+                    logging.info("Glossary deleted!")
                     return {"message": "Glossary DELETED!", "status": "SUCCESS"}
                 else:
-                    log_info("No Glossary Available!", None)
+                    logging.info("No Glossary Available!")
                     return {"message": "No Glossary Available!", "status": "SUCCESS"}
             except Exception as e:
-                log_exception(
-                    "Exception while deleting Glossary by orgID/userID: " + str(e),
-                    None,
-                    e,
+                logging.info(
+                    "Exception while deleting Glossary by orgID/userID: " + str(e)
                 )
                 return {
                     "message": "deletion of Glossary by orgID/userID failed",
@@ -127,7 +126,7 @@ class TMXService:
                 }
         else:
             if not tmx_input["sentences"]:
-                log_info("No sentences sent for deletion!", None)
+                logging.info("No sentences sent for deletion!")
                 return {
                     "message": "No sentences sent for deletion!",
                     "status": "SUCCESS",
@@ -162,12 +161,10 @@ class TMXService:
                     hash_dict = self.get_hash_key(tmx_record)
                     hashes.extend(hash_dict.values())
                 repo.delete(hashes)
-                log_info("Glossary deleted!", None)
+                logging.info("Glossary deleted!")
                 return {"message": "Glossary DELETED!", "status": "SUCCESS"}
             except Exception as e:
-                log_exception(
-                    "Exception while deleting Glossary one by one: " + str(e), None, e
-                )
+                logging.info("Exception while deleting Glossary one by one: " + str(e))
                 return {
                     "message": "deletion of Glossary one by one failed",
                     "status": "FAILED",
@@ -229,7 +226,9 @@ class TMXService:
                         )
                         computed += 1
                         if tmx_result:
-                            # log_info(f"Test68 phrase {tmx_record}, result {tmx_result}",None)
+                            logging.info(
+                                f"Test68 phrase {tmx_record}, result {tmx_result}"
+                            )
                             tmx_phrases.append(tmx_result[0])
                             phrase_list = phrase.split(" ")
                             hopping_pivot += 1 + len(" ".join(phrase_list))
@@ -256,19 +255,19 @@ class TMXService:
                     sliding_pivot = len(sentence)
                     i = 1
         except Exception as e:
-            log_exception("Exception in Hopping Window Search: {}".format(e), ctx, None)
+            logging.info("Exception in Hopping Window Search: {}".format(e))
         res_dict = {"computed": computed, "redis": r_count, "cache": c_count}
         return tmx_phrases, res_dict
 
     # Fetches TMX phrases for a sentence from hierarchical cache
     def get_tmx_with_fallback(self, tmx_record, tmx_level, tmx_file_cache, ctx):
         hash_dict = self.get_hash_key_search(tmx_record, tmx_level)
-        # log_info(f"Test68 hash_dict {hash_dict}", None)
+        logging.info(f"Test68 hash_dict {hash_dict}")
         if "USER" in hash_dict.keys():
             if hash_dict["USER"] not in tmx_file_cache.keys():
                 tmx_result = repo.search([hash_dict["USER"]])
                 if tmx_result:
-                    # log_info(f"Test68 USER tmx_result {tmx_result}", None)
+                    logging.info(f"Test68 USER tmx_result {tmx_result}")
                     tmx_file_cache[hash_dict["USER"]] = tmx_result
                     return tmx_result, True
             else:
@@ -277,7 +276,7 @@ class TMXService:
             if hash_dict["ORG"] not in tmx_file_cache.keys():
                 tmx_result = repo.search([hash_dict["ORG"]])
                 if tmx_result:
-                    # log_info(f"Test68 ORG tmx_result {tmx_result}", None)
+                    logging.info(f"Test68 ORG tmx_result {tmx_result}")
                     tmx_file_cache[hash_dict["ORG"]] = tmx_result
                     return tmx_result, True
             else:
@@ -321,22 +320,21 @@ class TMXService:
                 tgt = self.multiple_replace(tgt, tmx_replace_dict)
             tmx_tgt = tgt
             if tmx_without_nmt_phrases:
-                log_info(
+                logging.info(
                     "Phrases to LaBSE: {} | Total: {}".format(
                         len(tmx_without_nmt_phrases), len(tmx_phrases)
-                    ),
-                    ctx,
+                    )
                 )
                 tmx_tgt, tmx_replacement = self.replace_with_labse_alignments(
                     tmx_without_nmt_phrases, tgt, tmx_replacement, ctx
                 )
             # if not is_attention_based_alignment_enabled:
-            #     log_info("Phrases to LaBSE: {} | Total: {}".format(len(tmx_without_nmt_phrases), len(tmx_phrases)),
+            #     logging.info("Phrases to LaBSE: {} | Total: {}".format(len(tmx_without_nmt_phrases), len(tmx_phrases)),
             #              ctx)
             #     tmx_tgt, tmx_replacement = self.replace_with_labse_alignments(tmx_without_nmt_phrases, tgt,
             #                                                                   tmx_replacement, ctx)
             # else:
-            #     log_info("Phrases to Attention API: {} | Total: {}".format(len(tmx_without_nmt_phrases),
+            #     logging.info("Phrases to Attention API: {} | Total: {}".format(len(tmx_without_nmt_phrases),
             #                                                                len(tmx_phrases)), ctx)
 
             #     tmx_tgt, tmx_replacement = self.replace_with_attention_api(tmx_without_nmt_phrases, src, tgt,
@@ -346,8 +344,8 @@ class TMXService:
             else:
                 return tgt, tmx_replacement
         except Exception as e:
-            log_exception(
-                "Exception while replacing nmt_tgt with user_tgt: {}".format(e), ctx, e
+            logging.info(
+                "Exception while replacing nmt_tgt with user_tgt: {}".format(e)
             )
             return tgt, tmx_replacement
 
@@ -362,14 +360,14 @@ class TMXService:
         nmt_response = requests.post(
             url=nmt_labse_align_url, json=nmt_req, headers=api_headers
         )
-        # log_info(f"NMT Response with Labse API {nmt_response.json}",None)
+        logging.info(f"NMT Response with Labse API {nmt_response.json}")
         if nmt_response:
             if nmt_response.text:
                 nmt_response = json.loads(nmt_response.text)
             if "status" in nmt_response.keys():
                 if nmt_response["status"]["statusCode"] != 200:
-                    log_info(
-                        "LaBSE Error: {}".format(nmt_response["status"]["message"]), ctx
+                    logging.info(
+                        "LaBSE Error: {}".format(nmt_response["status"]["message"])
                     )
                     return tgt, tmx_replacement
                 else:
@@ -397,8 +395,8 @@ class TMXService:
                         if tmx_replace_dict:
                             tgt = self.multiple_replace(tgt, tmx_replace_dict)
                     else:
-                        log_info("No LaBSE alignments found!", ctx)
-                        log_info("LaBSE - " + str(nmt_req), ctx)
+                        logging.info("No LaBSE alignments found!")
+                        logging.info("LaBSE - " + str(nmt_req))
                     return tgt, tmx_replacement
             else:
                 return tgt, tmx_replacement
@@ -426,17 +424,16 @@ class TMXService:
         nmt_response = requests.post(
             url=nmt_attention_align_url, json=nmt_req, headers=api_headers
         )
-        # log_info(f"NMT Response with Attention API {nmt_response.json}",None)
+        # logging.info(f"NMT Response with Attention API {nmt_response.json}",None)
         if nmt_response:
             if nmt_response.text:
                 nmt_response = json.loads(nmt_response.text)
             if "status" in nmt_response.keys():
                 if nmt_response["status"]["statusCode"] != 200:
-                    log_info(
+                    logging.info(
                         "Attention API Error: {}".format(
                             nmt_response["status"]["message"]
-                        ),
-                        ctx,
+                        )
                     )
                     return tgt, tmx_replacement
                 else:
@@ -464,8 +461,8 @@ class TMXService:
                         if tmx_replace_dict:
                             tgt = self.multiple_replace(tgt, tmx_replace_dict)
                     else:
-                        log_info("No Attention API alignments found!", ctx)
-                        log_info("Attention API - " + str(nmt_req), ctx)
+                        logging.info("No Attention API alignments found!")
+                        logging.info("Attention API - " + str(nmt_req))
                     return tgt, tmx_replacement
             else:
                 return tgt, tmx_replacement
@@ -480,7 +477,7 @@ class TMXService:
 
     # Method to fetch all keys from the redis db
     def get_tmx_data(self, req):
-        # log_info(f"Searching TMX for: {req}", None)
+        logging.info(f"Searching TMX for: {req}")
         if "keys" in req.keys():
             if req["keys"]:
                 return repo.get_all_records(req["keys"])
@@ -490,7 +487,7 @@ class TMXService:
         a = 1
         if a == 1:
             redis_records = repo.get_all_records([])
-            # log_info(f"No of tmx entries fetched: {len(redis_records)}", None)
+            logging.info(f"No of tmx entries fetched: {len(redis_records)}")
             user_id, org_id = req["userID"], 1
             if redis_records:
                 filtered = filter(
@@ -499,38 +496,25 @@ class TMXService:
                 )
                 if filtered:
                     redis_records = list(filtered)
-                    # log_info(
-                    #    f"No of tmx entries filtered by user & org: {len(redis_records)}",
-                    #    None,
-                    # )
+                    logging.info(
+                        f"No of tmx entries filtered by user & org: {len(redis_records)}"
+                    )
                 else:
-                    # log_info(f"No TMX entries found for this user!", None)
+                    logging.info(f"No TMX entries found for this user!")
                     redis_records = []
                 if redis_records:
                     if "allUserKeys" in req.keys():
                         if req["allUserKeys"]:
-                            # log_info(f"Returning all the keys...", None)
-                            # log_info(
-                            #     f"Count of final TMX to be returned: {len(redis_records)}",
-                            #     None,
-                            # )
                             return redis_records
                     filtered = filter(
                         lambda record: self.filter_original_keys(record), redis_records
                     )
+
                     if filtered:
                         redis_records = list(filtered)
-                        # log_info(
-                        #    f"No of tmx entries filtered by original key: {len(redis_records)}",
-                        #    None,
-                        # )
                     else:
-                        # log_info(
-                        #    f"No TMX entries found with the original key set to True",
-                        #    None,
-                        # )
                         redis_records = []
-            # log_info(f"Count of final TMX to be returned: {len(redis_records)}", None)
+            logging.info(f"Count of final TMX to be returned: {len(redis_records)}")
             sorted_redis_records = sorted(
                 redis_records, key=self.sort_redis_records_timestamp, reverse=True
             )
@@ -551,8 +535,8 @@ class TMXService:
             else:
                 return False
         except Exception as e:
-            log_exception(f"RECORD: {record}", None, None)
-            log_exception(f"Exception while filtering on original: {e}", None, e)
+            logging.info(f"RECORD: {record}")
+            logging.info(f"Exception while filtering on original: {e}")
             return False
 
     # Creates a md5 hash values using userID, orgID, context, locale and src for inserting records.
@@ -646,7 +630,7 @@ class TMXService:
                 suggested_translations.append(translation)
             if suggested_translations:
                 inserts = repo.suggestion_box_create(suggested_translations)
-                log_info(f"Insert IDS: {inserts}", None)
+                logging.info(f"Insert IDS: {inserts}", None)
                 return {
                     "message": "Suggestions created successfully",
                     "status": "SUCCESS",
@@ -709,7 +693,7 @@ class TMXService:
             query["createdOn"] = {"$lte": delete_req["endDate"]}
         if query:
             query["status"] = "Pending"
-            log_info(f"Delete Query: {query}", None)
+            logging.info(f"Delete Query: {query}")
             del_count = repo.suggestion_box_delete(query)
             if del_count > 0:
                 return {
@@ -750,7 +734,7 @@ class TMXService:
         if "endDate" in search_req.keys():
             query["createdOn"] = {"$lte": search_req["endDate"]}
         if query:
-            log_info(f"Search Query: {query}", None)
+            logging.info(f"Search Query: {query}")
             return repo.suggestion_box_search(query, exclude)
         else:
             return []

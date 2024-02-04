@@ -66,8 +66,8 @@ class GlossaryViewSet(ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    @action(detail=False, methods=["get"], url_path="get_all_keys")
-    def get_all_keys(self, request, pk=None, *args, **kwargs):
+    @action(detail=False, methods=["get"], url_path="get_all")
+    def get_all(self, request, pk=None, *args, **kwargs):
         service = TMXService()
         data = {"userID": str(request.user.id), "allUserKeys": False}
         try:
@@ -90,3 +90,21 @@ class GlossaryViewSet(ModelViewSet):
             {"tmx_keys": tmx_response},
             status=status.HTTP_200_OK,
         )
+
+    def destroy(self, request, pk=None, *args, **kwargs):
+        """
+        Delete a project
+        """
+        service = TMXService()
+        data = {"userID": str(request.user.id), "allUserKeys": False}
+        response = service.delete_from_tmx_store(data)
+        if response["status"] == "FAILED":
+            return Response(
+                {"message": "Error in deleting Glossary."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        else:
+            return Response(
+                {"message": "Glossary is successfully deleted."},
+                status=status.HTTP_200_OK,
+            )
