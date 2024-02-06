@@ -94,20 +94,33 @@ class GlossaryViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @swagger_auto_schema(request_body=GlossarySerializer)
-    @action(detail=False, methods=["delete"], url_path="delete_key")
-    def delete_key(self, request, *args, **kwargs):
+    @swagger_auto_schema(
+        method="DELETE",
+        manual_parameters=[
+            openapi.Parameter(
+                "sentences",
+                openapi.IN_QUERY,
+                description=("Glossary to delete."),
+                type=openapi.TYPE_OBJECT,
+                required=True,
+            ),
+        ],
+        responses={409: "There are conflicts with this task."},
+    )
+    @action(detail=False, methods=["delete"], url_path="delete_glossary")
+    def delete_glossary(self, request, *args, **kwargs):
         """
         Delete a project
         """
+        sentence_param = json.loads(request.query_params.get("sentences"))
         service = TMXService()
         data = {
             "userID": str(request.user.id),
             "sentences": [
                 {
-                    "src": request.data.get("sentences")[0]["src"],
-                    "locale": request.data.get("sentences")[0]["locale"],
-                    "tgt": request.data.get("sentences")[0]["src"],
+                    "src": sentence_param[0]["src"],
+                    "locale": sentence_param[0]["locale"],
+                    "tgt": sentence_param[0]["tgt"],
                 }
             ],
         }
