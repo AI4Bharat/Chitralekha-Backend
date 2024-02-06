@@ -79,8 +79,11 @@ class GlossaryViewSet(ModelViewSet):
             )
 
         tmx_response = []
+        count = 0
         for data in tmx_data:
             tmx_dict = {}
+            count += 1
+            tmx_dict["id"] = count
             tmx_dict["source_text"] = data["src"]
             tmx_dict["target_text"] = data["user_tgt"]
             tmx_dict["source_language"] = data["locale"].split("|")[0]
@@ -91,12 +94,23 @@ class GlossaryViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    def destroy(self, request, pk=None, *args, **kwargs):
+    @swagger_auto_schema(request_body=GlossarySerializer)
+    @action(detail=False, methods=["delete"], url_path="delete_key")
+    def delete_key(self, request, *args, **kwargs):
         """
         Delete a project
         """
         service = TMXService()
-        data = {"userID": str(request.user.id), "allUserKeys": False}
+        data = {
+            "userID": str(request.user.id),
+            "sentences": [
+                {
+                    "src": request.data.get("sentences")[0]["src"],
+                    "locale": request.data.get("sentences")[0]["locale"],
+                    "tgt": request.data.get("sentences")[0]["src"],
+                }
+            ],
+        }
         response = service.delete_from_tmx_store(data)
         if response["status"] == "FAILED":
             return Response(

@@ -6,7 +6,8 @@ import uuid
 import requests
 from .tmxrepo import TMXRepository
 import logging
-
+from glossary.labse_ailigner import *
+import re
 
 repo = TMXRepository()
 
@@ -150,16 +151,15 @@ class TMXService:
                                 "locale": tmx["locale"],
                                 "nmt_tgt": [],
                                 "user_tgt": tmx["tgt"],
-                                "context": tmx_input["context"],
                             }
                             if "userID" in tmx_input.keys():
                                 tmx_record_pair["userID"] = tmx_input["userID"]
-                            if "orgID" in tmx_input.keys():
-                                tmx_record_pair["orgID"] = tmx_input["orgID"]
                             tmx_records.append(tmx_record_pair)
                 for tmx_record in tmx_records:
                     hash_dict = self.get_hash_key(tmx_record)
                     hashes.extend(hash_dict.values())
+
+                # delete_from_db(tmx_records)
                 repo.delete(hashes)
                 logging.info("Glossary deleted!")
                 return {"message": "Glossary DELETED!", "status": "SUCCESS"}
@@ -171,17 +171,11 @@ class TMXService:
                 }
 
     # Method to fetch tmx phrases for a given src
-    def get_tmx_phrases(
-        self, user_id, org_id, context, locale, sentence, tmx_level, tmx_file_cache, ctx
-    ):
-        tmx_record = {"context": context, "locale": locale, "src": sentence}
+    def get_tmx_phrases(self, user_id, org_id, locale, sentence, tmx_level):
+        tmx_record = {"locale": locale, "src": sentence}
         if user_id:
             tmx_record["userID"] = user_id
-        if org_id:
-            tmx_record["orgID"] = org_id
-        tmx_phrases, res_dict = self.tmx_phrase_search(
-            tmx_record, tmx_level, tmx_file_cache, ctx
-        )
+        tmx_phrases, res_dict = self.tmx_phrase_search(tmx_record, tmx_level)
         return tmx_phrases, res_dict
 
     # Generates a 3 flavors for a sentence - title case, lowercase and uppercase.
@@ -202,7 +196,8 @@ class TMXService:
 
     # Searches for all tmx phrases of a fixed length within a given sentence
     # Uses a custom implementation of the sliding window search algorithm - we call it hopping window.
-    def tmx_phrase_search(self, tmx_record, tmx_level, tmx_file_cache, ctx):
+    def tmx_phrase_search(self, tmx_record, tmx_level):
+        tmx_word_length = 4
         sentence, tmx_phrases = tmx_record["src"], []
         hopping_pivot, sliding_pivot, i = 0, len(sentence), 1
         computed, r_count, c_count = (
@@ -210,68 +205,61 @@ class TMXService:
             0,
             0,
         )
-        try:
-            while hopping_pivot < len(sentence):
-                phrase = sentence[hopping_pivot:sliding_pivot]
-                phrase_size = phrase.split(" ")
-                if len(phrase_size) <= tmx_word_length:
-                    suffix_phrase_list, found = [phrase], False
-                    if phrase.endswith(".") or phrase.endswith(","):
-                        short = phrase.rstrip(".,")
-                        suffix_phrase_list.append(short)
-                    for phrases in suffix_phrase_list:
-                        tmx_record["src"] = phrases
-                        tmx_result, fetch = self.get_tmx_with_fallback(
-                            tmx_record, tmx_level, tmx_file_cache, ctx
-                        )
-                        computed += 1
-                        if tmx_result:
-                            logging.info(
-                                f"Test68 phrase {tmx_record}, result {tmx_result}"
-                            )
-                            tmx_phrases.append(tmx_result[0])
-                            phrase_list = phrase.split(" ")
-                            hopping_pivot += 1 + len(" ".join(phrase_list))
-                            sliding_pivot = len(sentence)
-                            i = 1
-                            if fetch is True:
-                                r_count += 1
-                            else:
-                                c_count += 1
-                            found = True
-                            break
-                    if found:
-                        continue
-                sent_list = sentence.split(" ")
-                phrase_list = phrase.split(" ")
-                reduced_phrase = " ".join(sent_list[0 : len(sent_list) - i])
-                sliding_pivot = len(reduced_phrase)
-                i += 1
-                if (
-                    hopping_pivot == sliding_pivot
-                    or (hopping_pivot - 1) == sliding_pivot
-                ):
-                    hopping_pivot += 1 + len(" ".join(phrase_list))
-                    sliding_pivot = len(sentence)
-                    i = 1
-        except Exception as e:
-            logging.info("Exception in Hopping Window Search: {}".format(e))
+        while hopping_pivot < len(sentence):
+            phrase = sentence[hopping_pivot:sliding_pivot]
+            phrase_size = phrase.split(" ")
+            if len(phrase_size) <= tmx_word_length:
+                suffix_phrase_list, found = [phrase], False
+                if phrase.endswith(".") or phrase.endswith(","):
+                    short = phrase.rstrip(".,")
+                    suffix_phrase_list.append(short)
+                for phrases in suffix_phrase_list:
+                    tmx_record["src"] = phrases
+                    tmx_result, fetch = self.get_tmx_with_fallback(
+                        tmx_record, tmx_level
+                    )
+                    computed += 1
+                    if tmx_result:
+                        logging.info(f"Test68 phrase {tmx_record}, result {tmx_result}")
+                        tmx_phrases.append(tmx_result[0])
+                        phrase_list = phrase.split(" ")
+                        hopping_pivot += 1 + len(" ".join(phrase_list))
+                        sliding_pivot = len(sentence)
+                        i = 1
+                        if fetch is True:
+                            r_count += 1
+                        else:
+                            c_count += 1
+                        found = True
+                        break
+                if found:
+                    continue
+            sent_list = sentence.split(" ")
+            phrase_list = phrase.split(" ")
+            reduced_phrase = " ".join(sent_list[0 : len(sent_list) - i])
+            sliding_pivot = len(reduced_phrase)
+            i += 1
+            if hopping_pivot == sliding_pivot or (hopping_pivot - 1) == sliding_pivot:
+                hopping_pivot += 1 + len(" ".join(phrase_list))
+                sliding_pivot = len(sentence)
+                i = 1
+        # except Exception as e:
+        #    logging.info("Exception in Hopping Window Search: {}".format(e))
         res_dict = {"computed": computed, "redis": r_count, "cache": c_count}
         return tmx_phrases, res_dict
 
     # Fetches TMX phrases for a sentence from hierarchical cache
-    def get_tmx_with_fallback(self, tmx_record, tmx_level, tmx_file_cache, ctx):
+    def get_tmx_with_fallback(self, tmx_record, tmx_level):
         hash_dict = self.get_hash_key_search(tmx_record, tmx_level)
         logging.info(f"Test68 hash_dict {hash_dict}")
         if "USER" in hash_dict.keys():
-            if hash_dict["USER"] not in tmx_file_cache.keys():
-                tmx_result = repo.search([hash_dict["USER"]])
-                if tmx_result:
-                    logging.info(f"Test68 USER tmx_result {tmx_result}")
-                    tmx_file_cache[hash_dict["USER"]] = tmx_result
-                    return tmx_result, True
+            tmx_result = repo.search([hash_dict["USER"]])
+            if tmx_result:
+                logging.info(f"Test68 USER tmx_result {tmx_result}")
+                # tmx_file_cache[hash_dict["USER"]] = tmx_result
+                return tmx_result, True
             else:
-                return tmx_file_cache[hash_dict["USER"]], False
+                return None, False
         if "ORG" in hash_dict.keys():
             if hash_dict["ORG"] not in tmx_file_cache.keys():
                 tmx_result = repo.search([hash_dict["ORG"]])
@@ -292,8 +280,9 @@ class TMXService:
         return None, False
 
     # Replaces TMX phrases in NMT tgt using TMX NMT phrases and LaBSE alignments
-    def replace_nmt_tgt_with_user_tgt(self, tmx_phrases, src, tgt, ctx):
+    def replace_nmt_tgt_with_user_tgt(self, tmx_phrases, src, tgt):
         tmx_without_nmt_phrases, tmx_tgt, tmx_replacement = [], None, []
+
         try:
             tmx_replace_dict = {}
             for tmx_phrase in tmx_phrases:
@@ -326,19 +315,8 @@ class TMXService:
                     )
                 )
                 tmx_tgt, tmx_replacement = self.replace_with_labse_alignments(
-                    tmx_without_nmt_phrases, tgt, tmx_replacement, ctx
+                    tmx_without_nmt_phrases, tgt, tmx_replacement
                 )
-            # if not is_attention_based_alignment_enabled:
-            #     logging.info("Phrases to LaBSE: {} | Total: {}".format(len(tmx_without_nmt_phrases), len(tmx_phrases)),
-            #              ctx)
-            #     tmx_tgt, tmx_replacement = self.replace_with_labse_alignments(tmx_without_nmt_phrases, tgt,
-            #                                                                   tmx_replacement, ctx)
-            # else:
-            #     logging.info("Phrases to Attention API: {} | Total: {}".format(len(tmx_without_nmt_phrases),
-            #                                                                len(tmx_phrases)), ctx)
-
-            #     tmx_tgt, tmx_replacement = self.replace_with_attention_api(tmx_without_nmt_phrases, src, tgt,
-            #                                                               tmx_replacement, ctx)
             if tmx_tgt:
                 return tmx_tgt, tmx_replacement
             else:
@@ -350,50 +328,37 @@ class TMXService:
             return tgt, tmx_replacement
 
     # Replaces phrases in tgt with user tgts using labse alignments and updates nmt_tgt in TMX
-    def replace_with_labse_alignments(self, tmx_phrases, tgt, tmx_replacement, ctx):
+    def replace_with_labse_alignments(self, tmx_phrases, tgt, tmx_replacement):
+        labse_aligner_resource = LabseAlignerResource()
         tmx_phrase_dict, tmx_replace_dict = {}, {}
         for tmx_phrase in tmx_phrases:
             tmx_phrase_dict[tmx_phrase["src"]] = tmx_phrase
         nmt_req = {"src_phrases": list(tmx_phrase_dict.keys()), "tgt": tgt}
         nmt_req = [nmt_req]
         api_headers = {"Content-Type": "application/json"}
-        nmt_response = requests.post(
-            url=nmt_labse_align_url, json=nmt_req, headers=api_headers
-        )
-        logging.info(f"NMT Response with Labse API {nmt_response.json}")
-        if nmt_response:
-            if nmt_response.text:
-                nmt_response = json.loads(nmt_response.text)
-            if "status" in nmt_response.keys():
-                if nmt_response["status"]["statusCode"] != 200:
-                    logging.info(
-                        "LaBSE Error: {}".format(nmt_response["status"]["message"])
+        nmt_response = labse_aligner_resource.post(nmt_req)
+        if type(nmt_response) == list:
+            nmt_aligned_phrases = nmt_response[0]["aligned_phrases"]
+            if nmt_aligned_phrases:
+                for aligned_phrase in nmt_aligned_phrases.keys():
+                    phrase = tmx_phrase_dict[aligned_phrase]
+                    tmx_replacement.append(
+                        {
+                            "src_phrase": phrase["src"],
+                            "tmx_tgt": phrase["user_tgt"],
+                            "tgt": str(nmt_aligned_phrases[aligned_phrase]),
+                            "type": "LaBSE",
+                        }
                     )
-                    return tgt, tmx_replacement
-                else:
-                    nmt_aligned_phrases = nmt_response["response_body"][0][
-                        "aligned_phrases"
+                    tmx_replace_dict[nmt_aligned_phrases[aligned_phrase]] = phrase[
+                        "user_tgt"
                     ]
-                    if nmt_aligned_phrases:
-                        for aligned_phrase in nmt_aligned_phrases.keys():
-                            phrase = tmx_phrase_dict[aligned_phrase]
-                            tmx_replacement.append(
-                                {
-                                    "src_phrase": phrase["src"],
-                                    "tmx_tgt": phrase["user_tgt"],
-                                    "tgt": str(nmt_aligned_phrases[aligned_phrase]),
-                                    "type": "LaBSE",
-                                }
-                            )
-                            tmx_replace_dict[
-                                nmt_aligned_phrases[aligned_phrase]
-                            ] = phrase["user_tgt"]
-                            modified_nmt_tgt = phrase["nmt_tgt"]
-                            modified_nmt_tgt.append(nmt_aligned_phrases[aligned_phrase])
-                            phrase["nmt_tgt"] = modified_nmt_tgt
-                            repo.upsert(phrase["hash"], phrase)
-                        if tmx_replace_dict:
-                            tgt = self.multiple_replace(tgt, tmx_replace_dict)
+                    modified_nmt_tgt = phrase["nmt_tgt"]
+                    modified_nmt_tgt.append(nmt_aligned_phrases[aligned_phrase])
+                    phrase["nmt_tgt"] = modified_nmt_tgt
+                    repo.upsert(phrase["hash"], phrase)
+                    if tmx_replace_dict:
+                        tgt = self.multiple_replace(tgt, tmx_replace_dict)
                     else:
                         logging.info("No LaBSE alignments found!")
                         logging.info("LaBSE - " + str(nmt_req))
@@ -565,6 +530,9 @@ class TMXService:
     # Creates a md5 hash values using userID, orgID, context, locale and src for searching records.
     def get_hash_key_search(self, tmx_record, tmx_level):
         hash_dict = {}
+        tmx_global_enabled = False
+        tmx_user_enabled = True
+        tmx_org_enabled = False
         if tmx_global_enabled:
             global_hash = +tmx_record["locale"] + "__" + tmx_record["src"]
             hash_dict["GLOBAL"] = hashlib.sha256(
