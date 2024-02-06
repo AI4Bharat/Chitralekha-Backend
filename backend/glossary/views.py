@@ -36,6 +36,8 @@ class GlossaryViewSet(ModelViewSet):
                 source_text=sentence["src"],
                 target_text=sentence["tgt"],
                 user_id=request.user,
+                source_language=sentence["locale"].split("|")[0],
+                target_language=sentence["locale"].split("|")[1],
             ).first()
             if glossary_obj is not None:
                 return Response(

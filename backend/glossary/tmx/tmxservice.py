@@ -8,6 +8,9 @@ from .tmxrepo import TMXRepository
 import logging
 from glossary.labse_ailigner import *
 import re
+from users.models import User
+from glossary.models import Glossary
+
 
 repo = TMXRepository()
 
@@ -108,6 +111,7 @@ class TMXService:
                         "allUserKeys": True,
                     }
                     tmx_to_be_deleted = self.get_tmx_data(search_req)
+
                 if tmx_to_be_deleted:
                     for tmx_del in tmx_to_be_deleted:
                         hashes.append(tmx_del["hash"])
@@ -155,11 +159,20 @@ class TMXService:
                             if "userID" in tmx_input.keys():
                                 tmx_record_pair["userID"] = tmx_input["userID"]
                             tmx_records.append(tmx_record_pair)
+
                 for tmx_record in tmx_records:
                     hash_dict = self.get_hash_key(tmx_record)
                     hashes.extend(hash_dict.values())
-
-                # delete_from_db(tmx_records)
+                    user_id = User.objects.get(pk=int(tmx_record["userID"]))
+                    glossary_obj = Glossary.objects.filter(
+                        source_text=tmx_record["src"],
+                        target_text=tmx_record["user_tgt"],
+                        source_language=tmx_record["locale"].split("|")[0],
+                        target_language=tmx_record["locale"].split("|")[1],
+                        user_id=user_id,
+                    )
+                    if glossary_obj is not None:
+                        glossary_obj.delete()
                 repo.delete(hashes)
                 logging.info("Glossary deleted!")
                 return {"message": "Glossary DELETED!", "status": "SUCCESS"}
