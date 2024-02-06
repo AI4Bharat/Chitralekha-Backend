@@ -205,7 +205,7 @@ def celery_nmt_call(task_id):
     source_type = "MACHINE_GENERATED"
     if translation_obj is not None and type(translation_obj.payload) != dict:
         payloads = generate_translation_payload(
-            translation_obj.transcript, translation_obj.target_language, [source_type]
+            translation_obj.transcript, translation_obj.target_language, [source_type], task_obj.user.id
         )
         if type(payloads[source_type]) == Response:
             task_obj.status = "FAILED"
