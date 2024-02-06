@@ -1,52 +1,35 @@
-from flask_restful import Resource
-from flask import request
-from services import LabseAlignerService
-from models import CustomResponse, Status
-from utilities import MODULE_CONTEXT
-from anuvaad_auditor.loghandler import log_info, log_exception
-from anuvaad_auditor.loghandler import log_info, log_exception
-from utilities import MODULE_CONTEXT
 import sys
-import tools.indic_tokenize as indic_tok
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from scipy.spatial import distance
 import config
+import logging
 
-model = SentenceTransformer(config.LABSE_PATH, device="cpu")
+model_name = "sentence-transformers/LaBSE"
+model = SentenceTransformer(model_name, device="cpu")
 
 
-class LabseAlignerResource(Resource):
-    def post(self):
-        inputs = request.get_json(force=True)
+class LabseAlignerResource:
+    def post(self, json_req):
+        inputs = json_req
         response_list = list()
         if len(inputs) > 0:
-            log_info("Making labse-aligner(Resource) API call", MODULE_CONTEXT)
-            log_info("Complete request input: {}".format(inputs), MODULE_CONTEXT)
             try:
                 for i in inputs:
                     if all(v in i for v in ["src_phrases", "tgt"]):
-                        log_info("Making labse-aligner service call", MODULE_CONTEXT)
                         res = LabseAlignerService.phrase_aligner(i)
                         response_list.append(res)
-                        out = CustomResponse(Status.SUCCESS.value, response_list)
+                        out = response_list
                     else:
-                        log_info(
-                            "Missing mandatory Parameters for labse-aligner:src_phrases or tgt",
-                            MODULE_CONTEXT,
-                        )
-                        out = CustomResponse(Status.MANDATORY_PARAM_MISSING.value, [])
-                        return out.getres()
+                        return out
             except Exception as e:
                 status = Status.SYSTEM_ERR.value
                 status["message"] = str(e)
                 out = CustomResponse(status, [])
 
-            return out.getres()
+            return out
         else:
-            log_info("null inputs in request in labse-aligner API", MODULE_CONTEXT)
-            out = CustomResponse(Status.INVALID_API_REQUEST.value, None)
-            return out.getres()
+            return out
 
 
 class LabseAlignerService:
@@ -58,8 +41,8 @@ class LabseAlignerService:
         out = {}
         aligned_phrases = {}
         try:
-            # log_info("Performing phrase alignenment using LABSE",MODULE_CONTEXT)
-            # log_info("Input for phrase_aligner:{}".format(inputs),MODULE_CONTEXT)
+            logging.info("Performing phrase alignenment using LABSE")
+            logging.info("Input for phrase_aligner:{}".format(inputs))
             src_phrases, tgt = inputs.get("src_phrases"), inputs.get("tgt")
 
             for src_phrase in src_phrases:
@@ -71,18 +54,16 @@ class LabseAlignerService:
                 alignments = get_target_sentence(
                     embeddings_tgt_tokens, embeddings_src_phrase, length_src_phrase
                 )
-
-                if alignments is not None and alignments[2] is "MATCH":
+                if alignments != None and alignments[2] == "MATCH":
                     aligned_phrases[src_phrase] = tgt_token_list[alignments[0]]
-                elif alignments is not None and alignments[2] is "NOMATCH":
-                    log_info(
+                elif alignments != None and alignments[2] == "NOMATCH":
+                    logging.info(
                         "No exact match found for:{} . Possible alignment {}".format(
                             src_phrase, tgt_token_list[alignments[0]]
-                        ),
-                        MODULE_CONTEXT,
+                        )
                     )
 
-            log_info("Aligned Phrases: {}".format(aligned_phrases), MODULE_CONTEXT)
+            logging.info("Aligned Phrases: {}".format(aligned_phrases))
             out = {
                 "tgt": tgt,
                 "src_phrases": src_phrases,
@@ -90,19 +71,15 @@ class LabseAlignerService:
             }
 
         except Exception as e:
-            log_exception(
+            logging.info(
                 "Error in LabseAlignerService:phrase_aligner: {} and {}".format(
                     sys.exc_info()[0], e
-                ),
-                MODULE_CONTEXT,
-                e,
+                )
             )
-            log_exception(
+            logging.info(
                 "Error caught in LabseAlignerService:phrase_aligner for input: {}".format(
                     inputs
-                ),
-                MODULE_CONTEXT,
-                e,
+                )
             )
             raise
 
@@ -142,7 +119,7 @@ def generate_embeddings(input_1, input_2):
     """
     embeddings_input_1 = model.encode(input_1, show_progress_bar=True)
     embeddings_input_2 = model.encode(input_2, show_progress_bar=True)
-    log_info("LABSE embedding generation finished", MODULE_CONTEXT)
+    logging.info("LABSE embedding generation finished")
     return embeddings_input_1, embeddings_input_2
 
 
@@ -153,7 +130,7 @@ def get_target_sentence(target_embeddings, source_embedding, length_src_phrase):
     distances = distance.cdist(source_embedding, target_embeddings, "cosine")[0]
     min_index = np.argmin(distances)
     min_distance = 1 - distances[min_index]
-    log_info("Match score: {}".format(min_distance), MODULE_CONTEXT)
+    logging.info("Match score: {}".format(min_distance))
     if min_distance >= 0.5:
         return min_index, min_distance, "MATCH"
     else:
