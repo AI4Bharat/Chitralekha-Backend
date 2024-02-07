@@ -41,14 +41,21 @@ def get_language_label(target_language):
             return language[0]
     return "-"
 
-def get_reports_for_users(pk):
+
+def get_reports_for_users(pk, start, end):
+    subquery = (
+        User.objects.filter(projects__pk=pk, has_accepted_invite=True)
+        .order_by("email")
+        .values("id")
+    )
+
     project_members = (
-        User.objects.filter(projects__pk=pk)
-        .filter(has_accepted_invite=True)
+        User.objects.filter(id__in=subquery)
         .values(name=Concat("first_name", Value(" "), "last_name"), mail=F("email"))
         .order_by("mail")
     )
-    user_statistics = (
+
+    all_user_statistics = (
         project_members.annotate(
             tasks_assigned_count=Count("task", filter=Q(task__video__project_id=pk))
         )
@@ -93,65 +100,49 @@ def get_reports_for_users(pk):
         )
         .exclude(tasks_assigned_count=0)
     ).order_by("mail")
-    word_count_transcript_statistics = (
-        project_members.annotate(
+    total_count = len(all_user_statistics)
+    user_statistics = all_user_statistics[start:end]
+
+    user_data = []
+
+    for elem in user_statistics:
+        transcript_word_count = User.objects.filter(
+            transcript__video__project_id__id=pk,
+            transcript__status="TRANSCRIPTION_EDIT_COMPLETE",
+            transcript__task__user__email=elem["mail"],
+        ).aggregate(
             transcript_word_count=Sum(
-                Cast(F("transcript__payload__word_count"), FloatField()),
-                filter=(
-                    Q(transcript__video__project_id=pk)
-                    & Q(transcript__status="TRANSCRIPTION_EDIT_COMPLETE")
-                ),
-            ),
-        )
-    ).order_by(
-        "mail"
-    )  # fetching transcript word count
-    word_count_translation_statistics = (
-        project_members.annotate(
-            translation_word_count=Sum(
-                Cast(F("translation__payload__word_count"), FloatField()),
-                filter=(
-                    Q(translation__video__project_id=pk)
-                    & Q(translation__status="TRANSLATION_EDIT_COMPLETE")
-                ),
+                Cast("transcript__payload__word_count", FloatField())
             )
         )
-    ).order_by(
-        "mail"
-    )  # fetching translation word count
-    user_data = []
-    word_count_idx = 0
-    for elem in user_statistics:
-        while (
-            word_count_idx < len(word_count_translation_statistics)
-            and elem["name"]
-            != word_count_translation_statistics[word_count_idx]["name"]
-        ):  # to skip names not present in user_statistics
-            word_count_idx += 1
-        if word_count_idx >= len(word_count_translation_statistics):
-            break
+
+        transcript_result = (
+            transcript_word_count["transcript_word_count"]
+            if transcript_word_count["transcript_word_count"] is not None
+            else 0.0
+        )
+
+        translation_word_count = User.objects.filter(
+            translation__video__project_id__id=pk,
+            translation__status="TRANSLATION_EDIT_COMPLETE",
+            translation__task__user__email=elem["mail"],
+        ).aggregate(
+            translation_word_count=Sum(
+                Cast("translation__payload__word_count", FloatField())
+            )
+        )
+
+        translation_result = (
+            translation_word_count["translation_word_count"]
+            if translation_word_count["translation_word_count"] is not None
+            else 0.0
+        )
+        elem["word_count_translation"] = int(translation_result)
+        elem["word_count_transcript"] = int(transcript_result)
         avg_time = (
             0
             if elem["average_completion_time"] is None
             else round(elem["average_completion_time"] / 3600, 3)
-        )
-        word_count_translation = (
-            0
-            if word_count_translation_statistics[word_count_idx][
-                "translation_word_count"
-            ]
-            is None
-            else word_count_translation_statistics[word_count_idx][
-                "translation_word_count"
-            ]
-        )
-        word_count_transcript = (
-            0
-            if word_count_transcript_statistics[word_count_idx]["transcript_word_count"]
-            is None
-            else word_count_transcript_statistics[word_count_idx][
-                "transcript_word_count"
-            ]
         )
         user_dict = {
             "name": {"value": elem["name"], "label": "Name", "viewColumns": False},
@@ -173,13 +164,12 @@ def get_reports_for_users(pk):
                 "label": "Avg. Completion Time (Hours)",
             },
             "word_count": {
-                "value": int(word_count_translation + word_count_transcript),
+                "value": elem["word_count_translation"] + elem["word_count_transcript"],
                 "label": "Word count",
             },
         }
         user_data.append(user_dict)
-    word_count_idx += 1
-    return user_data
+    return user_data, total_count
 
 
 def send_mail_with_report(subject, body, user, csv_file_paths):
@@ -359,7 +349,9 @@ def get_reports_for_languages(pk):
 
 
 def get_project_report_users_email(project_id, user):
-    user_data = get_reports_for_users(project_id)
+    start = 0
+    end = len(User.objects.filter(projects__pk=project_id, has_accepted_invite=True))
+    user_data, _ = get_reports_for_users(project_id, start, end)
     project = Project.objects.get(pk=project_id)
     columns = [field["label"] for field in user_data[0].values()]
 

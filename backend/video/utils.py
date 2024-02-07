@@ -244,6 +244,7 @@ def get_video_func(request):
     upload_task_eta = request.GET.get("ETA")
     speaker_info = request.GET.get("speaker_info")
     multiple_speaker = request.GET.get("multiple_speaker", "false")
+    url = url.strip()
 
     create = create.lower() == "true"
     project = Project.objects.filter(pk=project_id).first()

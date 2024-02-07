@@ -149,6 +149,51 @@ def celery_tts_call(
         logging.info("VoiceOver obj already exists")
 
 
+@celery_app.task(queue="ekstep_asr")
+def celery_ekstep_asr_call(task_id):
+    task_obj = Task.objects.get(pk=task_id)
+    transcript_obj = Transcript.objects.filter(task=task_obj).first()
+    if transcript_obj is None:
+        transcribed_data = make_asr_api_call(
+            task_obj.video.url, task_obj.video.language
+        )
+        if transcribed_data is not None:
+            if task_obj.video.language == "en":
+                task_obj = Task.objects.get(pk=task_id)
+                data = convert_payload_format(transcribed_data)
+                transcript_obj = Transcript(
+                    video=task_obj.video,
+                    user=task_obj.user,
+                    payload=data,
+                    language=task_obj.video.language,
+                    task=task_obj,
+                    transcript_type="MACHINE_GENERATED",
+                    status="TRANSCRIPTION_SELECT_SOURCE",
+                )
+                task_obj.is_active = True
+                task_obj.save()
+                transcript_obj.save()
+                send_mail_to_user(task_obj)
+            else:
+                data = convert_dhruva_payload_format(transcribed_data)
+                task_obj = Task.objects.get(pk=task_id)
+                transcript_obj = Transcript(
+                    video=task_obj.video,
+                    user=task_obj.user,
+                    payload=data,
+                    language=task_obj.video.language,
+                    task=task_obj,
+                    transcript_type="MACHINE_GENERATED",
+                    status="TRANSCRIPTION_SELECT_SOURCE",
+                )
+                task_obj.is_active = True
+                task_obj.save()
+                transcript_obj.save()
+                send_mail_to_user(task_obj)
+    else:
+        logging.info("Transcript already exists")
+
+
 @celery_app.task(queue="asr_tts")
 def celery_asr_call(task_id):
     task_obj = Task.objects.get(pk=task_id)
