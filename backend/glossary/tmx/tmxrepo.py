@@ -105,6 +105,7 @@ class TMXRepository:
             source_text=object_in["sentences"][0]["src"],
             target_text=object_in["sentences"][0]["tgt"],
             user_id=User.objects.get(pk=int(object_in["userID"])),
+            context=object_in["sentences"][0]["context"],
         )
         glossary.save()
 

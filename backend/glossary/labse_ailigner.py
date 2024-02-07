@@ -6,7 +6,6 @@ import config
 import logging
 
 model_name = "sentence-transformers/LaBSE"
-model = SentenceTransformer(model_name, device="cpu")
 
 
 class LabseAlignerResource:
@@ -117,6 +116,7 @@ def generate_embeddings(input_1, input_2):
     Generate LABSE embeddings
     Note: Inputs are array of strings
     """
+    model = SentenceTransformer(model_name, device="cpu")
     embeddings_input_1 = model.encode(input_1, show_progress_bar=True)
     embeddings_input_2 = model.encode(input_2, show_progress_bar=True)
     logging.info("LABSE embedding generation finished")

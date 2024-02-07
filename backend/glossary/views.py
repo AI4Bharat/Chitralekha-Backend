@@ -13,6 +13,34 @@ import json
 import datetime
 from .tmx.tmxservice import TMXService
 from .models import Glossary
+from users.models import User
+from transcript.metadata import TRANSCRIPTION_LANGUAGE_CHOICES
+from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
+from .models import DOMAIN_CHOICES
+from rest_framework.decorators import api_view
+import logging
+from organization.models import Organization
+import base64
+import io
+import csv
+from django.http import HttpRequest
+
+
+accepted_domain_choices = [domain[1] for domain in DOMAIN_CHOICES]
+transcription_accepted_languages = [
+    language[0] for language in TRANSCRIPTION_LANGUAGE_CHOICES
+]
+translation_accepted_languages = [
+    language[0] for language in TRANSLATION_LANGUAGE_CHOICES
+]
+required_fields_glossary = [
+    "Source Language",
+    "Target Language",
+    "Source Text",
+    "Target Text",
+    "Contributor",
+    "Domain",
+]
 
 
 class GlossaryViewSet(ModelViewSet):
@@ -30,12 +58,13 @@ class GlossaryViewSet(ModelViewSet):
     def create(self, request, pk=None, *args, **kwargs):
         service = TMXService()
         # data = request.get_json()
-
+        user_id = str(request.data.get("user_id")) or str(request.user.id)
+        user_obj = User.objects.get(pk=user_id)
         for sentence in request.data.get("sentences"):
             glossary_obj = Glossary.objects.filter(
                 source_text=sentence["src"],
                 target_text=sentence["tgt"],
-                user_id=request.user,
+                user_id=user_obj.id,
                 source_language=sentence["locale"].split("|")[0],
                 target_language=sentence["locale"].split("|")[1],
             ).first()
@@ -46,12 +75,13 @@ class GlossaryViewSet(ModelViewSet):
                 )
 
             tmx_input = {
-                "userID": str(request.user.id),
+                "userID": user_id,
                 "sentences": [
                     {
                         "src": sentence["src"],
                         "tgt": sentence["tgt"],
                         "locale": sentence["locale"],
+                        "context": sentence["domain"],
                     }
                 ],
             }
@@ -136,4 +166,184 @@ class GlossaryViewSet(ModelViewSet):
             return Response(
                 {"message": "Glossary is successfully deleted."},
                 status=status.HTTP_200_OK,
+            )
+
+    @swagger_auto_schema(
+        method="post",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["csv", "org_id"],
+            properties={
+                "org_id": openapi.Schema(
+                    type=openapi.TYPE_INTEGER,
+                    description="An integer identifying the organization instance",
+                ),
+                "csv": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="A string to pass the csv data",
+                ),
+            },
+        ),
+        responses={
+            200: "CSV uploaded successfully",
+        },
+    )
+    @action(detail=False, methods=["post"], url_path="upload_glossary")
+    def upload_glossary(self, request, *args, **kwargs):
+        logging.info("Calling Upload API for Glossary...")
+        org_id = request.data.get("org_id")
+        csv_content = request.data.get("csv")
+
+        try:
+            org = Organization.objects.get(pk=org_id)
+        except Organization.DoesNotExist:
+            return Response(
+                {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if org.organization_owner.id != request.user.id:
+            return Response(
+                {"message": "You are not allowed to upload CSV."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        decrypted = base64.b64decode(csv_content).decode("utf-8")
+        csv_data = []
+        with io.StringIO(decrypted) as fp:
+            reader = csv.reader(fp, delimiter=",", quotechar='"')
+            for row in reader:
+                new_row = ",".join(row)
+                csv_data.append(new_row)
+
+        if len(csv_data) > 200:
+            return Response(
+                {"message": "Number of rows is greater than 200."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        csv_reader = csv.DictReader(csv_data)
+        if not set(required_fields_glossary).issubset(csv_reader.fieldnames):
+            return Response(
+                {
+                    "message": f"Missing columns: {', '.join(set(required_fields_glossary) - set(csv_reader.fieldnames))}"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if csv_reader.fieldnames != required_fields_glossary:
+            return Response(
+                {"message": "The sequence of fields given in CSV is wrong."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        errors = []
+        row_num = 0
+
+        valid_rows = []
+
+        for row in csv_reader:
+            valid_row = {}
+            row_num += 1
+            source_language = row["Source Language"]
+            target_language = row["Target Language"]
+            source_text = row["Source Text"]
+            target_text = row["Target Text"]
+            user_email = row["Contributor"]
+
+            user_obj = User.objects.get(email=user_email)
+            if user_obj is None:
+                errors.append(
+                    {
+                        "row_no": f"Row {row_num}",
+                        "message": f"User does not belong to this organization: {row['Contributor']}",
+                    }
+                )
+                continue
+            valid_row["user_id"] = user_obj.id
+            if (
+                not isinstance(row["Source Language"], str)
+                or row["Source Language"] not in transcription_accepted_languages
+            ):
+                errors.append(
+                    {
+                        "row_no": f"Row {row_num}",
+                        "message": f"Invalid source language: {row['Source Language']}",
+                    }
+                )
+            else:
+                valid_row["source_language"] = row["Source Language"]
+
+            if (
+                not isinstance(row["Target Language"], str)
+                or row["Target Language"] not in translation_accepted_languages
+            ):
+                errors.append(
+                    {
+                        "row_no": f"Row {row_num}",
+                        "message": f"Invalid target language: {row['Target Language']}",
+                    }
+                )
+            else:
+                valid_row["target_language"] = row["Target Language"]
+
+            if not isinstance(row["Source Text"], str):
+                errors.append(
+                    {
+                        "row_no": f"Row {row_num}",
+                        "message": f"Invalid source text: {row['Source Text']}",
+                    }
+                )
+            else:
+                valid_row["source_text"] = row["Source Text"]
+
+            if not isinstance(row["Target Text"], str):
+                errors.append(
+                    {
+                        "row_no": f"Row {row_num}",
+                        "message": f"Invalid target text: {row['Target Text']}",
+                    }
+                )
+            else:
+                valid_row["target_text"] = row["Target Text"]
+
+            if (
+                not isinstance(row["Domain"], str)
+                or row["Domain"] not in accepted_domain_choices
+            ):
+                errors.append(
+                    {
+                        "row_no": f"Row {row_num}",
+                        "message": f"Invalid Domain: {row['Domain']}",
+                    }
+                )
+            else:
+                valid_row["domain"] = row["Domain"]
+
+            if len(errors) == 0:
+                valid_rows.append(valid_row)
+
+        if len(errors) > 0:
+            return Response(
+                {"message": "Invalid CSV", "response": errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        else:
+            for row in valid_rows:
+                new_request = HttpRequest()
+                tmx_data = {
+                    "user_id": row["user_id"],
+                    "sentences": [
+                        {
+                            "src": row["source_text"],
+                            "tgt": row["target_text"],
+                            "locale": row["source_language"]
+                            + "|"
+                            + row["target_language"],
+                            "domain": row["domain"],
+                        }
+                    ],
+                }
+                new_request.data = tmx_data
+                # Call the post method to create a project
+                glossary_creation = self.create(new_request)
+            return Response(
+                {"message": "CSV uploaded successfully"}, status=status.HTTP_200_OK
             )
