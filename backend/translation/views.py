@@ -975,7 +975,7 @@ def generate_translation_output(request):
         if source_type == None:
             source_type = config.backend_default_translation_type
         payloads = generate_translation_payload(
-            translation.transcript, translation.target_language, [source_type]
+            translation.transcript, translation.target_language, [source_type], task.user.id
         )
         if type(translation.payload) == str or (
             type(translation.payload) == dict

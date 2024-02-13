@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "voiceover",
     "youtube",
     "newsletter",
+    "glossary",
 ]
 
 MIDDLEWARE = [

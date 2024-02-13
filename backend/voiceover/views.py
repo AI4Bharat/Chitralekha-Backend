@@ -369,7 +369,7 @@ def get_payload(request):
                 sentences_list.append(
                     {
                         "id": str(int(audio_index) + 1),
-                        "time_difference": t_d,
+                        "time_difference": "{:.3f}".format(t_d),
                         "start_time": start_time,
                         "end_time": end_time,
                         "text": voice_over.payload["payload"][str(audio_index)]["text"],
@@ -1286,6 +1286,7 @@ def export_voiceover(request):
         )
     video_name = task.video.name
     voice_over = get_voice_over_id(task)
+
     if voice_over is not None:
         voice_over = voice_over
     else:
@@ -1324,10 +1325,25 @@ def export_voiceover(request):
                 {"message": "Please wait. The audio link will be emailed to you."},
                 status=status.HTTP_200_OK,
             )
+
         elif export_type == "flac":
-            return Response(
-                {"azure_url": voice_over.azure_url_audio}, status=status.HTTP_200_OK
-            )
+            if ( task.video.project_id.organization_id.id == 16
+                and len(task.video.description) > 0):
+                    return Response(
+                        {
+                            "azure_url": voice_over.azure_url_audio,
+                            "video_name": task.video.description,
+                        },
+                        status=status.HTTP_200_OK
+                    )
+
+            else:
+                return Response(
+                    {
+                        "azure_url": voice_over.azure_url_audio
+                    },
+                    status=status.HTTP_200_OK
+                )
         elif export_type == "mp3":
             logging.info(
                 "Downloading audio from Azure Blob %s", voice_over.azure_url_audio
@@ -1419,7 +1435,6 @@ def bulk_export_voiceover(request):
     else:
         return Response(messages, status=status.HTTP_400_BAD_REQUEST)
         
-    
 
 @api_view(["GET"])
 def get_voice_over_task_counts(request):

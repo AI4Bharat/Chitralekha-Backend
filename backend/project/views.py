@@ -965,16 +965,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
         titles = request.data.get("titles")
         project_id = request.data.get("project_id")
         project_obj = Project.objects.get(pk=project_id)
+
         project_data = ProjectSerializer(project_obj)
-        # print(project_data)
         serialized_dict = json.loads(json.dumps(project_data.data))
         managers_id = []
-        data_list = project_data['managers'].value
-        print(data_list)
 
-        # Extract 'id' fields using a list comprehension
+        data_list = project_data['managers'].value
         managers_id= [user_dict['id'] for user_dict in data_list]
-        print(serialized_dict)
 
         for title in titles:
             project_data_1 = {
