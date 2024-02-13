@@ -176,6 +176,17 @@ def upload_audio_to_azure_blob(file_path, export_type, export):
             logging.info("This audio can't be uploaded")
     return blob_client_audio.url
 
+def upload_zip_to_azure(zip_file_path):
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+    blob_client_zip = blob_service_client.get_blob_client(container=container_name, blob=zip_file_path)
+    with open(zip_file_path, 'rb') as f:
+        try:
+            blob_client_zip.upload_blob(f)
+            logging.info("Audio zip uploaded successfully!")
+            logging.info(blob_client_zip.url)
+        except Exception as e:
+            logging.info("This audio_zip can't be uploaded")
+    return blob_client_zip.url
 
 def get_tts_output(tts_input, target_language, multiple_speaker, gender):
     logging.info("Calling TTS API")
@@ -1166,6 +1177,20 @@ def send_audio_mail_to_user(task, azure_url, user):
     else:
         logging.info("Email is not enabled %s", task.user.email)
 
+def send_audio_zip_mail_to_user(task, azure_url, user):
+    if task.user.enable_mail:
+        logging.info("Send Bulk Audio email to user %s", user.email)
+        try:
+            send_mail(
+                f"The requested audios have been successfully generated. You can access the audios by copying and pasting the following link into your web browser: {azure_url}",
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+            )
+            logging.info("Email sent successfully to %s", user.email)
+        except Exception as e:
+            logging.error("Error sending email to %s: %s", user.email, str(e))
+    else:
+        logging.info("Email is not enabled for user %s", user.email)
 
 def send_mail_to_user(task):
     if task.user.enable_mail:
