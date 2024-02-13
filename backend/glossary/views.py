@@ -58,7 +58,7 @@ class GlossaryViewSet(ModelViewSet):
     def create(self, request, pk=None, *args, **kwargs):
         service = TMXService()
         # data = request.get_json()
-        user_id = str(request.data.get("user_id")) or str(request.user.id)
+        user_id = str(request.data.get("user_id", "")) or str(request.user.id)
         user_obj = User.objects.get(pk=user_id)
         for sentence in request.data.get("sentences"):
             glossary_obj = Glossary.objects.filter(

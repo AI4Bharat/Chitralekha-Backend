@@ -369,7 +369,7 @@ def get_payload(request):
                 sentences_list.append(
                     {
                         "id": str(int(audio_index) + 1),
-                        "time_difference": t_d,
+                        "time_difference": "{:.3f}".format(t_d),
                         "start_time": start_time,
                         "end_time": end_time,
                         "text": voice_over.payload["payload"][str(audio_index)]["text"],
