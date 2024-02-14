@@ -43,12 +43,12 @@ class LabseAlignerService:
             logging.info("Performing phrase alignenment using LABSE")
             logging.info("Input for phrase_aligner:{}".format(inputs))
             src_phrases, tgt = inputs.get("src_phrases"), inputs.get("tgt")
-
+            model = SentenceTransformer(model_name, device="cpu")
             for src_phrase in src_phrases:
                 length_src_phrase = len(src_phrase.split())
                 tgt_token_list = split_tgt(length_src_phrase, tgt)
                 embeddings_src_phrase, embeddings_tgt_tokens = generate_embeddings(
-                    [src_phrase], tgt_token_list
+                    model, [src_phrase], tgt_token_list
                 )
                 alignments = get_target_sentence(
                     embeddings_tgt_tokens, embeddings_src_phrase, length_src_phrase
@@ -111,12 +111,11 @@ def split_tgt(length_src_phrase, tgt):
     return tgt_token_list
 
 
-def generate_embeddings(input_1, input_2):
+def generate_embeddings(model, input_1, input_2):
     """
     Generate LABSE embeddings
     Note: Inputs are array of strings
     """
-    model = SentenceTransformer(model_name, device="cpu")
     embeddings_input_1 = model.encode(input_1, show_progress_bar=True)
     embeddings_input_2 = model.encode(input_2, show_progress_bar=True)
     logging.info("LABSE embedding generation finished")
