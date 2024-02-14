@@ -929,7 +929,7 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                     celery_nmt_call.delay(task_id=translation.task.id)
                 else:
                     payloads = generate_translation_payload(
-                        transcript, target_language, [source_type]
+                        transcript, target_language, [source_type], translation.task.user.id
                     )
                     translation.payload = payloads[source_type]
                     translation.save()

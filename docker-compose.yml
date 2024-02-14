@@ -66,7 +66,7 @@ services:
         condition: service_started
       backend:
         condition: service_started
-    command: python3 -m celery -A backend worker -Q nmt -n nmt_worker --concurrency=1 -l DEBUG
+    command: python3 -m celery -A backend worker -Q nmt -n nmt_worker --concurrency=1 -l DEBUG --pool threads
     restart: unless-stopped
 
   celery_newsletter:

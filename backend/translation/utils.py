@@ -19,6 +19,7 @@ import regex
 from transcript.utils.timestamp import *
 from yt_dlp import YoutubeDL
 import pandas as pd
+from glossary.tmx.tmxservice import TMXService
 
 
 def convert_to_scc(subtitles):
@@ -279,16 +280,20 @@ def convert_payload_format(data):
     return json.loads(json.dumps({"payload": sentences_list}))
 
 
-def generate_translation_payload(transcript, target_language, list_compare_sources, url=None):
+def generate_translation_payload(
+    transcript, target_language, list_compare_sources, user_id, url=None
+):
     payloads = {}
     if "MACHINE_GENERATED" in list_compare_sources:
         try:
-            translation_machine_generated = translation_mg(transcript, target_language)
+            translation_machine_generated = translation_mg(
+                transcript, target_language, user_id
+            )
             if type(translation_machine_generated) == Response:
                 transcript.transcript_type = "ORIGINAL_SOURCE"
                 transcript.save()
                 translation_machine_generated = translation_mg(
-                    transcript, target_language
+                    transcript, target_language, user_id
                 )
                 transcript.transcript_type = "MACHINE_GENERATED"
                 transcript.save()
@@ -297,7 +302,7 @@ def generate_translation_payload(transcript, target_language, list_compare_sourc
                 transcript.transcript_type = "ORIGINAL_SOURCE"
                 transcript.save()
                 translation_machine_generated = translation_mg(
-                    transcript, target_language
+                    transcript, target_language, user_id
                 )
                 transcript.transcript_type = "MACHINE_GENERATED"
                 transcript.save()
@@ -420,7 +425,7 @@ def get_ratio_of_words(a):
     return percentage_per_sentence
 
 
-def translation_mg(transcript, target_language, batch_size=25):
+def translation_mg(transcript, target_language, user_id, batch_size=25):
     sentence_list = []
     delete_indices = []
     vtt_output = transcript.payload
@@ -546,7 +551,8 @@ def translation_mg(transcript, target_language, batch_size=25):
 
     # Update the translation payload with the generated translations
     payload = []
-    for (source, target) in zip(vtt_output["payload"], all_translated_sentences):
+    tmxservice = TMXService()
+    for source, target in zip(vtt_output["payload"], all_translated_sentences):
         start_time = datetime.datetime.strptime(source["start_time"], "%H:%M:%S.%f")
         unix_start_time = datetime.datetime.timestamp(start_time)
         end_time = datetime.datetime.strptime(source["end_time"], "%H:%M:%S.%f")
@@ -569,6 +575,20 @@ def translation_mg(transcript, target_language, batch_size=25):
         source["end_time"] = format_timestamp(source["end_time"])
 
         if "speaker_id" in source.keys():
+            locale = transcript.language + "|" + target_language
+            org_id = None
+            user_id = str(user_id)
+            tmx_level = "USER"
+            tmx_phrases, res_dict = tmxservice.get_tmx_phrases(
+                user_id, org_id, locale, source["text"], tmx_level
+            )
+            tgt, tmx_replacement = tmxservice.replace_nmt_tgt_with_user_tgt(
+                tmx_phrases, source["text"], target
+            )
+            if len(tmx_replacement) > 0:
+                target = target.replace(
+                    tmx_replacement[0]["tgt"], tmx_replacement[0]["src_phrase"]
+                )
             payload.append(
                 {
                     "start_time": source["start_time"],
@@ -581,6 +601,19 @@ def translation_mg(transcript, target_language, batch_size=25):
                 }
             )
         else:
+            locale = transcript.language + "|" + target_language
+            user_id = str(user_id)
+            org_id = None
+            tmx_level = "USER"
+            tmx_phrases, res_dict = tmxservice.get_tmx_phrases(
+                user_id, org_id, locale, source["text"], tmx_level
+            )
+            # [{'src_phrase': 'Python', 'tmx_tgt': 'अजगर', 'tgt': 'पायथन', 'type': 'NMT'}]
+            tgt, tmx_replacement = tmxservice.replace_nmt_tgt_with_user_tgt(
+                tmx_phrases, source["text"], target
+            )
+            if len(tmx_replacement) > 0:
+                target.replace(tmx_replacement[0]["tgt"], tmx_replacement[0]["tmx_tgt"])
             payload.append(
                 {
                     "start_time": source["start_time"],

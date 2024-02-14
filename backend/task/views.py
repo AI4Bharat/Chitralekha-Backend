@@ -610,7 +610,7 @@ class TaskViewSet(ModelViewSet):
                         else:
                             transcript = self.check_transcript_exists(task.video)
                             payloads = generate_translation_payload(
-                                transcript, target_language, [source_type]
+                                transcript, target_language, [source_type], task.user.id
                             )
                             task.is_active = True
                             task.save()
@@ -621,6 +621,7 @@ class TaskViewSet(ModelViewSet):
                                 transcript,
                                 target_language,
                                 [source_type],
+                                task.user.id,
                                 task.video.url,
                             )
                             task.is_active = True
@@ -1600,7 +1601,6 @@ class TaskViewSet(ModelViewSet):
         if "MACHINE_GENERATED" in list_compare_sources:
             if is_async == True:
                 if task.video.project_id.organization_id.id == 3:
-
                     celery_ekstep_asr_call.delay(task_id=task.id)
                 else:
                     celery_asr_call.delay(task_id=task.id)
@@ -1704,7 +1704,7 @@ class TaskViewSet(ModelViewSet):
                     )
 
                 payloads = generate_translation_payload(
-                    transcript, target_language, list_compare_sources
+                    transcript, target_language, list_compare_sources, task.user.id
                 )
             response = {}
             response["payloads"] = payloads
