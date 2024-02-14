@@ -6,7 +6,7 @@ import uuid
 import requests
 from .tmxrepo import TMXRepository
 import logging
-from glossary.labse_ailigner import *
+from glossary.labse_aligner import *
 import re
 from users.models import User
 from glossary.models import Glossary
