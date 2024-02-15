@@ -1,8 +1,9 @@
+import datetime
+import io
 from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 from celery.schedules import crontab
-from datetime import datetime
 from rest_framework.response import Response
 from rest_framework import status
 from .utils import (
@@ -11,6 +12,8 @@ from .utils import (
     download_from_azure_blob,
     upload_audio_to_azure_blob,
     send_audio_mail_to_user,
+    upload_zip_to_azure,
+    send_audio_zip_mail_to_user,
 )
 from voiceover.models import VoiceOver
 from task.models import Task
@@ -30,6 +33,7 @@ from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_audioclips
 import re
 import json
 import requests
+import zipfile
 
 
 @shared_task()
@@ -95,3 +99,48 @@ def export_voiceover_async(task_id, export_type, user_id, bg_music):
         send_audio_mail_to_user(task, azure_url_audio, user)
     else:
         logging.info("Error in exporting %s", str(task_id))
+
+
+
+@shared_task()
+def bulk_export_voiceover_async(task_ids, user_id):
+    downloaded_files = []
+    user = User.objects.get(pk=user_id)
+    for task_id in task_ids:
+        task = Task.objects.get(pk=task_id)
+        voice_over = VoiceOver.objects.filter(task=task, status="VOICEOVER_EDIT_COMPLETE").first()
+
+        if voice_over is not None:
+            download_from_azure_blob(str(voice_over.azure_url_audio))
+            logging.info("Downloaded audio from Azure Blob %s", voice_over.azure_url_audio)
+            file_path = voice_over.azure_url_audio.split("/")[-1]
+            downloaded_files.append(file_path)
+        else:
+            logging.info("Error in exporting %s", str(task_id))
+
+    time_now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    zip_file_name = f'Chitralekha_VO_Tasks_{time_now}.zip'
+    with zipfile.ZipFile(zip_file_name, "w") as zf:
+        for file_name in downloaded_files:
+            zf.write(file_name)
+    zip_file_size = os.path.getsize(zip_file_name)
+    if zip_file_size > (1024 ** 3):
+        logging.info("Error: Zip file size exceeds 1 GB. Skipping upload to Azure.")
+        try:
+            os.remove(zip_file_name)
+            for f in downloaded_files:
+                os.remove(f)
+        except:
+            logging.info("Error in removing files")
+        return
+    azure_zip_url = upload_zip_to_azure(zip_file_name)
+    logging.info("Uploading audio_zip to Azure Blob %s", azure_zip_url)
+    try:
+        os.remove(zip_file_name)
+        for f in downloaded_files:
+            os.remove(f)
+    except:
+        logging.info("Error in removing files")
+
+    send_audio_zip_mail_to_user(task, azure_zip_url, user)
+    

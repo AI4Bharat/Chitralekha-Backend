@@ -21,7 +21,7 @@ from .models import (
 from datetime import datetime, timedelta
 from .utils import *
 from config import voice_over_payload_offset_size, app_name
-from .tasks import celery_integration, export_voiceover_async
+from .tasks import celery_integration, export_voiceover_async, bulk_export_voiceover_async
 from django.db.models import Count, F, Sum
 from operator import itemgetter
 from itertools import groupby
@@ -1368,6 +1368,73 @@ def export_voiceover(request):
             {"message": "The supported formats are : {mp4, mp3, flac, wav} "},
             status=status.HTTP_404_NOT_FOUND,
         )
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_ids",
+            openapi.IN_QUERY,
+            description=("Comma-separated list of task IDs to export"),
+            type=openapi.TYPE_STRING,
+            required=True,
+        )
+    ],
+    responses={200: "VO is exported"},
+)
+@api_view(["GET"])
+def bulk_export_voiceover(request):
+    audio_size = 0
+    task_ids = request.query_params.get("task_ids").split(',')
+    if len(task_ids) > 10:
+        return Response(
+            {"message": "Exceeded maximum allowed task_ids. Maximum is 10."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    messages = []
+
+    for task_id in task_ids:
+        if task_id is None:
+            messages.append({"message": "missing param : task_id"})
+            continue
+
+        try:
+            task = Task.objects.get(pk=task_id)
+        except Task.DoesNotExist:
+            messages.append({"message": f"Task with ID:{task_id} not found."})
+            continue
+
+        voice_over = get_voice_over_id(task)
+        if voice_over is not None:
+            voice_over = voice_over
+        else:   
+            if task.status == "POST_PROCESS":
+                messages.append({"message": f"VoiceOver of ID:{task_id} is in Post Process stage."})
+                continue
+            messages.append({"message": f"VoiceOver of ID:{task_id} doesn't exist."})
+            continue
+
+        if voice_over.azure_url_audio == None:
+            messages.append({"message": f"Audio was not created for ID:{task_id} Voice Over Task."})
+        else:
+            audio_size += asizeof(voice_over.azure_url_audio)
+
+    if audio_size > 1024**3:
+        return Response(
+                    {"message": "Total size of audio files exceeds 1 GB."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+    if messages == []:
+        bulk_export_voiceover_async.delay(task_ids, request.user.id)
+        return Response(
+            {"message": "The audio link will be emailed to you."},
+            status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(messages, status=status.HTTP_400_BAD_REQUEST)
+        
 
 @api_view(["GET"])
 def get_voice_over_task_counts(request):
