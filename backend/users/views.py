@@ -20,6 +20,7 @@ from .serializers import (
     LanguageSerializer,
     UpdateUserPasswordSerializer,
 )
+from rest_framework.views import APIView
 from organization.models import Invite, Organization
 from organization.serializers import InviteGenerationSerializer
 from organization.decorators import is_admin, is_organization_owner
@@ -37,6 +38,7 @@ from project.models import Project
 from project.serializers import ProjectSerializer
 import json
 import datetime
+from config import point_of_contacts
 
 
 regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
@@ -46,6 +48,112 @@ def generate_random_string(length=12):
     return "".join(
         secrets.choice(string.ascii_uppercase + string.digits) for i in range(length)
     )
+
+onboarding_table = """
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Organization Information</title>
+        <style>
+        table {{
+          width: 100%;
+          border-collapse: collapse;
+          border-radius: 8px;
+          overflow: hidden;
+        }}
+
+        th, td {{
+          padding: 12px;
+          text-align: left;
+        }}
+
+        th {{
+          background-color: #4CAF50;
+          color: white;
+        }}
+
+        tr:nth-child(even) {{
+          background-color: #f2f2f2;
+        }}
+
+        tr:hover {{
+          background-color: #ddd;
+        }}
+
+        td:first-child {{
+          font-weight: bold;
+        }}
+
+        td {{
+          border-bottom: 1px solid #ddd;
+        }}
+
+        </style>
+        </head>
+        <body>
+
+        <h2 style="text-align: center; color: #4CAF50;">Organization Information</h2>
+
+        <table>
+          <tr>
+            <th>Field</th>
+            <th>Value</th>
+          </tr>
+          <tr>
+            <td>Organization Name</td>
+            <td>{org_name}</td>
+          </tr>
+          <tr>
+            <td>Organization Portal</td>
+            <td>{org_portal}</td>
+          </tr>
+          <tr>
+            <td>Email ID</td>
+            <td>{email_id}</td>
+          </tr>
+          <tr>
+            <td>Phone</td>
+            <td>{phone}</td>
+          </tr>
+          <tr>
+            <td>Organization Type</td>
+            <td>{org_type}</td>
+          </tr>
+          <tr>
+            <td>Purpose</td>
+            <td>{purpose}</td>
+          </tr>
+          <tr>
+            <td>Source</td>
+            <td>{source}</td>
+          </tr>
+        </table>
+
+        </body>
+        </html>
+"""
+
+
+class OnboardingAPIView(APIView):
+    def get(self, request, org_name, org_portal, email_id, phone, org_type, purpose, source, *args, **kwargs):
+        onboarding_table_1 = onboarding_table.format(org_name=org_name, org_portal=org_portal, email_id=email_id, phone=phone,org_type=org_type,purpose=purpose,source=source)
+        # current_time = datetime.now()
+        # formatted_date = current_time.strftime("%d %b")
+        for email in point_of_contacts:
+            send_mail(
+                "OnBoarding Request for {}".format(org_name),
+                "",
+                settings.DEFAULT_FROM_EMAIL,
+                [email],
+                html_message=onboarding_table_1,
+            )
+        return Response(
+            {"message": "Onboarding request is submitted."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
 
 
 class InviteViewSet(viewsets.ViewSet):
