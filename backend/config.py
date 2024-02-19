@@ -52,3 +52,5 @@ DEFAULT_SPEAKER = {
     "age": "21-60",
     "id": "default_speaker",
 }
+
+point_of_contacts = os.getenv("POINT_OF_CONTACTS")
