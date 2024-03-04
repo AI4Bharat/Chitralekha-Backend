@@ -26,14 +26,21 @@ def convert_to_scc(subtitles):
     scc_lines = ["Scenarist_SCC V1.0"]
 
     for index, (timecode, text) in enumerate(subtitles, start=1):
-        scc_line = convert_timecode(timecode)  + "\t94ae 94ae 9420 9420 947a 947a 97a2 97a2 " + text_to_hex(text) + "92 942c 942c 8080 8080 942f 942f"
+        scc_line = (
+            convert_timecode(timecode)
+            + "\t94ae 94ae 9420 9420 947a 947a 97a2 97a2 "
+            + text_to_hex(text)
+            + "92 942c 942c 8080 8080 942f 942f"
+        )
         scc_lines.append(scc_line)
     str1 = "\n\n".join(scc_lines)
     return str1
 
+
 def convert_timecode(timecode):
     parts = timecode.split(" --> ")
     return f"{convert_timestamp(parts[0])}"
+
 
 def convert_timestamp(timestamp):
     # Convert HH:MM:SS.sss to frames (assuming 30 frames per second)
@@ -41,28 +48,25 @@ def convert_timestamp(timestamp):
     total_frames = int((hours * 3600 + minutes * 60 + seconds) * 30)
     return f"{total_frames // 1800:02d}:{(total_frames % 1800) // 30:02d}:{(total_frames % 30) * 2:02d}:00"
 
+
 def text_to_hex(text):
-    hex_values = ''.join([format(ord(char), 'x') for char in text])
-    formatted_output = ' '.join([hex_values[i:i+4] for i in range(0, len(hex_values), 4)])
+    hex_values = "".join([format(ord(char), "x") for char in text])
+    formatted_output = " ".join(
+        [hex_values[i : i + 4] for i in range(0, len(hex_values), 4)]
+    )
     return formatted_output
 
 
 def convert_scc_format(payload, task_type):
     if "TRANSCRIPTION" in task_type:
         output_list = [
-        (
-            f"{item['start_time']} --> {item['end_time']}",
-            item['text']
-        )
-        for item in payload
+            (f"{item['start_time']} --> {item['end_time']}", item["text"])
+            for item in payload
         ]
     else:
         output_list = [
-        (
-            f"{item['start_time']} --> {item['end_time']}",
-            item['target_text']
-        )
-        for item in payload
+            (f"{item['start_time']} --> {item['end_time']}", item["target_text"])
+            for item in payload
         ]
     scc_content = convert_to_scc(output_list)
     """
@@ -71,6 +75,7 @@ def convert_scc_format(payload, task_type):
     	df.to_csv('test.txt', sep='\t', index=False)
     """
     return scc_content
+
 
 ### Utility Functions ###
 def validate_uuid4(val):
@@ -213,7 +218,6 @@ def get_batch_translations_using_indictrans_nmt_api(
     source_language,
     target_language,
 ):
-
     """Function to get the translation for the input sentences using the IndicTrans NMT API.
     Args:
         sentence_list (str): List of sentences to be translated.
@@ -333,16 +337,42 @@ def generate_translation_payload(
     return payloads
 
 
+def split_at(string, delimiter):
+    """
+    Desc: Python's split function implementation
+    :param string: a string
+    :return: a list after breaking string on delimiter match
+    """
+    result_list = []
+    if not delimiter:
+        raise ValueError("Empty Separator")
+
+    if not string:
+        return [string]
+    start = 0
+    for index, char in enumerate(string):
+        if char == delimiter:
+            if not (index < len(string) - 1 and string[index + 1].isdigit()):
+                result_list.append(string[start:index])
+                start = index + 1
+    if start == 0:
+        return [string]
+    result_list.append(string[start : index + 1])
+
+    return result_list
+
+
 def get_ratio_of_words(a):
     output = []
+
     percentage_per_sentence = {}
     pre_last_part = 0
     i = 0
     last = False
     total = 0
     while i < len(a):
-        x = a[i]["text"].split(".")
-        list = [len(x) - 1]
+        x = split_at(a[i]["text"], ".")
+        # list = [len(x)-1]
         # if last == False:
         #     percentage_per_sentence = {}
         percentage_per_sentence[i] = []
@@ -352,19 +382,21 @@ def get_ratio_of_words(a):
 
             j = i + 1
             count_words = 0
-            while j != len(a) and "." not in a[j]["text"]:
+            while j != len(a) and len(split_at(a[j]["text"], ".")) == 1:
                 count_words += len(a[j]["text"].split())
                 j += 1
             last_part = 0
             if j != len(a):
-                last_part = len(a[j]["text"].split(".")[0].split())
+                last_part = len(split_at(a[j]["text"], ".")[0].split())
                 # last = True
+            # print(x[-1])
             pre_total = total
             total = first_part + count_words + last_part
 
             if len(x) == 1 and last == False:
                 # data_tuple = data_tuple + 0 + first_part*100/total
                 # list.append(0)
+                # print("i1=", i)
                 percentage_per_sentence[i].append(first_part * 100 / total)
             else:
                 if last == True:
@@ -376,6 +408,7 @@ def get_ratio_of_words(a):
                     if len(list_1) > 0:
                         percentage_per_sentence[i].extend(list_1)
                     percentage_per_sentence[i].append(first_part * 100 / total)
+                    # print("i2=",i)
                     # output.append(percentage_per_sentence)
                     last = False
                 else:
@@ -387,19 +420,21 @@ def get_ratio_of_words(a):
                     if len(list_1) > 0:
                         percentage_per_sentence[i].extend(list_1)
                     percentage_per_sentence[i].append(first_part * 100 / total)
+                    # print("i3=",i)
             # data_tuple = data_tuple + last_part*100/total
             # tuple_list.append(list)
 
             j = i + 1
             count_words = 0
-            while j != len(a) and "." not in a[j]["text"]:
+            while j != len(a) and len(split_at(a[j]["text"], ".")) == 1:
+                # print("i4=",j)
                 percentage_per_sentence[j] = []
                 count_words = len(a[j]["text"].split())
                 percentage_per_sentence[j].append(count_words * 100 / total)
                 j += 1
 
             if j != len(a):
-                pre_last_part = len(a[j]["text"].split(".")[0].split())
+                pre_last_part = len(split_at(a[j]["text"], ".")[0].split())
                 last = True
 
             i = j
@@ -408,6 +443,7 @@ def get_ratio_of_words(a):
                 list_1 = []
                 for l in range(len(x) - 1):
                     list_1.append(100)
+                # print("i5=",i)
                 # percentage_per_sentence[i] = []
                 if len(list_1) > 0:
                     percentage_per_sentence[i].extend(list_1)
@@ -419,9 +455,11 @@ def get_ratio_of_words(a):
                     list_1.append(100)
                 if len(list_1) > 0:
                     percentage_per_sentence[i].extend(list_1)
+                # print("i6=",i)
                 # output.append(percentage_per_sentence)
                 last = False
             i += 1
+    print(percentage_per_sentence)
     return percentage_per_sentence
 
 
@@ -441,7 +479,7 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
             if "text" in vtt_line.keys():
                 text = vtt_line["text"]
                 full_transcript = full_transcript + text
-        sentence_list = full_transcript.split(".")
+        sentence_list = split_at(full_transcript, ".")
 
         if sentence_list[-1] == "":
             sentence_list.pop()
@@ -643,17 +681,37 @@ def set_fail_for_translation_task(task):
 def convert_to_rt(payload, task_type):
     lines = []
     time_format = "%H:%M:%S.%f"
-    lines.append('<Window\n  Width    = "640"\n  Height   = "480"\n  WordWrap = "true"\n  Loop     = "true"\n  bgcolor  = "black"\n>\n<Font\n  Color = "white"\n  Face  = "Arial"\n  Size  = "+2"\n>\n<center>\n<b>\n')
+    lines.append(
+        '<Window\n  Width    = "640"\n  Height   = "480"\n  WordWrap = "true"\n  Loop     = "true"\n  bgcolor  = "black"\n>\n<Font\n  Color = "white"\n  Face  = "Arial"\n  Size  = "+2"\n>\n<center>\n<b>\n'
+    )
     if "TRANSCRIPTION" in task_type:
         for index, segment in enumerate(payload):
             start_time_str = segment["start_time"]
             end_time_str = segment["end_time"]
-            lines.append("<Time begin=" + f"{start_time_str}" + " end=" + f"{end_time_str}" + " />" + "<clear/> " +" " + segment["text"])
+            lines.append(
+                "<Time begin="
+                + f"{start_time_str}"
+                + " end="
+                + f"{end_time_str}"
+                + " />"
+                + "<clear/> "
+                + " "
+                + segment["text"]
+            )
     else:
         for index, segment in enumerate(payload):
             start_time_str = segment["start_time"]
             end_time_str = segment["end_time"]
-            lines.append("<Time begin=" + f"{start_time_str}" + " end=" + f"{end_time_str}" + " />" + "<clear/> " +" " + segment["target_text"])
+            lines.append(
+                "<Time begin="
+                + f"{start_time_str}"
+                + " end="
+                + f"{end_time_str}"
+                + " />"
+                + "<clear/> "
+                + " "
+                + segment["target_text"]
+            )
     lines.append("</b>\n</center>")
     content = "\n".join(lines)
     return content
