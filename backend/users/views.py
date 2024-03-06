@@ -38,7 +38,7 @@ from project.models import Project
 from project.serializers import ProjectSerializer
 import json
 import datetime
-from config import point_of_contacts
+from config import point_of_contacts, app_name
 
 
 regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
@@ -223,6 +223,93 @@ class InviteViewSet(viewsets.ViewSet):
 
         Invite.create_invite(organization=org, users=users)
         return Response(ret_dict, status=status.HTTP_200_OK)
+
+
+    @is_admin
+    @swagger_auto_schema(
+        method="post",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['org_name', 'email', 'roles'],
+            properties={
+                'org_name': openapi.Schema(type=openapi.TYPE_STRING, description='Name of the organization'),
+                'email': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL, description='Email of the organization'),
+                'roles': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING), description='List of roles'),
+            },
+        ),
+        responses={200: "Organization and users created successfully"},
+    )
+    @action(
+        detail=False, methods=["post"], url_path="create_onboarding_account", url_name="create_onboarding_account"
+    )
+    def create_onboarding_account(self, request):
+        org_name = request.data.get('org_name')
+        org_email = request.data.get('email')
+        roles = request.data.get('roles')
+
+        if Organization.objects.filter(title=org_name).exists():
+            return Response({"message": "Organization already exists"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(email=org_email).exists():
+            return Response({"message": "Email already exists"}, status=status.HTTP_400_BAD_REQUEST)
+
+        first_word = org_name.split()[0]
+        first_name = org_email.split('@')[0]
+        domain_name = f"{first_word}.org"
+        password = f"demo@{first_word}"
+        u_name = f"ORG_OWNER_{first_word}"
+
+        user_data = {
+            'username': u_name,
+            'email': org_email,
+            'password': password,
+            'first_name': first_name,
+            'languages': ["English", "Hindi"]
+        }
+        user_serializer = UserSignUpSerializer(data=user_data)
+        if user_serializer.is_valid():
+            user = user_serializer.save()
+            user.set_password(password)
+            user.role = "ORG_OWNER"
+            user.has_accepted_invite = True
+            user.save()
+        else:
+            return Response({"message": "Failed to create user"}, status=status.HTTP_400_BAD_REQUEST)
+
+        organization = Organization.objects.create(
+            title=org_name,
+            organization_owner=user,
+            email_domain_name=domain_name,
+            created_by=request.user,
+            is_active=True
+        )
+
+        user.organization = organization
+        user.save()
+
+        created_emails = [org_email]
+        if roles:
+            for r in roles:
+                email = f"{r.lower()}@{first_word.lower()}.org"
+                role_firstword = f"{r.lower()}_{first_word}"
+                f_name = email.split('@')[0].replace('_', ' ')
+
+                role_user = User.objects.create_user(
+                    username=role_firstword,
+                    email=email,
+                    password=password,
+                    has_accepted_invite=True,
+                    role=r,
+                    first_name=f_name,
+                    organization=organization,
+                    languages=["English", "Hindi"]
+                )
+                created_emails.append(email)
+
+        email_subject = f'Welcome to {app_name}'
+        email_message = f'Hi,\n\nUsers have been registered to {app_name} under your organization {org_name}.\n\nCreated emails: {", ".join(created_emails)}\n\nPassword for all users: {password}\n\nPlease distribute these credentials to the users accordingly.\n\nBest regards,\nThe Chitraanuvaad Team'
+        send_mail(email_subject, email_message, settings.DEFAULT_FROM_EMAIL, [org_email])
+
 
     @permission_classes([AllowAny])
     @swagger_auto_schema(request_body=UserSignUpSerializer)
