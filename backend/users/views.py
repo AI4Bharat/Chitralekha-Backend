@@ -180,7 +180,7 @@ class InviteViewSet(viewsets.ViewSet):
             except Organization.DoesNotExist:
                 return Response(
                     {"message": "Organization not found"},
-                    status=status.HTTP_404_NOT_FOUND,
+                    status=status.HTTP_200_OK,
                 )
         else:
             org_id = None
@@ -309,7 +309,7 @@ class InviteViewSet(viewsets.ViewSet):
                 created_emails.append(email)
 
         email_subject = f'Welcome to {app_name}'
-        email_message = f'Hi,\n\nUsers have been registered to {app_name} under your organization {org_name}.\n\nCreated emails: {", ".join(created_emails)}\n\nPassword for all users: {password}\n\nPlease distribute these credentials to the users accordingly.\n\nBest regards,\nThe Chitraanuvaad Team'
+        email_message = f'Hi,\n\nUsers have been registered to {app_name} under your organization {org_name}.\n\nCreated emails: {", ".join(created_emails)}\n\nPassword for all users: {password}\n\nPlease distribute these credentials to the users accordingly.\n\nBest regards,\nThe {app_name} Team'
         send_mail(email_subject, email_message, settings.DEFAULT_FROM_EMAIL, [org_email])
         response_data = {
             "message": "Users created successfully. Email sent to organization owner with login credentials."
