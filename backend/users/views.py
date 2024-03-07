@@ -39,6 +39,7 @@ from project.serializers import ProjectSerializer
 import json
 import datetime
 from config import point_of_contacts, app_name
+import ast
 
 
 regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
@@ -141,7 +142,8 @@ class OnboardingAPIView(APIView):
         onboarding_table_1 = onboarding_table.format(org_name=org_name, org_portal=org_portal, email_id=email_id, phone=phone,org_type=org_type,purpose=purpose,source=source)
         # current_time = datetime.now()
         # formatted_date = current_time.strftime("%d %b")
-        for email in point_of_contacts:
+        contacts = ast.literal_eval(point_of_contacts)
+        for email in contacts:
             send_mail(
                 "OnBoarding Request for {}".format(org_name),
                 "",
@@ -309,6 +311,11 @@ class InviteViewSet(viewsets.ViewSet):
         email_subject = f'Welcome to {app_name}'
         email_message = f'Hi,\n\nUsers have been registered to {app_name} under your organization {org_name}.\n\nCreated emails: {", ".join(created_emails)}\n\nPassword for all users: {password}\n\nPlease distribute these credentials to the users accordingly.\n\nBest regards,\nThe Chitraanuvaad Team'
         send_mail(email_subject, email_message, settings.DEFAULT_FROM_EMAIL, [org_email])
+        response_data = {
+            "message": "Users created successfully. Email sent to organization owner with login credentials."
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
     @permission_classes([AllowAny])
