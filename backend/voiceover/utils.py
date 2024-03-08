@@ -541,9 +541,9 @@ def get_bad_sentences_in_progress(translation_obj, target_language):
             else:
                 pass
         if (
-                ("text" in text.keys() and len(text['text'])<1)
-                or ("target_text" in text.keys() and len(text['target_text'])<1)
-            ):
+            ("text" in text.keys() and len(text["text"]) < 1)
+            or ("target_text" in text.keys() and len(text["target_text"]) < 1)
+        ) and translation_obj.translation_type != "ORIGINAL_SOURCE":
             problem_sentences.append(
                     {
                         "page_number": (ind // 50) + 1,
