@@ -36,6 +36,8 @@ from django.db.models.functions import Concat
 from project.utils import *
 from .tasks import *
 from .utils import *
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -55,35 +57,72 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         title = request.data.get("title")
         email_domain_name = request.data.get("email_domain_name")
         organization_owner = request.data.get("organization_owner")
+        new_org_owner_email = request.data.get("new_org_owner_email")
         default_transcript_type = request.data.get("default_transcript_type")
         default_translation_type = request.data.get("default_translation_type")
         default_voiceover_type = request.data.get("default_voiceover_type")
         default_task_types = request.data.get("default_task_types")
         default_target_languages = None
-
-        if title is None or email_domain_name is None or organization_owner is None:
+        first_word = title.split()[0]
+        password = f"demo@{first_word}"
+        u_name = f"ORG_OWNER_{first_word}"
+        if title is None or email_domain_name is None:
             return Response(
                 {
-                    "message": "missing param : title or email_domain_name or organization_owner"
+                    "message": "missing param : title or email_domain_name"
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        try:
-            organization_owner = User.objects.get(pk=organization_owner)
-        except User.DoesNotExist:
+        if not (organization_owner or new_org_owner_email):
             return Response(
-                {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                {
+                    "message": "missing param : organization_owner or new_org_owner_email"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
-
-        if organization_owner.is_superuser == False and organization_owner.role != (
-            User.ADMIN and User.ORG_OWNER
-        ):
-            return Response(
-                {"message": "This user can't be the organization owner."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
+        if Organization.objects.filter(title=title).exists():
+            return Response({"message": "Organization already exists"}, status=status.HTTP_400_BAD_REQUEST)
+        if Organization.objects.filter(email_domain_name = email_domain_name ).exists():
+            return Response({"message": "Email Domain Name already exists"}, status=status.HTTP_400_BAD_REQUEST)
+        if organization_owner:
+            try:
+                organization_owner = User.objects.get(pk=organization_owner)
+            except User.DoesNotExist:
+                return Response(
+                    {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+            if organization_owner.is_superuser == False and organization_owner.role != (
+                User.ADMIN and User.ORG_OWNER
+            ):
+                return Response(
+                    {"message": "This user can't be the organization owner."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        elif new_org_owner_email:
+            try:
+                validate_email(new_org_owner_email)
+            except ValidationError:
+                return Response(
+                    {"message": "Invalid email address for organization owner"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            # Create a new user with org_owner role
+            try:
+                organization_owner = User.objects.create_user(
+                    username=u_name,
+                    email=new_org_owner_email,
+                    password=password,
+                    has_accepted_invite=True,
+                    role=User.ORG_OWNER,
+                    first_name="Organization Owner",
+                    last_name=title
+                )
+                # org_owner_id = organization_owner.id
+            except Exception:
+                return Response(
+                    {"message": "Organization owner with the email already exists"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
         if default_task_types is not None and (
             "TRANSLATION_EDIT" or "TRANSLATION_REVIEW" in default_task_types
         ):
@@ -95,7 +134,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
         try:
             organization = Organization(
                 title=title,
@@ -109,20 +147,25 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 default_target_languages=default_target_languages,
             )
             organization.save()
+            print()
         except:
             return Response(
                 {"message": "Organization can't be created"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
         organization_owner.organization = organization
         organization_owner.save()
-
+        email_subject = f'Welcome to {app_name} Application'
+        if request.data.get("organization_owner"):
+            email_message = f'Hi,\n\nYou have been registered to {app_name} Application as Organization Owner of {title}.\n\nBest regards,\nThe {app_name} Team'
+            send_mail(email_subject, email_message, settings.DEFAULT_FROM_EMAIL, [new_org_owner_email])
+        else:
+            email_message = f'Hi,\n\nYou have been registered to {app_name} Application as Organization Owner of {title}.\n\nEmail_ID: {new_org_owner_email}\n\nPassword: {password}\n\nBest regards,\nThe {app_name} Team'
+            send_mail(email_subject, email_message, settings.DEFAULT_FROM_EMAIL, [new_org_owner_email])
         response = {
             "organization_id": organization.id,
             "message": "Organization is successfully created.",
         }
-
         return Response(
             response,
             status=status.HTTP_200_OK,
