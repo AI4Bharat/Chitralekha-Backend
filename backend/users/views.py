@@ -248,74 +248,47 @@ class InviteViewSet(viewsets.ViewSet):
         org_name = request.data.get('org_name')
         org_email = request.data.get('email')
         roles = request.data.get('roles')
-
-        if Organization.objects.filter(title=org_name).exists():
-            return Response({"message": "Organization already exists"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if User.objects.filter(email=org_email).exists():
-            return Response({"message": "Email already exists"}, status=status.HTTP_400_BAD_REQUEST)
-
+        try:
+            organization = Organization.objects.get(title=org_name)
+        except:
+            return Response({"message": "Organization not found."}, status=status.HTTP_404_NOT_FOUND)
         first_word = org_name.split()[0]
-        first_name = org_email.split('@')[0]
-        domain_name = f"{first_word}.org"
         password = f"demo@{first_word}"
-        u_name = f"ORG_OWNER_{first_word}"
-
-        user_data = {
-            'username': u_name,
-            'email': org_email,
-            'password': password,
-            'first_name': first_name,
-            'languages': ["English", "Hindi"]
-        }
-        user_serializer = UserSignUpSerializer(data=user_data)
-        if user_serializer.is_valid():
-            user = user_serializer.save()
-            user.set_password(password)
-            user.role = "ORG_OWNER"
-            user.has_accepted_invite = True
-            user.save()
-        else:
-            return Response({"message": "Failed to create user"}, status=status.HTTP_400_BAD_REQUEST)
-
-        organization = Organization.objects.create(
-            title=org_name,
-            organization_owner=user,
-            email_domain_name=domain_name,
-            created_by=request.user,
-            is_active=True
-        )
-
-        user.organization = organization
-        user.save()
-
-        created_emails = [org_email]
+        created_emails = []
+        existing_emails = []
         if roles:
             for r in roles:
                 email = f"{r.lower()}@{first_word.lower()}.org"
                 role_firstword = f"{r.lower()}_{first_word}"
                 f_name = email.split('@')[0].replace('_', ' ')
-
-                role_user = User.objects.create_user(
-                    username=role_firstword,
-                    email=email,
-                    password=password,
-                    has_accepted_invite=True,
-                    role=r,
-                    first_name=f_name,
-                    organization=organization,
-                    languages=["English", "Hindi"]
-                )
-                created_emails.append(email)
+                try:
+                    role_user = User.objects.create_user(
+                        username=role_firstword,
+                        email=email,
+                        password=password,
+                        has_accepted_invite=True,
+                        role=r,
+                        first_name=f_name,
+                        organization=organization,
+                        languages=["English", "Hindi"]
+                    )
+                    created_emails.append(email)
+                except:
+                    existing_emails.append(email)
 
         email_subject = f'Welcome to {app_name}'
         email_message = f'Hi,\n\nUsers have been registered to {app_name} under your organization {org_name}.\n\nCreated emails: {", ".join(created_emails)}\n\nPassword for all users: {password}\n\nPlease distribute these credentials to the users accordingly.\n\nBest regards,\nThe {app_name} Team'
         send_mail(email_subject, email_message, settings.DEFAULT_FROM_EMAIL, [org_email])
-        response_data = {
-            "message": "Users created successfully. Email sent to organization owner with login credentials."
-        }
-
-        return Response(response_data, status=status.HTTP_200_OK)
+        if existing_emails:
+            if created_emails:
+                msg = ", ".join(existing_emails) + " already exists. Other Users created successfully."
+                return Response({"message": msg}, status=status.HTTP_200_OK)
+            else:
+                msg = ", ".join(existing_emails) + " already exists."
+                return Response({"message": msg}, status=status.HTTP_400_BAD_REQUEST)
+        elif created_emails:
+            msg = "Users successfully created."
+            return Response({"message": msg}, status=status.HTTP_200_OK)
 
 
     @permission_classes([AllowAny])
