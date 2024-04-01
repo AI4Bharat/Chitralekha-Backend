@@ -77,7 +77,7 @@ urlpatterns = [
         name="transliteration-api",
     ),
     path(
-        "onboarding/<str:org_name>/<str:org_portal>/<str:email_id>/<str:phone>/<str:org_type>/<str:purpose>/<str:source>/",
+        "onboarding/<str:org_name>/<str:org_portal>/<str:email_id>/<str:phone>/<str:org_type>/<str:purpose>/<str:source>/<str:interested_in>/<str:src_language>/<str:tgt_language>/",
         OnboardingAPIView.as_view(),
         name="onboarding-api",
     ),
