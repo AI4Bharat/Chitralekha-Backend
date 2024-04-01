@@ -151,7 +151,8 @@ onboarding_table = """
 
 class OnboardingAPIView(APIView):
     def get(self, request, org_name, org_portal, email_id, phone, org_type, purpose, source, interested_in, src_language, tgt_language, *args, **kwargs):
-        onboarding_table_1 = onboarding_table.format(org_name=org_name, org_portal=org_portal, email_id=email_id, phone=phone,org_type=org_type,purpose=purpose,source=source,interested_in=interested_in,src_language=src_language,tgt_language=tgt_language)
+        interested_in = ', '.join(str(interested_in).title().split(' '))
+        onboarding_table_1 = onboarding_table.format(org_name=org_name, org_portal=org_portal, email_id=email_id, phone=phone,org_type=org_type,purpose=purpose,source=source,interested_in=interested_in,src_language=src_language.capitalize(),tgt_language=tgt_language.capitalize())
         # current_time = datetime.now()
         # formatted_date = current_time.strftime("%d %b")
         contacts = ast.literal_eval(point_of_contacts)
