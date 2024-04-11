@@ -872,6 +872,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             if data["task_type"] != "VOICEOVER_EDIT":
                                 buttons["Edit"] = True
                                 # buttons["View"] = True
+                                if data["task_type"] == "TRANSCRIPTION_EDIT" and project.default_transcript_type=="MANUALLY_UPLOADED":
+                                    buttons["View"] = True
                             if (
                                 data["task_type"] == "TRANSLATION_EDIT"
                                 and data["is_active"] == True
@@ -924,6 +926,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             and data["task_type"] != "VOICEOVER_EDIT"
                         ):
                             buttons["View"] = False
+                            if data["task_type"] == "TRANSCRIPTION_EDIT" and project.default_transcript_type=="MANUALLY_UPLOADED":
+                                buttons["View"] = True
                     data["buttons"] = buttons
             target_languages_list = list(target_languages)
             if "-" in target_languages_list:
