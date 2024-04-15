@@ -139,6 +139,38 @@ services:
     command: python3 -m celery -A backend flower --loglevel=info
     restart: unless-stopped
 
+  nginx:
+    build: ./nginx
+    image: evgeniy-khyst/nginx
+    env_file:
+      - ./config.env
+    volumes:
+      - nginx_conf:/etc/nginx/sites
+      - letsencrypt_certs:/etc/letsencrypt
+      - certbot_acme_challenge:/var/www/certbot
+      - ./vhosts:/etc/nginx/vhosts
+      - static_volume:/backend/static
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+
+  certbot:
+    build: ./certbot
+    image: evgeniy-khyst/certbot
+    env_file:
+      - ./config.env
+    volumes:
+      - letsencrypt_certs:/etc/letsencrypt
+      - certbot_acme_challenge:/var/www/certbot
+
+
 volumes:
+  nginx_conf:
+    external: true
+  letsencrypt_certs:
+    external: true       
+  certbot_acme_challenge:
+  static_volume:
   redis:
     driver: local
