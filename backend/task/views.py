@@ -1879,8 +1879,18 @@ class TaskViewSet(ModelViewSet):
                 ]
             else:
                 tasks_to_delete = [transcript.task for transcript in transcripts]
-
-            for transcript in transcripts.all():
+                if len(transcripts)==0:
+                    if task.status=="FAILED":
+                        tasks_to_delete.append(task)
+                    if task.status=="SELECTED_SOURCE":
+                        return Response(
+                        {
+                            "message": "The Transcript Generation still under progress, please try again after sometime.",
+                        },
+                        status=status.HTTP_409_CONFLICT,
+                    )
+                    
+            if len(tasks_to_delete):
                 for translation in Translation.objects.filter(video=task.video).all():
                     translation_tasks.add(translation.task)
                     for voiceover in (

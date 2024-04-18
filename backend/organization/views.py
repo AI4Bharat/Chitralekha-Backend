@@ -489,6 +489,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         and task["task_type"] != "VOICEOVER_EDIT"
                     ):
                         buttons["View"] = False
+                        if task["task_type"] == "TRANSCRIPTION_EDIT" and task["source_type"] == "Manually Uploaded":
+                            buttons["View"] = True
                 task["buttons"] = buttons
         else:
             projects = (
@@ -600,6 +602,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             and task["task_type"] != "VOICEOVER_EDIT"
                         ):
                             buttons["View"] = False
+                            if task["task_type"] == "TRANSCRIPTION_EDIT" and task["source_type"] == "Manually Uploaded":
+                                buttons["View"] = True
                     task["buttons"] = buttons
                     tasks_list.append(task)
             else:
@@ -654,6 +658,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             and task["task_type"] != "VOICEOVER_EDIT"
                         ):
                             buttons["View"] = False
+                            if task["task_type"] == "TRANSCRIPTION_EDIT" and task["source_type"] == "Manually Uploaded":
+                                buttons["View"] = True
                         if task["status"] == "FAILED":
                             buttons["Info"] = True
                         if task["status"] == "INPROGRESS":
