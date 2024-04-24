@@ -80,6 +80,7 @@ import requests
 from django.db.models.functions import Concat
 from django.db.models import Value
 from django.http import HttpRequest
+from django.utils import timezone
 from transcript.views import export_transcript, get_transcript_id
 from translation.views import export_translation, get_translation_id
 from rest_framework.decorators import parser_classes
@@ -2651,92 +2652,146 @@ class TaskViewSet(ModelViewSet):
     @action(detail=False, methods=["get"], url_path="inspect_queue")
     def inspect_queue(self, request):
         queue = request.query_params.get("queue")
+        if queue == "all_tasks":
+            if not (
+                    request.user.role
+                    in ["ORG_OWNER", "ADMIN"]
+                    or request.user.is_superuser
+                ):
+                return Response(
+                    {"message": "Only admin users are authorised to access this data", "data": []}, status=status.HTTP_200_OK
+                )
+            try:
+                task_list = []
+                url = f"{flower_url}/api/tasks"
+                params = {}
+                if flower_username and flower_password:
+                    res = requests.get(
+                        url, params=params, auth=(flower_username, flower_password)
+                    )
+                else:
+                    res = requests.get(url, params=params)
+                data = res.json()
+                
+                task_data = list(data.values())
+                for elem in task_data:
+                    task_obj = {}
+                    if elem["name"] == "task.tasks.celery_asr_call":
+                        task_obj["task_id"]=eval(elem["kwargs"])["task_id"]
+                    elif elem["name"] == "task.tasks.celery_tts_call":
+                        task_obj["task_id"]=eval(elem['args'].split(',')[0].split('(')[1])
+                    elif elem["name"] == "task.tasks.celery_nmt_call":
+                        task_obj["task_id"]=eval(elem["kwargs"])["task_id"]
+                    else:
+                        task_obj["task_id"]=''
+                    
+                    received_time = timezone.datetime.utcfromtimestamp(elem["received"]).strftime("%Y-%m-%dT%H:%M:%S.%fZ") if elem["received"] else ""
+                    started_time = timezone.datetime.utcfromtimestamp(elem["started"]).strftime("%Y-%m-%dT%H:%M:%S.%fZ") if elem["started"] else ""
 
-        if queue == "nmt":
-            queue_type = "celery@nmt_worker"
-        elif queue == "tts":
-            queue_type = "celery@asr_tts_worker"
+                    task_obj["uuid"]=elem["uuid"] if elem["uuid"] else ""
+                    task_obj["name"]=elem["name"] if elem["name"] else ""
+                    task_obj["state"]=elem["state"] if elem["state"] else ""
+                    task_obj["received_time"]= received_time
+                    task_obj["started_time"]= started_time
+                    task_obj["worker"]=elem["worker"] if elem["worker"] else ""
+                    task_list.append(task_obj)
+
+                return Response(
+                    {"message": "successful", "data": task_list, "admin_data":True}, status=status.HTTP_200_OK
+                )
+            except Exception as e:
+                return Response(
+                    {"message": "Unable to query celery", "data": []},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
         else:
-            queue_type = "celery@asr_tts_worker"
 
-        try:
-            task_list = []
-            url = f"{flower_url}/api/tasks"
-            params = {
-                "state": "STARTED",
-                "sort_by": "received",
-                "workername": queue_type,
-            }
-            if flower_username and flower_password:
-                res = requests.get(
-                    url, params=params, auth=(flower_username, flower_password)
-                )
+            if queue == "nmt":
+                queue_type = "celery@nmt_worker"
+            elif queue == "tts":
+                queue_type = "celery@asr_tts_worker"
             else:
-                res = requests.get(url, params=params)
-            data = res.json()
-            task_data = list(data.values())
-            for elem in task_data:
-                if queue == "asr" and elem["name"] == "task.tasks.celery_asr_call":
-                    task_list.append(eval(elem["kwargs"])["task_id"])
-                elif queue == "tts" and elem["name"] == "task.tasks.celery_tts_call":
-                    # task_list.append(eval(elem["kwargs"])["task_id"])
-                    task_list.append(eval(elem['args'].split(',')[0].split('(')[1]))
-                elif queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call":
-                    task_list.append(eval(elem["kwargs"])["task_id"])
-                else:
-                    pass
-            params = {
-                "state": "RECEIVED",
-                "sort_by": "received",
-                "workername": queue_type,
-            }
-            if flower_username and flower_password:
-                res = requests.get(
-                    url, params=params, auth=(flower_username, flower_password)
-                )
-            else:
-                res = requests.get(url, params=params)
-            data = res.json()
-            task_data = list(data.values())
-            for elem in task_data:
-                if queue == "asr" and elem["name"] == "task.tasks.celery_asr_call":
-                    task_list.append(eval(elem["kwargs"])["task_id"])
-                elif queue == "tts" and elem["name"] == "task.tasks.celery_tts_call":
-                    # task_list.append(eval(elem["kwargs"])["task_id"])
-                    task_list.append(eval(elem['args'].split(',')[0].split('(')[1]))
-                elif queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call":
-                    task_list.append(eval(elem["kwargs"])["task_id"])
-                else:
-                    pass
-            if task_list:
-                task_details = Task.objects.filter(id__in=task_list).values(
-                    "id",
-                    "video__duration",
-                    "video__id",
-                    "created_by__organization__title",
-                    submitter_name=Concat(
-                        "created_by__first_name", Value(" "), "created_by__last_name"
-                    ),
-                )
-                for elem in task_details:
-                    task_dict = {
-                        "task_id": elem["id"],
-                        "video_id": elem["video__id"],
-                        "submitter_name": elem["submitter_name"],
-                        "org_name": elem["created_by__organization__title"],
-                        "video_duration": str(elem["video__duration"]),
-                    }
-                    i = task_list.index(elem["id"])
-                    task_list[i] = task_dict
+                queue_type = "celery@asr_tts_worker"
 
-            return Response(
-                {"message": "successful", "data": task_list}, status=status.HTTP_200_OK
-            )
-        except Exception:
-            return Response(
-                {"message": "Unable to query celery", "data": []},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            try:
+                task_list = []
+                url = f"{flower_url}/api/tasks"
+                params = {
+                    "state": "STARTED",
+                    "sort_by": "received",
+                    "workername": queue_type,
+                }
+                if flower_username and flower_password:
+                    res = requests.get(
+                        url, params=params, auth=(flower_username, flower_password)
+                    )
+                else:
+                    res = requests.get(url, params=params)
+                data = res.json()
+                task_data = list(data.values())
+                for elem in task_data:
+                    if queue == "asr" and elem["name"] == "task.tasks.celery_asr_call":
+                        task_list.append(eval(elem["kwargs"])["task_id"])
+                    elif queue == "tts" and elem["name"] == "task.tasks.celery_tts_call":
+                        # task_list.append(eval(elem["kwargs"])["task_id"])
+                        task_list.append(eval(elem['args'].split(',')[0].split('(')[1]))
+                    elif queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call":
+                        task_list.append(eval(elem["kwargs"])["task_id"])
+                    else:
+                        pass
+                params = {
+                    "state": "RECEIVED",
+                    "sort_by": "received",
+                    "workername": queue_type,
+                }
+                if flower_username and flower_password:
+                    res = requests.get(
+                        url, params=params, auth=(flower_username, flower_password)
+                    )
+                else:
+                    res = requests.get(url, params=params)
+                data = res.json()
+                task_data = list(data.values())
+                for elem in task_data:
+                    if queue == "asr" and elem["name"] == "task.tasks.celery_asr_call":
+                        task_list.append(eval(elem["kwargs"])["task_id"])
+                    elif queue == "tts" and elem["name"] == "task.tasks.celery_tts_call":
+                        # task_list.append(eval(elem["kwargs"])["task_id"])
+                        task_list.append(eval(elem['args'].split(',')[0].split('(')[1]))
+                    elif queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call":
+                        task_list.append(eval(elem["kwargs"])["task_id"])
+                    else:
+                        pass
+                if task_list:
+                    task_details = Task.objects.filter(id__in=task_list).values(
+                        "id",
+                        "video__duration",
+                        "video__id",
+                        "created_by__organization__title",
+                        submitter_name=Concat(
+                            "created_by__first_name", Value(" "), "created_by__last_name"
+                        ),
+                    )
+                    for elem in task_details:
+                        task_dict = {
+                            "task_id": elem["id"],
+                            "video_id": elem["video__id"],
+                            "submitter_name": elem["submitter_name"],
+                            "org_name": elem["created_by__organization__title"],
+                            "video_duration": str(elem["video__duration"]),
+                        }
+                        i = task_list.index(elem["id"])
+                        task_list[i] = task_dict
+
+                return Response(
+                    {"message": "successful", "data": task_list}, status=status.HTTP_200_OK
+                )
+            except Exception as e:
+                print(e)
+                return Response(
+                    {"message": "Unable to query celery", "data": []},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
 
     @swagger_auto_schema(
         method="patch",
