@@ -67,6 +67,7 @@ class OnboardingOrgAccountSerializer(serializers.ModelSerializer):
 
     orgname = serializers.CharField()
     org_portal = serializers.CharField()
+    email_domain_name = serializers.CharField()
     email = serializers.EmailField()
     org_type = serializers.CharField()
     phone = serializers.CharField()
@@ -84,6 +85,7 @@ class OnboardingOrgAccountSerializer(serializers.ModelSerializer):
             "id",
             "orgname",
             "org_portal",
+            "email_domain_name",
             "email",
             "org_type",
             "phone",

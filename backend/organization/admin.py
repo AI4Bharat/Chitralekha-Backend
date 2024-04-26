@@ -17,6 +17,7 @@ class OnboardOrganisationAccountAdmin(admin.ModelAdmin):
         "id",
         "orgname",
         "org_portal",
+        "email_domain_name",
         "email",
         "org_type",
         "phone",
