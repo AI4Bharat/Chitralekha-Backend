@@ -26,6 +26,7 @@ from organization.serializers import InviteGenerationSerializer
 from organization.decorators import is_admin, is_organization_owner
 from project.decorators import is_project_owner
 from users.models import LANG_CHOICES, User
+from organization.models import OnboardOrganisationAccount
 from rest_framework.decorators import action
 from django.db.models import Q
 from datetime import datetime
@@ -155,6 +156,19 @@ class OnboardingAPIView(APIView):
         onboarding_table_1 = onboarding_table.format(org_name=org_name, org_portal=org_portal, email_id=email_id, phone=phone,org_type=org_type,purpose=purpose,source=source,interested_in=interested_in,src_language=src_language.capitalize(),tgt_language=tgt_language.capitalize())
         # current_time = datetime.now()
         # formatted_date = current_time.strftime("%d %b")
+        OnboardOrganisationAccount.objects.create(
+                orgname=org_name,
+                org_portal=org_portal,
+                email=email_id,
+                phone=phone,
+                org_type=org_type,
+                interested_in=interested_in,
+                src_language=src_language,
+                tgt_language=tgt_language,
+                purpose=purpose,
+                source=source
+            )
+
         contacts = ast.literal_eval(point_of_contacts)
         for email in contacts:
             send_mail(

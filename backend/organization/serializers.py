@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Organization
+from .models import Organization, OnboardOrganisationAccount
 from users.models import User
 
 
@@ -50,3 +50,48 @@ class InviteGenerationSerializer(serializers.Serializer):
     emails = serializers.ListField(child=serializers.EmailField())
     organization_id = serializers.IntegerField()
     role = serializers.IntegerField()
+
+
+PENDING="PENDING"
+ON_HOLD="ON_HOLD"
+APPROVED="APPROVED"
+REJECTED="REJECTED"
+
+STATUS_OPTIONS = (
+    (PENDING, "Pending"),
+    (ON_HOLD, "On Hold"),
+    (APPROVED, "Approved"),
+    (REJECTED, "Rejected"),
+)
+class OnboardingOrgAccountSerializer(serializers.ModelSerializer):
+
+    orgname = serializers.CharField()
+    org_portal = serializers.CharField()
+    email = serializers.EmailField()
+    org_type = serializers.CharField()
+    phone = serializers.CharField()
+    interested_in = serializers.CharField()
+    src_language = serializers.CharField()
+    tgt_language = serializers.CharField()
+    status = serializers.ChoiceField(choices=STATUS_OPTIONS)
+    purpose = serializers.CharField()
+    source = serializers.CharField()
+    notes = serializers.CharField()
+
+    class Meta:
+        model = OnboardOrganisationAccount
+        fields = [
+            "id",
+            "orgname",
+            "org_portal",
+            "email",
+            "org_type",
+            "phone",
+            "status",
+            "interested_in",
+            "src_language",
+            "tgt_language",
+            "purpose",
+            "source",
+            "notes"
+        ]

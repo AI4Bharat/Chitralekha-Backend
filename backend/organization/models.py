@@ -178,6 +178,54 @@ class Organization(models.Model):
     def __str__(self):
         return self.title + ", id=" + str(self.pk)
 
+PENDING="PENDING"
+ON_HOLD="ON_HOLD"
+APPROVED="APPROVED"
+REJECTED="REJECTED"
+
+STATUS_OPTIONS = (
+    (PENDING, "Pending"),
+    (ON_HOLD, "On Hold"),
+    (APPROVED, "Approved"),
+    (REJECTED, "Rejected"),
+)
+class OnboardOrganisationAccount(models.Model):
+    """
+    Onboard Organisation Requests.
+    """
+    orgname = models.CharField(verbose_name="orgname", max_length=265)
+    org_portal = models.CharField(verbose_name="org_portal", max_length=512)
+    email = models.EmailField(verbose_name="email_address", unique=True, blank=False)
+    org_type = models.CharField(verbose_name="org_type", max_length=512)
+    phone = models.CharField(
+        verbose_name="phone", max_length=256, null=True, blank=True
+    )
+    status = models.CharField(
+        choices=STATUS_OPTIONS,
+        max_length=35,
+        default=PENDING,
+        verbose_name="Onboarding Status",
+    )
+    
+    interested_in = models.CharField(verbose_name="interested_in", max_length=512)
+    src_language = models.CharField(verbose_name="src_language", max_length=512, null=True, blank=True,)
+    tgt_language = models.CharField(verbose_name="tgt_language", max_length=512, null=True, blank=True,)
+    purpose = models.TextField(max_length=1000, null=True, blank=True, help_text=("Purpose"))
+    source = models.TextField(max_length=1000, null=True, blank=True, help_text=("Source"))
+    # notes = models.TextField(max_length=1000, null=True, blank=True, help_text=("Notes for updating status"))
+    notes = ArrayField(
+        models.CharField(
+            max_length=1000,
+            blank=True
+        ),
+        blank=True,
+        default=None,
+        null=True,
+    )
+
+    def __str__(self):
+        return str(self.email)
+
 
 class Invite(models.Model):
     """
