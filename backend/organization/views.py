@@ -3,10 +3,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework import status
+from rest_framework.views import APIView
 from users.serializers import UserFetchSerializer
 from users.models import User
-from .models import Organization
-from .serializers import OrganizationSerializer
+from .models import Organization, OnboardOrganisationAccount
+from .serializers import OrganizationSerializer, OnboardingOrgAccountSerializer
 from .decorators import (
     is_organization_owner,
     is_particular_organization_owner,
@@ -38,6 +39,7 @@ from .tasks import *
 from .utils import *
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
+import ast
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -1367,4 +1369,125 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         return Response(
             {"message": "CSV Upload is enabled."},
             status=status.HTTP_200_OK,
+        )
+
+class OnboardingOrgAccountApiView(APIView):
+    def get(self, request, pk=None, format=None):
+        if request.user.email not in ast.literal_eval(point_of_contacts):
+            return Response(
+                    {"message":"You are not authorized to access this data"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        id=pk
+        if id is not None:
+            try:
+                onboarding_request = OnboardOrganisationAccount.objects.get(id=id)
+            except OnboardOrganisationAccount.DoesNotExist:
+                return Response(
+                    {"message": "Onboard request not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+            serialized_data = OnboardingOrgAccountSerializer(onboarding_request)
+            return Response(
+                    {"data":serialized_data.data},
+                    status=status.HTTP_200_OK,
+            )
+        else:
+            onboarding_requests = OnboardOrganisationAccount.objects.all()
+            onboarding_requests= list(onboarding_requests)
+            serialized_data = OnboardingOrgAccountSerializer(onboarding_requests, many=True)
+            return Response(
+                {"data":serialized_data.data},
+                status=status.HTTP_200_OK,
+            )
+
+    
+    def patch(self, request, pk=None, *args, **kwargs):
+        if request.user.email not in ast.literal_eval(point_of_contacts):
+            return Response(
+                {"message":"You are not authorized to modify this data"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        id=pk
+        orgname = request.data.get("orgname")
+        org_portal = request.data.get("org_portal")
+        org_type = request.data.get("org_type")
+        phone = request.data.get("phone")
+        email = request.data.get("email")
+        request_status = request.data.get("status")
+        notes = request.data.get("notes")
+
+        create_org = False
+
+        try:
+            onboarding_request = OnboardOrganisationAccount.objects.get(id=id)
+        except OnboardOrganisationAccount.DoesNotExist:
+            return Response(
+                {"message": "Onboarding request not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        serialized_data = OnboardingOrgAccountSerializer(data=request.data,partial=True)
+        try:
+            serialized_data.is_valid(raise_exception=True)
+        except Exception as e:
+            error_data = ", ".join(list(e.args[0]))
+            return Response(
+                {"message": f"Invalid values provided for {error_data}"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if orgname is not None:
+            onboarding_request.orgname = orgname
+
+        if org_portal is not None:
+            onboarding_request.org_portal = org_portal
+
+        if org_type is not None:
+            onboarding_request.org_type = org_type
+
+        if phone is not None:
+            onboarding_request.phone = phone
+
+        if email is not None:
+            onboarding_request.email = email
+
+        
+        if request_status != "APPROVED":
+            if request_status is not None:
+                onboarding_request.status = request_status
+
+            if notes is not None:
+                notes = request_status+'||'+notes
+                if onboarding_request.notes is None:
+                    onboarding_request.notes = [notes]
+                else:
+                    onboarding_request.notes.append(notes)
+
+        if onboarding_request.status != request_status and request_status == "APPROVED":
+            create_org = True
+        
+        onboarding_request.save()
+
+        if create_org == True:
+            org_create_obj = OrganizationViewSet()
+            request.data["title"] = onboarding_request.orgname
+            request.data["email_domain_name"] = onboarding_request.org_portal
+            request.data["new_org_owner_email"] = onboarding_request.email
+            # Onboard with default values
+            request.data["default_transcript_type"] = "MACHINE_GENERATED"
+            request.data["default_translation_type"] = "MACHINE_GENERATED"
+            request.data["default_voiceover_type"] = "MACHINE_GENERATED"
+            resp=org_create_obj.create(request)
+            if resp.status_code == 200:
+                if request_status is not None:
+                    onboarding_request.status = request_status
+
+                if notes is not None:
+                    notes = request_status+'||'+notes
+                    if onboarding_request.notes is None:
+                        onboarding_request.notes = [notes]
+                    else:
+                        onboarding_request.notes.append(notes)
+                onboarding_request.save()
+            return resp
+
+        return Response(
+            {"message": "Onboarding request data updated successfully."}, status=status.HTTP_200_OK
         )
