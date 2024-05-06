@@ -68,13 +68,22 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         first_word = title.split()[0]
         password = f"demo@{first_word}"
         u_name = f"ORG_OWNER_{first_word}"
-        if title is None or email_domain_name is None:
+        if title is None:
             return Response(
                 {
-                    "message": "missing param : title or email_domain_name"
+                    "message": "missing param : title (Org name)"
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+        if email_domain_name is None:
+            return Response(
+                {
+                    "message": "missing param : email_domain_name (Org email domain)"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
         if not (organization_owner or new_org_owner_email):
             return Response(
                 {
@@ -1388,7 +1397,7 @@ class OnboardingOrgAccountApiView(APIView):
                 )
             serialized_data = OnboardingOrgAccountSerializer(onboarding_request)
             return Response(
-                    {"data":serialized_data.data},
+                    serialized_data.data,
                     status=status.HTTP_200_OK,
             )
         else:
@@ -1396,7 +1405,7 @@ class OnboardingOrgAccountApiView(APIView):
             onboarding_requests= list(onboarding_requests)
             serialized_data = OnboardingOrgAccountSerializer(onboarding_requests, many=True)
             return Response(
-                {"data":serialized_data.data},
+                serialized_data.data,
                 status=status.HTTP_200_OK,
             )
 
@@ -1410,6 +1419,7 @@ class OnboardingOrgAccountApiView(APIView):
         id=pk
         orgname = request.data.get("orgname")
         org_portal = request.data.get("org_portal")
+        email_domain_name = request.data.get("email_domain_name")
         org_type = request.data.get("org_type")
         phone = request.data.get("phone")
         email = request.data.get("email")
@@ -1424,6 +1434,17 @@ class OnboardingOrgAccountApiView(APIView):
             return Response(
                 {"message": "Onboarding request not found"}, status=status.HTTP_404_NOT_FOUND
             )
+        
+        if onboarding_request.status == "APPROVED":
+            return Response(
+                {"message": "Cannot modify details as this onboarding request is already approved"}, status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if onboarding_request.status == "REJECTED":
+            return Response(
+                {"message": "Cannot modify details as this onboarding request has been rejected previously"}, status=status.HTTP_403_FORBIDDEN
+            )
+
         serialized_data = OnboardingOrgAccountSerializer(data=request.data,partial=True)
         try:
             serialized_data.is_valid(raise_exception=True)
@@ -1439,6 +1460,9 @@ class OnboardingOrgAccountApiView(APIView):
         if org_portal is not None:
             onboarding_request.org_portal = org_portal
 
+        if email_domain_name is not None:
+            onboarding_request.email_domain_name = email_domain_name
+
         if org_type is not None:
             onboarding_request.org_type = org_type
 
@@ -1448,7 +1472,11 @@ class OnboardingOrgAccountApiView(APIView):
         if email is not None:
             onboarding_request.email = email
 
-        
+        if request_status == onboarding_request.status:
+            return Response(
+                {"message": "This request is already in same status as requested"}, status=status.HTTP_403_FORBIDDEN
+            )
+
         if request_status != "APPROVED":
             if request_status is not None:
                 onboarding_request.status = request_status
@@ -1468,7 +1496,7 @@ class OnboardingOrgAccountApiView(APIView):
         if create_org == True:
             org_create_obj = OrganizationViewSet()
             request.data["title"] = onboarding_request.orgname
-            request.data["email_domain_name"] = onboarding_request.org_portal
+            request.data["email_domain_name"] = onboarding_request.email_domain_name
             request.data["new_org_owner_email"] = onboarding_request.email
             # Onboard with default values
             request.data["default_transcript_type"] = "MACHINE_GENERATED"
