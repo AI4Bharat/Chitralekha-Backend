@@ -625,7 +625,7 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
             )
             if len(tmx_replacement) > 0:
                 target = target.replace(
-                    tmx_replacement[0]["tgt"], tmx_replacement[0]["src_phrase"]
+                    tmx_replacement[0]["tgt"], tmx_replacement[0]["tmx_tgt"]
                 )
             payload.append(
                 {
