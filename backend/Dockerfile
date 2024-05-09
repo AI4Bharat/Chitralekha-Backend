@@ -12,8 +12,7 @@ RUN pip install --no-cache-dir -r deploy/requirements.txt
 COPY . .
 RUN chmod -R 777 .
 
-RUN python3 manage.py makemigrations
+# RUN python3 manage.py makemigrations
 RUN python3 manage.py migrate
-RUN python3 manage.py collectstatic
 
-# CMD ["python3", "manage.py", "runserver", "0:8000", "--noreload", "--insecure"]
+CMD ["python3", "manage.py", "runserver", "0:8000", "--noreload", "--insecure"]
