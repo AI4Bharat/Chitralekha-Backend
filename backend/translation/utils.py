@@ -624,9 +624,10 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
                 tmx_phrases, source["text"], target
             )
             if len(tmx_replacement) > 0:
-                target = target.replace(
-                    tmx_replacement[0]["tgt"], tmx_replacement[0]["tmx_tgt"]
-                )
+                for i in range(len(tmx_replacement)):
+                    target = target.replace(
+                        tmx_replacement[i]["tgt"], tmx_replacement[i]["tmx_tgt"]
+                    )
             payload.append(
                 {
                     "start_time": source["start_time"],
@@ -651,7 +652,10 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
                 tmx_phrases, source["text"], target
             )
             if len(tmx_replacement) > 0:
-                target.replace(tmx_replacement[0]["tgt"], tmx_replacement[0]["tmx_tgt"])
+                for i in range(len(tmx_replacement)):
+                    target = target.replace(
+                        tmx_replacement[i]["tgt"], tmx_replacement[i]["tmx_tgt"]
+                    )
             payload.append(
                 {
                     "start_time": source["start_time"],
