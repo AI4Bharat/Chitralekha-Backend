@@ -323,3 +323,5 @@ config.env
 vhosts
 ./vhosts
 vhosts/
+postgres-local.yml
+/postgres_data
