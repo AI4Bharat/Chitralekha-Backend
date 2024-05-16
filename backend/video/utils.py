@@ -397,6 +397,7 @@ def get_video_func(request):
                 user_id = None
 
             if default_task_types is not None:
+                print(default_task_types)
                 for task_type in default_task_types:
                     if (
                         default_target_languages is not None
