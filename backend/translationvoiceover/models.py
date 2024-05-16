@@ -3,11 +3,9 @@ import uuid
 from django.db import models
 from transcript.models import Transcript
 from task.models import Task
-from .metadata import (
-    TRANSLATION_LANGUAGE_CHOICES,
-    VOICEOVER_LANGUAGE_CHOICES,
-)
-
+from video.models import Video
+from users.models import User
+from .metadata import TRANSLATION_LANGUAGE_CHOICES
 TRANSLATION_VOICEOVER_STATUS_CHOICES = (
     ("SELECT_SOURCE", "Selected Source"),
     ("EDITOR_ASSIGNED", "Editor Assigned"),
@@ -80,7 +78,7 @@ class TranslationVoiceover(models.Model):
         related_name="translation_voiceovers",
     )
     target_language = models.CharField(
-        choices=TRANSLATION_LANGUAGE_CHOICES + VOICEOVER_LANGUAGE_CHOICES,
+        choices=TRANSLATION_LANGUAGE_CHOICES ,
         max_length=4,
         verbose_name="Target Language",
     )

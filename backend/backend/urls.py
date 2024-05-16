@@ -70,6 +70,7 @@ urlpatterns = [
     path("translation/", include("translation.urls")),
     path("transcript/", include("transcript.urls")),
     path("voiceover/", include("voiceover.urls")),
+    path("translationvoiceover/", include("translationvoiceover.urls")),
     path("youtube/", include("youtube.urls")),
     path(
         "api/generic/transliteration/<str:target_language>/<str:data>/",
