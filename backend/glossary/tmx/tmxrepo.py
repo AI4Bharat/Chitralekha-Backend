@@ -6,7 +6,7 @@ from users.models import User
 import logging
 
 
-redis_server_host = "redis"
+redis_server_host = "localhost"
 redis_server_port = 6379
 tmx_redis_db = 3
 utm_redis_db = 6

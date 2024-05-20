@@ -375,7 +375,390 @@ class TaskViewSet(ModelViewSet):
                 "message": "Transcript doesn't exist for this video.",
                 "status": status.HTTP_400_BAD_REQUEST,
             }
+    def create_translation_voiceover_task(
+        self,
+        videos,
+        user_ids,
+        target_language,
+        task_type,
+        source_type,
+        request,
+        eta,
+        priority,
+        description,
+        is_single_task,
+    ):
+        (
+            duplicate_tasks,
+            duplicate_user_tasks,
+            delete_video,
+            same_language,
+            language_not_supported,
+            gender_not_supported,
+            original_src_translation,
+        ) = self.check_duplicate_tasks(
+            request, task_type, target_language, user_ids, videos, source_type
+        )
+        response = {}
+        video_ids = []
+        response_tasks = []
+        consolidated_error = []
+        detailed_error = []
+        error_duplicate_tasks = []
+        error_user_tasks = []
+        error_same_language_tasks = []
+        error_review_tasks = []
 
+        if len(duplicate_tasks) > 0:
+            for task in duplicate_tasks:
+                video_ids.append(task.video)
+                error_duplicate_tasks.append(
+                    {"video": task.video, "task_type": task.task_type}
+                )
+
+        if len(duplicate_user_tasks) > 0:
+            for task in duplicate_user_tasks:
+                video_ids.append(task.video)
+                error_user_tasks.append({"video": task.video, "task_type": task_type})
+
+        if len(same_language) > 0:
+            for video in same_language:
+                video_ids.append(video)
+                error_same_language_tasks.append(
+                    {"video": video, "task_type": task_type}
+                )
+
+        if len(delete_video) > 0:
+            for video in delete_video:
+                video_ids.append(video)
+                error_review_tasks.append({"video": video, "task_type": task_type})
+
+        if len(duplicate_user_tasks):
+            consolidated_error.append(
+                {
+                    "message": "Tasks creation failed as same user can't be Editor and Reviewer.",
+                    "count": len(error_user_tasks),
+                }
+            )
+            for task in error_user_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": self.get_task_type_label(task["task_type"]),
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
+                        "source_language": task["video"].get_language_label,
+                        "status": "Fail",
+                        "message": "This task creation failed since Editor and Reviewer can't be same.",
+                    }
+                )
+
+        if len(error_same_language_tasks):
+            consolidated_error.append(
+                {
+                    "message": "Task creation failed as target language is same as source language.",
+                    "count": len(error_same_language_tasks),
+                }
+            )
+            for task in error_same_language_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": self.get_task_type_label(task["task_type"]),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
+                        "status": "Fail",
+                        "message": "Task creation failed as target language is same as source language.",
+                    }
+                )
+
+        if len(duplicate_tasks):
+            consolidated_error.append(
+                {
+                    "message": "Task creation failed as tasks already exists for the selected videos.",
+                    "count": len(error_duplicate_tasks),
+                }
+            )
+            for task in error_duplicate_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": self.get_task_type_label(task["task_type"]),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
+                        "status": "Fail",
+                        "message": "Task creation failed as selected task already exist.",
+                    }
+                )
+
+        if len(error_review_tasks) > 0:
+            consolidated_error.append(
+                {
+                    "message": "Task creation for Translation Review failed as Voice Over tasks already exists.",
+                    "count": len(error_review_tasks),
+                }
+            )
+            for task in error_review_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": self.get_task_type_label(task["task_type"]),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
+                        "status": "Fail",
+                        "message": "Task creation for Translation Review failed as Voice Over task already exists.",
+                    }
+                )
+
+        if len(original_src_translation) > 0:
+            for video in original_src_translation:
+                video_ids.append(video)
+                detailed_error.append(
+                    {
+                        "video_name": video.name,
+                        "video_url": video.url,
+                        "task_type": self.get_task_type_label(task_type),
+                        "source_language": video.get_language_label,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
+                        "status": "Fail",
+                        "message": "Task creation for Translation failed with source type Original Source as Transcription already exists.",
+                    }
+                )
+            consolidated_error.append(
+                {
+                    "message": "Tasks creation for Translation failed with source type Original Source as Transcription already exists.",
+                    "count": len(original_src_translation),
+                }
+            )
+
+        for video in video_ids:
+            videos.remove(video)
+            if len(user_ids) > 0:
+                del user_ids[-1]
+
+        if len(user_ids) > 0:
+            if "EDIT" in task_type:
+                permitted = self.has_translate_edit_permission(user_ids[0], videos)
+            else:
+                permitted = self.has_translate_review_permission(user_ids[0], videos)
+        else:
+            permitted = True
+
+        if permitted:
+            if "EDIT" in task_type:
+                tasks = []
+                for video in videos:
+                    if len(user_ids) == 0:
+                        user_id = self.assign_users(
+                            task_type, video.project_id, video.language, target_language
+                        )
+                        if user_id is None:
+                            user = request.user
+                        else:
+                            user = User.objects.get(pk=user_id)
+                    else:
+                        user = user_ids[0]
+
+                    is_active = False
+                    new_task = Task(
+                        task_type=task_type,
+                        video=video,
+                        created_by=request.user,
+                        user=user,
+                        target_language=target_language,
+                        status="SELECTED_SOURCE",
+                        eta=eta,
+                        description=description,
+                        priority=priority,
+                        is_active=is_active,
+                    )
+                    new_task.save()
+                    tasks.append(new_task)
+
+                new_translations = []
+                for task in tasks:
+                    detailed_error.append(
+                        {
+                            "video_name": task.video.name,
+                            "video_url": task.video.url,
+                            "task_type": self.get_task_type_label(task.task_type),
+                            "target_language": task.get_target_language_label,
+                            "source_language": task.get_src_language_label,
+                            "status": "Successful",
+                            "message": "Task is successfully created.",
+                        }
+                    )
+                    transcript = self.check_transcript_exists(task.video)
+                    if type(transcript) != dict:
+                        if source_type == "MACHINE_GENERATED":
+                            logging.info("Calling NMT API for %s", str(task.id))
+                            celery_nmt_call.delay(task_id=task.id)
+                            payloads = {source_type: ""}
+                        else:
+                            transcript = self.check_transcript_exists(task.video)
+                            payloads = generate_translation_payload(
+                                transcript, target_language, [source_type], task.user.id
+                            )
+                            task.is_active = True
+                            task.save()
+                    else:
+                        transcript = None
+                        if source_type == "ORIGINAL_SOURCE":
+                            payloads = generate_translation_payload(
+                                transcript,
+                                target_language,
+                                [source_type],
+                                task.user.id,
+                                task.video.url,
+                            )
+                            task.is_active = True
+                            task.save()
+                        else:
+                            payloads = {source_type: ""}
+                    translate_obj = Translation(
+                        video=task.video,
+                        user=task.user,
+                        transcript=transcript,
+                        payload=payloads[source_type],
+                        target_language=target_language,
+                        task=task,
+                        translation_type=source_type,
+                        status="TRANSLATION_SELECT_SOURCE",
+                    )
+                    new_translations.append(translate_obj)
+                translations = Translation.objects.bulk_create(new_translations)
+            else:
+                tasks = []
+                for video in videos:
+                    if len(user_ids) == 0:
+                        user_id = self.assign_users(
+                            task_type, video.project_id, video.language, target_language
+                        )
+                        if user_id is None:
+                            user = request.user
+                        else:
+                            user = User.objects.get(pk=user_id)
+                    else:
+                        user = user_ids[0]
+
+                    translation = (
+                        Translation.objects.filter(video=video)
+                        .filter(status="TRANSLATION_EDIT_COMPLETE")
+                        .filter(target_language=target_language)
+                        .first()
+                    )
+                    is_active = False
+                    if translation is not None:
+                        is_active = True
+                    new_task = Task(
+                        task_type=task_type,
+                        video=video,
+                        created_by=request.user,
+                        user=user,
+                        target_language=target_language,
+                        status="NEW",
+                        eta=eta,
+                        description=description,
+                        priority=priority,
+                        is_active=is_active,
+                    )
+                    new_task.save()
+                    if is_active:
+                        send_mail_to_user(new_task)
+                    tasks.append(new_task)
+
+                new_translations = []
+                for task in tasks:
+                    detailed_error.append(
+                        {
+                            "video_name": task.video.name,
+                            "video_url": task.video.url,
+                            "task_type": self.get_task_type_label(task.task_type),
+                            "target_language": task.get_target_language_label,
+                            "source_language": task.get_src_language_label,
+                            "status": "Successful",
+                            "message": "Task is successfully created.",
+                        }
+                    )
+                    translation = (
+                        Translation.objects.filter(video=task.video)
+                        .filter(status="TRANSLATION_EDIT_COMPLETE")
+                        .filter(target_language=target_language)
+                        .first()
+                    )
+
+                    if translation is not None:
+                        payload = translation.payload
+                        transcript = translation.transcript
+                        is_active = True
+                    else:
+                        payload = None
+                        transcript = None
+                        is_active = False
+                    translate_obj = Translation(
+                        video=task.video,
+                        user=task.user,
+                        transcript=transcript,
+                        parent=translation,
+                        payload=payload,
+                        target_language=target_language,
+                        task=new_task,
+                        translation_type=source_type,
+                        status="TRANSLATION_REVIEWER_ASSIGNED",
+                    )
+                    new_translations.append(translate_obj)
+                translations = Translation.objects.bulk_create(new_translations)
+
+            if len(tasks) > 0:
+                consolidated_error.append(
+                    {"message": "Tasks created successfully.", "count": len(tasks)}
+                )
+
+            message = ""
+            if len(video_ids) > 0:
+                message = "{0} Task(s) creation failed.".format(len(video_ids))
+            if len(tasks) > 0:
+                message = (
+                    "{0} Task(s) created successfully.".format(len(tasks)) + message
+                )
+            response = {
+                "consolidated_report": consolidated_error,
+                "detailed_report": detailed_error,
+            }
+
+            if is_single_task:
+                if detailed_error[0]["status"] == "Fail":
+                    status_code = status.HTTP_400_BAD_REQUEST
+                else:
+                    status_code = status.HTTP_200_OK
+                return Response(
+                    {"message": detailed_error[0]["message"]},
+                    status=status_code,
+                )
+            return Response(
+                {"message": message, "response": response},
+                status=status.HTTP_207_MULTI_STATUS,
+            )
+        else:
+            return Response(
+                {
+                    "message": "The assigned user doesn't have permission to perform this task on translations in this project."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
     def create_translation_task(
         self,
         videos,
@@ -2314,6 +2697,25 @@ class TaskViewSet(ModelViewSet):
                     {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
                 )
             user_ids = [user for i in range(len(videos))]
+        if "TRANSLATION_VOICEOVER" in task_type:
+            source_type = (
+                project.default_translation_type or project.default_voiceover_type
+                or organization.default_translation_type or  organization.default_voiceover_type 
+            )
+            if source_type == None:
+                source_type = backend_default_translation_type
+            return self.create_translation_task(
+                videos,
+                user_ids,
+                target_language,
+                task_type,
+                source_type,
+                request,
+                eta,
+                priority,
+                description,
+                is_single_task,
+            )
         if "TRANSLATION" in task_type:
             source_type = (
                 project.default_translation_type
@@ -2407,7 +2809,7 @@ class TaskViewSet(ModelViewSet):
             elif task.task_type == "VOICEOVER_EDIT":
                 permission = self.has_voice_over_edit_permission(user_obj, [task.video])
             else:
-                logging.info("Not a Valid Type")
+                logging.info("Test 2 Not a Valid Type")
 
             if permission:
                 task.user = user_obj
@@ -2482,7 +2884,8 @@ class TaskViewSet(ModelViewSet):
                         user_obj, [task.video]
                     )
                 else:
-                    logging.info("Not a Valid Type")
+                    
+                    logging.info("test1 Not a Valid Type")
 
                 if permission:
                     task.user = user_obj
@@ -2539,6 +2942,7 @@ class TaskViewSet(ModelViewSet):
             {"id": 3, "value": "TRANSLATION_EDIT", "label": "Translation Edit"},
             {"id": 4, "value": "TRANSLATION_REVIEW", "label": "Translation Review"},
             {"id": 5, "value": "VOICEOVER_EDIT", "label": "VoiceOver Edit"},
+            {"id": 6, "value": "TRANSLATION_VOICEOVER_EDIT", "label": "Translation Voiceover Edit"}
         ]
         return Response(response, status=status.HTTP_200_OK)
 

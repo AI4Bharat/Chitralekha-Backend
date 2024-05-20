@@ -579,7 +579,7 @@ def get_video_func(request):
             user_id = assignee
         else:
             user_id = None
-
+        
         if default_task_types is not None:
             for task_type in default_task_types:
                 if (
@@ -587,6 +587,7 @@ def get_video_func(request):
                     and "TRANSCRIPTION" not in task_type
                 ):
                     for target_language in default_target_languages:
+                        print(task_type)
                         task_response = create_tasks(
                             video.id,
                             task_type,

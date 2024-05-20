@@ -520,7 +520,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def check_if_last_task_in_workflow(self, task_obj):
         task = task_obj["task"]
-        if task.task_type == "VOICEOVER_EDIT":
+        if task.task_type == "VOICEOVER_EDIT" or task.task_type == "TRANSLATION_VOICEOVER_EDIT":
             return True
         elif task.task_type == "TRANSLATION_REVIEW":
             if (
@@ -576,7 +576,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             else:
                 return False
         else:
-            print("Not a valid type")
+            print("test 3 Not a valid type")
             return False
 
     # Add endpoint to list all related videos of a project (project_id)
@@ -622,6 +622,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     video_data.append(video_serializer)
                     continue
                 tasks_to_send = []
+                print("task table", task_table)
                 if len(task_table) == 1:
                     if "transcription" in task_table.keys():
                         task_obj = task_table["transcription"]
