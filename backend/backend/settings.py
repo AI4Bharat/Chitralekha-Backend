@@ -111,7 +111,7 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=100),
 }
 
-ENABLE_CORS = bool(strtobool(os.getenv("ENABLE_CORS", "False")))
+ENABLE_CORS = bool(strtobool(os.getenv("ENABLE_CORS", "true")))
 CSRF_COOKIE_SECURE = False
 
 if ENABLE_CORS:
@@ -289,3 +289,4 @@ LOGGING = {
 
 # Celery settings
 CELERY_BROKER_URL = os.getenv("DEBUG", "redis://localhost:6379")
+CELERY_TASK_ALWAYS_EAGER  = True

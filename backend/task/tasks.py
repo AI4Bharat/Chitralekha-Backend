@@ -54,16 +54,25 @@ def convert_srt_to_payload(srt_content):
         )
     return json.loads(json.dumps({"payload": sentences_list}))
 
-
+import platform
 def convert_payload_format(data):
     sentences_list = []
     if "output" in data.keys():
         payload = data["output"]
     for vtt_line in webvtt.read_buffer(StringIO(payload)):
         start_time = datetime.datetime.strptime(vtt_line.start, "%H:%M:%S.%f")
-        unix_start_time = datetime.datetime.timestamp(start_time)
+        
+        # unix_start_time = datetime.datetime.timestamp(start_time)
         end_time = datetime.datetime.strptime(vtt_line.end, "%H:%M:%S.%f")
-        unix_end_time = datetime.datetime.timestamp(end_time)
+        # unix_end_time = datetime.datetime.timestamp(end_time)
+        if platform.system() == "Windows":
+            # Adjust the start_time and end_time to be within the supported range
+            unix_start_time = (start_time - datetime.datetime(1970, 1, 1)).total_seconds()
+            unix_end_time = (end_time - datetime.datetime(1970, 1, 1)).total_seconds()
+        else:
+            # For other platforms, use the standard timestamp method
+            unix_start_time = datetime.datetime.timestamp(start_time)
+            unix_end_time = datetime.datetime.timestamp(end_time)
         sentences_list.append(
             {
                 "start_time": vtt_line.start,
