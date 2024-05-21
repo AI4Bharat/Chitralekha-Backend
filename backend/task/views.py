@@ -408,6 +408,8 @@ class TaskViewSet(ModelViewSet):
         error_user_tasks = []
         error_same_language_tasks = []
         error_review_tasks = []
+        error_language_not_supported_tasks = []
+        error_gender_not_supported_tasks = []
 
         if len(duplicate_tasks) > 0:
             for task in duplicate_tasks:
@@ -428,11 +430,71 @@ class TaskViewSet(ModelViewSet):
                     {"video": video, "task_type": task_type}
                 )
 
+        if len(language_not_supported) > 0:
+            for video in language_not_supported:
+                video_ids.append(video)
+                error_language_not_supported_tasks.append(
+                    {"video": video, "task_type": task_type}
+                )
+
+        if len(gender_not_supported) > 0:
+            for video in gender_not_supported:
+                video_ids.append(video)
+                error_gender_not_supported_tasks.append(
+                    {"video": video, "task_type": task_type}
+                )
+
         if len(delete_video) > 0:
             for video in delete_video:
                 video_ids.append(video)
                 error_review_tasks.append({"video": video, "task_type": task_type})
 
+        if len(original_src_translation) > 0:
+            for video in original_src_translation:
+                video_ids.append(video)
+                detailed_error.append(
+                    {
+                        "video_name": video.name,
+                        "video_url": video.url,
+                        "task_type": self.get_task_type_label(task_type),
+                        "source_language": video.get_language_label,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
+                        "status": "Fail",
+                        "message": "Task creation for Translation failed with source type Original Source as Transcription already exists.",
+                    }
+                )
+            consolidated_error.append(
+                {
+                    "message": "Tasks creation for Translation failed with source type Original Source as Transcription already exists.",
+                    "count": len(original_src_translation),
+                }
+            )
+
+        if len(error_review_tasks) > 0:
+            consolidated_error.append(
+                {
+                    "message": "Task creation for Translation Review failed as Voice Over tasks already exists.",
+                    "count": len(error_review_tasks),
+                }
+            )
+            for task in error_review_tasks:
+                detailed_error.append(
+                    {
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": self.get_task_type_label(task["task_type"]),
+                        "source_language": task["video"].get_language_label,
+                        "target_language": self.get_target_language_label(
+                            target_language
+                        ),
+                        "status": "Fail",
+                        "message": "Task creation for Translation Review failed as Voice Over task already exists.",
+                    }
+                )
+        
+        
         if len(duplicate_user_tasks):
             consolidated_error.append(
                 {
@@ -497,16 +559,16 @@ class TaskViewSet(ModelViewSet):
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
-                )
+                )        
 
-        if len(error_review_tasks) > 0:
+        if len(error_language_not_supported_tasks):
             consolidated_error.append(
                 {
-                    "message": "Task creation for Translation Review failed as Voice Over tasks already exists.",
-                    "count": len(error_review_tasks),
+                    "message": "Task creation failed as Target Langauge is not supported for VoiceOver.",
+                    "count": len(error_language_not_supported_tasks),
                 }
             )
-            for task in error_review_tasks:
+            for task in error_language_not_supported_tasks:
                 detailed_error.append(
                     {
                         "video_name": task["video"].name,
@@ -517,32 +579,33 @@ class TaskViewSet(ModelViewSet):
                             target_language
                         ),
                         "status": "Fail",
-                        "message": "Task creation for Translation Review failed as Voice Over task already exists.",
+                        "message": "Task creation failed as Target Langauge is not supported for VoiceOver.",
                     }
                 )
-
-        if len(original_src_translation) > 0:
-            for video in original_src_translation:
-                video_ids.append(video)
+       
+        if len(error_gender_not_supported_tasks):
+            consolidated_error.append(
+                {
+                    "message": "Task creation failed as Male Voice is not supported for Bodo language.",
+                    "count": len(error_language_not_supported_tasks),
+                }
+            )
+            for task in error_gender_not_supported_tasks:
                 detailed_error.append(
                     {
-                        "video_name": video.name,
-                        "video_url": video.url,
-                        "task_type": self.get_task_type_label(task_type),
-                        "source_language": video.get_language_label,
+                        "video_name": task["video"].name,
+                        "video_url": task["video"].url,
+                        "task_type": self.get_task_type_label(task["task_type"]),
+                        "source_language": task["video"].get_language_label,
                         "target_language": self.get_target_language_label(
                             target_language
                         ),
                         "status": "Fail",
-                        "message": "Task creation for Translation failed with source type Original Source as Transcription already exists.",
+                        "message": "Task creation failed as Male Voice is not supported for Bodo language.",
                     }
                 )
-            consolidated_error.append(
-                {
-                    "message": "Tasks creation for Translation failed with source type Original Source as Transcription already exists.",
-                    "count": len(original_src_translation),
-                }
-            )
+
+        
 
         for video in video_ids:
             videos.remove(video)
@@ -792,6 +855,7 @@ class TaskViewSet(ModelViewSet):
         error_user_tasks = []
         error_same_language_tasks = []
         error_review_tasks = []
+        
 
         if len(duplicate_tasks) > 0:
             for task in duplicate_tasks:
@@ -860,6 +924,8 @@ class TaskViewSet(ModelViewSet):
                         "message": "Task creation failed as target language is same as source language.",
                     }
                 )
+
+
 
         if len(duplicate_tasks):
             consolidated_error.append(
@@ -1205,17 +1271,14 @@ class TaskViewSet(ModelViewSet):
                     {"video": video, "task_type": task_type}
                 )
 
+
+
         if len(gender_not_supported) > 0:
             for video in gender_not_supported:
                 video_ids.append(video)
                 error_gender_not_supported_tasks.append(
                     {"video": video, "task_type": task_type}
                 )
-
-        for video in video_ids:
-            videos.remove(video)
-            if len(user_ids) > 0:
-                del user_ids[-1]
 
         if len(duplicate_user_tasks):
             consolidated_error.append(
@@ -1326,6 +1389,12 @@ class TaskViewSet(ModelViewSet):
                         "message": "Task creation failed as selected task already exist.",
                     }
                 )
+        
+
+        for video in video_ids:
+            videos.remove(video)
+            if len(user_ids) > 0:
+                del user_ids[-1]
 
         if len(user_ids) > 0:
             if "EDIT" in task_type:
@@ -1770,9 +1839,11 @@ class TaskViewSet(ModelViewSet):
                 new_transcripts = []
                 asr_errors = 0
                 for task in tasks:
+                    print("processing task")
                     payloads = self.generate_transcript_payload(
                         task, [source_type], True
                     )
+                    print("payload", payloads)
                     if source_type == "MACHINE_GENERATED":
                         detailed_error.append(
                             {
@@ -1785,8 +1856,10 @@ class TaskViewSet(ModelViewSet):
                                 "message": "Task is successfully created.",
                             }
                         )
+                        print("exiting loop")
                         continue
                     if type(payloads) != dict:
+                        
                         asr_errors += 1
                         detailed_error.append(
                             {
@@ -1821,6 +1894,7 @@ class TaskViewSet(ModelViewSet):
                             "message": "Task is successfully created.",
                         }
                     )
+                    print("Creating transcript object")
                     transcript_obj = Transcript(
                         video=task.video,
                         user=task.user,
@@ -2704,7 +2778,8 @@ class TaskViewSet(ModelViewSet):
             )
             if source_type == None:
                 source_type = backend_default_translation_type
-            return self.create_translation_task(
+            print("Creating new task")
+            return self.create_translation_voiceover_task(
                 videos,
                 user_ids,
                 target_language,
@@ -2759,6 +2834,7 @@ class TaskViewSet(ModelViewSet):
             )
             if source_type == None:
                 source_type = backend_default_transcript_type
+            print("starting transcript")
             return self.create_transcription_task(
                 videos,
                 user_ids,
