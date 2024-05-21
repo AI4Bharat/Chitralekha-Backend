@@ -185,7 +185,7 @@ class TMXService:
 
     # Method to fetch tmx phrases for a given src
     def get_tmx_phrases(self, user_id, org_id, locale, sentence, tmx_level):
-        tmx_record = {"locale": locale, "src": sentence}
+        tmx_record = {"locale": locale, "src": sentence.strip()}
         if user_id:
             tmx_record["userID"] = user_id
         tmx_phrases, res_dict = self.tmx_phrase_search(tmx_record, tmx_level)
@@ -223,8 +223,9 @@ class TMXService:
             phrase_size = phrase.split(" ")
             if len(phrase_size) <= tmx_word_length:
                 suffix_phrase_list, found = [phrase], False
-                if phrase.endswith(".") or phrase.endswith(","):
-                    short = phrase.rstrip(".,")
+                # if phrase.endswith(".") or phrase.endswith(","):
+                if phrase.endswith(".") or phrase.endswith(",") or phrase.endswith("!") or phrase.endswith("?") or phrase.endswith(":") or phrase.endswith(";") or phrase.endswith("'"):
+                    short = phrase.rstrip(".,!?:;'")
                     suffix_phrase_list.append(short)
                 for phrases in suffix_phrase_list:
                     tmx_record["src"] = phrases
