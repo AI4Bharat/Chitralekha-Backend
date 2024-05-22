@@ -614,14 +614,14 @@ class TaskViewSet(ModelViewSet):
 
         if len(user_ids) > 0:
             if "EDIT" in task_type:
-                permitted = self.has_translate_edit_permission(user_ids[0], videos)
+                permitted = self.has_translate_edit_permission(user_ids[0], videos) or has_voice_over_edit_permission(user_ids[0], videos)
             else:
-                permitted = self.has_translate_review_permission(user_ids[0], videos)
+                permitted = self.has_translate_review_permission(user_ids[0], videos) or self.has_voice_over_review_permission(user_ids[0], videos)
         else:
             permitted = True
 
         if permitted:
-            if "EDIT" in task_type:
+            if "EDIT" in task_type:               
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
@@ -649,10 +649,7 @@ class TaskViewSet(ModelViewSet):
                         is_active=is_active,
                     )
                     new_task.save()
-                    tasks.append(new_task)
-
-                new_translations = []
-                for task in tasks:
+                    print("New TLVO task")
                     detailed_error.append(
                         {
                             "video_name": task.video.name,
@@ -664,45 +661,60 @@ class TaskViewSet(ModelViewSet):
                             "message": "Task is successfully created.",
                         }
                     )
-                    transcript = self.check_transcript_exists(task.video)
-                    if type(transcript) != dict:
-                        if source_type == "MACHINE_GENERATED":
-                            logging.info("Calling NMT API for %s", str(task.id))
-                            celery_nmt_call.delay(task_id=task.id)
-                            payloads = {source_type: ""}
-                        else:
-                            transcript = self.check_transcript_exists(task.video)
-                            payloads = generate_translation_payload(
-                                transcript, target_language, [source_type], task.user.id
-                            )
-                            task.is_active = True
-                            task.save()
-                    else:
-                        transcript = None
-                        if source_type == "ORIGINAL_SOURCE":
-                            payloads = generate_translation_payload(
-                                transcript,
-                                target_language,
-                                [source_type],
-                                task.user.id,
-                                task.video.url,
-                            )
-                            task.is_active = True
-                            task.save()
-                        else:
-                            payloads = {source_type: ""}
-                    translate_obj = Translation(
-                        video=task.video,
-                        user=task.user,
-                        transcript=transcript,
-                        payload=payloads[source_type],
-                        target_language=target_language,
-                        task=task,
-                        translation_type=source_type,
-                        status="TRANSLATION_SELECT_SOURCE",
-                    )
-                    new_translations.append(translate_obj)
-                translations = Translation.objects.bulk_create(new_translations)
+                    tasks.append(new_task)
+
+                # new_translations = []
+                # for task in tasks:
+                #     detailed_error.append(
+                #         {
+                #             "video_name": task.video.name,
+                #             "video_url": task.video.url,
+                #             "task_type": self.get_task_type_label(task.task_type),
+                #             "target_language": task.get_target_language_label,
+                #             "source_language": task.get_src_language_label,
+                #             "status": "Successful",
+                #             "message": "Task is successfully created.",
+                #         }
+                #     )
+                #     transcript = self.check_transcript_exists(task.video)
+                #     if type(transcript) != dict:
+                #         if source_type == "MACHINE_GENERATED":
+                #             logging.info("Calling NMT API for %s", str(task.id))
+                #             celery_nmt_call.delay(task_id=task.id)
+                #             payloads = {source_type: ""}
+                #         else:
+                #             transcript = self.check_transcript_exists(task.video)
+                #             payloads = generate_translation_payload(
+                #                 transcript, target_language, [source_type], task.user.id
+                #             )
+                #             task.is_active = True
+                #             task.save()
+                #     else:
+                #         transcript = None
+                #         if source_type == "ORIGINAL_SOURCE":
+                #             payloads = generate_translation_payload(
+                #                 transcript,
+                #                 target_language,
+                #                 [source_type],
+                #                 task.user.id,
+                #                 task.video.url,
+                #             )
+                #             task.is_active = True
+                #             task.save()
+                #         else:
+                #             payloads = {source_type: ""}
+                #     translate_obj = Translation(
+                #         video=task.video,
+                #         user=task.user,
+                #         transcript=transcript,
+                #         payload=payloads[source_type],
+                #         target_language=target_language,
+                #         task=task,
+                #         translation_type=source_type,
+                #         status="TRANSLATION_SELECT_SOURCE",
+                #     )
+                #     new_translations.append(translate_obj)
+                # translations = Translation.objects.bulk_create(new_translations)
             else:
                 tasks = []
                 for video in videos:
@@ -739,12 +751,6 @@ class TaskViewSet(ModelViewSet):
                         is_active=is_active,
                     )
                     new_task.save()
-                    if is_active:
-                        send_mail_to_user(new_task)
-                    tasks.append(new_task)
-
-                new_translations = []
-                for task in tasks:
                     detailed_error.append(
                         {
                             "video_name": task.video.name,
@@ -756,34 +762,51 @@ class TaskViewSet(ModelViewSet):
                             "message": "Task is successfully created.",
                         }
                     )
-                    translation = (
-                        Translation.objects.filter(video=task.video)
-                        .filter(status="TRANSLATION_EDIT_COMPLETE")
-                        .filter(target_language=target_language)
-                        .first()
-                    )
+                    if is_active:
+                        send_mail_to_user(new_task)
+                    tasks.append(new_task)
 
-                    if translation is not None:
-                        payload = translation.payload
-                        transcript = translation.transcript
-                        is_active = True
-                    else:
-                        payload = None
-                        transcript = None
-                        is_active = False
-                    translate_obj = Translation(
-                        video=task.video,
-                        user=task.user,
-                        transcript=transcript,
-                        parent=translation,
-                        payload=payload,
-                        target_language=target_language,
-                        task=new_task,
-                        translation_type=source_type,
-                        status="TRANSLATION_REVIEWER_ASSIGNED",
-                    )
-                    new_translations.append(translate_obj)
-                translations = Translation.objects.bulk_create(new_translations)
+                # new_translations = []
+                # for task in tasks:
+                #     detailed_error.append(
+                #         {
+                #             "video_name": task.video.name,
+                #             "video_url": task.video.url,
+                #             "task_type": self.get_task_type_label(task.task_type),
+                #             "target_language": task.get_target_language_label,
+                #             "source_language": task.get_src_language_label,
+                #             "status": "Successful",
+                #             "message": "Task is successfully created.",
+                #         }
+                #     )
+                #     translation = (
+                #         Translation.objects.filter(video=task.video)
+                #         .filter(status="TRANSLATION_EDIT_COMPLETE")
+                #         .filter(target_language=target_language)
+                #         .first()
+                #     )
+
+                #     if translation is not None:
+                #         payload = translation.payload
+                #         transcript = translation.transcript
+                #         is_active = True
+                #     else:
+                #         payload = None
+                #         transcript = None
+                #         is_active = False
+                #     translate_obj = Translation(
+                #         video=task.video,
+                #         user=task.user,
+                #         transcript=transcript,
+                #         parent=translation,
+                #         payload=payload,
+                #         target_language=target_language,
+                #         task=new_task,
+                #         translation_type=source_type,
+                #         status="TRANSLATION_REVIEWER_ASSIGNED",
+                #     )
+                #     new_translations.append(translate_obj)
+                # translations = Translation.objects.bulk_create(new_translations)
 
             if len(tasks) > 0:
                 consolidated_error.append(
@@ -822,6 +845,7 @@ class TaskViewSet(ModelViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+    
     def create_translation_task(
         self,
         videos,
@@ -1419,6 +1443,7 @@ class TaskViewSet(ModelViewSet):
                             user = User.objects.get(pk=user_id)
                     else:
                         user = user_ids[0]
+
                     translation = self.check_translation_exists(video, target_language)
 
                     if type(translation) == dict:
