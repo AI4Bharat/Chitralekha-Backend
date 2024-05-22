@@ -650,6 +650,22 @@ class TaskViewSet(ModelViewSet):
                     )
                     new_task.save()
                     print("New TLVO task")
+                    # detailed_error.append(
+                    #     {
+                    #         "video_name": new_task.video.name,
+                    #         "video_url": new_task.video.url,
+                    #         "task_type": self.get_task_type_label(new_task.task_type),
+                    #         "target_language": new_task.get_target_language_label,
+                    #         "source_language": new_task.get_src_language_label,
+                    #         "status": "Successful",
+                    #         "message": "Task is successfully created.",
+                    #     }
+                    # )
+                    tasks.append(new_task)
+
+                new_translations = []
+                new_voiceovers = []
+                for task in tasks:
                     detailed_error.append(
                         {
                             "video_name": task.video.name,
@@ -661,22 +677,7 @@ class TaskViewSet(ModelViewSet):
                             "message": "Task is successfully created.",
                         }
                     )
-                    tasks.append(new_task)
-
-                # new_translations = []
-                # for task in tasks:
-                #     detailed_error.append(
-                #         {
-                #             "video_name": task.video.name,
-                #             "video_url": task.video.url,
-                #             "task_type": self.get_task_type_label(task.task_type),
-                #             "target_language": task.get_target_language_label,
-                #             "source_language": task.get_src_language_label,
-                #             "status": "Successful",
-                #             "message": "Task is successfully created.",
-                #         }
-                #     )
-                #     transcript = self.check_transcript_exists(task.video)
+                    transcript = self.check_transcript_exists(task.video)
                 #     if type(transcript) != dict:
                 #         if source_type == "MACHINE_GENERATED":
                 #             logging.info("Calling NMT API for %s", str(task.id))
@@ -703,19 +704,35 @@ class TaskViewSet(ModelViewSet):
                 #             task.save()
                 #         else:
                 #             payloads = {source_type: ""}
-                #     translate_obj = Translation(
-                #         video=task.video,
-                #         user=task.user,
-                #         transcript=transcript,
-                #         payload=payloads[source_type],
-                #         target_language=target_language,
-                #         task=task,
-                #         translation_type=source_type,
-                #         status="TRANSLATION_SELECT_SOURCE",
-                #     )
-                #     new_translations.append(translate_obj)
-                # translations = Translation.objects.bulk_create(new_translations)
+                    payloads = {source_type: ""}
+                    translate_obj = Translation(
+                        video=task.video,
+                        user=task.user,
+                        # transcript=transcript,
+                        payload=payloads[source_type],
+                        target_language=target_language,
+                        task=task,
+                        translation_type=source_type,
+                        status="TRANSLATION_SELECT_SOURCE",
+                    )
+                    # translation_obj.save()
+                    new_translations.append(translate_obj)
+                    voiceover_obj = VoiceOver(
+                            video=task.video,
+                            user=task.user,
+                            translation=translate_obj,
+                            payload={"payload": {"completed_count": 0}},
+                            target_language=target_language,
+                            task=task,
+                            voice_over_type=source_type,
+                            status="VOICEOVER_SELECT_SOURCE",
+                        )
+                        # voiceover_obj.save()
+                    new_voiceovers.append(voiceover_obj)
+                translations = Translation.objects.bulk_create(new_translations)
+                voiceovers = VoiceOver.objects.bulk_create(new_voiceovers)
             else:
+                print("creating review tasks")
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
@@ -751,6 +768,24 @@ class TaskViewSet(ModelViewSet):
                         is_active=is_active,
                     )
                     new_task.save()
+                    # detailed_error.append(
+                    #     {
+                    #         "video_name": new_task.video.name,
+                    #         "video_url": new_task.video.url,
+                    #         "task_type": self.get_task_type_label(new_task.task_type),
+                    #         "target_language": new_task.get_target_language_label,
+                    #         "source_language": new_task.get_src_language_label,
+                    #         "status": "Successful",
+                    #         "message": "Task is successfully created.",
+                    #     }
+                    # )
+                    if is_active:
+                        send_mail_to_user(new_task)
+                    tasks.append(new_task)
+
+                new_translations = []
+                new_voiceovers = []
+                for task in tasks:
                     detailed_error.append(
                         {
                             "video_name": task.video.name,
@@ -762,29 +797,12 @@ class TaskViewSet(ModelViewSet):
                             "message": "Task is successfully created.",
                         }
                     )
-                    if is_active:
-                        send_mail_to_user(new_task)
-                    tasks.append(new_task)
-
-                # new_translations = []
-                # for task in tasks:
-                #     detailed_error.append(
-                #         {
-                #             "video_name": task.video.name,
-                #             "video_url": task.video.url,
-                #             "task_type": self.get_task_type_label(task.task_type),
-                #             "target_language": task.get_target_language_label,
-                #             "source_language": task.get_src_language_label,
-                #             "status": "Successful",
-                #             "message": "Task is successfully created.",
-                #         }
-                #     )
-                #     translation = (
-                #         Translation.objects.filter(video=task.video)
-                #         .filter(status="TRANSLATION_EDIT_COMPLETE")
-                #         .filter(target_language=target_language)
-                #         .first()
-                #     )
+                    translation = (
+                        Translation.objects.filter(video=task.video)
+                        .filter(status="TRANSLATION_EDIT_COMPLETE")
+                        .filter(target_language=target_language)
+                        .first()
+                    )
 
                 #     if translation is not None:
                 #         payload = translation.payload
@@ -794,19 +812,32 @@ class TaskViewSet(ModelViewSet):
                 #         payload = None
                 #         transcript = None
                 #         is_active = False
-                #     translate_obj = Translation(
-                #         video=task.video,
-                #         user=task.user,
-                #         transcript=transcript,
-                #         parent=translation,
-                #         payload=payload,
-                #         target_language=target_language,
-                #         task=new_task,
-                #         translation_type=source_type,
-                #         status="TRANSLATION_REVIEWER_ASSIGNED",
-                #     )
-                #     new_translations.append(translate_obj)
-                # translations = Translation.objects.bulk_create(new_translations)
+                    payload = None
+                    translate_obj = Translation(
+                        video=task.video,
+                        user=task.user,
+                        # transcript=transcript,
+                        parent=translation,
+                        payload=payload,
+                        target_language=target_language,
+                        task=new_task,
+                        translation_type=source_type,
+                        status="TRANSLATION_REVIEWER_ASSIGNED",
+                    )
+                    new_translations.append(translate_obj)
+                    voiceover_obj = VoiceOver(
+                            video=task.video,
+                            user=task.user,
+                            translation=translation,
+                            payload={"payload": {"completed_count": 0}},
+                            target_language=target_language,
+                            task=task,
+                            voice_over_type=source_type,
+                            status="VOICEOVER_SELECT_SOURCE",
+                        )
+                    new_voiceovers.append(voiceover_obj)
+                print("Creating the translation objects for review")
+                translations = Translation.objects.bulk_create(new_translations)
 
             if len(tasks) > 0:
                 consolidated_error.append(
