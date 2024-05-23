@@ -5,7 +5,7 @@ django-import-export
 django-smtp-ssl
 python-dotenv==0.20.0
 yt-dlp>=2024.04.09
-requests==2.25.1
+requests==2.31.0
 webvtt-py==0.4.6
 psycopg2-binary>=2.9
 drf-yasg==1.21.3
