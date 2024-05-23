@@ -72,7 +72,7 @@ import logging
 from config import align_json_url, app_name
 import regex
 from .tasks import celery_align_json
-from task.tasks import celery_nmt_call
+from task.tasks import celery_nmt_call,celery_nmt_tts_call
 import os
 from .utils.timestamp import *
 
@@ -887,6 +887,7 @@ def check_if_transcription_correct(transcription_obj, task):
     return None
 
 def change_active_status_of_next_tasks(task, transcript_obj):
+    print(celery_nmt_tts_call)
     tasks = Task.objects.filter(video=task.video)
     activate_translations = True
 
@@ -927,7 +928,7 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                     source_type = "MACHINE_GENERATED"
                     translation.transcript = transcript_obj
                     translation.save()
-                    
+                    celery_nmt_tts_call(task_id=translation.task.id)
                 else:
                     payloads = generate_translation_payload(
                         transcript_obj, translation.target_language, [source_type], translation.task.user.id

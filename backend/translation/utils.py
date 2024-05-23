@@ -590,11 +590,21 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
     # Update the translation payload with the generated translations
     payload = []
     tmxservice = TMXService()
+    import platform
     for source, target in zip(vtt_output["payload"], all_translated_sentences):
         start_time = datetime.datetime.strptime(source["start_time"], "%H:%M:%S.%f")
-        unix_start_time = datetime.datetime.timestamp(start_time)
+     
         end_time = datetime.datetime.strptime(source["end_time"], "%H:%M:%S.%f")
-        unix_end_time = datetime.datetime.timestamp(end_time)
+
+        if platform.system() == "Windows":
+            # Adjust the start_time and end_time to be within the supported range
+            unix_start_time = (start_time - datetime.datetime(1970, 1, 1)).total_seconds()
+            unix_end_time = (end_time - datetime.datetime(1970, 1, 1)).total_seconds()
+        else:
+            # For other platforms, use the standard timestamp method
+            unix_start_time = datetime.datetime.timestamp(start_time)
+            unix_end_time = datetime.datetime.timestamp(end_time)
+        
 
         try:
             if transcript.language == "en":

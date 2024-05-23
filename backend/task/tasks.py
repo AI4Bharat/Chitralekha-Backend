@@ -8,7 +8,7 @@ import json
 import webvtt
 import datetime
 from voiceover.models import VoiceOver
-from voiceover.utils import generate_tts_output, send_mail_to_user
+from voiceover.utils import generate_tts_output, send_mail_to_user, process_translation_payload
 from translation.models import Translation
 import pysrt
 import logging
@@ -269,5 +269,81 @@ def celery_nmt_call(task_id):
             task_obj.is_active = True
             task_obj.save()
             send_mail_to_user(task_obj)
+    else:
+        logging.info("Translation already exists")
+
+@celery_app.task(queue="nmt")
+def celery_nmt_tts_call(task_id):
+    task_obj = Task.objects.get(pk=task_id)
+    translation_obj = Translation.objects.filter(task=task_obj).first()
+    source_type = "MACHINE_GENERATED"
+    if translation_obj is not None and type(translation_obj.payload) != dict:
+        payloads = generate_translation_payload(
+            translation_obj.transcript, translation_obj.target_language, [source_type], task_obj.user.id
+        )
+        if type(payloads[source_type]) == Response:
+            task_obj.status = "FAILED"
+            task_obj.is_active = False
+            task_obj.save()
+        else:
+            if (
+                type(translation_obj.payload) == dict
+                and "speaker_info" in translation_obj.payload
+            ):
+                translation_obj.payload["payload"] = payloads[source_type]["payload"]
+            else:
+                translation_obj.payload = payloads[source_type]
+            translation_obj.save()
+            task_obj.status = "SELECTED_SOURCE"
+            task_obj.is_active = True
+            task_obj.save()
+            tts_payload = process_translation_payload(
+                translation_obj, task_obj.target_language
+            )
+            if type(tts_payload) == dict and "message" in tts_payload.keys():
+                message = tts_payload["message"]
+                logging.info("Error from TTS API")
+                voice_over_task.status = "FAILED"
+                voice_over_task.save()
+                # set_fail_for_translation_task(task)
+                return message
+
+            (
+                    tts_input,
+                    target_language,
+                    translation,
+                    translation_id,
+                    empty_sentences,
+            ) = tts_payload
+            tts_payload = generate_tts_output(
+            tts_input, target_language, translation, translation_obj, empty_sentences
+            )
+            payloads = tts_payload
+            voiceover_obj = VoiceOver(
+                video=task_obj.video,
+                user=task_obj.user,
+                translation=translation_obj,
+                payload=tts_payload,
+                target_language=task_obj.target_language,
+                task=task_obj,
+                voice_over_type="MACHINE_GENERATED",
+                status="VOICEOVER_SELECT_SOURCE",
+            )
+            voiceover_obj.save()
+            task_obj.is_active = True
+            task_obj.status = "SELECTED_SOURCE"
+            task_obj.save()
+            logging.info("Payload generated for TTS API for %s", str(task_id))
+            if "message" in tts_payload:
+                task_obj.is_active = False
+                task_obj.status = "FAILED"
+                task_obj.save()
+            try:
+                send_mail_to_user(task_obj)
+            except:
+                logging.info("Error in sending mail")
+
+            
+            # send_mail_to_user(task_obj)
     else:
         logging.info("Translation already exists")
