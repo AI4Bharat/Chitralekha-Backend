@@ -622,7 +622,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     video_data.append(video_serializer)
                     continue
                 tasks_to_send = []
-                print("task table", task_table)
+               
                 if len(task_table) == 1:
                     if "transcription" in task_table.keys():
                         task_obj = task_table["transcription"]
