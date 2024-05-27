@@ -326,3 +326,4 @@ vhosts/
 
 /postgres_data
 postgres-local.yml
+docker-compose-dev.yml

@@ -295,7 +295,7 @@ def celery_nmt_tts_call(task_id):
                 translation_obj.payload = payloads[source_type]
             translation_obj.save()
             task_obj.status = "SELECTED_SOURCE"
-            task_obj.is_active = True
+            # task_obj.is_active = True
             task_obj.save()
             tts_payload = process_translation_payload(
                 translation_obj, task_obj.target_language
