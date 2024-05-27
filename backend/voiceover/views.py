@@ -446,6 +446,7 @@ def get_payload(request):
                             "text": voice_over.translation.payload["payload"][i][
                                 "target_text"
                             ],
+                            "transcription_text": voice_over.translation.payload["payload"][i]["text"],
                             "audio": "",
                             "id": i + 1,
                             "audio_speed": 1,
