@@ -353,6 +353,7 @@ def get_payload(request):
             if audio_index in voice_over.payload["payload"].keys():
                 start_time = translation_payload[index][0]["start_time"]
                 end_time = translation_payload[index][0]["end_time"]
+                transcription_text = translation_payload[index][0]["text"]
                 time_difference = (
                     datetime.strptime(end_time, "%H:%M:%S.%f")
                     - timedelta(
@@ -373,6 +374,7 @@ def get_payload(request):
                         "start_time": start_time,
                         "end_time": end_time,
                         "text": voice_over.payload["payload"][str(audio_index)]["text"],
+                        "transcription_text": transcription_text,
                         "audio": voice_over.payload["payload"][str(audio_index)][
                             "audio"
                         ],
