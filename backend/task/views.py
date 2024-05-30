@@ -2926,6 +2926,10 @@ class TaskViewSet(ModelViewSet):
                     {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
                 )
 
+
+
+            if task.task_type == "TRANSLATION_VOICEOVER_EDIT":
+                permission = self.has_translate_edit_permission(user_obj, [task.video]) or self.has_voice_over_edit_permission(user_obj, [task.video])
             if task.task_type == "TRANSCRIPTION_EDIT":
                 permission = self.has_transcript_edit_permission(user_obj, [task.video])
             elif task.task_type == "TRANSCRIPTION_REVIEW":
