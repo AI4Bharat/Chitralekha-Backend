@@ -599,6 +599,9 @@ def save_voice_over(request):
             translation_copy.translation_uuid = None
             translation_copy.status = TRANSLATION_EDIT_COMPLETE
             translation_copy.id = None
+            translation_copy.created_at = None
+            translation_copy.updated_at = None
+            translation_copy.parent = translation
             translation_copy.save()
         # Check if the transcript has a user
         if task.user != request.user:
