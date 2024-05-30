@@ -8,6 +8,7 @@ from rest_framework.decorators import (
 )
 from rest_framework.response import Response
 from task.models import Task, TRANSLATION_VOICEOVER_EDIT
+from translation.models import Translation,TRANSLATION_EDIT_COMPLETE
 from .metadata import VOICEOVER_SUPPORTED_LANGUAGES, VOICEOVER_LANGUAGE_CHOICES
 from .models import (
     VoiceOver,
@@ -26,7 +27,7 @@ from django.db.models import Count, F, Sum
 from operator import itemgetter
 from itertools import groupby
 from pydub import AudioSegment
-
+import copy
 
 @api_view(["GET"])
 def get_voice_over_export_types(request):
@@ -592,7 +593,13 @@ def save_voice_over(request):
         voice_over = VoiceOver.objects.get(pk=voice_over_id)
         target_language = voice_over.target_language
         translation = voice_over.translation
-
+        translation_copy = copy.deepcopy(translation)
+        #CHECK IF THERE IS A COMPLETE STATUS TRANSLATION FOR THE TLVO TASK, IF NOT CREATE
+        if task.task_type == TRANSLATION_VOICEOVER_EDIT and Translation.objects.filter(task = task).filter(status=TRANSLATION_EDIT_COMPLETE).first() == None:
+            translation_copy.translation_uuid = None
+            translation_copy.status = TRANSLATION_EDIT_COMPLETE
+            translation_copy.id = None
+            translation_copy.save()
         # Check if the transcript has a user
         if task.user != request.user:
             return Response(
