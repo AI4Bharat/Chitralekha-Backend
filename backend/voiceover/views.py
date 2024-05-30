@@ -7,7 +7,7 @@ from rest_framework.decorators import (
     authentication_classes,
 )
 from rest_framework.response import Response
-from task.models import Task
+from task.models import Task, TRANSLATION_VOICEOVER_EDIT
 from .metadata import VOICEOVER_SUPPORTED_LANGUAGES, VOICEOVER_LANGUAGE_CHOICES
 from .models import (
     VoiceOver,
@@ -822,6 +822,7 @@ def save_voice_over(request):
                                                 "text": payload["payload"][i]["text"],
                                                 "audio": voiceover_adjusted[i][1],
                                                 "audio_speed": 1,
+                                                "transcription_text": transcription_text
                                             }
                                         )
                                 else:
@@ -901,6 +902,7 @@ def save_voice_over(request):
                         for i in range(len(payload["payload"])):
                             start_time = payload["payload"][i]["start_time"]
                             end_time = payload["payload"][i]["end_time"]
+                            transcription_text = payload["payload"][i]["transcription_text"]
                             time_difference = (
                                 datetime.strptime(end_time, "%H:%M:%S.%f")
                                 - timedelta(
@@ -965,7 +967,7 @@ def save_voice_over(request):
                                     "end_time": payload["payload"][i]["end_time"],
                                     "text": payload["payload"][i]["text"],
                                     "audio": voiceover_adjusted[i][1],
-                                    "audio_speed": 1,
+                                    "audio_speed": 1,        
                                 }
                                 sentences_list.append(
                                     {
@@ -978,6 +980,7 @@ def save_voice_over(request):
                                         "text": payload["payload"][i]["text"],
                                         "audio": voiceover_adjusted[i][1],
                                         "audio_speed": 1,
+                                        "transcription_text": transcription_text,
                                     }
                                 )
                             else:
@@ -1002,6 +1005,7 @@ def save_voice_over(request):
                                         "text": payload["payload"][i]["text"],
                                         "audio": voiceover_machine_generated[i][1],
                                         "audio_speed": 1,
+                                        "transcription_text": transcription_text,
                                     }
                                 )
                         voice_over_obj.save()
