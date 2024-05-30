@@ -392,6 +392,7 @@ def get_payload(request):
                 if str(i) in voice_over.payload["payload"].keys():
                     start_time = voice_over.payload["payload"][str(i)]["start_time"]
                     end_time = voice_over.payload["payload"][str(i)]["end_time"]
+                    # transcription_text = translation_payload[index][0]["text"]
                     time_difference = (
                         datetime.strptime(end_time, "%H:%M:%S.%f")
                         - timedelta(
@@ -727,6 +728,7 @@ def save_voice_over(request):
                             for i in range(len(payload["payload"])):
                                 start_time = payload["payload"][i]["start_time"]
                                 end_time = payload["payload"][i]["end_time"]
+                                transcription_text = payload["payload"][i]["transcription_text"]
                                 time_difference = (
                                     datetime.strptime(end_time, "%H:%M:%S.%f")
                                     - timedelta(
@@ -848,6 +850,7 @@ def save_voice_over(request):
                                             "text": payload["payload"][i]["text"],
                                             "audio": voiceover_machine_generated[i][1],
                                             "audio_speed": 1,
+                                            "transcription_text": transcription_text,
                                         }
                                     )
                                 voice_over_obj.save()
