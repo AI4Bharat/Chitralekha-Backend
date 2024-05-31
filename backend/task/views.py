@@ -2824,6 +2824,11 @@ class TaskViewSet(ModelViewSet):
                 {"message": "Task does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        if request.user != task.user:
+            return Response(
+                {"message": "You not allowed to update time spent for this task"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         time_spent = request.data.get("time_spent", 0)
         if task.time_spent == None:
             task.time_spent = time_spent
