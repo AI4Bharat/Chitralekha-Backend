@@ -592,16 +592,26 @@ def save_voice_over(request):
         voice_over = VoiceOver.objects.get(pk=voice_over_id)
         target_language = voice_over.target_language
         translation = voice_over.translation
-        translation_copy = copy.deepcopy(translation)
+        complete_translation = copy.deepcopy(translation)
+        inprogress_translation = copy.deepcopy(translation)
+
+        if task.task_type == TRANSLATION_VOICEOVER_EDIT and Translation.objects.filter(task = task).filter(status=TRANSLATION_EDIT_INPROGRESS).first() == None:
+            inprogress_translation.translation_uuid = None
+            inprogress_translation.status = TRANSLATION_EDIT_INPROGRESS
+            inprogress_translation.created_at = None
+            inprogress_translation.updated_at = None
+            inprogress_translation.parent = translation
+            inprogress_translation.save()
+
         #CHECK IF THERE IS A COMPLETE STATUS TRANSLATION FOR THE TLVO TASK, IF NOT CREATE
         if task.task_type == TRANSLATION_VOICEOVER_EDIT and Translation.objects.filter(task = task).filter(status=TRANSLATION_EDIT_COMPLETE).first() == None:
-            translation_copy.translation_uuid = None
-            translation_copy.status = TRANSLATION_EDIT_COMPLETE
-            translation_copy.id = None
-            translation_copy.created_at = None
-            translation_copy.updated_at = None
-            translation_copy.parent = translation
-            translation_copy.save()
+            complete_translation.translation_uuid = None
+            complete_translation.status = TRANSLATION_EDIT_COMPLETE
+            complete_translation.id = None
+            complete_translation.created_at = None
+            complete_translation.updated_at = None
+            complete_translation.parent = inprogress_translation
+            complete_translation.save()
         # Check if the transcript has a user
         if task.user != request.user:
             return Response(
