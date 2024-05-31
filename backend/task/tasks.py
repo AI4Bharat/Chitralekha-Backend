@@ -319,17 +319,27 @@ def celery_nmt_tts_call(task_id):
             tts_input, target_language, translation, translation_obj, empty_sentences
             )
             payloads = tts_payload
-            voiceover_obj = VoiceOver(
-                video=task_obj.video,
-                user=task_obj.user,
-                translation=translation_obj,
-                payload=tts_payload,
-                target_language=task_obj.target_language,
-                task=task_obj,
-                voice_over_type="MACHINE_GENERATED",
-                status="VOICEOVER_SELECT_SOURCE",
-            )
-            voiceover_obj.save()
+
+            existing_voiceover = VoiceOver.objects.filter(task=task_obj).first()
+
+            print("Fetched voiceover", existing_voiceover)
+
+            if existing_voiceover == None:
+                voiceover_obj = VoiceOver(
+                    video=task_obj.video,
+                    user=task_obj.user,
+                    translation=translation_obj,
+                    payload=tts_payload,
+                    target_language=task_obj.target_language,
+                    task=task_obj,
+                    voice_over_type="MACHINE_GENERATED",
+                    status="VOICEOVER_SELECT_SOURCE",
+                )
+                voiceover_obj.save()
+            else:
+                existing_voiceover.payload = tts_payload
+                existing_voiceover.translation=translation_obj
+                existing_voiceover.save()
             task_obj.is_active = True
             task_obj.status = "SELECTED_SOURCE"
             task_obj.save()

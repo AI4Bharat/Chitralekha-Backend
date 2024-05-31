@@ -345,8 +345,7 @@ def get_payload(request):
         return Response(
             {"message": "There is no translation associated with this voice over."},
             status=status.HTTP_400_BAD_REQUEST,
-        )
-
+        )       
     if voice_over.voice_over_type == "MACHINE_GENERATED":
         input_sentences = []
         for text, index in translation_payload:
