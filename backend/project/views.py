@@ -848,6 +848,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             buttons["Upload"] = True
                         if "TRANSLATION" in data["task_type"]:
                             buttons["Reopen"] = True
+                            if data["task_type"] == "TRANSLATION_VOICEOVER_EDIT":
+                                buttons["Reopen"] = False
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if data["status"] == "FAILED":
@@ -856,6 +858,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             buttons["Regenerate"] = True
                         else:
                             buttons["Reopen"] = True
+                            if data["task_type"] == "TRANSLATION_VOICEOVER_EDIT":
+                                buttons["Reopen"] = False
                     if data["status"] == "REOPEN":
                         buttons["Info"] = True
                     if data["status"] == "INPROGRESS":
