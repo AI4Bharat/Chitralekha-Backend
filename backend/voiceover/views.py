@@ -8,7 +8,7 @@ from rest_framework.decorators import (
 )
 from rest_framework.response import Response
 from task.models import Task, TRANSLATION_VOICEOVER_EDIT
-from translation.models import Translation,TRANSLATION_EDIT_COMPLETE
+from translation.models import Translation,TRANSLATION_EDIT_COMPLETE,TRANSLATION_EDIT_INPROGRESS
 from .metadata import VOICEOVER_SUPPORTED_LANGUAGES, VOICEOVER_LANGUAGE_CHOICES
 from .models import (
     VoiceOver,
@@ -28,7 +28,7 @@ from operator import itemgetter
 from itertools import groupby
 from pydub import AudioSegment
 import copy
-
+import uuid
 @api_view(["GET"])
 def get_voice_over_export_types(request):
     return Response(
@@ -592,26 +592,29 @@ def save_voice_over(request):
         voice_over = VoiceOver.objects.get(pk=voice_over_id)
         target_language = voice_over.target_language
         translation = voice_over.translation
-        complete_translation = copy.deepcopy(translation)
-        inprogress_translation = copy.deepcopy(translation)
+        
+        
 
-        if task.task_type == TRANSLATION_VOICEOVER_EDIT and Translation.objects.filter(task = task).filter(status=TRANSLATION_EDIT_INPROGRESS).first() == None:
-            inprogress_translation.translation_uuid = None
-            inprogress_translation.status = TRANSLATION_EDIT_INPROGRESS
-            inprogress_translation.created_at = None
-            inprogress_translation.updated_at = None
-            inprogress_translation.parent = translation
-            inprogress_translation.save()
-
-        #CHECK IF THERE IS A COMPLETE STATUS TRANSLATION FOR THE TLVO TASK, IF NOT CREATE
-        if task.task_type == TRANSLATION_VOICEOVER_EDIT and Translation.objects.filter(task = task).filter(status=TRANSLATION_EDIT_COMPLETE).first() == None:
-            complete_translation.translation_uuid = None
+        if task.task_type == TRANSLATION_VOICEOVER_EDIT and request.data.get("final"):
+            inprogress_translation = Translation.objects.filter(task=task, status=TRANSLATION_EDIT_INPROGRESS).first()
+            complete_translation = copy.deepcopy(translation)
+            complete_translation.translation_uuid = uuid.uuid4()
             complete_translation.status = TRANSLATION_EDIT_COMPLETE
-            complete_translation.id = None
-            complete_translation.created_at = None
-            complete_translation.updated_at = None
+            complete_translation.id = None  # Reset the ID to create a new instance
             complete_translation.parent = inprogress_translation
             complete_translation.save()
+            print("Saved Complete Translation with inprogress", inprogress_translation)
+        else:
+            inprogress_translation = Translation.objects.filter(task=task, status=TRANSLATION_EDIT_INPROGRESS).first()
+            if task.task_type == TRANSLATION_VOICEOVER_EDIT and inprogress_translation == None:
+                inprogress_translation = copy.deepcopy(translation)
+                inprogress_translation.translation_uuid = uuid.uuid4()
+                inprogress_translation.status = TRANSLATION_EDIT_INPROGRESS
+                inprogress_translation.id = None  # Reset the ID to create a new instance
+                inprogress_translation.parent = translation
+                inprogress_translation.save()
+                print("Saved IP Translation with inprogress")
+
         # Check if the transcript has a user
         if task.user != request.user:
             return Response(
@@ -706,6 +709,8 @@ def save_voice_over(request):
                                 original_duration,
                             )
                         )
+               
+
                 if voice_over.voice_over_type == "MANUALLY_CREATED":
                     voiceover_adjusted = adjust_voiceover(translation_payload)
                 else:

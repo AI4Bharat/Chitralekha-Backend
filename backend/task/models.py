@@ -229,7 +229,8 @@ class Task(models.Model):
         }
 
         source_type = None
-
+        if self.task_type == "TRANSLATION_VOICEOVER_EDIT":
+            return "Machine Generated"
         if self.task_type in source_mapping.keys():
             source_type_var = eval(source_mapping[self.task_type])
             if source_type_var is not None:
