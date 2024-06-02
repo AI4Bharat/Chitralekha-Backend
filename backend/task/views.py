@@ -650,17 +650,7 @@ class TaskViewSet(ModelViewSet):
                     )
                     new_task.save()
                     print("New TLVO task")
-                    # detailed_error.append(
-                    #     {
-                    #         "video_name": new_task.video.name,
-                    #         "video_url": new_task.video.url,
-                    #         "task_type": self.get_task_type_label(new_task.task_type),
-                    #         "target_language": new_task.get_target_language_label,
-                    #         "source_language": new_task.get_src_language_label,
-                    #         "status": "Successful",
-                    #         "message": "Task is successfully created.",
-                    #     }
-                    # )
+                   
                     tasks.append(new_task)
 
                 new_translations = []
@@ -678,32 +668,7 @@ class TaskViewSet(ModelViewSet):
                         }
                     )
                     transcript = self.check_transcript_exists(task.video)
-                #     if type(transcript) != dict:
-                #         if source_type == "MACHINE_GENERATED":
-                #             logging.info("Calling NMT API for %s", str(task.id))
-                #             celery_nmt_call.delay(task_id=task.id)
-                #             payloads = {source_type: ""}
-                #         else:
-                #             transcript = self.check_transcript_exists(task.video)
-                #             payloads = generate_translation_payload(
-                #                 transcript, target_language, [source_type], task.user.id
-                #             )
-                #             task.is_active = True
-                #             task.save()
-                #     else:
-                #         transcript = None
-                #         if source_type == "ORIGINAL_SOURCE":
-                #             payloads = generate_translation_payload(
-                #                 transcript,
-                #                 target_language,
-                #                 [source_type],
-                #                 task.user.id,
-                #                 task.video.url,
-                #             )
-                #             task.is_active = True
-                #             task.save()
-                #         else:
-                #             payloads = {source_type: ""}
+                
                     payloads = {source_type: ""}
                     translate_obj = Translation(
                         video=task.video,
@@ -768,17 +733,7 @@ class TaskViewSet(ModelViewSet):
                         is_active=is_active,
                     )
                     new_task.save()
-                    # detailed_error.append(
-                    #     {
-                    #         "video_name": new_task.video.name,
-                    #         "video_url": new_task.video.url,
-                    #         "task_type": self.get_task_type_label(new_task.task_type),
-                    #         "target_language": new_task.get_target_language_label,
-                    #         "source_language": new_task.get_src_language_label,
-                    #         "status": "Successful",
-                    #         "message": "Task is successfully created.",
-                    #     }
-                    # )
+                   
                     if is_active:
                         send_mail_to_user(new_task)
                     tasks.append(new_task)
@@ -1894,12 +1849,10 @@ class TaskViewSet(ModelViewSet):
 
                 new_transcripts = []
                 asr_errors = 0
-                for task in tasks:
-                    print("processing task")
+                for task in tasks:      
                     payloads = self.generate_transcript_payload(
                         task, [source_type], True
                     )
-                    print("payload", payloads)
                     if source_type == "MACHINE_GENERATED":
                         detailed_error.append(
                             {
@@ -1912,7 +1865,6 @@ class TaskViewSet(ModelViewSet):
                                 "message": "Task is successfully created.",
                             }
                         )
-                        print("exiting loop")
                         continue
                     if type(payloads) != dict:
                         
@@ -1950,7 +1902,6 @@ class TaskViewSet(ModelViewSet):
                             "message": "Task is successfully created.",
                         }
                     )
-                    print("Creating transcript object")
                     transcript_obj = Transcript(
                         video=task.video,
                         user=task.user,
@@ -2890,7 +2841,6 @@ class TaskViewSet(ModelViewSet):
             )
             if source_type == None:
                 source_type = backend_default_transcript_type
-            print("starting transcript")
             return self.create_transcription_task(
                 videos,
                 user_ids,
@@ -2945,7 +2895,7 @@ class TaskViewSet(ModelViewSet):
             elif task.task_type == "VOICEOVER_EDIT":
                 permission = self.has_voice_over_edit_permission(user_obj, [task.video])
             else:
-                logging.info("Test 2 Not a Valid Type")
+                logging.info("Not a Valid Type")
 
             if permission:
                 task.user = user_obj

@@ -576,7 +576,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             else:
                 return False
         else:
-            print("test 3 Not a valid type")
+            print("Not a valid type")
             return False
 
     # Add endpoint to list all related videos of a project (project_id)
