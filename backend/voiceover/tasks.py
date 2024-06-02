@@ -16,7 +16,7 @@ from .utils import (
     send_audio_zip_mail_to_user,
 )
 from voiceover.models import VoiceOver
-from task.models import Task
+from task.models import Task, TRANSLATION_VOICEOVER_EDIT
 from users.models import User
 import os
 import logging
@@ -34,13 +34,23 @@ import re
 import json
 import requests
 import zipfile
-
+from translation.models import Translation,TRANSLATION_EDIT_COMPLETE
 
 @shared_task()
 def celery_integration(file_name, voice_over_obj_id, video, task_id):
     logging.info("Starting Async Celery Integration....")
     voice_over_obj = VoiceOver.objects.filter(id=voice_over_obj_id).first()
     task = Task.objects.filter(id=task_id).first()
+  
+    if task.task_type == TRANSLATION_VOICEOVER_EDIT:
+        final_tl = Translation.objects.filter(task=task).filter(status = TRANSLATION_EDIT_COMPLETE).first()
+        index = 0
+        for segment in voice_over_obj.payload["payload"].values():
+            final_tl.payload["payload"][index]["target_text"] = segment["text"]
+            index = index + 1
+        final_tl.save()
+
+
     integrate_audio_with_video(file_name, voice_over_obj, voice_over_obj.video)
     if not os.path.isfile(file_name + ".mp4") or os.path.isfile(file_name + ".wav"):
         task.status = "FAILED"

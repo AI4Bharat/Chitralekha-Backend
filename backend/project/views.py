@@ -520,7 +520,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def check_if_last_task_in_workflow(self, task_obj):
         task = task_obj["task"]
-        if task.task_type == "VOICEOVER_EDIT":
+        if task.task_type == "VOICEOVER_EDIT" or task.task_type == "TRANSLATION_VOICEOVER_EDIT":
             return True
         elif task.task_type == "TRANSLATION_REVIEW":
             if (
@@ -622,6 +622,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     video_data.append(video_serializer)
                     continue
                 tasks_to_send = []
+               
                 if len(task_table) == 1:
                     if "transcription" in task_table.keys():
                         task_obj = task_table["transcription"]
@@ -847,6 +848,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             buttons["Upload"] = True
                         if "TRANSLATION" in data["task_type"]:
                             buttons["Reopen"] = True
+                            if data["task_type"] == "TRANSLATION_VOICEOVER_EDIT":
+                                buttons["Reopen"] = False
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if data["status"] == "FAILED":
@@ -855,6 +858,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             buttons["Regenerate"] = True
                         else:
                             buttons["Reopen"] = True
+                            if data["task_type"] == "TRANSLATION_VOICEOVER_EDIT":
+                                buttons["Reopen"] = False
                     if data["status"] == "REOPEN":
                         buttons["Info"] = True
                     if data["status"] == "INPROGRESS":
