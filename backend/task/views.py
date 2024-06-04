@@ -3014,6 +3014,7 @@ class TaskViewSet(ModelViewSet):
             {"value": "TRANSCRIPTION", "label": "Transcription"},
             {"value": "TRANSLATION", "label": "Translation"},
             {"value": "VOICEOVER", "label": "Voice Over"},
+            {"value": "TRANSLATION_VOICEOVER", "label": "Translation Voiceover"},
         ]
         return Response(response, status=status.HTTP_200_OK)
 
@@ -3092,6 +3093,9 @@ class TaskViewSet(ModelViewSet):
         elif type == "VOICEOVER":
             target_language = request.query_params.get("target_language")
             label = "VoiceOver"
+        elif type == "TRANSLATION_VOICEOVER":
+            target_language = request.query_params.get("target_language")
+            label = "Translation VoiceOver"
         else:
             label = "Transcription"
 
