@@ -471,7 +471,6 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
 
     if (
         transcript.language == "en"
-        and transcript.transcript_type == "MACHINE_GENERATED"
     ):
         ratio_per_sentence = get_ratio_of_words(transcript.payload["payload"])
         full_transcript = ""
