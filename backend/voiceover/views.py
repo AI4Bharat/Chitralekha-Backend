@@ -29,6 +29,7 @@ from itertools import groupby
 from pydub import AudioSegment
 import copy
 import uuid
+import regex
 @api_view(["GET"])
 def get_voice_over_export_types(request):
     return Response(
@@ -603,6 +604,25 @@ def save_voice_over(request):
             complete_translation.id = None  # Reset the ID to create a new instance
             complete_translation.parent = inprogress_translation
             complete_translation.save()
+            if (
+                    complete_translation.payload != ""
+                    and complete_translation.payload is not None
+                ):
+                num_words = 0
+                for idv_translation in complete_translation.payload["payload"]:
+                    if "target_text" in idv_translation.keys():
+                        cleaned_text = regex.sub(
+                            r"[^\p{L}\s]", "", idv_translation["target_text"]
+                        ).lower()  # for removing special characters
+                        cleaned_text = regex.sub(
+                            r"\s+", " ", cleaned_text
+                        )  # for removing multiple blank spaces
+                        num_words += len(cleaned_text.split(" "))
+                complete_translation.payload["word_count"] = num_words
+                complete_translation.save()
+            else:
+                complete_translation.payload = {"payload": [], "word_count": 0}
+                complete_translation.save()
             print("Saved Complete Translation with inprogress", inprogress_translation)
         else:
             inprogress_translation = Translation.objects.filter(task=task, status=TRANSLATION_EDIT_INPROGRESS).first()
