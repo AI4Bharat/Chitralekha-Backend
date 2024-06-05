@@ -1594,6 +1594,7 @@ def save_transcription(request):
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
+                    delete_indices = []
                     for index, sentence in enumerate(
                         transcript_obj.payload["payload"]
                     ):
@@ -1704,6 +1705,7 @@ def save_transcription(request):
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
 
+                        delete_indices = []
                         for index, sentence in enumerate(
                             transcript_obj.payload["payload"]
                         ):
