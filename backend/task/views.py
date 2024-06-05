@@ -674,7 +674,7 @@ class TaskViewSet(ModelViewSet):
                     translate_obj = Translation(
                         video=task.video,
                         user=task.user,
-                        # transcript=transcript,
+                        transcript=transcript,
                         payload=payloads[source_type],
                         target_language=target_language,
                         task=task,
