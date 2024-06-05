@@ -14,6 +14,9 @@ TRANSLATION_EDIT = "TRANSLATION_EDIT"
 TRANSLATION_REVIEW = "TRANSLATION_REVIEW"
 VOICEOVER_EDIT = "VOICEOVER_EDIT"
 VOICEOVER_REVIEW = "VOICEOVER_REVIEW"
+TRANSLATION_VOICEOVER_EDIT = "TRANSLATION_VOICEOVER_EDIT"
+TRANSLATION_VOICEOVER_REVIEW = "TRANSLATION_VOICEOVER_REVIEW"
+
 NEW = "NEW"
 SELECTED_SOURCE = "SELECTED_SOURCE"
 INPROGRESS = "INPROGRESS"
@@ -43,6 +46,8 @@ TASK_TYPE = (
     (TRANSLATION_REVIEW, "Translation Review"),
     (VOICEOVER_EDIT, "VoiceOver Edit"),
     (VOICEOVER_REVIEW, "VoiceOver Review"),
+    (TRANSLATION_VOICEOVER_EDIT, "Translation VoiceOver Edit"),
+    (TRANSLATION_VOICEOVER_REVIEW, "Translation VoiceOver Review"),
 )
 
 PRIORITY = (
@@ -224,7 +229,8 @@ class Task(models.Model):
         }
 
         source_type = None
-
+        if self.task_type == "TRANSLATION_VOICEOVER_EDIT":
+            return "Machine Generated"
         if self.task_type in source_mapping.keys():
             source_type_var = eval(source_mapping[self.task_type])
             if source_type_var is not None:

@@ -7,7 +7,8 @@ from rest_framework.decorators import (
     authentication_classes,
 )
 from rest_framework.response import Response
-from task.models import Task
+from task.models import Task, TRANSLATION_VOICEOVER_EDIT
+from translation.models import Translation,TRANSLATION_EDIT_COMPLETE,TRANSLATION_EDIT_INPROGRESS
 from .metadata import VOICEOVER_SUPPORTED_LANGUAGES, VOICEOVER_LANGUAGE_CHOICES
 from .models import (
     VoiceOver,
@@ -26,8 +27,8 @@ from django.db.models import Count, F, Sum
 from operator import itemgetter
 from itertools import groupby
 from pydub import AudioSegment
-
-
+import copy
+import uuid
 @api_view(["GET"])
 def get_voice_over_export_types(request):
     return Response(
@@ -344,8 +345,7 @@ def get_payload(request):
         return Response(
             {"message": "There is no translation associated with this voice over."},
             status=status.HTTP_400_BAD_REQUEST,
-        )
-
+        )       
     if voice_over.voice_over_type == "MACHINE_GENERATED":
         input_sentences = []
         for text, index in translation_payload:
@@ -353,6 +353,7 @@ def get_payload(request):
             if audio_index in voice_over.payload["payload"].keys():
                 start_time = translation_payload[index][0]["start_time"]
                 end_time = translation_payload[index][0]["end_time"]
+                transcription_text = translation_payload[index][0]["text"]
                 time_difference = (
                     datetime.strptime(end_time, "%H:%M:%S.%f")
                     - timedelta(
@@ -373,6 +374,7 @@ def get_payload(request):
                         "start_time": start_time,
                         "end_time": end_time,
                         "text": voice_over.payload["payload"][str(audio_index)]["text"],
+                        "transcription_text": transcription_text,
                         "audio": voice_over.payload["payload"][str(audio_index)][
                             "audio"
                         ],
@@ -390,6 +392,7 @@ def get_payload(request):
                 if str(i) in voice_over.payload["payload"].keys():
                     start_time = voice_over.payload["payload"][str(i)]["start_time"]
                     end_time = voice_over.payload["payload"][str(i)]["end_time"]
+                    # transcription_text = translation_payload[index][0]["text"]
                     time_difference = (
                         datetime.strptime(end_time, "%H:%M:%S.%f")
                         - timedelta(
@@ -446,6 +449,7 @@ def get_payload(request):
                             "text": voice_over.translation.payload["payload"][i][
                                 "target_text"
                             ],
+                            "transcription_text": voice_over.translation.payload["payload"][i]["text"],
                             "audio": "",
                             "id": i + 1,
                             "audio_speed": 1,
@@ -588,6 +592,28 @@ def save_voice_over(request):
         voice_over = VoiceOver.objects.get(pk=voice_over_id)
         target_language = voice_over.target_language
         translation = voice_over.translation
+        
+        
+
+        if task.task_type == TRANSLATION_VOICEOVER_EDIT and request.data.get("final"):
+            inprogress_translation = Translation.objects.filter(task=task, status=TRANSLATION_EDIT_INPROGRESS).first()
+            complete_translation = copy.deepcopy(translation)
+            complete_translation.translation_uuid = uuid.uuid4()
+            complete_translation.status = TRANSLATION_EDIT_COMPLETE
+            complete_translation.id = None  # Reset the ID to create a new instance
+            complete_translation.parent = inprogress_translation
+            complete_translation.save()
+            print("Saved Complete Translation with inprogress", inprogress_translation)
+        else:
+            inprogress_translation = Translation.objects.filter(task=task, status=TRANSLATION_EDIT_INPROGRESS).first()
+            if task.task_type == TRANSLATION_VOICEOVER_EDIT and inprogress_translation == None:
+                inprogress_translation = copy.deepcopy(translation)
+                inprogress_translation.translation_uuid = uuid.uuid4()
+                inprogress_translation.status = TRANSLATION_EDIT_INPROGRESS
+                inprogress_translation.id = None  # Reset the ID to create a new instance
+                inprogress_translation.parent = translation
+                inprogress_translation.save()
+                print("Saved IP Translation with inprogress")
 
         # Check if the transcript has a user
         if task.user != request.user:
@@ -683,6 +709,8 @@ def save_voice_over(request):
                                 original_duration,
                             )
                         )
+               
+
                 if voice_over.voice_over_type == "MANUALLY_CREATED":
                     voiceover_adjusted = adjust_voiceover(translation_payload)
                 else:
@@ -724,6 +752,7 @@ def save_voice_over(request):
                             for i in range(len(payload["payload"])):
                                 start_time = payload["payload"][i]["start_time"]
                                 end_time = payload["payload"][i]["end_time"]
+                                transcription_text = payload["payload"][i]["transcription_text"]
                                 time_difference = (
                                     datetime.strptime(end_time, "%H:%M:%S.%f")
                                     - timedelta(
@@ -817,6 +846,7 @@ def save_voice_over(request):
                                                 "text": payload["payload"][i]["text"],
                                                 "audio": voiceover_adjusted[i][1],
                                                 "audio_speed": 1,
+                                                "transcription_text": transcription_text
                                             }
                                         )
                                 else:
@@ -845,6 +875,7 @@ def save_voice_over(request):
                                             "text": payload["payload"][i]["text"],
                                             "audio": voiceover_machine_generated[i][1],
                                             "audio_speed": 1,
+                                            "transcription_text": transcription_text,
                                         }
                                     )
                                 voice_over_obj.save()
@@ -895,6 +926,7 @@ def save_voice_over(request):
                         for i in range(len(payload["payload"])):
                             start_time = payload["payload"][i]["start_time"]
                             end_time = payload["payload"][i]["end_time"]
+                            transcription_text = payload["payload"][i]["transcription_text"]
                             time_difference = (
                                 datetime.strptime(end_time, "%H:%M:%S.%f")
                                 - timedelta(
@@ -959,7 +991,7 @@ def save_voice_over(request):
                                     "end_time": payload["payload"][i]["end_time"],
                                     "text": payload["payload"][i]["text"],
                                     "audio": voiceover_adjusted[i][1],
-                                    "audio_speed": 1,
+                                    "audio_speed": 1,        
                                 }
                                 sentences_list.append(
                                     {
@@ -972,6 +1004,7 @@ def save_voice_over(request):
                                         "text": payload["payload"][i]["text"],
                                         "audio": voiceover_adjusted[i][1],
                                         "audio_speed": 1,
+                                        "transcription_text": transcription_text,
                                     }
                                 )
                             else:
@@ -996,6 +1029,7 @@ def save_voice_over(request):
                                         "text": payload["payload"][i]["text"],
                                         "audio": voiceover_machine_generated[i][1],
                                         "audio_speed": 1,
+                                        "transcription_text": transcription_text,
                                     }
                                 )
                         voice_over_obj.save()

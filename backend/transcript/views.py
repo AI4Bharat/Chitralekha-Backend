@@ -72,7 +72,7 @@ import logging
 from config import align_json_url, app_name
 import regex
 from .tasks import celery_align_json
-from task.tasks import celery_nmt_call
+from task.tasks import celery_nmt_call,celery_nmt_tts_call
 import os
 from .utils.timestamp import *
 
@@ -887,6 +887,7 @@ def check_if_transcription_correct(transcription_obj, task):
     return None
 
 def change_active_status_of_next_tasks(task, transcript_obj):
+    print(celery_nmt_tts_call)
     tasks = Task.objects.filter(video=task.video)
     activate_translations = True
 
@@ -908,6 +909,35 @@ def change_active_status_of_next_tasks(task, transcript_obj):
             transcript.parent_transcript = transcript_obj
             transcript.payload = transcript_obj.payload
             transcript.save()
+    
+    if tasks.filter(task_type="TRANSLATION_VOICEOVER_EDIT").first():
+        translations = Translation.objects.filter(video=task.video).filter(
+            status="TRANSLATION_SELECT_SOURCE"
+        )
+        if translations.first() is not None:
+            for translation in translations:
+                project = Project.objects.get(id=task.video.project_id.id)
+                organization = project.organization_id
+                source_type = (
+                    project.default_translation_type
+                    or organization.default_translation_type
+                )
+                translation.transcript = transcript_obj
+                translation.save()
+                if source_type == None or source_type == "MACHINE_GENERATED":
+                    source_type = "MACHINE_GENERATED"
+                    translation.transcript = transcript_obj
+                    translation.save()
+                    celery_nmt_tts_call.delay(task_id=translation.task.id)
+                else:
+                    payloads = generate_translation_payload(
+                        transcript_obj, translation.target_language, [source_type], translation.task.user.id
+                    )
+                    translation.payload = payloads[source_type]
+                    translation.save()
+
+
+
     if activate_translations and tasks.filter(task_type="TRANSLATION_EDIT").first():
         translations = Translation.objects.filter(video=task.video).filter(
             status="TRANSLATION_SELECT_SOURCE"
