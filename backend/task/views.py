@@ -75,6 +75,7 @@ from task.tasks import (
     celery_nmt_call,
     convert_srt_to_payload,
     convert_vtt_to_payload,
+    celery_nmt_tts_call
 )
 import requests
 from django.db.models.functions import Concat
@@ -673,7 +674,7 @@ class TaskViewSet(ModelViewSet):
                     translate_obj = Translation(
                         video=task.video,
                         user=task.user,
-                        # transcript=transcript,
+                        transcript=transcript,
                         payload=payloads[source_type],
                         target_language=target_language,
                         task=task,
@@ -695,7 +696,10 @@ class TaskViewSet(ModelViewSet):
                         # voiceover_obj.save()
                     new_voiceovers.append(voiceover_obj)
                 translations = Translation.objects.bulk_create(new_translations)
-                voiceovers = VoiceOver.objects.bulk_create(new_voiceovers)
+                voiceovers = VoiceOver.objects.bulk_create(new_voiceovers)                
+                if is_single_task:
+                    for task in tasks:
+                        celery_nmt_tts_call.delay(task.id)
             else:
                 print("creating review tasks")
                 tasks = []
@@ -2449,6 +2453,10 @@ class TaskViewSet(ModelViewSet):
                     task_obj.delete()
 
         if task.task_type == "VOICEOVER_EDIT":
+            tasks_deleted.append(task.id)
+            task.delete()
+
+        if task.task_type == "TRANSLATION_VOICEOVER_EDIT":
             tasks_deleted.append(task.id)
             task.delete()
 
