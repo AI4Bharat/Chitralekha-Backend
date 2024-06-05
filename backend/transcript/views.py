@@ -1563,6 +1563,17 @@ def save_transcription(request):
                             },
                             status=status.HTTP_400_BAD_REQUEST,
                         )
+
+                    for index, sentence in enumerate(
+                        transcript_obj.payload["payload"]
+                    ):
+                        if "text" not in sentence.keys():
+                            delete_indices.append(index)
+
+                    delete_indices.reverse()
+                    for ind in delete_indices:
+                        transcript_obj.payload["payload"].pop(ind)
+                    transcript_obj.save()
                     change_active_status_of_next_tasks(task, transcript_obj)
                 else:
                     transcript_obj = (
@@ -1662,6 +1673,17 @@ def save_transcription(request):
                                 },
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
+
+                        for index, sentence in enumerate(
+                            transcript_obj.payload["payload"]
+                        ):
+                            if "text" not in sentence.keys():
+                                delete_indices.append(index)
+
+                        delete_indices.reverse()
+                        for ind in delete_indices:
+                            transcript_obj.payload["payload"].pop(ind)
+                        transcript_obj.save()
                         change_active_status_of_next_tasks(task, transcript_obj)
                 else:
                     tc_status = TRANSCRIPTION_REVIEW_INPROGRESS
