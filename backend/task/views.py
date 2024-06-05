@@ -2456,6 +2456,10 @@ class TaskViewSet(ModelViewSet):
             tasks_deleted.append(task.id)
             task.delete()
 
+        if task.task_type == "TRANSLATION_VOICEOVER_EDIT":
+            tasks_deleted.append(task.id)
+            task.delete()
+
         return Response(
             {
                 "tasks_deleted": list(set(tasks_deleted)),
