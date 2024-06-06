@@ -552,6 +552,7 @@ def save_voice_over(request):
         payload = request.data["payload"]
         task_id = request.data["task_id"]
         offset = request.data["offset"]
+
     except KeyError:
         return Response(
             {
@@ -703,7 +704,21 @@ def save_voice_over(request):
                             {"message": "Text can't be empty."},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
+                    
                     original_duration = get_original_duration(start_time, end_time)
+                    if ("retranslate" in voice_over_payload
+                        and voice_over_payload["retranslate"] == True):
+                        translated_text = get_batch_translations_using_indictrans_nmt_api(
+                        voice_over_payload["transcription_text"],
+                        translation.video.language,
+                        translation.task.target_language,
+                        )
+                        if type(translated_text) == list:
+                            voice_over_payload["text"] = translated_text[0]
+                        else:
+                            logging.info(
+                                "Failed to retranslate for task_id %s", str(translation.task.id)
+                            )
                     if (
                         voice_over.voice_over_type == "MACHINE_GENERATED"
                         and "text_changed" in voice_over_payload
