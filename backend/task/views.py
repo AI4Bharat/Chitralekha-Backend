@@ -669,7 +669,8 @@ class TaskViewSet(ModelViewSet):
                         }
                     )
                     transcript = self.check_transcript_exists(task.video)
-                
+                    if type(transcript) == dict:
+                        transcript = None
                     payloads = {source_type: ""}
                     translate_obj = Translation(
                         video=task.video,
