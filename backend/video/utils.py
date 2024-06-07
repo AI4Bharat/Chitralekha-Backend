@@ -26,7 +26,6 @@ import json
 from utils.email_template import send_email_template
 
 
-
 ydl = YoutubeDL({"format": "best"})
 
 # Declare a global variable to save the object for Google Drive ID extraction
@@ -197,9 +196,9 @@ def send_mail_to_user(task):
                 [task.user.email],
             )
             msg.attach_alternative(compiled_code, "text/html")
-            msg.attach_file(final_table,"text/html")
+            msg.attach_file(final_table, "text/html")
             msg.send()
-        
+
             # send_mail(
             #     f"{task.get_task_type_label} is active",
             #     "Dear User, Following task is active.",
@@ -272,9 +271,7 @@ def get_video_func(request):
     organization = project.organization_id
     if create:
         videos = Video.objects.filter(url=url)
-        for video_project in videos.values_list(
-            "project_id__id", flat=True
-        ):
+        for video_project in videos.values_list("project_id__id", flat=True):
             if video_project == project_id:
                 video = (
                     Video.objects.filter(url=url)
@@ -288,11 +285,7 @@ def get_video_func(request):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-    video = (
-        Video.objects.filter(url=url)
-        .filter(project_id__id=project_id)
-        .first()
-    )
+    video = Video.objects.filter(url=url).filter(project_id__id=project_id).first()
     if video is None:
         create = True
 
@@ -354,18 +347,18 @@ def get_video_func(request):
 
         # Create a new DB entry if URL does not exist, else return the existing entry
         video, created = Video.objects.get_or_create(
-                url=url,
-                defaults={
-                    "name": title,
-                    "duration": duration,
-                    "project_id": project,
-                    "audio_only": is_audio_only,
-                    "language": lang,
-                    "description": description,
-                    "gender": gender,
-                    "multiple_speaker": multiple_speaker,
-                },
-            )
+            url=url,
+            defaults={
+                "name": title,
+                "duration": duration,
+                "project_id": project,
+                "audio_only": is_audio_only,
+                "language": lang,
+                "description": description,
+                "gender": gender,
+                "multiple_speaker": multiple_speaker,
+            },
+        )
         serializer = VideoSerializer(video)
         response_data = {
             "video": serializer.data,
@@ -517,23 +510,23 @@ def get_video_func(request):
     # Create a new DB entry if URL does not exist, else return the existing entry
     if create:
         video = Video.objects.create(
-                name=title,
-                duration=duration,
-                project_id=project,
-                audio_only=is_audio_only,
-                language=lang,
-                description=description,
-                gender=gender,
-                multiple_speaker=multiple_speaker,
-                url=normalized_url
+            name=title,
+            duration=duration,
+            project_id=project,
+            audio_only=is_audio_only,
+            language=lang,
+            description=description,
+            gender=gender,
+            multiple_speaker=multiple_speaker,
+            url=normalized_url,
         )
     else:
         video = Video.objects.get(
-                name=title,
-                project_id=project,
-                audio_only=is_audio_only,
-                language=lang,
-                url=normalized_url
+            name=title,
+            project_id=project,
+            audio_only=is_audio_only,
+            language=lang,
+            url=normalized_url,
         )
 
     if create:
@@ -592,7 +585,7 @@ def get_video_func(request):
             user_id = assignee
         else:
             user_id = None
-        
+
         if default_task_types is not None:
             for task_type in default_task_types:
                 if (
@@ -600,7 +593,7 @@ def get_video_func(request):
                     and "TRANSCRIPTION" not in task_type
                 ):
                     for target_language in default_target_languages:
-                  
+
                         task_response = create_tasks(
                             video.id,
                             task_type,

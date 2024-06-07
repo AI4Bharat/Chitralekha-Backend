@@ -32,7 +32,7 @@ def celery_newsletter_call(newsletter_id, subject):
                 msg.attach_alternative(compiled_code, "text/html")
                 msg.attach_alternative(cont, "text/html")
                 msg.send()
-                
+
                 # send_mail(
                 #     subject,
                 #     "",

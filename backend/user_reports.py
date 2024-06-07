@@ -92,7 +92,7 @@ def get_completed_tasks():
                 compiled_msg = send_email_template_with_attachment(
                     subject=f"{app_name} - Completed Tasks Report",
                     username=[manager.email],
-                    message=email_to_send
+                    message=email_to_send,
                 )
                 msg = EmailMultiAlternatives(
                     f"{app_name} - Completed Tasks Report",
@@ -101,8 +101,8 @@ def get_completed_tasks():
                     [manager.email],
                 )
                 msg.attach_alternative(compiled_msg, "text/html")
-                msg.attach_alternative(html_table_df_tasks,"text/html")
-                msg.send()                
+                msg.attach_alternative(html_table_df_tasks, "text/html")
+                msg.send()
                 # send_mail(
                 #     f"{app_name} - Completed Tasks Report",
                 #     message,
@@ -173,11 +173,11 @@ def get_new_tasks():
                     + html_table_df_tasks
                 )
                 logging.info("Sending Mail to %s", manager.email)
-                
+
                 compiled_msg = send_email_template_with_attachment(
                     subject=f"{app_name} - Tasks Assignment Status Report",
                     username=[manager.email],
-                    message=email_to_send
+                    message=email_to_send,
                 )
                 msg = EmailMultiAlternatives(
                     f"{app_name} - Tasks Assignment Status Report",
@@ -186,8 +186,8 @@ def get_new_tasks():
                     [manager.email],
                 )
                 msg.attach_alternative(compiled_msg, "text/html")
-                msg.attach_alternative(html_table_df_tasks,"text/html")
-                msg.send()       
+                msg.attach_alternative(html_table_df_tasks, "text/html")
+                msg.send()
                 # send_mail(
                 #     f"{app_name} - Tasks Assignment Status Report",
                 #     message,
@@ -247,12 +247,11 @@ def get_eta_reminders():
                 + html_table_df_tasks
             )
             logging.info("Sending Mail to %s", user.email)
-            
-            
+
             compiled_msg = send_email_template_with_attachment(
                 subject=f"{app_name} - Tasks Assignment Status Report",
                 username=[user.email],
-                message=email_to_send
+                message=email_to_send,
             )
             msg = EmailMultiAlternatives(
                 f"{app_name} - Tasks Assignment Status Report",
@@ -261,8 +260,8 @@ def get_eta_reminders():
                 [user.email],
             )
             msg.attach_alternative(compiled_msg, "text/html")
-            msg.attach_alternative(html_table_df_tasks,"text/html")
-            msg.send()   
+            msg.attach_alternative(html_table_df_tasks, "text/html")
+            msg.send()
             # send_mail(
             #     f"{app_name} - Due Tasks",
             #     message,
@@ -322,7 +321,7 @@ def get_new_users():
             compiled_msg = send_email_template_with_attachment(
                 subject=f"{app_name} - New Users",
                 username=[user.email],
-                message=email_to_send
+                message=email_to_send,
             )
             msg = EmailMultiAlternatives(
                 f"{app_name} - New Users",
@@ -331,8 +330,8 @@ def get_new_users():
                 [user.email],
             )
             msg.attach_alternative(compiled_msg, "text/html")
-            msg.attach_alternative(html_table_df_tasks,"text/html")
-            msg.send()   
+            msg.attach_alternative(html_table_df_tasks, "text/html")
+            msg.send()
             # send_mail(
             #     f"{app_name} - New Users",
             #     message,

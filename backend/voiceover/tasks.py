@@ -34,22 +34,26 @@ import re
 import json
 import requests
 import zipfile
-from translation.models import Translation,TRANSLATION_EDIT_COMPLETE
+from translation.models import Translation, TRANSLATION_EDIT_COMPLETE
+
 
 @shared_task()
 def celery_integration(file_name, voice_over_obj_id, video, task_id):
     logging.info("Starting Async Celery Integration....")
     voice_over_obj = VoiceOver.objects.filter(id=voice_over_obj_id).first()
     task = Task.objects.filter(id=task_id).first()
-  
+
     if task.task_type == TRANSLATION_VOICEOVER_EDIT:
-        final_tl = Translation.objects.filter(task=task).filter(status = TRANSLATION_EDIT_COMPLETE).first()
+        final_tl = (
+            Translation.objects.filter(task=task)
+            .filter(status=TRANSLATION_EDIT_COMPLETE)
+            .first()
+        )
         index = 0
         for segment in voice_over_obj.payload["payload"].values():
             final_tl.payload["payload"][index]["target_text"] = segment["text"]
             index = index + 1
         final_tl.save()
-
 
     integrate_audio_with_video(file_name, voice_over_obj, voice_over_obj.video)
     if not os.path.isfile(file_name + ".mp4") or os.path.isfile(file_name + ".wav"):
@@ -84,7 +88,10 @@ def export_voiceover_async(task_id, export_type, user_id, bg_music):
         video_link = task.video.url
         if bg_music == "true":
             json_data = json.dumps(
-                {"azure_audio_url": voice_over.azure_url_audio,"youtube_url": video_link}
+                {
+                    "azure_audio_url": voice_over.azure_url_audio,
+                    "youtube_url": video_link,
+                }
             )
             response = requests.post(
                 bg_music_url,
@@ -103,13 +110,14 @@ def export_voiceover_async(task_id, export_type, user_id, bg_music):
             )
             try:
                 os.remove(file_path)
-                os.remove(file_path.split("/")[-1].replace(".flac", "") + "." + export_type)
+                os.remove(
+                    file_path.split("/")[-1].replace(".flac", "") + "." + export_type
+                )
             except:
                 logging.info("Error in removing files")
         send_audio_mail_to_user(task, azure_url_audio, user)
     else:
         logging.info("Error in exporting %s", str(task_id))
-
 
 
 @shared_task()
@@ -118,23 +126,27 @@ def bulk_export_voiceover_async(task_ids, user_id):
     user = User.objects.get(pk=user_id)
     for task_id in task_ids:
         task = Task.objects.get(pk=task_id)
-        voice_over = VoiceOver.objects.filter(task=task, status="VOICEOVER_EDIT_COMPLETE").first()
+        voice_over = VoiceOver.objects.filter(
+            task=task, status="VOICEOVER_EDIT_COMPLETE"
+        ).first()
 
         if voice_over is not None:
             download_from_azure_blob(str(voice_over.azure_url_audio))
-            logging.info("Downloaded audio from Azure Blob %s", voice_over.azure_url_audio)
+            logging.info(
+                "Downloaded audio from Azure Blob %s", voice_over.azure_url_audio
+            )
             file_path = voice_over.azure_url_audio.split("/")[-1]
             downloaded_files.append(file_path)
         else:
             logging.info("Error in exporting %s", str(task_id))
 
     time_now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    zip_file_name = f'Chitralekha_VO_Tasks_{time_now}.zip'
+    zip_file_name = f"Chitralekha_VO_Tasks_{time_now}.zip"
     with zipfile.ZipFile(zip_file_name, "w") as zf:
         for file_name in downloaded_files:
             zf.write(file_name)
     zip_file_size = os.path.getsize(zip_file_name)
-    if zip_file_size > (1024 ** 3):
+    if zip_file_size > (1024**3):
         logging.info("Error: Zip file size exceeds 1 GB. Skipping upload to Azure.")
         try:
             os.remove(zip_file_name)
@@ -153,4 +165,3 @@ def bulk_export_voiceover_async(task_ids, user_id):
         logging.info("Error in removing files")
 
     send_audio_zip_mail_to_user(task, azure_zip_url, user)
-    

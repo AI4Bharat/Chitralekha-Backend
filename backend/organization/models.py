@@ -180,10 +180,11 @@ class Organization(models.Model):
     def __str__(self):
         return self.title + ", id=" + str(self.pk)
 
-PENDING="PENDING"
-ON_HOLD="ON_HOLD"
-APPROVED="APPROVED"
-REJECTED="REJECTED"
+
+PENDING = "PENDING"
+ON_HOLD = "ON_HOLD"
+APPROVED = "APPROVED"
+REJECTED = "REJECTED"
 
 STATUS_OPTIONS = (
     (PENDING, "Pending"),
@@ -191,14 +192,37 @@ STATUS_OPTIONS = (
     (APPROVED, "Approved"),
     (REJECTED, "Rejected"),
 )
+
+
 class OnboardOrganisationAccount(models.Model):
     """
     Onboard Organisation Requests.
     """
-    orgname = models.CharField(verbose_name="orgname", max_length=512, null=False, help_text=("Title of Organization"))
-    org_portal = models.CharField(verbose_name="org_portal", max_length=512, help_text=("Organization website portal"))
-    email_domain_name = models.CharField(verbose_name="organization_email_domain", max_length=512, null=True, blank=True, help_text=("Organization email domain"))
-    email = models.EmailField(verbose_name="email_address", unique=True, blank=False, help_text=("Organization owner email address"))
+
+    orgname = models.CharField(
+        verbose_name="orgname",
+        max_length=512,
+        null=False,
+        help_text=("Title of Organization"),
+    )
+    org_portal = models.CharField(
+        verbose_name="org_portal",
+        max_length=512,
+        help_text=("Organization website portal"),
+    )
+    email_domain_name = models.CharField(
+        verbose_name="organization_email_domain",
+        max_length=512,
+        null=True,
+        blank=True,
+        help_text=("Organization email domain"),
+    )
+    email = models.EmailField(
+        verbose_name="email_address",
+        unique=True,
+        blank=False,
+        help_text=("Organization owner email address"),
+    )
     org_type = models.CharField(verbose_name="org_type", max_length=512)
     phone = models.CharField(
         verbose_name="phone", max_length=256, null=True, blank=True
@@ -208,24 +232,47 @@ class OnboardOrganisationAccount(models.Model):
         max_length=35,
         default=PENDING,
         verbose_name="Onboarding Status",
-        help_text=("Current status of organization onboard request")
+        help_text=("Current status of organization onboard request"),
     )
-    
-    interested_in = models.CharField(verbose_name="interested_in", max_length=512, help_text=("Interested in Translation, Transcription, VoiceOver"))
-    src_language = models.CharField(verbose_name="src_language", max_length=512, null=True, blank=True,)
-    tgt_language = models.CharField(verbose_name="tgt_language", max_length=512, null=True, blank=True,)
-    purpose = models.TextField(max_length=2000, null=True, blank=True, help_text=("Purpose for using Chitralekha"))
-    source = models.TextField(max_length=2000, null=True, blank=True, help_text=("Source from where user came to know about Chitralekha"))
+
+    interested_in = models.CharField(
+        verbose_name="interested_in",
+        max_length=512,
+        help_text=("Interested in Translation, Transcription, VoiceOver"),
+    )
+    src_language = models.CharField(
+        verbose_name="src_language",
+        max_length=512,
+        null=True,
+        blank=True,
+    )
+    tgt_language = models.CharField(
+        verbose_name="tgt_language",
+        max_length=512,
+        null=True,
+        blank=True,
+    )
+    purpose = models.TextField(
+        max_length=2000,
+        null=True,
+        blank=True,
+        help_text=("Purpose for using Chitralekha"),
+    )
+    source = models.TextField(
+        max_length=2000,
+        null=True,
+        blank=True,
+        help_text=("Source from where user came to know about Chitralekha"),
+    )
     # notes = models.TextField(max_length=1000, null=True, blank=True, help_text=("Notes for updating status"))
     notes = ArrayField(
-        models.CharField(
-            max_length=1000,
-            blank=True
-        ),
+        models.CharField(max_length=1000, blank=True),
         blank=True,
         default=None,
         null=True,
-        help_text=("Notes provided while updating the status of the onboarding request")
+        help_text=(
+            "Notes provided while updating the status of the onboarding request"
+        ),
     )
 
     def __str__(self):
@@ -270,10 +317,10 @@ class Invite(models.Model):
         subject = "Invitation to join Chitralekha Organization"
         invite_link = f"https://{base_url}/#/invite/{invite.invite_code}"
         message = "Please use the above link to verify your email address and complete your registration."
-        
-        try :
+
+        try:
             compiled_msg_code = invite_email_template(
-                subject=subject,invite_link=invite_link,message=message
+                subject=subject, invite_link=invite_link, message=message
             )
             msg = EmailMultiAlternatives(
                 subject,
@@ -312,6 +359,7 @@ class Invite(models.Model):
             for user in users:
                 invite = Invite.objects.get(user=user)
                 cls.send_invite_email(invite, user)
+
     # def has_permission(self, user):
     #     if self.organization.created_by.pk == user.pk or user.is_superuser:
     #         return True

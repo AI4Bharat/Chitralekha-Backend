@@ -181,7 +181,8 @@ def send_email_template(subject, message):
     """
     return html_code
 
-def invite_email_template(subject,message,invite_link):
+
+def invite_email_template(subject, message, invite_link):
     style_string = """
         *{ margin: 0; 
         padding: 0;
@@ -300,5 +301,3 @@ def invite_email_template(subject,message,invite_link):
             </html>
         """
     return html_code
-
-

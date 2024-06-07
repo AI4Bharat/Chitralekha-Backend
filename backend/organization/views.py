@@ -70,20 +70,16 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         u_name = f"ORG_OWNER_{first_word}"
         if title is None:
             return Response(
-                {
-                    "message": "missing param : title (Org name)"
-                },
+                {"message": "missing param : title (Org name)"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         if email_domain_name is None:
             return Response(
-                {
-                    "message": "missing param : email_domain_name (Org email domain)"
-                },
+                {"message": "missing param : email_domain_name (Org email domain)"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         if not (organization_owner or new_org_owner_email):
             return Response(
                 {
@@ -92,9 +88,15 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if Organization.objects.filter(title=title).exists():
-            return Response({"message": "Organization already exists"}, status=status.HTTP_400_BAD_REQUEST)
-        if Organization.objects.filter(email_domain_name = email_domain_name ).exists():
-            return Response({"message": "Email Domain Name already exists"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"message": "Organization already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if Organization.objects.filter(email_domain_name=email_domain_name).exists():
+            return Response(
+                {"message": "Email Domain Name already exists"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if organization_owner:
             try:
                 organization_owner = User.objects.get(pk=organization_owner)
@@ -102,8 +104,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 return Response(
                     {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
                 )
-            if organization_owner.is_superuser == False and organization_owner.role != (
-                User.ADMIN and User.ORG_OWNER
+            if (
+                organization_owner.is_superuser == False
+                and organization_owner.role != (User.ADMIN and User.ORG_OWNER)
             ):
                 return Response(
                     {"message": "This user can't be the organization owner."},
@@ -126,7 +129,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     has_accepted_invite=True,
                     role=User.ORG_OWNER,
                     first_name="Organization Owner",
-                    last_name=title
+                    last_name=title,
                 )
                 # org_owner_id = organization_owner.id
             except Exception:
@@ -166,14 +169,24 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             )
         organization_owner.organization = organization
         organization_owner.save()
-        email_subject = f'Welcome to {app_name} Application'
+        email_subject = f"Welcome to {app_name} Application"
         if request.data.get("organization_owner"):
-            email_message = f'Hi,\n\nYou have been registered to {app_name} Application as Organization Owner of {title}.\n\nBest regards,\nThe {app_name} Team'
+            email_message = f"Hi,\n\nYou have been registered to {app_name} Application as Organization Owner of {title}.\n\nBest regards,\nThe {app_name} Team"
 
-            send_mail(email_subject, email_message, settings.DEFAULT_FROM_EMAIL, [new_org_owner_email])
+            send_mail(
+                email_subject,
+                email_message,
+                settings.DEFAULT_FROM_EMAIL,
+                [new_org_owner_email],
+            )
         else:
-            email_message = f'Hi,\n\nYou have been registered to {app_name} Application as Organization Owner of {title}.\n\nEmail_ID: {new_org_owner_email}\n\nPassword: {password}\n\nBest regards,\nThe {app_name} Team'
-            send_mail(email_subject, email_message, settings.DEFAULT_FROM_EMAIL, [new_org_owner_email])
+            email_message = f"Hi,\n\nYou have been registered to {app_name} Application as Organization Owner of {title}.\n\nEmail_ID: {new_org_owner_email}\n\nPassword: {password}\n\nBest regards,\nThe {app_name} Team"
+            send_mail(
+                email_subject,
+                email_message,
+                settings.DEFAULT_FROM_EMAIL,
+                [new_org_owner_email],
+            )
         response = {
             "organization_id": organization.id,
             "message": "Organization is successfully created.",
@@ -501,7 +514,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         and task["task_type"] != "VOICEOVER_EDIT"
                     ):
                         buttons["View"] = False
-                        if task["task_type"] == "TRANSCRIPTION_EDIT" and task["source_type"] == "Manually Uploaded":
+                        if (
+                            task["task_type"] == "TRANSCRIPTION_EDIT"
+                            and task["source_type"] == "Manually Uploaded"
+                        ):
                             buttons["View"] = True
                 task["buttons"] = buttons
         else:
@@ -614,7 +630,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             and task["task_type"] != "VOICEOVER_EDIT"
                         ):
                             buttons["View"] = False
-                            if task["task_type"] == "TRANSCRIPTION_EDIT" and task["source_type"] == "Manually Uploaded":
+                            if (
+                                task["task_type"] == "TRANSCRIPTION_EDIT"
+                                and task["source_type"] == "Manually Uploaded"
+                            ):
                                 buttons["View"] = True
                     task["buttons"] = buttons
                     tasks_list.append(task)
@@ -670,7 +689,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             and task["task_type"] != "VOICEOVER_EDIT"
                         ):
                             buttons["View"] = False
-                            if task["task_type"] == "TRANSCRIPTION_EDIT" and task["source_type"] == "Manually Uploaded":
+                            if (
+                                task["task_type"] == "TRANSCRIPTION_EDIT"
+                                and task["source_type"] == "Manually Uploaded"
+                            ):
                                 buttons["View"] = True
                         if task["status"] == "FAILED":
                             buttons["Info"] = True
@@ -917,7 +939,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         When(
                             (
                                 Q(task__status="COMPLETE")
-                                & Q(task__updated_at__lt=(datetime(2023, 4, 5, 17, 0, 0)))
+                                & Q(
+                                    task__updated_at__lt=(
+                                        datetime(2023, 4, 5, 17, 0, 0)
+                                    )
+                                )
                             ),
                             then=(
                                 Extract(
@@ -929,7 +955,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                         When(
                             (
                                 Q(task__status="COMPLETE")
-                                & Q(task__updated_at__gte=(datetime(2023, 4, 5, 17, 0, 0)))
+                                & Q(
+                                    task__updated_at__gte=(
+                                        datetime(2023, 4, 5, 17, 0, 0)
+                                    )
+                                )
                             ),
                             then=F("task__time_spent"),
                         ),
@@ -1381,43 +1411,46 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+
 class OnboardingOrgAccountApiView(APIView):
     def get(self, request, pk=None, format=None):
         if request.user.email not in ast.literal_eval(point_of_contacts):
             return Response(
-                    {"message":"You are not authorized to access this data"},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-        id=pk
+                {"message": "You are not authorized to access this data"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        id = pk
         if id is not None:
             try:
                 onboarding_request = OnboardOrganisationAccount.objects.get(id=id)
             except OnboardOrganisationAccount.DoesNotExist:
                 return Response(
-                    {"message": "Onboard request not found"}, status=status.HTTP_404_NOT_FOUND
+                    {"message": "Onboard request not found"},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
             serialized_data = OnboardingOrgAccountSerializer(onboarding_request)
             return Response(
-                    serialized_data.data,
-                    status=status.HTTP_200_OK,
+                serialized_data.data,
+                status=status.HTTP_200_OK,
             )
         else:
             onboarding_requests = OnboardOrganisationAccount.objects.all()
-            onboarding_requests= list(onboarding_requests)
-            serialized_data = OnboardingOrgAccountSerializer(onboarding_requests, many=True)
+            onboarding_requests = list(onboarding_requests)
+            serialized_data = OnboardingOrgAccountSerializer(
+                onboarding_requests, many=True
+            )
             return Response(
                 serialized_data.data,
                 status=status.HTTP_200_OK,
             )
 
-    
     def patch(self, request, pk=None, *args, **kwargs):
         if request.user.email not in ast.literal_eval(point_of_contacts):
             return Response(
-                {"message":"You are not authorized to modify this data"},
+                {"message": "You are not authorized to modify this data"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        id=pk
+        id = pk
         orgname = request.data.get("orgname")
         org_portal = request.data.get("org_portal")
         email_domain_name = request.data.get("email_domain_name")
@@ -1433,26 +1466,36 @@ class OnboardingOrgAccountApiView(APIView):
             onboarding_request = OnboardOrganisationAccount.objects.get(id=id)
         except OnboardOrganisationAccount.DoesNotExist:
             return Response(
-                {"message": "Onboarding request not found"}, status=status.HTTP_404_NOT_FOUND
-            )
-        
-        if onboarding_request.status == "APPROVED":
-            return Response(
-                {"message": "Cannot modify details as this onboarding request is already approved"}, status=status.HTTP_403_FORBIDDEN
-            )
-        
-        if onboarding_request.status == "REJECTED":
-            return Response(
-                {"message": "Cannot modify details as this onboarding request has been rejected previously"}, status=status.HTTP_403_FORBIDDEN
+                {"message": "Onboarding request not found"},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        serialized_data = OnboardingOrgAccountSerializer(data=request.data,partial=True)
+        if onboarding_request.status == "APPROVED":
+            return Response(
+                {
+                    "message": "Cannot modify details as this onboarding request is already approved"
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if onboarding_request.status == "REJECTED":
+            return Response(
+                {
+                    "message": "Cannot modify details as this onboarding request has been rejected previously"
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serialized_data = OnboardingOrgAccountSerializer(
+            data=request.data, partial=True
+        )
         try:
             serialized_data.is_valid(raise_exception=True)
         except Exception as e:
             error_data = ", ".join(list(e.args[0]))
             return Response(
-                {"message": f"Invalid values provided for {error_data}"}, status=status.HTTP_400_BAD_REQUEST
+                {"message": f"Invalid values provided for {error_data}"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         if orgname is not None:
@@ -1475,7 +1518,8 @@ class OnboardingOrgAccountApiView(APIView):
 
         if request_status == onboarding_request.status:
             return Response(
-                {"message": "This request is already in same status as requested"}, status=status.HTTP_403_FORBIDDEN
+                {"message": "This request is already in same status as requested"},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         if request_status != "APPROVED":
@@ -1483,7 +1527,7 @@ class OnboardingOrgAccountApiView(APIView):
                 onboarding_request.status = request_status
 
             if notes is not None:
-                notes = request_status+'||'+notes
+                notes = request_status + "||" + notes
                 if onboarding_request.notes is None:
                     onboarding_request.notes = [notes]
                 else:
@@ -1491,7 +1535,7 @@ class OnboardingOrgAccountApiView(APIView):
 
         if onboarding_request.status != request_status and request_status == "APPROVED":
             create_org = True
-        
+
         onboarding_request.save()
 
         if create_org == True:
@@ -1503,13 +1547,13 @@ class OnboardingOrgAccountApiView(APIView):
             request.data["default_transcript_type"] = "MACHINE_GENERATED"
             request.data["default_translation_type"] = "MACHINE_GENERATED"
             request.data["default_voiceover_type"] = "MACHINE_GENERATED"
-            resp=org_create_obj.create(request)
+            resp = org_create_obj.create(request)
             if resp.status_code == 200:
                 if request_status is not None:
                     onboarding_request.status = request_status
 
                 if notes is not None:
-                    notes = request_status+'||'+notes
+                    notes = request_status + "||" + notes
                     if onboarding_request.notes is None:
                         onboarding_request.notes = [notes]
                     else:
@@ -1518,5 +1562,6 @@ class OnboardingOrgAccountApiView(APIView):
             return resp
 
         return Response(
-            {"message": "Onboarding request data updated successfully."}, status=status.HTTP_200_OK
+            {"message": "Onboarding request data updated successfully."},
+            status=status.HTTP_200_OK,
         )

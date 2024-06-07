@@ -89,7 +89,7 @@ required_fields_org = [
     "Assignee",
     "Task Description",
     "Video Description",
-    "ETA" 
+    "ETA",
 ]
 
 
@@ -511,9 +511,9 @@ def download_all(request):
     response = HttpResponse(
         zip_file, content_type="application/zip", status=status.HTTP_200_OK
     )
-    response[
-        "Content-Disposition"
-    ] = f"attachment; filename={config.app_name}_{time_now}_all.zip"
+    response["Content-Disposition"] = (
+        f"attachment; filename={config.app_name}_{time_now}_all.zip"
+    )
     return response
 
 
@@ -1307,22 +1307,20 @@ def upload_csv_org(request):
         else:
             valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
 
-        #ETA Validation
+        # ETA Validation
         format = "%d-%m-%Y"
-        input_eta=datetime.datetime.strptime(row["ETA"], format)
-        curr_date=datetime.datetime.now().date()
-        #DD-MM-YYYY eta format check
-        if (
-            bool(input_eta)==False
-        ):
+        input_eta = datetime.datetime.strptime(row["ETA"], format)
+        curr_date = datetime.datetime.now().date()
+        # DD-MM-YYYY eta format check
+        if bool(input_eta) == False:
             errors.append(
                 {
                     "row_no": f"Row {row_num}",
                     "message": f"Invalid ETA Format, expected format is dd-mm-yyyy: received{row['ETA']}",
                 }
             )
-        #Verify ETA >= currDate 
-        elif (input_eta.date() < curr_date):
+        # Verify ETA >= currDate
+        elif input_eta.date() < curr_date:
             errors.append(
                 {
                     "row_no": f"Row {row_num}",
@@ -1331,9 +1329,8 @@ def upload_csv_org(request):
             )
 
         else:
-            #Convert ETA format to 2023-09-22T18:30:00.000Z
+            # Convert ETA format to 2023-09-22T18:30:00.000Z
             valid_row["ETA"] = input_eta.strftime("%Y-%m-%dT18:29:00.000Z")
-
 
         valid_row["task_description"] = row["Task Description"]
         valid_row["video_description"] = row["Video Description"]

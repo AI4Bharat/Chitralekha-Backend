@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import VoiceOver
 
+
 # Show particular fields in the admin panel
 class VoiceOverAdmin(admin.ModelAdmin):
     """
@@ -13,7 +14,7 @@ class VoiceOverAdmin(admin.ModelAdmin):
         "video",
         "voice_over_type",
         "updated_at",
-        "task"
+        "task",
     )
     list_filter = ("video", "voice_over_type", "translation")
     search_fields = ("video", "voice_over_type", "translation")

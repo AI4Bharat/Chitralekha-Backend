@@ -36,7 +36,6 @@ from django.core.mail import EmailMultiAlternatives
 from utils.email_template import send_email_template_with_attachment
 
 
-
 def send_mail_with_report(subject, body, user, csv_file_paths):
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     report_urls = []
@@ -66,7 +65,7 @@ def send_mail_with_report(subject, body, user, csv_file_paths):
                 url=report_urls[0]
             )
             compiled_msg_code = send_email_template_with_attachment(
-                subject=subject,username=[user.email], message=reports_message
+                subject=subject, username=[user.email], message=reports_message
             )
 
             msg = EmailMultiAlternatives(
@@ -75,7 +74,7 @@ def send_mail_with_report(subject, body, user, csv_file_paths):
                 settings.DEFAULT_FROM_EMAIL,
                 [user.email],
             )
-            msg.attach_alternative(compiled_msg_code, "text/html")            
+            msg.attach_alternative(compiled_msg_code, "text/html")
             msg.send()
             # send_mail(
             #     subject,
@@ -92,7 +91,7 @@ def send_mail_with_report(subject, body, user, csv_file_paths):
                 url_1=report_urls[0], url_2=report_urls[1], url_3=report_urls[2]
             )
             compiled_msg_code = send_email_template_with_attachment(
-                subject=subject,username=[user.email], message=reports_message
+                subject=subject, username=[user.email], message=reports_message
             )
 
             msg = EmailMultiAlternatives(
@@ -101,7 +100,7 @@ def send_mail_with_report(subject, body, user, csv_file_paths):
                 settings.DEFAULT_FROM_EMAIL,
                 [user.email],
             )
-            msg.attach_alternative(compiled_msg_code,reports_msg, "text/html")            
+            msg.attach_alternative(compiled_msg_code, reports_msg, "text/html")
             msg.send()
             # send_mail(
             #     subject,
@@ -153,7 +152,9 @@ def get_org_report_users_email(org_id, user):
     user_data = []
     if len(projects_in_org) > 0:
         for project in projects_in_org:
-            limit = len(User.objects.filter(projects__pk=project.id, has_accepted_invite=True))
+            limit = len(
+                User.objects.filter(projects__pk=project.id, has_accepted_invite=True)
+            )
             project_report = get_project_report_users(project.id, user, limit)
             for report in project_report:
                 report["project"] = {"value": project.title, "label": "Project"}

@@ -9,7 +9,11 @@ from rest_framework.decorators import (
 from rest_framework.response import Response
 from task.models import Task, TRANSLATION_VOICEOVER_EDIT
 from translation.utils import get_batch_translations_using_indictrans_nmt_api
-from translation.models import Translation,TRANSLATION_EDIT_COMPLETE,TRANSLATION_EDIT_INPROGRESS
+from translation.models import (
+    Translation,
+    TRANSLATION_EDIT_COMPLETE,
+    TRANSLATION_EDIT_INPROGRESS,
+)
 from .metadata import VOICEOVER_SUPPORTED_LANGUAGES, VOICEOVER_LANGUAGE_CHOICES
 from .models import (
     VoiceOver,
@@ -23,7 +27,11 @@ from .models import (
 from datetime import datetime, timedelta
 from .utils import *
 from config import voice_over_payload_offset_size, app_name
-from .tasks import celery_integration, export_voiceover_async, bulk_export_voiceover_async
+from .tasks import (
+    celery_integration,
+    export_voiceover_async,
+    bulk_export_voiceover_async,
+)
 from django.db.models import Count, F, Sum
 from operator import itemgetter
 from itertools import groupby
@@ -31,6 +39,8 @@ from pydub import AudioSegment
 import copy
 import uuid
 import regex
+
+
 @api_view(["GET"])
 def get_voice_over_export_types(request):
     return Response(
@@ -158,6 +168,7 @@ def get_empty_audios(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
@@ -213,7 +224,10 @@ def update_completed_count(request):
     empty_audio_list = []
     try:
         for i in range(len(voice_over.payload["payload"]) - 1):
-            if "audio" in voice_over.payload["payload"][str(i)].keys() and voice_over.payload["payload"][str(i)]["audio"] == "":
+            if (
+                "audio" in voice_over.payload["payload"][str(i)].keys()
+                and voice_over.payload["payload"][str(i)]["audio"] == ""
+            ):
                 empty_audio_list.append(i)
             else:
                 completed_count += 1
@@ -347,7 +361,7 @@ def get_payload(request):
         return Response(
             {"message": "There is no translation associated with this voice over."},
             status=status.HTTP_400_BAD_REQUEST,
-        )       
+        )
     if voice_over.voice_over_type == "MACHINE_GENERATED":
         input_sentences = []
         for text, index in translation_payload:
@@ -375,9 +389,9 @@ def get_payload(request):
                         "start_time": start_time,
                         "end_time": end_time,
                         "text": voice_over.payload["payload"][str(audio_index)]["text"],
-                        "transcription_text": voice_over.payload["payload"][str(audio_index)][
-                            "transcription_text"
-                        ],
+                        "transcription_text": voice_over.payload["payload"][
+                            str(audio_index)
+                        ]["transcription_text"],
                         "audio": voice_over.payload["payload"][str(audio_index)][
                             "audio"
                         ],
@@ -594,11 +608,11 @@ def save_voice_over(request):
         voice_over = VoiceOver.objects.get(pk=voice_over_id)
         target_language = voice_over.target_language
         translation = voice_over.translation
-        
-        
 
         if task.task_type == TRANSLATION_VOICEOVER_EDIT and request.data.get("final"):
-            inprogress_translation = Translation.objects.filter(task=task, status=TRANSLATION_EDIT_INPROGRESS).first()
+            inprogress_translation = Translation.objects.filter(
+                task=task, status=TRANSLATION_EDIT_INPROGRESS
+            ).first()
             complete_translation = copy.deepcopy(translation)
             complete_translation.translation_uuid = uuid.uuid4()
             complete_translation.status = TRANSLATION_EDIT_COMPLETE
@@ -606,9 +620,9 @@ def save_voice_over(request):
             complete_translation.parent = inprogress_translation
             complete_translation.save()
             if (
-                    complete_translation.payload != ""
-                    and complete_translation.payload is not None
-                ):
+                complete_translation.payload != ""
+                and complete_translation.payload is not None
+            ):
                 num_words = 0
                 for idv_translation in complete_translation.payload["payload"]:
                     if "target_text" in idv_translation.keys():
@@ -626,12 +640,19 @@ def save_voice_over(request):
                 complete_translation.save()
             print("Saved Complete Translation with inprogress", inprogress_translation)
         else:
-            inprogress_translation = Translation.objects.filter(task=task, status=TRANSLATION_EDIT_INPROGRESS).first()
-            if task.task_type == TRANSLATION_VOICEOVER_EDIT and inprogress_translation == None:
+            inprogress_translation = Translation.objects.filter(
+                task=task, status=TRANSLATION_EDIT_INPROGRESS
+            ).first()
+            if (
+                task.task_type == TRANSLATION_VOICEOVER_EDIT
+                and inprogress_translation == None
+            ):
                 inprogress_translation = copy.deepcopy(translation)
                 inprogress_translation.translation_uuid = uuid.uuid4()
                 inprogress_translation.status = TRANSLATION_EDIT_INPROGRESS
-                inprogress_translation.id = None  # Reset the ID to create a new instance
+                inprogress_translation.id = (
+                    None  # Reset the ID to create a new instance
+                )
                 inprogress_translation.parent = translation
                 inprogress_translation.save()
                 print("Saved IP Translation with inprogress")
@@ -704,20 +725,25 @@ def save_voice_over(request):
                             {"message": "Text can't be empty."},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
-                    
+
                     original_duration = get_original_duration(start_time, end_time)
-                    if ("retranslate" in voice_over_payload
-                        and voice_over_payload["retranslate"] == True):
-                        translated_text = get_batch_translations_using_indictrans_nmt_api(
-                        [voice_over_payload["transcription_text"]],
-                        translation.video.language,
-                        translation.task.target_language,
+                    if (
+                        "retranslate" in voice_over_payload
+                        and voice_over_payload["retranslate"] == True
+                    ):
+                        translated_text = (
+                            get_batch_translations_using_indictrans_nmt_api(
+                                [voice_over_payload["transcription_text"]],
+                                translation.video.language,
+                                translation.task.target_language,
+                            )
                         )
                         if type(translated_text) == list:
                             voice_over_payload["text"] = translated_text[0]
                         else:
                             logging.info(
-                                "Failed to retranslate for task_id %s", str(translation.task.id)
+                                "Failed to retranslate for task_id %s",
+                                str(translation.task.id),
                             )
                     if (
                         voice_over.voice_over_type == "MACHINE_GENERATED"
@@ -744,7 +770,6 @@ def save_voice_over(request):
                                 original_duration,
                             )
                         )
-               
 
                 if voice_over.voice_over_type == "MANUALLY_CREATED":
                     voiceover_adjusted = adjust_voiceover(translation_payload)
@@ -787,7 +812,9 @@ def save_voice_over(request):
                             for i in range(len(payload["payload"])):
                                 start_time = payload["payload"][i]["start_time"]
                                 end_time = payload["payload"][i]["end_time"]
-                                transcription_text = payload["payload"][i]["transcription_text"]
+                                transcription_text = payload["payload"][i][
+                                    "transcription_text"
+                                ]
                                 time_difference = (
                                     datetime.strptime(end_time, "%H:%M:%S.%f")
                                     - timedelta(
@@ -881,7 +908,7 @@ def save_voice_over(request):
                                                 "text": payload["payload"][i]["text"],
                                                 "audio": voiceover_adjusted[i][1],
                                                 "audio_speed": 1,
-                                                "transcription_text": transcription_text
+                                                "transcription_text": transcription_text,
                                             }
                                         )
                                 else:
@@ -896,7 +923,9 @@ def save_voice_over(request):
                                         "text": payload["payload"][i]["text"],
                                         "audio": voiceover_machine_generated[i][1],
                                         "audio_speed": 1,
-                                        "transcription_text": payload["payload"][i]["transcription_text"]
+                                        "transcription_text": payload["payload"][i][
+                                            "transcription_text"
+                                        ],
                                     }
                                     sentences_list.append(
                                         {
@@ -911,7 +940,9 @@ def save_voice_over(request):
                                             "text": payload["payload"][i]["text"],
                                             "audio": voiceover_machine_generated[i][1],
                                             "audio_speed": 1,
-                                            "transcription_text": payload["payload"][i]["transcription_text"]
+                                            "transcription_text": payload["payload"][i][
+                                                "transcription_text"
+                                            ],
                                         }
                                     )
                                 voice_over_obj.save()
@@ -962,7 +993,9 @@ def save_voice_over(request):
                         for i in range(len(payload["payload"])):
                             start_time = payload["payload"][i]["start_time"]
                             end_time = payload["payload"][i]["end_time"]
-                            transcription_text = payload["payload"][i]["transcription_text"]
+                            transcription_text = payload["payload"][i][
+                                "transcription_text"
+                            ]
                             time_difference = (
                                 datetime.strptime(end_time, "%H:%M:%S.%f")
                                 - timedelta(
@@ -1027,7 +1060,7 @@ def save_voice_over(request):
                                     "end_time": payload["payload"][i]["end_time"],
                                     "text": payload["payload"][i]["text"],
                                     "audio": voiceover_adjusted[i][1],
-                                    "audio_speed": 1,        
+                                    "audio_speed": 1,
                                 }
                                 sentences_list.append(
                                     {
@@ -1053,7 +1086,9 @@ def save_voice_over(request):
                                     "text": payload["payload"][i]["text"],
                                     "audio": voiceover_machine_generated[i][1],
                                     "audio_speed": 1,
-                                    "transcription_text": payload["payload"][i]["transcription_text"]
+                                    "transcription_text": payload["payload"][i][
+                                        "transcription_text"
+                                    ],
                                 }
                                 sentences_list.append(
                                     {
@@ -1066,7 +1101,9 @@ def save_voice_over(request):
                                         "text": payload["payload"][i]["text"],
                                         "audio": voiceover_machine_generated[i][1],
                                         "audio_speed": 1,
-                                        "transcription_text": payload["payload"][i]["transcription_text"]
+                                        "transcription_text": payload["payload"][i][
+                                            "transcription_text"
+                                        ],
                                     }
                                 )
                         voice_over_obj.save()
@@ -1175,7 +1212,9 @@ def save_voice_over(request):
                                     "text": payload["payload"][i]["text"],
                                     "audio": voiceover_machine_generated[i][1],
                                     "audio_speed": 1,
-                                    "transcription_text": payload["payload"][i]["transcription_text"]
+                                    "transcription_text": payload["payload"][i][
+                                        "transcription_text"
+                                    ],
                                 }
                                 sentences_list.append(
                                     {
@@ -1188,7 +1227,9 @@ def save_voice_over(request):
                                         "text": payload["payload"][i]["text"],
                                         "audio": voiceover_machine_generated[i][1],
                                         "audio_speed": 1,
-                                        "transcription_text": payload["payload"][i]["transcription_text"]
+                                        "transcription_text": payload["payload"][i][
+                                            "transcription_text"
+                                        ],
                                     }
                                 )
                         voice_over_obj.status = VOICEOVER_EDIT_INPROGRESS
@@ -1400,22 +1441,21 @@ def export_voiceover(request):
             )
 
         elif export_type == "flac":
-            if ( task.video.project_id.organization_id.id == 16
-                and len(task.video.description) > 0):
-                    return Response(
-                        {
-                            "azure_url": voice_over.azure_url_audio,
-                            "video_name": task.video.description,
-                        },
-                        status=status.HTTP_200_OK
-                    )
+            if (
+                task.video.project_id.organization_id.id == 16
+                and len(task.video.description) > 0
+            ):
+                return Response(
+                    {
+                        "azure_url": voice_over.azure_url_audio,
+                        "video_name": task.video.description,
+                    },
+                    status=status.HTTP_200_OK,
+                )
 
             else:
                 return Response(
-                    {
-                        "azure_url": voice_over.azure_url_audio
-                    },
-                    status=status.HTTP_200_OK
+                    {"azure_url": voice_over.azure_url_audio}, status=status.HTTP_200_OK
                 )
         elif export_type == "mp3":
             logging.info(
@@ -1459,7 +1499,7 @@ def export_voiceover(request):
 @api_view(["GET"])
 def bulk_export_voiceover(request):
     audio_size = 0
-    task_ids = request.query_params.get("task_ids").split(',')
+    task_ids = request.query_params.get("task_ids").split(",")
     if len(task_ids) > 10:
         return Response(
             {"message": "Exceeded maximum allowed task_ids. Maximum is 10."},
@@ -1481,23 +1521,27 @@ def bulk_export_voiceover(request):
         voice_over = get_voice_over_id(task)
         if voice_over is not None:
             voice_over = voice_over
-        else:   
+        else:
             if task.status == "POST_PROCESS":
-                messages.append({"message": f"VoiceOver of ID:{task_id} is in Post Process stage."})
+                messages.append(
+                    {"message": f"VoiceOver of ID:{task_id} is in Post Process stage."}
+                )
                 continue
             messages.append({"message": f"VoiceOver of ID:{task_id} doesn't exist."})
             continue
 
         if voice_over.azure_url_audio == None:
-            messages.append({"message": f"Audio was not created for ID:{task_id} Voice Over Task."})
+            messages.append(
+                {"message": f"Audio was not created for ID:{task_id} Voice Over Task."}
+            )
         else:
             audio_size += asizeof(voice_over.azure_url_audio)
 
     if audio_size > 1024**3:
         return Response(
-                    {"message": "Total size of audio files exceeds 1 GB."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            {"message": "Total size of audio files exceeds 1 GB."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     if messages == []:
         bulk_export_voiceover_async.delay(task_ids, request.user.id)
@@ -1507,7 +1551,7 @@ def bulk_export_voiceover(request):
         )
     else:
         return Response(messages, status=status.HTTP_400_BAD_REQUEST)
-        
+
 
 @api_view(["GET"])
 def get_voice_over_task_counts(request):

@@ -30,7 +30,11 @@ urlpatterns = [
         name="get_payload",
     ),
     path("export_voiceover/", views.export_voiceover, name="export_voiceover/"),
-    path("bulk_export_voiceover/", views.bulk_export_voiceover, name="bulk_export_voiceover/"),
+    path(
+        "bulk_export_voiceover/",
+        views.bulk_export_voiceover,
+        name="bulk_export_voiceover/",
+    ),
     path(
         "get_voice_over_task_counts/",
         views.get_voice_over_task_counts,

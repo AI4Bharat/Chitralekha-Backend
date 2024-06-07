@@ -55,8 +55,10 @@ def send_mail_csv_upload(user_id, email_data):
     )
     logging.info("Sending Mail to %s", user.email)
     try:
-        subject =f"{app_name} - CSV Upload Reports"
-        compiled_code = send_email_template_with_attachment(subject, username=[user.email], message=email_to_send)
+        subject = f"{app_name} - CSV Upload Reports"
+        compiled_code = send_email_template_with_attachment(
+            subject, username=[user.email], message=email_to_send
+        )
         msg = EmailMultiAlternatives(
             subject,
             compiled_code,
@@ -64,7 +66,7 @@ def send_mail_csv_upload(user_id, email_data):
             [user.email],
         )
         msg.attach_alternative(compiled_code, "text/html")
-        msg.attach_file(html_table_df_tasks,"text/html")
+        msg.attach_file(html_table_df_tasks, "text/html")
         msg.send()
         # send_mail(
         #     f"{app_name} - CSV Upload Reports",
