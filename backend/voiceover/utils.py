@@ -230,23 +230,27 @@ def get_tts_output(tts_input, target_language, multiple_speaker, gender):
 
 
 def generate_tts_output(
-    tts_input, target_language, translation, translation_obj, empty_sentences
+    tts_input, target_language, translation, translation_obj, empty_sentences, generate_audio=True
 ):
-    if translation_obj.video.gender == None:
+    if translation_obj.video.gender is None:
         gender = "MALE"
     else:
         gender = translation_obj.video.gender
-    if translation_obj.video.multiple_speaker == False and (
-        translation_obj.video.speaker_info == None
+    
+    if not translation_obj.video.multiple_speaker and (
+        translation_obj.video.speaker_info is None
         or len(translation_obj.video.speaker_info) == 0
     ):
-        tts_output = get_tts_output(
-            tts_input,
-            target_language,
-            translation_obj.video.multiple_speaker,
-            gender.lower(),
-        )
-        logging.info("output generated")
+        if generate_audio:
+            tts_output = get_tts_output(
+                tts_input,
+                target_language,
+                translation_obj.video.multiple_speaker,
+                gender.lower(),
+            )
+            logging.info("output generated")
+        else:
+            tts_output = {"audio": [{"audioContent": ""} for _ in tts_input]}
     else:
         speakers_tts_input = group_speakers(tts_input)
         speaker_info = {
@@ -258,40 +262,44 @@ def generate_tts_output(
         for speaker_id, speaker_tts_input in speakers_tts_input.items():
             for ind in speaker_tts_input:
                 list_indices.append(ind["index"])
-            speaker_tts_output = get_tts_output(
-                speaker_tts_input,
-                target_language,
-                translation_obj.video.multiple_speaker,
-                speaker_info[speaker_id],
-            )
-            if (
-                type(speaker_tts_output) != dict
-                or "audio" not in speaker_tts_output.keys()
-            ):
-                return speaker_tts_output
-            merged_tts_output["audio"].extend(speaker_tts_output["audio"])
-        merged_tts_output["config"] = speaker_tts_output["config"]
-        for input, output in zip(list_indices, merged_tts_output["audio"]):
-            output["index"] = input
-        tts_output = {}
-        tts_output["audio"] = sorted(
-            merged_tts_output["audio"], key=operator.itemgetter("index")
-        )
+            if generate_audio:
+                speaker_tts_output = get_tts_output(
+                    speaker_tts_input,
+                    target_language,
+                    translation_obj.video.multiple_speaker,
+                    speaker_info[speaker_id],
+                )
+                if type(speaker_tts_output) != dict or "audio" not in speaker_tts_output.keys():
+                    return speaker_tts_output
+                merged_tts_output["audio"].extend(speaker_tts_output["audio"])
+            else:
+                merged_tts_output["audio"].extend([{"audioContent": ""} for _ in speaker_tts_input])
+
+        if generate_audio:
+            merged_tts_output["config"] = speaker_tts_output["config"]
+            for input, output in zip(list_indices, merged_tts_output["audio"]):
+                output["index"] = input
+            tts_output = {"audio": sorted(merged_tts_output["audio"], key=operator.itemgetter("index"))}
+        else:
+            tts_output = {"audio": [{"audioContent": "", "index": idx} for idx in list_indices]}
+    
     if type(tts_output) != dict or "audio" not in tts_output.keys():
         return tts_output
     logging.info("Size of TTS output %s", str(asizeof(tts_output)))
     logging.info("Output from TTS generated")
+
     voiceover_payload = {"payload": {}}
     count = 0
-    payload_size = 0
-    payload_size_encoded = 0
     audio_not_generated = []
+    
     for ind, text in enumerate(translation["payload"]):
         start_time = text["start_time"]
         end_time = text["end_time"]
+        transcription_text = text["text"]
         logging.info("Starting time of this sentence %s", start_time)
         logging.info("Ending time of this sentence %s", end_time)
         logging.info("Sentence %s", text["target_text"])
+
         time_difference = (
             datetime.strptime(end_time, "%H:%M:%S.%f")
             - timedelta(
@@ -305,11 +313,10 @@ def generate_tts_output(
             + float(time_difference.split(":")[1]) * 60
             + float(time_difference.split(":")[2])
         )
+        
         if ind == len(translation["payload"]) - 1:
             original_video_duration = translation_obj.video.duration
-            if not compare_time(str(original_video_duration) + str(".000"), end_time)[
-                0
-            ]:
+            if not compare_time(str(original_video_duration) + str(".000"), end_time)[0]:
                 time_difference = (
                     datetime.strptime(
                         str(original_video_duration) + str(".000"), "%H:%M:%S.%f"
@@ -328,52 +335,64 @@ def generate_tts_output(
 
         if ind not in empty_sentences:
             logging.info("Count of audios saved %s", str(count))
-            wave_audio = "temp_" + str(ind) + ".wav"
 
-            audio_decoded = base64.b64decode(tts_output["audio"][count]["audioContent"])
-            if len(tts_output["audio"][count]["audioContent"]) > 100:
-                with open(wave_audio, "wb") as output_f:
-                    output_f.write(audio_decoded)
-                logging.info(
-                    "Length of received content %s",
-                    str(len(tts_output["audio"][count]["audioContent"])),
-                )
-                audio = AudioFileClip(wave_audio)
-                wav_seconds = audio.duration
-                ogg_audio = "temp_" + str(ind) + ".ogg"
-                AudioSegment.from_wav(wave_audio).export(ogg_audio, format="ogg")
-                logging.info("Seconds of wave audio %s", str(wav_seconds))
-                audio = AudioFileClip(ogg_audio)
-                seconds = audio.duration
-                logging.info("Seconds of ogg audio %s", str(seconds))
-                adjust_audio(ogg_audio, t_d, -1)
-                encoded_audio = base64.b64encode(open(ogg_audio, "rb").read())
-                decoded_audio = encoded_audio.decode()
-                os.remove(ogg_audio)
-                os.remove(wave_audio)
-                payload_size = payload_size + asizeof(decoded_audio)
-                logging.info("Payload size %s", str(asizeof(decoded_audio)))
-                logging.info("Index %s", str(ind))
-                voiceover_payload["payload"][str(count)] = {
-                    "time_difference": t_d,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "text": text["target_text"],
-                    "audio": {"audioContent": decoded_audio},
-                    "audio_speed": 1,
-                    "audio_generated": True,
-                    "index": tts_output["audio"][count].get("index", 0),
-                }
-                count = count + 1
-            else:
-                audio_not_generated.append(
-                    {
-                        "page_number": ind,
-                        "index": ind + 1,
-                        "sentence": text["target_text"],
-                        "reason": "TTS API Failed.",
+            if generate_audio:
+                wave_audio = "temp_" + str(ind) + ".wav"
+                audio_decoded = base64.b64decode(tts_output["audio"][count]["audioContent"])
+                if len(tts_output["audio"][count]["audioContent"]) > 100:
+                    with open(wave_audio, "wb") as output_f:
+                        output_f.write(audio_decoded)
+                    logging.info(
+                        "Length of received content %s",
+                        str(len(tts_output["audio"][count]["audioContent"])),
+                    )
+                    audio = AudioFileClip(wave_audio)
+                    wav_seconds = audio.duration
+                    ogg_audio = "temp_" + str(ind) + ".ogg"
+                    AudioSegment.from_wav(wave_audio).export(ogg_audio, format="ogg")
+                    logging.info("Seconds of wave audio %s", str(wav_seconds))
+                    audio = AudioFileClip(ogg_audio)
+                    seconds = audio.duration
+                    logging.info("Seconds of ogg audio %s", str(seconds))
+                    adjust_audio(ogg_audio, t_d, -1)
+                    encoded_audio = base64.b64encode(open(ogg_audio, "rb").read())
+                    decoded_audio = encoded_audio.decode()
+                    os.remove(ogg_audio)
+                    os.remove(wave_audio)
+                    voiceover_payload["payload"][str(count)] = {
+                        "time_difference": t_d,
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "text": text["target_text"],
+                        "audio": {"audioContent": decoded_audio},
+                        "audio_speed": 1,
+                        "audio_generated": True,
+                        "index": tts_output["audio"][count].get("index", 0),
+                        "transcription_text" : text["text"]
                     }
-                )
+                    count += 1
+                else:
+                    audio_not_generated.append(
+                        {
+                            "page_number": ind,
+                            "index": ind + 1,
+                            "sentence": text["target_text"],
+                            "reason": "TTS API Failed.",
+                        }
+                    )
+                    voiceover_payload["payload"][str(count)] = {
+                        "time_difference": t_d,
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "text": text["target_text"],
+                        "audio": {"audioContent": ""},
+                        "audio_speed": 1,
+                        "audio_generated": False,
+                        "index": tts_output["audio"][count].get("index", 0),
+                        "transcription_text" : text["text"]
+                    }
+                    count += 1
+            else:
                 voiceover_payload["payload"][str(count)] = {
                     "time_difference": t_d,
                     "start_time": start_time,
@@ -382,16 +401,184 @@ def generate_tts_output(
                     "audio": {"audioContent": ""},
                     "audio_speed": 1,
                     "audio_generated": False,
-                    "index": tts_output["audio"][count].get("index", 0),
+                    "index": ind,
+                    "transcription_text" : text["text"]
                 }
                 count += 1
         else:
             pass
+
     logging.info("Size of voiceover payload %s", str(asizeof(voiceover_payload)))
-    logging.info("Size of combined audios %s", str(payload_size))
+    logging.info("Size of combined audios %s", str(asizeof(voiceover_payload)))
     voiceover_payload["audio_not_generated"] = audio_not_generated
     voiceover_payload["empty_sentences"] = empty_sentences
+
     return voiceover_payload
+
+
+# def generate_tts_output(
+#     tts_input, target_language, translation, translation_obj, empty_sentences
+# ):
+    # if translation_obj.video.gender == None:
+    #     gender = "MALE"
+    # else:
+    #     gender = translation_obj.video.gender
+    # if translation_obj.video.multiple_speaker == False and (
+    #     translation_obj.video.speaker_info == None
+    #     or len(translation_obj.video.speaker_info) == 0
+    # ):
+    #     tts_output = get_tts_output(
+    #         tts_input,
+    #         target_language,
+    #         translation_obj.video.multiple_speaker,
+    #         gender.lower(),
+    #     )
+    #     logging.info("output generated")
+    # else:
+    #     speakers_tts_input = group_speakers(tts_input)
+    #     speaker_info = {
+    #         speaker_info["id"]: speaker_info["gender"]
+    #         for speaker_info in translation_obj.video.speaker_info
+    #     }
+    #     merged_tts_output = {"audio": []}
+    #     list_indices = []
+    #     for speaker_id, speaker_tts_input in speakers_tts_input.items():
+    #         for ind in speaker_tts_input:
+    #             list_indices.append(ind["index"])
+    #         speaker_tts_output = get_tts_output(
+    #             speaker_tts_input,
+    #             target_language,
+    #             translation_obj.video.multiple_speaker,
+    #             speaker_info[speaker_id],
+    #         )
+    #         if (
+    #             type(speaker_tts_output) != dict
+    #             or "audio" not in speaker_tts_output.keys()
+    #         ):
+    #             return speaker_tts_output
+    #         merged_tts_output["audio"].extend(speaker_tts_output["audio"])
+    #     merged_tts_output["config"] = speaker_tts_output["config"]
+    #     for input, output in zip(list_indices, merged_tts_output["audio"]):
+    #         output["index"] = input
+    #     tts_output = {}
+    #     tts_output["audio"] = sorted(
+    #         merged_tts_output["audio"], key=operator.itemgetter("index")
+    #     )
+    # if type(tts_output) != dict or "audio" not in tts_output.keys():
+    #     return tts_output
+    # logging.info("Size of TTS output %s", str(asizeof(tts_output)))
+    # logging.info("Output from TTS generated")
+    # voiceover_payload = {"payload": {}}
+    # count = 0
+    # payload_size = 0
+    # payload_size_encoded = 0
+    # audio_not_generated = []
+    # for ind, text in enumerate(translation["payload"]):
+    #     start_time = text["start_time"]
+    #     end_time = text["end_time"]
+    #     logging.info("Starting time of this sentence %s", start_time)
+    #     logging.info("Ending time of this sentence %s", end_time)
+    #     logging.info("Sentence %s", text["target_text"])
+    #     time_difference = (
+    #         datetime.strptime(end_time, "%H:%M:%S.%f")
+    #         - timedelta(
+    #             hours=float(start_time.split(":")[0]),
+    #             minutes=float(start_time.split(":")[1]),
+    #             seconds=float(start_time.split(":")[-1]),
+    #         )
+    #     ).strftime("%H:%M:%S.%f")
+    #     t_d = (
+    #         float(time_difference.split(":")[0]) * 3600
+    #         + float(time_difference.split(":")[1]) * 60
+    #         + float(time_difference.split(":")[2])
+    #     )
+    #     if ind == len(translation["payload"]) - 1:
+    #         original_video_duration = translation_obj.video.duration
+    #         if not compare_time(str(original_video_duration) + str(".000"), end_time)[
+    #             0
+    #         ]:
+    #             time_difference = (
+    #                 datetime.strptime(
+    #                     str(original_video_duration) + str(".000"), "%H:%M:%S.%f"
+    #                 )
+    #                 - timedelta(
+    #                     hours=float(start_time.split(":")[0]),
+    #                     minutes=float(start_time.split(":")[1]),
+    #                     seconds=float(start_time.split(":")[-1]),
+    #                 )
+    #             ).strftime("%H:%M:%S.%f")
+    #             t_d = (
+    #                 float(time_difference.split(":")[0]) * 3600
+    #                 + float(time_difference.split(":")[1]) * 60
+    #                 + float(time_difference.split(":")[2])
+    #             )
+
+    #     if ind not in empty_sentences:
+    #         logging.info("Count of audios saved %s", str(count))
+    #         wave_audio = "temp_" + str(ind) + ".wav"
+
+    #         audio_decoded = base64.b64decode(tts_output["audio"][count]["audioContent"])
+    #         if len(tts_output["audio"][count]["audioContent"]) > 100:
+    #             with open(wave_audio, "wb") as output_f:
+    #                 output_f.write(audio_decoded)
+    #             logging.info(
+    #                 "Length of received content %s",
+    #                 str(len(tts_output["audio"][count]["audioContent"])),
+    #             )
+    #             audio = AudioFileClip(wave_audio)
+    #             wav_seconds = audio.duration
+    #             ogg_audio = "temp_" + str(ind) + ".ogg"
+    #             AudioSegment.from_wav(wave_audio).export(ogg_audio, format="ogg")
+    #             logging.info("Seconds of wave audio %s", str(wav_seconds))
+    #             audio = AudioFileClip(ogg_audio)
+    #             seconds = audio.duration
+    #             logging.info("Seconds of ogg audio %s", str(seconds))
+    #             adjust_audio(ogg_audio, t_d, -1)
+    #             encoded_audio = base64.b64encode(open(ogg_audio, "rb").read())
+    #             decoded_audio = encoded_audio.decode()
+    #             os.remove(ogg_audio)
+    #             os.remove(wave_audio)
+    #             payload_size = payload_size + asizeof(decoded_audio)
+    #             logging.info("Payload size %s", str(asizeof(decoded_audio)))
+    #             logging.info("Index %s", str(ind))
+    #             voiceover_payload["payload"][str(count)] = {
+    #                 "time_difference": t_d,
+    #                 "start_time": start_time,
+    #                 "end_time": end_time,
+    #                 "text": text["target_text"],
+    #                 "audio": {"audioContent": decoded_audio},
+    #                 "audio_speed": 1,
+    #                 "audio_generated": True,
+    #                 "index": tts_output["audio"][count].get("index", 0),
+    #             }
+    #             count = count + 1
+    #         else:
+    #             audio_not_generated.append(
+    #                 {
+    #                     "page_number": ind,
+    #                     "index": ind + 1,
+    #                     "sentence": text["target_text"],
+    #                     "reason": "TTS API Failed.",
+    #                 }
+    #             )
+    #             voiceover_payload["payload"][str(count)] = {
+    #                 "time_difference": t_d,
+    #                 "start_time": start_time,
+    #                 "end_time": end_time,
+    #                 "text": text["target_text"],
+    #                 "audio": {"audioContent": ""},
+    #                 "audio_speed": 1,
+    #                 "audio_generated": False,
+    #                 "index": tts_output["audio"][count].get("index", 0),
+    #             }
+    #             count += 1
+    #     else:
+    #         pass
+    # logging.info("Size of voiceover payload %s", str(asizeof(voiceover_payload)))
+    # logging.info("Size of combined audios %s", str(payload_size))
+    # voiceover_payload["audio_not_generated"] = audio_not_generated
+    # voiceover_payload["empty_sentences"] = empty_sentences
+    # return voiceover_payload
 
 
 def equal_sentences(ind, previous_sentence, current_sentence, delete_indices):

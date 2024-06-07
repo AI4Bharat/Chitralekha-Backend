@@ -75,6 +75,7 @@ from task.tasks import (
     celery_nmt_call,
     convert_srt_to_payload,
     convert_vtt_to_payload,
+    celery_nmt_tts_call
 )
 import requests
 from django.db.models.functions import Concat
@@ -668,12 +669,13 @@ class TaskViewSet(ModelViewSet):
                         }
                     )
                     transcript = self.check_transcript_exists(task.video)
-                
+                    if type(transcript) == dict:
+                        transcript = None
                     payloads = {source_type: ""}
                     translate_obj = Translation(
                         video=task.video,
                         user=task.user,
-                        # transcript=transcript,
+                        transcript=transcript,
                         payload=payloads[source_type],
                         target_language=target_language,
                         task=task,
@@ -695,7 +697,10 @@ class TaskViewSet(ModelViewSet):
                         # voiceover_obj.save()
                     new_voiceovers.append(voiceover_obj)
                 translations = Translation.objects.bulk_create(new_translations)
-                voiceovers = VoiceOver.objects.bulk_create(new_voiceovers)
+                voiceovers = VoiceOver.objects.bulk_create(new_voiceovers)                
+                if is_single_task:
+                    for task in tasks:
+                        celery_nmt_tts_call.delay(task.id)
             else:
                 print("creating review tasks")
                 tasks = []
@@ -2452,6 +2457,10 @@ class TaskViewSet(ModelViewSet):
             tasks_deleted.append(task.id)
             task.delete()
 
+        if task.task_type == "TRANSLATION_VOICEOVER_EDIT":
+            tasks_deleted.append(task.id)
+            task.delete()
+
         return Response(
             {
                 "tasks_deleted": list(set(tasks_deleted)),
@@ -3317,6 +3326,11 @@ class TaskViewSet(ModelViewSet):
             return Response(
                 {"message": "Task does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+        if request.user != task.user:
+            return Response(
+                {"message": "You not allowed to update time spent for this task"},
+                status=status.HTTP_403_FORBIDDEN,
             )
         time_spent = request.data.get("time_spent", 0)
         if task.time_spent == None:
