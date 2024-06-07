@@ -41,10 +41,11 @@ from pydub.effects import speedup
 from pydub import AudioSegment
 import re
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 import operator
 import urllib.parse
 import shutil
+from utils.email_template import send_email_template
 
 
 def get_tts_url(language):
@@ -1165,15 +1166,30 @@ def integrate_all_audios(file_name, payload, video_duration):
 def send_audio_mail_to_user(task, azure_url, user):
     if task.user.enable_mail:
         logging.info("Send Audio email to user %s", azure_url)
-        send_mail(
-            f"Audio is generated for Video ID - {task.video.id}",
-            """The requested audio has been successfully generated. You can access the audio by copying and pasting the following link into your web browser.
+        subject = f"Audio is generated for Video ID - {task.video.id}"
+        message = """The requested audio has been successfully generated. You can access the audio by copying and pasting the following link into your web browser.
             {url}""".format(
                 url=azure_url
-            ),
+            )
+    
+        compiled_code = send_email_template(subject, message)
+        msg = EmailMultiAlternatives(
+            subject,
+            compiled_code,
             settings.DEFAULT_FROM_EMAIL,
             [user.email],
         )
+        msg.attach_alternative(compiled_code, "text/html")
+        msg.send()
+        # send_mail(
+        #     f"Audio is generated for Video ID - {task.video.id}",
+        #     """The requested audio has been successfully generated. You can access the audio by copying and pasting the following link into your web browser.
+        #     {url}""".format(
+        #         url=azure_url
+        #     ),
+        #     settings.DEFAULT_FROM_EMAIL,
+        #     [user.email],
+        # )
     else:
         logging.info("Email is not enabled %s", task.user.email)
 
@@ -1181,11 +1197,22 @@ def send_audio_zip_mail_to_user(task, azure_url, user):
     if task.user.enable_mail:
         logging.info("Send Bulk Audio email to user %s", user.email)
         try:
-            send_mail(
-                f"The requested audios have been successfully generated. You can access the audios by copying and pasting the following link into your web browser: {azure_url}",
+            # send_mail(
+            #     f"The requested audios have been successfully generated. You can access the audios by copying and pasting the following link into your web browser: {azure_url}",
+            #     settings.DEFAULT_FROM_EMAIL,
+            #     [user.email],
+            # )
+            subject = f"Audio is generated for Video ID - {task.video.id}"
+            message = f"The requested audios have been successfully generated. You can access the audios by copying and pasting the following link into your web browser: {azure_url}"
+            compiled_code = send_email_template(subject, message)
+            msg = EmailMultiAlternatives(
+                subject,
+                compiled_code,
                 settings.DEFAULT_FROM_EMAIL,
                 [user.email],
             )
+            msg.attach_alternative(compiled_code, "text/html")
+            msg.send()
             logging.info("Email sent successfully to %s", user.email)
         except Exception as e:
             logging.error("Error sending email to %s: %s", user.email, str(e))
@@ -1211,12 +1238,25 @@ def send_mail_to_user(task):
             description=task.description,
         )
         final_table = table_to_send + data
-        send_mail(
-            f"{task.get_task_type_label} is active",
-            "Dear User, Following task is active.",
+        subject = f"{task.get_task_type_label} is now active"
+        message = f"Following task is active you may check the attachment below \n {final_table}"
+        compiled_code = send_email_template(subject, message)
+        msg = EmailMultiAlternatives(
+            subject,
+            compiled_code,
             settings.DEFAULT_FROM_EMAIL,
             [task.user.email],
-            html_message=final_table,
         )
+        msg.attach_alternative(compiled_code, "text/html")
+        msg.attach_file(final_table,"text/html")
+        msg.send()
+        
+        # send_mail(
+        #     f"{task.get_task_type_label} is active",
+        #     "Dear User, Following task is active.",
+        #     settings.DEFAULT_FROM_EMAIL,
+        #     [task.user.email],
+        #     html_message=final_table,
+        # )
     else:
         logging.info("Email is not enabled %s", task.user.email)

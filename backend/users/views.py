@@ -31,7 +31,7 @@ from rest_framework.decorators import action
 from django.db.models import Q
 from datetime import datetime
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import send_mail,EmailMultiAlternatives
 from rest_framework.generics import UpdateAPIView
 from task.models import Task
 from task.serializers import TaskSerializer
@@ -41,7 +41,7 @@ import json
 import datetime
 from config import point_of_contacts, app_name
 import ast
-
+from utils.email_template import send_email_template,invite_email_template
 
 regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
 
@@ -171,13 +171,26 @@ class OnboardingAPIView(APIView):
 
         contacts = ast.literal_eval(point_of_contacts)
         for email in contacts:
-            send_mail(
-                "OnBoarding Request for {}".format(org_name),
-                "",
+            subject = "OnBoarding Request for {}".format(org_name)
+            message = f"<p> Hello! Please check the attachment for following onboarind requests information </p>"
+
+            compiled_code = send_email_template(subject, message)
+            msg = EmailMultiAlternatives(
+                subject,
+                compiled_code,
                 settings.DEFAULT_FROM_EMAIL,
                 [email],
-                html_message=onboarding_table_1,
             )
+            msg.attach_alternative(compiled_code, "text/html")
+            msg.attach_alternative(onboarding_table_1,"text/html")
+            msg.send()
+            # send_mail(
+            #     "OnBoarding Request for {}".format(org_name),
+            #     "",
+            #     settings.DEFAULT_FROM_EMAIL,
+            #     [email],
+            #     html_message=onboarding_table_1,
+            # )
         return Response(
             {"message": "Onboarding request is submitted."},
             status=status.HTTP_404_NOT_FOUND,
@@ -305,7 +318,22 @@ class InviteViewSet(viewsets.ViewSet):
 
         email_subject = f'Welcome to {app_name}'
         email_message = f'Hi,\n\nUsers have been registered to {app_name} under your organization {org_name}.\n\nCreated emails: {", ".join(created_emails)}\n\nPassword for all users: {password}\n\nPlease distribute these credentials to the users accordingly.\n\nBest regards,\nThe {app_name} Team'
-        send_mail(email_subject, email_message, settings.DEFAULT_FROM_EMAIL, [org_email])
+        # send_mail(email_subject, email_message, settings.DEFAULT_FROM_EMAIL, [org_email])
+
+        try: 
+            compiled_code = invite_email_template(email_subject, email_message)
+            msg = EmailMultiAlternatives(
+                email_subject,
+                compiled_code,
+                settings.DEFAULT_FROM_EMAIL,
+                [org_email],
+            )
+            msg.attach_alternative(compiled_code, "text/html")
+            msg.send()
+            
+        except Exception as e:
+            print(e)
+
         if existing_emails:
             if created_emails:
                 msg = ", ".join(existing_emails) + " already exists. Other Users created successfully."
@@ -563,6 +591,7 @@ class UserViewSet(viewsets.ViewSet):
 
             old_email_update_code = generate_random_string(10)
             new_email_verification_code = generate_random_string(10)
+
 
             send_mail(
                 "Email Verification",

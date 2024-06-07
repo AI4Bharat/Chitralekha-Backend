@@ -1,12 +1,14 @@
 from django.db import models
 from django.conf import settings
 from django.db import models, transaction
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 import secrets
 import string
 from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from django.contrib.postgres.fields import ArrayField
 from config import frontend_url
+import os
+from utils.email_template import invite_email_template
 
 TRANSCRIPT_TYPE = (
     ("ORIGINAL_SOURCE", "Original Source"),
@@ -258,6 +260,35 @@ class Invite(models.Model):
         return str(self.user.email)
 
     @classmethod
+    def send_invite_email(cls, invite, user):
+        current_environment = os.getenv("ENV")
+        base_url = (
+            "dev.chitralekha.ai4bharat.org"
+            if current_environment == "dev"
+            else "chitralekha.ai4bharat.org"
+        )
+        subject = "Invitation to join Chitralekha Organization"
+        invite_link = f"https://{base_url}/#/invite/{invite.invite_code}"
+        message = "Please use the above link to verify your email address and complete your registration."
+        
+        try :
+            compiled_msg_code = invite_email_template(
+                subject=subject,invite_link=invite_link,message=message
+            )
+            msg = EmailMultiAlternatives(
+                subject,
+                compiled_msg_code,
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+            )
+            msg.attach_alternative(compiled_msg_code, "text/html")
+            msg.send()
+
+        except Exception as e:
+            print(f"Failed to send email: {str(e)}")
+            raise e
+
+    @classmethod
     def create_invite(cls, organization=None, users=None):
         with transaction.atomic():
             for user in users:
@@ -267,17 +298,20 @@ class Invite(models.Model):
                     invite = Invite.objects.create(organization=organization, user=user)
                     invite.invite_code = cls.generate_invite_code()
                     invite.save()
-                if organization is not None:
-                    organization_name = organization.title
-                else:
-                    organization_name = "be the Org Owner."
-                send_mail(
-                    "Invitation to join Organization",
-                    f"Hello! You are invited to {organization_name}. Your Invite link is: {frontend_url}/#/invite/{invite.invite_code}",
-                    settings.DEFAULT_FROM_EMAIL,
-                    [user.email],
-                )
+                cls.send_invite_email(invite, user)
+                # send_mail(
+                #     "Invitation to join Organization",
+                #     f"Hello! You are invited to {organization_name}. Your Invite link is: {frontend_url}/#/invite/{invite.invite_code}",
+                #     settings.DEFAULT_FROM_EMAIL,
+                #     [user.email],
+                # )
 
+    @classmethod
+    def re_invite(cls, users=None):
+        with transaction.atomic():
+            for user in users:
+                invite = Invite.objects.get(user=user)
+                cls.send_invite_email(invite, user)
     # def has_permission(self, user):
     #     if self.organization.created_by.pk == user.pk or user.is_superuser:
     #         return True

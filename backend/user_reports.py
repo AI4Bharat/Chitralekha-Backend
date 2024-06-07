@@ -13,7 +13,7 @@ from task.models import Task
 from datetime import datetime, timedelta
 from django.db.models import Q
 import pandas as pd
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 from django.conf import settings
 from pretty_html_table import build_table
 import numpy as np
@@ -26,6 +26,7 @@ from video.models import Video
 import logging
 from organization.models import Organization
 from config import app_name
+from utils.email_template import send_email_template_with_attachment
 
 
 def get_completed_tasks():
@@ -75,7 +76,7 @@ def get_completed_tasks():
                     index=False,
                 )
                 message = (
-                    "Dear "
+                    "Hope you are doing great  "
                     + str(manager.first_name + " " + manager.last_name)
                     + ",\n Following tasks are completed now."
                 )
@@ -87,13 +88,28 @@ def get_completed_tasks():
                     + html_table_df_tasks
                 )
                 logging.info("Sending Mail to %s", manager.email)
-                send_mail(
+
+                compiled_msg = send_email_template_with_attachment(
+                    subject=f"{app_name} - Completed Tasks Report",
+                    username=[manager.email],
+                    message=email_to_send
+                )
+                msg = EmailMultiAlternatives(
                     f"{app_name} - Completed Tasks Report",
-                    message,
+                    compiled_msg,
                     settings.DEFAULT_FROM_EMAIL,
                     [manager.email],
-                    html_message=email_to_send,
                 )
+                msg.attach_alternative(compiled_msg, "text/html")
+                msg.attach_alternative(html_table_df_tasks,"text/html")
+                msg.send()                
+                # send_mail(
+                #     f"{app_name} - Completed Tasks Report",
+                #     message,
+                #     settings.DEFAULT_FROM_EMAIL,
+                #     [manager.email],
+                #     html_message=email_to_send,
+                # )
             else:
                 html_table_df_tasks = ""
 
@@ -145,7 +161,7 @@ def get_new_tasks():
                     index=False,
                 )
                 message = (
-                    "Dear "
+                    "Hope you were doing great  "
                     + str(manager.first_name + " " + manager.last_name)
                     + ",\n Following tasks are active now."
                 )
@@ -157,13 +173,28 @@ def get_new_tasks():
                     + html_table_df_tasks
                 )
                 logging.info("Sending Mail to %s", manager.email)
-                send_mail(
+                
+                compiled_msg = send_email_template_with_attachment(
+                    subject=f"{app_name} - Tasks Assignment Status Report",
+                    username=[manager.email],
+                    message=email_to_send
+                )
+                msg = EmailMultiAlternatives(
                     f"{app_name} - Tasks Assignment Status Report",
-                    message,
+                    compiled_msg,
                     settings.DEFAULT_FROM_EMAIL,
                     [manager.email],
-                    html_message=email_to_send,
                 )
+                msg.attach_alternative(compiled_msg, "text/html")
+                msg.attach_alternative(html_table_df_tasks,"text/html")
+                msg.send()       
+                # send_mail(
+                #     f"{app_name} - Tasks Assignment Status Report",
+                #     message,
+                #     settings.DEFAULT_FROM_EMAIL,
+                #     [manager.email],
+                #     html_message=email_to_send,
+                # )
             else:
                 html_table_df_tasks = ""
 
@@ -204,7 +235,7 @@ def get_eta_reminders():
                 index=False,
             )
             message = (
-                "Dear "
+                "Hope you are doing great  "
                 + str(user.first_name + " " + user.last_name)
                 + ",\n Follwing Tasks are due for today."
             )
@@ -216,13 +247,29 @@ def get_eta_reminders():
                 + html_table_df_tasks
             )
             logging.info("Sending Mail to %s", user.email)
-            send_mail(
-                f"{app_name} - Due Tasks",
-                message,
+            
+            
+            compiled_msg = send_email_template_with_attachment(
+                subject=f"{app_name} - Tasks Assignment Status Report",
+                username=[user.email],
+                message=email_to_send
+            )
+            msg = EmailMultiAlternatives(
+                f"{app_name} - Tasks Assignment Status Report",
+                compiled_msg,
                 settings.DEFAULT_FROM_EMAIL,
                 [user.email],
-                html_message=email_to_send,
             )
+            msg.attach_alternative(compiled_msg, "text/html")
+            msg.attach_alternative(html_table_df_tasks,"text/html")
+            msg.send()   
+            # send_mail(
+            #     f"{app_name} - Due Tasks",
+            #     message,
+            #     settings.DEFAULT_FROM_EMAIL,
+            #     [user.email],
+            #     html_message=email_to_send,
+            # )
         else:
             html_table_df_tasks = ""
 
@@ -272,12 +319,26 @@ def get_new_users():
                 + html_table_df_tasks
             )
             logging.info("Sending Mail to %s", org_owner.email)
-            send_mail(
-                f"{app_name} - New Users",
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [org_owner.email],
-                html_message=email_to_send,
+            compiled_msg = send_email_template_with_attachment(
+                subject=f"{app_name} - New Users",
+                username=[user.email],
+                message=email_to_send
             )
+            msg = EmailMultiAlternatives(
+                f"{app_name} - New Users",
+                compiled_msg,
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+            )
+            msg.attach_alternative(compiled_msg, "text/html")
+            msg.attach_alternative(html_table_df_tasks,"text/html")
+            msg.send()   
+            # send_mail(
+            #     f"{app_name} - New Users",
+            #     message,
+            #     settings.DEFAULT_FROM_EMAIL,
+            #     [org_owner.email],
+            #     html_message=email_to_send,
+            # )
         else:
             html_table_df_tasks = ""

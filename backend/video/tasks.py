@@ -1,6 +1,6 @@
 from celery import shared_task
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 from celery.schedules import crontab
 from datetime import datetime
 from rest_framework.response import Response
@@ -9,12 +9,12 @@ from video.models import Video
 import os
 import logging
 from video.utils import create_video
-from django.core.mail import send_mail
 from users.models import User
 import pandas as pd
 from pretty_html_table import build_table
 from django.conf import settings
 from config import app_name
+from utils.email_template import send_email_template_with_attachment
 
 
 def send_mail_csv_upload(user_id, email_data):
@@ -42,7 +42,7 @@ def send_mail_csv_upload(user_id, email_data):
         index=False,
     )
     message = (
-        "Dear "
+        "Hope you are doing great "
         + str(user.first_name + " " + user.last_name)
         + ",\n Following is the CSV upload report."
     )
@@ -55,13 +55,24 @@ def send_mail_csv_upload(user_id, email_data):
     )
     logging.info("Sending Mail to %s", user.email)
     try:
-        send_mail(
-            f"{app_name} - CSV Upload Reports",
-            message,
+        subject =f"{app_name} - CSV Upload Reports"
+        compiled_code = send_email_template_with_attachment(subject, username=[user.email], message=email_to_send)
+        msg = EmailMultiAlternatives(
+            subject,
+            compiled_code,
             settings.DEFAULT_FROM_EMAIL,
             [user.email],
-            html_message=email_to_send,
         )
+        msg.attach_alternative(compiled_code, "text/html")
+        msg.attach_file(html_table_df_tasks,"text/html")
+        msg.send()
+        # send_mail(
+        #     f"{app_name} - CSV Upload Reports",
+        #     message,
+        #     settings.DEFAULT_FROM_EMAIL,
+        #     [user.email],
+        #     html_message=email_to_send,
+        # )
     except:
         logging.info("Error in sending mail")
 

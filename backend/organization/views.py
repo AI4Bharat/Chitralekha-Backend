@@ -169,6 +169,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         email_subject = f'Welcome to {app_name} Application'
         if request.data.get("organization_owner"):
             email_message = f'Hi,\n\nYou have been registered to {app_name} Application as Organization Owner of {title}.\n\nBest regards,\nThe {app_name} Team'
+
             send_mail(email_subject, email_message, settings.DEFAULT_FROM_EMAIL, [new_org_owner_email])
         else:
             email_message = f'Hi,\n\nYou have been registered to {app_name} Application as Organization Owner of {title}.\n\nEmail_ID: {new_org_owner_email}\n\nPassword: {password}\n\nBest regards,\nThe {app_name} Team'

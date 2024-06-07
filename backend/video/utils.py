@@ -10,7 +10,7 @@ from transcript.views import export_transcript
 from translation.views import export_translation
 import logging
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 from video.models import Video, GENDER
 from project.models import Project
 from video.serializers import VideoSerializer
@@ -23,6 +23,8 @@ from rest_framework import request
 import urllib
 from mutagen.mp3 import MP3
 import json
+from utils.email_template import send_email_template
+
 
 
 ydl = YoutubeDL({"format": "best"})
@@ -185,13 +187,26 @@ def send_mail_to_user(task):
         )
         final_table = table_to_send + data
         try:
-            send_mail(
-                f"{task.get_task_type_label} is active",
-                "Dear User, Following task is active.",
+            subject = f"{task.get_task_type_label} is now active"
+            message = f"Following task is active you may check the attachment below \n {final_table}"
+            compiled_code = send_email_template(subject, message)
+            msg = EmailMultiAlternatives(
+                subject,
+                compiled_code,
                 settings.DEFAULT_FROM_EMAIL,
                 [task.user.email],
-                html_message=final_table,
             )
+            msg.attach_alternative(compiled_code, "text/html")
+            msg.attach_file(final_table,"text/html")
+            msg.send()
+        
+            # send_mail(
+            #     f"{task.get_task_type_label} is active",
+            #     "Dear User, Following task is active.",
+            #     settings.DEFAULT_FROM_EMAIL,
+            #     [task.user.email],
+            #     html_message=final_table,
+            # )
         except:
             logging.info("Error in sending Email.")
     else:
