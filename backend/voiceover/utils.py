@@ -235,7 +235,7 @@ def generate_tts_output(
         gender = "MALE"
     else:
         gender = translation_obj.video.gender
-
+    
     if not translation_obj.video.multiple_speaker and (
         translation_obj.video.speaker_info is None
         or len(translation_obj.video.speaker_info) == 0
@@ -290,10 +290,11 @@ def generate_tts_output(
     voiceover_payload = {"payload": {}}
     count = 0
     audio_not_generated = []
-
+    
     for ind, text in enumerate(translation["payload"]):
         start_time = text["start_time"]
         end_time = text["end_time"]
+        transcription_text = text["text"]
         logging.info("Starting time of this sentence %s", start_time)
         logging.info("Ending time of this sentence %s", end_time)
         logging.info("Sentence %s", text["target_text"])
@@ -366,6 +367,7 @@ def generate_tts_output(
                         "audio_speed": 1,
                         "audio_generated": True,
                         "index": tts_output["audio"][count].get("index", 0),
+                        "transcription_text" : text["text"]
                     }
                     count += 1
                 else:
@@ -386,6 +388,7 @@ def generate_tts_output(
                         "audio_speed": 1,
                         "audio_generated": False,
                         "index": tts_output["audio"][count].get("index", 0),
+                        "transcription_text" : text["text"]
                     }
                     count += 1
             else:
@@ -398,6 +401,7 @@ def generate_tts_output(
                     "audio_speed": 1,
                     "audio_generated": False,
                     "index": ind,
+                    "transcription_text" : text["text"]
                 }
                 count += 1
         else:
