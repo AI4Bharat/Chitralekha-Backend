@@ -346,7 +346,6 @@ class AudioRequest(BaseModel):
     denoiser: Optional[bool] = False
 
 
-
 @app.post("/transcribe")
 async def transcribe_audio(audio_request: AudioRequest):
     url = audio_request.url
@@ -597,7 +596,7 @@ def process_audio(
 if __name__ == "__main__":
     # .run(app, host="0.0.0.0", port=5050)
     url = "https://drive.google.com/file/d/1C_Ra23tdqYhc7giuGyMIG0oXyvgFyUYH"
-    use_cuda= False
+    use_cuda = False
     vad_val = 3
     language = "hi"
     # chunk_size = audio_request.chunk_size

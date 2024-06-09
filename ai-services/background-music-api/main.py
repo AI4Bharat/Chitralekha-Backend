@@ -100,6 +100,7 @@ def utils_add_bg_music(file_path, video_link):
         print("Error: %s - %s." % (e.filename, e.strerror))
     return file_path.replace(".wav", "_final.wav")
 
+
 def upload_audio_to_azure_blob(file_path, export_type, export):
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     if export == False:
@@ -135,9 +136,11 @@ def upload_audio_to_azure_blob(file_path, export_type, export):
 if __name__ == "__main__":
     os.mkdir("temporary_audio_storage")
 
+
 class BGMusicRequest(BaseModel):
     azure_audio_url: str
-    youtube_url:str
+    youtube_url: str
+
 
 def download_from_azure_blob(file_path):
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
@@ -164,9 +167,7 @@ async def add_background_music(audio_request: BGMusicRequest):
         file_path.split("/")[-1].replace(".flac", "") + "." + export_type,
         format=export_type,
     )
-    azure_url_audio = upload_audio_to_azure_blob(
-        file_path, export_type, export=True
-    )
+    azure_url_audio = upload_audio_to_azure_blob(file_path, export_type, export=True)
     try:
         os.remove(file_path)
         os.remove(file_path.split("/")[-1].replace(".flac", "") + "." + export_type)
