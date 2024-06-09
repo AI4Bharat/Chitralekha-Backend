@@ -520,7 +520,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def check_if_last_task_in_workflow(self, task_obj):
         task = task_obj["task"]
-        if task.task_type == "VOICEOVER_EDIT" or task.task_type == "TRANSLATION_VOICEOVER_EDIT":
+        if (
+            task.task_type == "VOICEOVER_EDIT"
+            or task.task_type == "TRANSLATION_VOICEOVER_EDIT"
+        ):
             return True
         elif task.task_type == "TRANSLATION_REVIEW":
             if (
@@ -622,7 +625,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     video_data.append(video_serializer)
                     continue
                 tasks_to_send = []
-               
+
                 if len(task_table) == 1:
                     if "transcription" in task_table.keys():
                         task_obj = task_table["transcription"]
@@ -877,7 +880,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             if data["task_type"] != "VOICEOVER_EDIT":
                                 buttons["Edit"] = True
                                 # buttons["View"] = True
-                                if data["task_type"] == "TRANSCRIPTION_EDIT" and project.default_transcript_type=="MANUALLY_UPLOADED":
+                                if (
+                                    data["task_type"] == "TRANSCRIPTION_EDIT"
+                                    and project.default_transcript_type
+                                    == "MANUALLY_UPLOADED"
+                                ):
                                     buttons["View"] = True
                             if (
                                 data["task_type"] == "TRANSLATION_EDIT"
@@ -931,7 +938,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             and data["task_type"] != "VOICEOVER_EDIT"
                         ):
                             buttons["View"] = False
-                            if data["task_type"] == "TRANSCRIPTION_EDIT" and project.default_transcript_type=="MANUALLY_UPLOADED":
+                            if (
+                                data["task_type"] == "TRANSCRIPTION_EDIT"
+                                and project.default_transcript_type
+                                == "MANUALLY_UPLOADED"
+                            ):
                                 buttons["View"] = True
                     data["buttons"] = buttons
             target_languages_list = list(target_languages)
@@ -979,24 +990,30 @@ class ProjectViewSet(viewsets.ModelViewSet):
         serialized_dict = json.loads(json.dumps(project_data.data))
         managers_id = []
 
-        data_list = project_data['managers'].value
-        managers_id= [user_dict['id'] for user_dict in data_list]
+        data_list = project_data["managers"].value
+        managers_id = [user_dict["id"] for user_dict in data_list]
 
         for title in titles:
             project_data_1 = {
-                'title': title,
-                'organization_id': project_data['organization_id'].value,
-                'managers_id': managers_id,
-                'default_transcript_type': project_data['default_transcript_type'].value,
-                'default_voiceover_type': project_data['default_voiceover_type'].value,
-                'default_translation_type': project_data['default_translation_type'].value,
-                'default_task_types': project_data['default_task_types'].value,
-                'default_target_languages': project_data['default_target_languages'].value,
-                'default_task_eta': project_data['default_eta'].value,
-                'default_task_priority': project_data['default_priority'].value,
-                'video_integration': project_data['video_integration'].value,
-                'default_task_description': project_data['default_description'].value,
-                'description': project_data['description'].value,
+                "title": title,
+                "organization_id": project_data["organization_id"].value,
+                "managers_id": managers_id,
+                "default_transcript_type": project_data[
+                    "default_transcript_type"
+                ].value,
+                "default_voiceover_type": project_data["default_voiceover_type"].value,
+                "default_translation_type": project_data[
+                    "default_translation_type"
+                ].value,
+                "default_task_types": project_data["default_task_types"].value,
+                "default_target_languages": project_data[
+                    "default_target_languages"
+                ].value,
+                "default_task_eta": project_data["default_eta"].value,
+                "default_task_priority": project_data["default_priority"].value,
+                "video_integration": project_data["video_integration"].value,
+                "default_task_description": project_data["default_description"].value,
+                "description": project_data["description"].value,
             }
             # Create a request object with the necessary dat
             new_request = HttpRequest()
@@ -1008,7 +1025,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
             {"message": "Projects are successfully created."},
             status=status.HTTP_200_OK,
         )
-
 
     @is_organization_owner
     def create(self, request, pk=None, *args, **kwargs):

@@ -379,9 +379,9 @@ def upload_to_youtube(request):
 
                 else:
                     response_obj["status"] = "Fail"
-                    response_obj[
-                        "message"
-                    ] = "Task's video is either deleted or not accessible"
+                    response_obj["message"] = (
+                        "Task's video is either deleted or not accessible"
+                    )
                     continue
 
             except Exception as e:
@@ -473,9 +473,9 @@ def upload_to_youtube(request):
                     % insert_request["id"]
                 )
                 response_obj["status"] = "Success"
-                response_obj[
-                    "message"
-                ] = "Successfully caption is added to youtube video"
+                response_obj["message"] = (
+                    "Successfully caption is added to youtube video"
+                )
 
                 task_responses.append(response_obj)
                 continue

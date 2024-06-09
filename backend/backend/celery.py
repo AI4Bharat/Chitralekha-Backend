@@ -17,9 +17,13 @@ celery_app.config_from_object("django.conf:settings", namespace="CELERY")
 celery_app.conf.task_default_queue = "default"
 celery_app.conf.task_routes = {"task.tasks.celery_asr_call": {"queue": "asr_tts"}}
 celery_app.conf.task_routes = {"task.tasks.celery_tts_call": {"queue": "asr_tts"}}
-celery_app.conf.task_routes = {"task.tasks.celery_ekstep_asr_call": {"queue": "ekstep_asr"}}
+celery_app.conf.task_routes = {
+    "task.tasks.celery_ekstep_asr_call": {"queue": "ekstep_asr"}
+}
 celery_app.conf.task_routes = {"task.tasks.celery_nmt_call": {"queue": "nmt"}}
-celery_app.conf.task_routes = {"task.tasks.celery_newsletter_call": {"queue": "newsletter"}}
+celery_app.conf.task_routes = {
+    "task.tasks.celery_newsletter_call": {"queue": "newsletter"}
+}
 # celery_app.conf.task_routes = {"task.tasks.*": {"queue": "asr_tts"}}
 celery_app.conf.task_routes = {"transcript.tasks.*": {"queue": "ytt"}}
 

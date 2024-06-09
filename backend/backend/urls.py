@@ -13,6 +13,7 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path, re_path
@@ -23,6 +24,7 @@ from drf_yasg.generators import OpenAPISchemaGenerator
 from video.views import TransliterationAPIView
 from users.views import OnboardingAPIView
 from config import app_name
+
 
 ## Utility Classes
 class BothHttpAndHttpsSchemaGenerator(OpenAPISchemaGenerator):
@@ -52,9 +54,9 @@ schema_view = get_schema_view(
         contact=openapi.Contact(email="contact@snippets.local"),
         license=openapi.License(name="BSD License"),
     ),
-    generator_class=BothHttpAndHttpsSchemaGenerator
-    if settings.DEBUG
-    else HttpsOnlySchemaGenerator,
+    generator_class=(
+        BothHttpAndHttpsSchemaGenerator if settings.DEBUG else HttpsOnlySchemaGenerator
+    ),
     public=True,
     permission_classes=[permissions.AllowAny],
 )

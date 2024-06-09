@@ -224,7 +224,15 @@ class TMXService:
             if len(phrase_size) <= tmx_word_length:
                 suffix_phrase_list, found = [phrase], False
                 # if phrase.endswith(".") or phrase.endswith(","):
-                if phrase.endswith(".") or phrase.endswith(",") or phrase.endswith("!") or phrase.endswith("?") or phrase.endswith(":") or phrase.endswith(";") or phrase.endswith("'"):
+                if (
+                    phrase.endswith(".")
+                    or phrase.endswith(",")
+                    or phrase.endswith("!")
+                    or phrase.endswith("?")
+                    or phrase.endswith(":")
+                    or phrase.endswith(";")
+                    or phrase.endswith("'")
+                ):
                     short = phrase.rstrip(".,!?:;'")
                     suffix_phrase_list.append(short)
                 for phrases in suffix_phrase_list:
@@ -430,9 +438,9 @@ class TMXService:
                                     "type": "Attention API",
                                 }
                             )
-                            tmx_replace_dict[
-                                nmt_aligned_phrases[aligned_phrase]
-                            ] = phrase["user_tgt"]
+                            tmx_replace_dict[nmt_aligned_phrases[aligned_phrase]] = (
+                                phrase["user_tgt"]
+                            )
                             modified_nmt_tgt = phrase["nmt_tgt"]
                             modified_nmt_tgt.append(nmt_aligned_phrases[aligned_phrase])
                             phrase["nmt_tgt"] = modified_nmt_tgt

@@ -369,10 +369,13 @@ def get_payload(request):
             if audio_index in voice_over.payload["payload"].keys():
                 start_time = translation_payload[index][0]["start_time"]
                 end_time = translation_payload[index][0]["end_time"]
-                if "transcription_text" in voice_over.payload["payload"][str(audio_index)].keys():
-                    transcription_text = voice_over.payload["payload"][str(audio_index)][
-                            "transcription_text"
-                        ]
+                if (
+                    "transcription_text"
+                    in voice_over.payload["payload"][str(audio_index)].keys()
+                ):
+                    transcription_text = voice_over.payload["payload"][
+                        str(audio_index)
+                    ]["transcription_text"]
                 else:
                     transcription_text = translation_payload[index][0]["text"]
                 time_difference = (

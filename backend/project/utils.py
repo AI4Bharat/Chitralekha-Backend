@@ -27,11 +27,7 @@ from translation.models import Translation
 from voiceover.models import VoiceOver
 from video.models import Video
 from azure.storage.blob import BlobServiceClient
-from config import (
-    storage_account_key,
-    connection_string,
-    reports_container_name
-)
+from config import storage_account_key, connection_string, reports_container_name
 from django.conf import settings
 
 
@@ -385,10 +381,14 @@ def get_project_report_languages_email(project_id, user):
     for section in ["transcript_stats", "translation_stats", "voiceover_stats"]:
         if section in data:
             for entry in data[section]:
-                keys_to_remove = [key for key in entry.keys() if isinstance(entry[key], dict) and 'label' in entry[key]]
+                keys_to_remove = [
+                    key
+                    for key in entry.keys()
+                    if isinstance(entry[key], dict) and "label" in entry[key]
+                ]
                 for key in keys_to_remove:
-                    label = entry[key]['label']
-                    entry[label] = entry[key]['value']
+                    label = entry[key]["label"]
+                    entry[label] = entry[key]["value"]
                     del entry[key]
     current_time = datetime.now()
     # Write CSV files using pandas

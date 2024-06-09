@@ -72,7 +72,19 @@ from transcript.utils.timestamp import *
 @api_view(["GET"])
 def get_translation_export_types(request):
     return Response(
-        {"export_types": ["srt", "vtt", "txt", "docx", "docx-bilingual", "sbv", "TTML", "scc", "rt"]},
+        {
+            "export_types": [
+                "srt",
+                "vtt",
+                "txt",
+                "docx",
+                "docx-bilingual",
+                "sbv",
+                "TTML",
+                "scc",
+                "rt",
+            ]
+        },
         status=status.HTTP_200_OK,
     )
 
@@ -90,7 +102,9 @@ def get_translation_export_types(request):
         openapi.Parameter(
             "export_type",
             openapi.IN_QUERY,
-            description=("export type parameter srt/vtt/txt/docx/docx-bilingual/sbv/TTML/scc/rt"),
+            description=(
+                "export type parameter srt/vtt/txt/docx/docx-bilingual/sbv/TTML/scc/rt"
+            ),
             type=openapi.TYPE_STRING,
             required=True,
         ),
@@ -147,7 +161,17 @@ def export_translation(request):
             speaker["label"]: speaker["value"] for speaker in speaker_info
         }
 
-    supported_types = ["srt", "vtt", "txt", "docx", "docx-bilingual", "scc", "sbv", "TTML", "rt"]
+    supported_types = [
+        "srt",
+        "vtt",
+        "txt",
+        "docx",
+        "docx-bilingual",
+        "scc",
+        "sbv",
+        "TTML",
+        "rt",
+    ]
     if export_type not in supported_types:
         return Response(
             {
@@ -975,7 +999,10 @@ def generate_translation_output(request):
         if source_type == None:
             source_type = config.backend_default_translation_type
         payloads = generate_translation_payload(
-            translation.transcript, translation.target_language, [source_type], task.user.id
+            translation.transcript,
+            translation.target_language,
+            [source_type],
+            task.user.id,
         )
         if type(translation.payload) == str or (
             type(translation.payload) == dict
@@ -1558,15 +1585,19 @@ def save_translation(request):
                                 r"\s+", " ", cleaned_text
                             )  # for removing multiple blank spaces
                             num_words += len(cleaned_text.split(" "))
-                            translation_obj.payload["payload"][index][
-                                "start_time"
-                            ] = format_timestamp(
-                                translation_obj.payload["payload"][index]["start_time"]
+                            translation_obj.payload["payload"][index]["start_time"] = (
+                                format_timestamp(
+                                    translation_obj.payload["payload"][index][
+                                        "start_time"
+                                    ]
+                                )
                             )
-                            translation_obj.payload["payload"][index][
-                                "end_time"
-                            ] = format_timestamp(
-                                translation_obj.payload["payload"][index]["end_time"]
+                            translation_obj.payload["payload"][index]["end_time"] = (
+                                format_timestamp(
+                                    translation_obj.payload["payload"][index][
+                                        "end_time"
+                                    ]
+                                )
                             )
 
                     translation_obj.payload["word_count"] = num_words
@@ -1877,7 +1908,7 @@ def generate_translation(request):
 
     # Update the translation payload with the generated translations
     payload = []
-    for (source, target) in zip(sentence_list, all_translated_sentences):
+    for source, target in zip(sentence_list, all_translated_sentences):
         payload.append(
             {"source": source, "target": target if source.strip() else source}
         )

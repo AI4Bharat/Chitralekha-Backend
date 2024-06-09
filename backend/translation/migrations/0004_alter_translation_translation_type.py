@@ -2,6 +2,7 @@
 
 from django.db import migrations, models
 
+
 # Custom Migrations
 def update_human_edited_to_updated_machine_generated(apps, schema_editor):
     """Update human edited translations to updated machine generated"""
