@@ -316,7 +316,7 @@ def celery_nmt_tts_call(task_id):
                     empty_sentences,
             ) = tts_payload
             tts_payload = generate_tts_output(
-            tts_input, target_language, translation, translation_obj, empty_sentences
+            tts_input, target_language, translation, translation_obj, empty_sentences, False
             )
             payloads = tts_payload
 
