@@ -692,13 +692,13 @@ def save_voice_over(request):
 
             if end_offset > count_cards:
                 next = None
-                previous = offset - 1
+                previous = offset - voice_over_payload_offset_size
             elif offset == 1:
                 previous = None
-                next = offset + 1
+                next = offset + voice_over_payload_offset_size
             else:
-                next = offset + 1
-                previous = offset - 1
+                next = offset + voice_over_payload_offset_size
+                previous = offset - voice_over_payload_offset_size
 
             sentences_list = []
             if "EDIT" in task.task_type:
