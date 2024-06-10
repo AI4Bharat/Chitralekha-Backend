@@ -309,7 +309,7 @@ def get_payload(request):
     translation_payload = []
     completed_count = 0
     if voice_over.translation:
-        payload_offset_size = voice_over_payload_offset_size - 1
+        # payload_offset_size = voice_over_payload_offset_size - 1
         if voice_over.voice_over_type == "MACHINE_GENERATED":
             count_cards = (
                 len(list(voice_over.payload["payload"].keys()))
@@ -326,18 +326,20 @@ def get_payload(request):
             )
             """
             count_cards = len(voice_over.translation.payload["payload"]) - 1
-        first_offset = voice_over_payload_offset_size // 2 + 1
-        start_offset = (
-            first_offset + current_offset - 1 * payload_offset_size // 2
-        ) - (payload_offset_size // 2)
-        end_offset = (first_offset + current_offset - 1 * payload_offset_size // 2) + (
-            payload_offset_size // 2
-        )
+        # first_offset = voice_over_payload_offset_size // 2 + 1
+        # start_offset = (
+        #     first_offset + current_offset - 1 * payload_offset_size // 2
+        # ) - (payload_offset_size // 2)
+        start_offset = current_offset
+        # end_offset = (first_offset + current_offset - 1 * payload_offset_size // 2) + (
+        #     payload_offset_size // 2
+        # )
+        end_offset=start_offset+voice_over_payload_offset_size-1
 
         generate_voice_over = True
         if end_offset > count_cards:
             next = None
-            previous = offset - 1
+            previous = offset - voice_over_payload_offset_size
         elif offset == 1:
             delete_indices = []
             for index, sentence in enumerate(voice_over.translation.payload["payload"]):
@@ -348,10 +350,10 @@ def get_payload(request):
                 voice_over.translation.payload["payload"].pop(ind)
             voice_over.translation.save()
             previous = None
-            next = offset + 1
+            next = offset + voice_over_payload_offset_size
         else:
-            next = offset + 1
-            previous = offset - 1
+            next = offset + voice_over_payload_offset_size
+            previous = offset - voice_over_payload_offset_size
 
         for index, translation_text in enumerate(
             voice_over.translation.payload["payload"][start_offset : end_offset + 1]
@@ -684,7 +686,7 @@ def save_voice_over(request):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            payload_offset_size = voice_over_payload_offset_size - 1
+            # payload_offset_size = voice_over_payload_offset_size - 1
             if voice_over.voice_over_type == "MACHINE_GENERATED":
                 count_cards = (
                     len(list(voice_over.payload["payload"].keys()))
@@ -701,24 +703,26 @@ def save_voice_over(request):
                 )
                 """
                 count_cards = len(voice_over.translation.payload["payload"]) - 1
-            first_offset = voice_over_payload_offset_size // 2 + 1
+            # first_offset = voice_over_payload_offset_size // 2 + 1
             current_offset = offset - 1
-            start_offset = (
-                first_offset + current_offset - 1 * payload_offset_size // 2
-            ) - (payload_offset_size // 2)
-            end_offset = (
-                first_offset + current_offset - 1 * payload_offset_size // 2
-            ) + (payload_offset_size // 2)
+            # start_offset = (
+            #     first_offset + current_offset - 1 * payload_offset_size // 2
+            # ) - (payload_offset_size // 2)
+            start_offset = current_offset
+            # end_offset = (
+            #     first_offset + current_offset - 1 * payload_offset_size // 2
+            # ) + (payload_offset_size // 2)
+            end_offset = start_offset+voice_over_payload_offset_size-1
 
             if end_offset > count_cards:
                 next = None
-                previous = offset - 1
+                previous = offset - voice_over_payload_offset_size
             elif offset == 1:
                 previous = None
-                next = offset + 1
+                next = offset + voice_over_payload_offset_size
             else:
-                next = offset + 1
-                previous = offset - 1
+                next = offset + voice_over_payload_offset_size
+                previous = offset - voice_over_payload_offset_size
 
             sentences_list = []
             if "EDIT" in task.task_type:
