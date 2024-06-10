@@ -7,6 +7,7 @@ PERMISSION_ERROR = {
     "message": "You do not have enough permissions to access this view!"
 }
 
+
 # Allow view only if user has translation editor or above roles.
 def is_voice_over_editor(f):
     @wraps(f)

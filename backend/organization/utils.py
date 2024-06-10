@@ -14,7 +14,6 @@ from django.db.models import (
 )
 from django.db.models.functions import Cast, Concat
 from datetime import timedelta, datetime
-from django.core.mail import send_mail, EmailMessage
 import os
 from organization.models import Organization
 from project.models import Project
@@ -33,6 +32,8 @@ from config import storage_account_key, connection_string, reports_container_nam
 from django.conf import settings
 import logging
 from collections import defaultdict
+from django.core.mail import EmailMultiAlternatives
+from utils.email_template import send_email_template_with_attachment
 
 
 def send_mail_with_report(subject, body, user, csv_file_paths):
@@ -63,13 +64,25 @@ def send_mail_with_report(subject, body, user, csv_file_paths):
             reports_message = """<p>The requested report has been successfully generated. <br><br><a href={url} target="_blank">Click Here</a> to access the reports.</p>""".format(
                 url=report_urls[0]
             )
-            send_mail(
+            compiled_msg_code = send_email_template_with_attachment(
+                subject=subject, username=[user.email], message=reports_message
+            )
+
+            msg = EmailMultiAlternatives(
                 subject,
-                "",
+                compiled_msg_code,
                 settings.DEFAULT_FROM_EMAIL,
                 [user.email],
-                html_message=reports_message,
             )
+            msg.attach_alternative(compiled_msg_code, "text/html")
+            msg.send()
+            # send_mail(
+            #     subject,
+            #     "",
+            #     settings.DEFAULT_FROM_EMAIL,
+            #     [user.email],
+            #     html_message=reports_message,
+            # )
         except:
             logging.info("Email Can't be sent.")
     else:
@@ -77,13 +90,25 @@ def send_mail_with_report(subject, body, user, csv_file_paths):
             reports_msg = """<p>The requested report has been successfully generated. <br><br><a href={url_1} target="_blank">Click Here</a> to access the Transcription reports.<br><br><a href={url_2} target="_blank">Click Here</a> to access the Translation reports.<br><br><a href={url_3} target="_blank">Click Here</a> to access the VoiceOver reports.</p>""".format(
                 url_1=report_urls[0], url_2=report_urls[1], url_3=report_urls[2]
             )
-            send_mail(
-                subject,
-                "",
+            compiled_msg_code = send_email_template_with_attachment(
+                subject=subject, username=[user.email], message=reports_message
+            )
+
+            msg = EmailMultiAlternatives(
+                f"Chitralekha User Reports",
+                compiled_msg_code,
                 settings.DEFAULT_FROM_EMAIL,
                 [user.email],
-                html_message=reports_msg,
             )
+            msg.attach_alternative(compiled_msg_code, reports_msg, "text/html")
+            msg.send()
+            # send_mail(
+            #     subject,
+            #     "",
+            #     settings.DEFAULT_FROM_EMAIL,
+            #     [user.email],
+            #     html_message=reports_msg,
+            # )
         except:
             logging.info("Email Can't be sent.")
 
@@ -127,7 +152,9 @@ def get_org_report_users_email(org_id, user):
     user_data = []
     if len(projects_in_org) > 0:
         for project in projects_in_org:
-            limit = len(User.objects.filter(projects__pk=project.id, has_accepted_invite=True))
+            limit = len(
+                User.objects.filter(projects__pk=project.id, has_accepted_invite=True)
+            )
             project_report = get_project_report_users(project.id, user, limit)
             for report in project_report:
                 report["project"] = {"value": project.title, "label": "Project"}

@@ -76,7 +76,7 @@ def unsubscribe(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     categories = request.GET.get("categories")
-    sub_user.subscribed_categories = categories.split(',')
+    sub_user.subscribed_categories = categories.split(",")
     sub_user.save()
     return Response(
         {"message": "User unsubscribed successfully."},

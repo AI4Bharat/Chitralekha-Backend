@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("transcript", "0005_alter_transcript_created_at_alter_transcript_id_and_more"),
     ]

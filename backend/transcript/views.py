@@ -72,7 +72,7 @@ import logging
 from config import align_json_url, app_name
 import regex
 from .tasks import celery_align_json
-from task.tasks import celery_nmt_call,celery_nmt_tts_call
+from task.tasks import celery_nmt_call, celery_nmt_tts_call
 import os
 from .utils.timestamp import *
 
@@ -80,7 +80,19 @@ from .utils.timestamp import *
 @api_view(["GET"])
 def get_transcript_export_types(request):
     return Response(
-        {"export_types": ["srt", "vtt", "txt", "docx", "ytt", "sbv", "TTML", "scc", "rt"]},
+        {
+            "export_types": [
+                "srt",
+                "vtt",
+                "txt",
+                "docx",
+                "ytt",
+                "sbv",
+                "TTML",
+                "scc",
+                "rt",
+            ]
+        },
         status=status.HTTP_200_OK,
     )
 
@@ -257,7 +269,6 @@ def export_transcript(request):
     elif export_type == "TTML":
         lines = generate_ttml(payload)
         for index, segment in enumerate(payload):
-
             lines.append(
                 "\t\t\t<p xml:id='subtitle"
                 + str(index + 1)
@@ -851,8 +862,10 @@ def send_mail_to_user(task):
 
 
 def check_if_transcription_correct(transcription_obj, task):
-    bad_sentences = get_bad_sentences_in_progress_for_transcription(transcription_obj, task)
-    if len(bad_sentences)>0:
+    bad_sentences = get_bad_sentences_in_progress_for_transcription(
+        transcription_obj, task
+    )
+    if len(bad_sentences) > 0:
         transcription = (
             Transcript.objects.filter(video=task.video)
             .filter(status="TRANSCRIPTION_EDIT_INPROGRESS")
@@ -860,7 +873,7 @@ def check_if_transcription_correct(transcription_obj, task):
         )
         if transcription is not None:
             transcription_obj.status = "TRANSCRIPTION_EDIT_INPROGRESS"
-            transcription_obj.parent_transcript=transcription.parent_transcript
+            transcription_obj.parent_transcript = transcription.parent_transcript
             transcription_obj.save()
             transcription.parent_transcript = None
             transcription.save()
@@ -886,6 +899,7 @@ def check_if_transcription_correct(transcription_obj, task):
         return response
     return None
 
+
 def change_active_status_of_next_tasks(task, transcript_obj):
     print(celery_nmt_tts_call)
     tasks = Task.objects.filter(video=task.video)
@@ -909,7 +923,7 @@ def change_active_status_of_next_tasks(task, transcript_obj):
             transcript.parent_transcript = transcript_obj
             transcript.payload = transcript_obj.payload
             transcript.save()
-    
+
     if tasks.filter(task_type="TRANSLATION_VOICEOVER_EDIT").first():
         translations = Translation.objects.filter(video=task.video).filter(
             status="TRANSLATION_SELECT_SOURCE"
@@ -931,12 +945,13 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                     celery_nmt_tts_call.delay(task_id=translation.task.id)
                 else:
                     payloads = generate_translation_payload(
-                        transcript_obj, translation.target_language, [source_type], translation.task.user.id
+                        transcript_obj,
+                        translation.target_language,
+                        [source_type],
+                        translation.task.user.id,
                     )
                     translation.payload = payloads[source_type]
                     translation.save()
-
-
 
     if activate_translations and tasks.filter(task_type="TRANSLATION_EDIT").first():
         translations = Translation.objects.filter(video=task.video).filter(
@@ -959,7 +974,10 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                     celery_nmt_call.delay(task_id=translation.task.id)
                 else:
                     payloads = generate_translation_payload(
-                        transcript, target_language, [source_type], translation.task.user.id
+                        transcript,
+                        target_language,
+                        [source_type],
+                        translation.task.user.id,
                     )
                     translation.payload = payloads[source_type]
                     translation.save()
@@ -1595,9 +1613,7 @@ def save_transcription(request):
                         )
 
                     delete_indices = []
-                    for index, sentence in enumerate(
-                        transcript_obj.payload["payload"]
-                    ):
+                    for index, sentence in enumerate(transcript_obj.payload["payload"]):
                         if "text" not in sentence.keys():
                             delete_indices.append(index)
 

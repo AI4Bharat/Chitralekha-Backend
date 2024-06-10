@@ -6,9 +6,7 @@ import argparse
 
 
 def get_alignment(wav, text, lang, mode="wav"):
-
     if mode == "wav":
-
         audio = AudioSegment.from_file(wav)
         samples = np.array(audio.get_array_of_samples()).astype("float64")
     else:

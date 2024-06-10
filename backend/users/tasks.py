@@ -17,9 +17,11 @@ def send_completed_tasks_mail():
 def send_new_tasks_mail():
     get_new_tasks()
 
+
 @shared_task(name="send_new_users_to_org_owner")
 def send_new_users_to_org_owner():
     get_new_users()
+
 
 @shared_task(name="send_eta_reminders")
 def send_eta_reminders():

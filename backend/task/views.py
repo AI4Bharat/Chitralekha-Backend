@@ -75,7 +75,7 @@ from task.tasks import (
     celery_nmt_call,
     convert_srt_to_payload,
     convert_vtt_to_payload,
-    celery_nmt_tts_call
+    celery_nmt_tts_call,
 )
 import requests
 from django.db.models.functions import Concat
@@ -376,6 +376,7 @@ class TaskViewSet(ModelViewSet):
                 "message": "Transcript doesn't exist for this video.",
                 "status": status.HTTP_400_BAD_REQUEST,
             }
+
     def create_translation_voiceover_task(
         self,
         videos,
@@ -494,8 +495,7 @@ class TaskViewSet(ModelViewSet):
                         "message": "Task creation for Translation Review failed as Voice Over task already exists.",
                     }
                 )
-        
-        
+
         if len(duplicate_user_tasks):
             consolidated_error.append(
                 {
@@ -560,7 +560,7 @@ class TaskViewSet(ModelViewSet):
                         "status": "Fail",
                         "message": "Task creation failed as selected task already exist.",
                     }
-                )        
+                )
 
         if len(error_language_not_supported_tasks):
             consolidated_error.append(
@@ -583,7 +583,7 @@ class TaskViewSet(ModelViewSet):
                         "message": "Task creation failed as Target Langauge is not supported for VoiceOver.",
                     }
                 )
-       
+
         if len(error_gender_not_supported_tasks):
             consolidated_error.append(
                 {
@@ -606,8 +606,6 @@ class TaskViewSet(ModelViewSet):
                     }
                 )
 
-        
-
         for video in video_ids:
             videos.remove(video)
             if len(user_ids) > 0:
@@ -615,14 +613,18 @@ class TaskViewSet(ModelViewSet):
 
         if len(user_ids) > 0:
             if "EDIT" in task_type:
-                permitted = self.has_translate_edit_permission(user_ids[0], videos) or has_voice_over_edit_permission(user_ids[0], videos)
+                permitted = self.has_translate_edit_permission(
+                    user_ids[0], videos
+                ) or has_voice_over_edit_permission(user_ids[0], videos)
             else:
-                permitted = self.has_translate_review_permission(user_ids[0], videos) or self.has_voice_over_review_permission(user_ids[0], videos)
+                permitted = self.has_translate_review_permission(
+                    user_ids[0], videos
+                ) or self.has_voice_over_review_permission(user_ids[0], videos)
         else:
             permitted = True
 
         if permitted:
-            if "EDIT" in task_type:               
+            if "EDIT" in task_type:
                 tasks = []
                 for video in videos:
                     if len(user_ids) == 0:
@@ -651,7 +653,7 @@ class TaskViewSet(ModelViewSet):
                     )
                     new_task.save()
                     print("New TLVO task")
-                   
+
                     tasks.append(new_task)
 
                 new_translations = []
@@ -685,19 +687,19 @@ class TaskViewSet(ModelViewSet):
                     # translation_obj.save()
                     new_translations.append(translate_obj)
                     voiceover_obj = VoiceOver(
-                            video=task.video,
-                            user=task.user,
-                            translation=translate_obj,
-                            payload={"payload": {"completed_count": 0}},
-                            target_language=target_language,
-                            task=task,
-                            voice_over_type=source_type,
-                            status="VOICEOVER_SELECT_SOURCE",
-                        )
-                        # voiceover_obj.save()
+                        video=task.video,
+                        user=task.user,
+                        translation=translate_obj,
+                        payload={"payload": {"completed_count": 0}},
+                        target_language=target_language,
+                        task=task,
+                        voice_over_type=source_type,
+                        status="VOICEOVER_SELECT_SOURCE",
+                    )
+                    # voiceover_obj.save()
                     new_voiceovers.append(voiceover_obj)
                 translations = Translation.objects.bulk_create(new_translations)
-                voiceovers = VoiceOver.objects.bulk_create(new_voiceovers)                
+                voiceovers = VoiceOver.objects.bulk_create(new_voiceovers)
                 if is_single_task:
                     for task in tasks:
                         celery_nmt_tts_call.delay(task.id)
@@ -738,7 +740,7 @@ class TaskViewSet(ModelViewSet):
                         is_active=is_active,
                     )
                     new_task.save()
-                   
+
                     if is_active:
                         send_mail_to_user(new_task)
                     tasks.append(new_task)
@@ -764,14 +766,14 @@ class TaskViewSet(ModelViewSet):
                         .first()
                     )
 
-                #     if translation is not None:
-                #         payload = translation.payload
-                #         transcript = translation.transcript
-                #         is_active = True
-                #     else:
-                #         payload = None
-                #         transcript = None
-                #         is_active = False
+                    #     if translation is not None:
+                    #         payload = translation.payload
+                    #         transcript = translation.transcript
+                    #         is_active = True
+                    #     else:
+                    #         payload = None
+                    #         transcript = None
+                    #         is_active = False
                     payload = None
                     translate_obj = Translation(
                         video=task.video,
@@ -786,15 +788,15 @@ class TaskViewSet(ModelViewSet):
                     )
                     new_translations.append(translate_obj)
                     voiceover_obj = VoiceOver(
-                            video=task.video,
-                            user=task.user,
-                            translation=translation,
-                            payload={"payload": {"completed_count": 0}},
-                            target_language=target_language,
-                            task=task,
-                            voice_over_type=source_type,
-                            status="VOICEOVER_SELECT_SOURCE",
-                        )
+                        video=task.video,
+                        user=task.user,
+                        translation=translation,
+                        payload={"payload": {"completed_count": 0}},
+                        target_language=target_language,
+                        task=task,
+                        voice_over_type=source_type,
+                        status="VOICEOVER_SELECT_SOURCE",
+                    )
                     new_voiceovers.append(voiceover_obj)
                 print("Creating the translation objects for review")
                 translations = Translation.objects.bulk_create(new_translations)
@@ -836,7 +838,7 @@ class TaskViewSet(ModelViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-    
+
     def create_translation_task(
         self,
         videos,
@@ -870,7 +872,6 @@ class TaskViewSet(ModelViewSet):
         error_user_tasks = []
         error_same_language_tasks = []
         error_review_tasks = []
-        
 
         if len(duplicate_tasks) > 0:
             for task in duplicate_tasks:
@@ -939,8 +940,6 @@ class TaskViewSet(ModelViewSet):
                         "message": "Task creation failed as target language is same as source language.",
                     }
                 )
-
-
 
         if len(duplicate_tasks):
             consolidated_error.append(
@@ -1286,8 +1285,6 @@ class TaskViewSet(ModelViewSet):
                     {"video": video, "task_type": task_type}
                 )
 
-
-
         if len(gender_not_supported) > 0:
             for video in gender_not_supported:
                 video_ids.append(video)
@@ -1404,7 +1401,6 @@ class TaskViewSet(ModelViewSet):
                         "message": "Task creation failed as selected task already exist.",
                     }
                 )
-        
 
         for video in video_ids:
             videos.remove(video)
@@ -1854,7 +1850,7 @@ class TaskViewSet(ModelViewSet):
 
                 new_transcripts = []
                 asr_errors = 0
-                for task in tasks:      
+                for task in tasks:
                     payloads = self.generate_transcript_payload(
                         task, [source_type], True
                     )
@@ -1872,7 +1868,6 @@ class TaskViewSet(ModelViewSet):
                         )
                         continue
                     if type(payloads) != dict:
-                        
                         asr_errors += 1
                         detailed_error.append(
                             {
@@ -2349,17 +2344,17 @@ class TaskViewSet(ModelViewSet):
                 ]
             else:
                 tasks_to_delete = [transcript.task for transcript in transcripts]
-                if len(transcripts)==0:
-                    if task.status=="FAILED":
+                if len(transcripts) == 0:
+                    if task.status == "FAILED":
                         tasks_to_delete.append(task)
-                    if task.status=="SELECTED_SOURCE":
+                    if task.status == "SELECTED_SOURCE":
                         return Response(
-                        {
-                            "message": "The Transcript Generation still under progress, please try again after sometime.",
-                        },
-                        status=status.HTTP_409_CONFLICT,
-                    )
-                    
+                            {
+                                "message": "The Transcript Generation still under progress, please try again after sometime.",
+                            },
+                            status=status.HTTP_409_CONFLICT,
+                        )
+
             if len(tasks_to_delete):
                 for translation in Translation.objects.filter(video=task.video).all():
                     translation_tasks.add(translation.task)
@@ -2528,13 +2523,14 @@ class TaskViewSet(ModelViewSet):
                             content = b"".join(transcript.streaming_content)
                         else:
                             content = transcript.content
-                        if task.video.project_id.organization_id.id == 16 and len(task.description) > 0:
+                        if (
+                            task.video.project_id.organization_id.id == 16
+                            and len(task.description) > 0
+                        ):
                             file_name = f"{task.description}.{export_type}"
                         else:
                             file_name = f"{task.video.name}_{time_now}.{export_type}"
-                        zf.writestr(
-                            file_name, content
-                        )
+                        zf.writestr(file_name, content)
                     elif "TRANSLATION" in task.task_type:
                         translation = get_export_translation(
                             request, task.id, export_type
@@ -2543,7 +2539,10 @@ class TaskViewSet(ModelViewSet):
                             content = b"".join(translation.streaming_content)
                         else:
                             content = translation.content
-                        if task.video.project_id.organization_id.id == 16 and len(task.description) > 0:
+                        if (
+                            task.video.project_id.organization_id.id == 16
+                            and len(task.description) > 0
+                        ):
                             file_name = f"{task.description}.{export_type}"
                         else:
                             file_name = f"{task.video.name}_{time_now}.{export_type}"
@@ -2789,8 +2788,10 @@ class TaskViewSet(ModelViewSet):
             user_ids = [user for i in range(len(videos))]
         if "TRANSLATION_VOICEOVER" in task_type:
             source_type = (
-                project.default_translation_type or project.default_voiceover_type
-                or organization.default_translation_type or  organization.default_voiceover_type 
+                project.default_translation_type
+                or project.default_voiceover_type
+                or organization.default_translation_type
+                or organization.default_voiceover_type
             )
             if source_type == None:
                 source_type = backend_default_translation_type
@@ -2885,10 +2886,10 @@ class TaskViewSet(ModelViewSet):
                     {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
                 )
 
-
-
             if task.task_type == "TRANSLATION_VOICEOVER_EDIT":
-                permission = self.has_translate_edit_permission(user_obj, [task.video]) or self.has_voice_over_edit_permission(user_obj, [task.video])
+                permission = self.has_translate_edit_permission(
+                    user_obj, [task.video]
+                ) or self.has_voice_over_edit_permission(user_obj, [task.video])
             if task.task_type == "TRANSCRIPTION_EDIT":
                 permission = self.has_transcript_edit_permission(user_obj, [task.video])
             elif task.task_type == "TRANSCRIPTION_REVIEW":
@@ -2979,7 +2980,6 @@ class TaskViewSet(ModelViewSet):
                         user_obj, [task.video]
                     )
                 else:
-                    
                     logging.info("test1 Not a Valid Type")
 
                 if permission:
@@ -3038,7 +3038,11 @@ class TaskViewSet(ModelViewSet):
             {"id": 3, "value": "TRANSLATION_EDIT", "label": "Translation Edit"},
             {"id": 4, "value": "TRANSLATION_REVIEW", "label": "Translation Review"},
             {"id": 5, "value": "VOICEOVER_EDIT", "label": "VoiceOver Edit"},
-            {"id": 6, "value": "TRANSLATION_VOICEOVER_EDIT", "label": "Translation Voiceover Edit"}
+            {
+                "id": 6,
+                "value": "TRANSLATION_VOICEOVER_EDIT",
+                "label": "Translation Voiceover Edit",
+            },
         ]
         return Response(response, status=status.HTTP_200_OK)
 
@@ -3157,12 +3161,14 @@ class TaskViewSet(ModelViewSet):
         queue = request.query_params.get("queue")
         if queue == "all_tasks":
             if not (
-                    request.user.role
-                    in ["ORG_OWNER", "ADMIN"]
-                    or request.user.is_superuser
-                ):
+                request.user.role in ["ORG_OWNER", "ADMIN"] or request.user.is_superuser
+            ):
                 return Response(
-                    {"message": "Only admin users are authorised to access this data", "data": []}, status=status.HTTP_200_OK
+                    {
+                        "message": "Only admin users are authorised to access this data",
+                        "data": [],
+                    },
+                    status=status.HTTP_200_OK,
                 )
             try:
                 task_list = []
@@ -3175,32 +3181,47 @@ class TaskViewSet(ModelViewSet):
                 else:
                     res = requests.get(url, params=params)
                 data = res.json()
-                
+
                 task_data = list(data.values())
                 for elem in task_data:
                     task_obj = {}
                     if elem["name"] == "task.tasks.celery_asr_call":
-                        task_obj["task_id"]=eval(elem["kwargs"])["task_id"]
+                        task_obj["task_id"] = eval(elem["kwargs"])["task_id"]
                     elif elem["name"] == "task.tasks.celery_tts_call":
-                        task_obj["task_id"]=eval(elem['args'].split(',')[0].split('(')[1])
+                        task_obj["task_id"] = eval(
+                            elem["args"].split(",")[0].split("(")[1]
+                        )
                     elif elem["name"] == "task.tasks.celery_nmt_call":
-                        task_obj["task_id"]=eval(elem["kwargs"])["task_id"]
+                        task_obj["task_id"] = eval(elem["kwargs"])["task_id"]
                     else:
-                        task_obj["task_id"]=''
-                    
-                    received_time = timezone.datetime.utcfromtimestamp(elem["received"]).strftime("%Y-%m-%dT%H:%M:%S.%fZ") if elem["received"] else ""
-                    started_time = timezone.datetime.utcfromtimestamp(elem["started"]).strftime("%Y-%m-%dT%H:%M:%S.%fZ") if elem["started"] else ""
+                        task_obj["task_id"] = ""
 
-                    task_obj["uuid"]=elem["uuid"] if elem["uuid"] else ""
-                    task_obj["name"]=elem["name"] if elem["name"] else ""
-                    task_obj["state"]=elem["state"] if elem["state"] else ""
-                    task_obj["received_time"]= received_time
-                    task_obj["started_time"]= started_time
-                    task_obj["worker"]=elem["worker"] if elem["worker"] else ""
+                    received_time = (
+                        timezone.datetime.utcfromtimestamp(elem["received"]).strftime(
+                            "%Y-%m-%dT%H:%M:%S.%fZ"
+                        )
+                        if elem["received"]
+                        else ""
+                    )
+                    started_time = (
+                        timezone.datetime.utcfromtimestamp(elem["started"]).strftime(
+                            "%Y-%m-%dT%H:%M:%S.%fZ"
+                        )
+                        if elem["started"]
+                        else ""
+                    )
+
+                    task_obj["uuid"] = elem["uuid"] if elem["uuid"] else ""
+                    task_obj["name"] = elem["name"] if elem["name"] else ""
+                    task_obj["state"] = elem["state"] if elem["state"] else ""
+                    task_obj["received_time"] = received_time
+                    task_obj["started_time"] = started_time
+                    task_obj["worker"] = elem["worker"] if elem["worker"] else ""
                     task_list.append(task_obj)
 
                 return Response(
-                    {"message": "successful", "data": task_list, "admin_data":True}, status=status.HTTP_200_OK
+                    {"message": "successful", "data": task_list, "admin_data": True},
+                    status=status.HTTP_200_OK,
                 )
             except Exception as e:
                 return Response(
@@ -3208,7 +3229,6 @@ class TaskViewSet(ModelViewSet):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
         else:
-
             if queue == "nmt":
                 queue_type = "celery@nmt_worker"
             elif queue == "tts":
@@ -3235,10 +3255,14 @@ class TaskViewSet(ModelViewSet):
                 for elem in task_data:
                     if queue == "asr" and elem["name"] == "task.tasks.celery_asr_call":
                         task_list.append(eval(elem["kwargs"])["task_id"])
-                    elif queue == "tts" and elem["name"] == "task.tasks.celery_tts_call":
+                    elif (
+                        queue == "tts" and elem["name"] == "task.tasks.celery_tts_call"
+                    ):
                         # task_list.append(eval(elem["kwargs"])["task_id"])
-                        task_list.append(eval(elem['args'].split(',')[0].split('(')[1]))
-                    elif queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call":
+                        task_list.append(eval(elem["args"].split(",")[0].split("(")[1]))
+                    elif (
+                        queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call"
+                    ):
                         task_list.append(eval(elem["kwargs"])["task_id"])
                     else:
                         pass
@@ -3258,10 +3282,14 @@ class TaskViewSet(ModelViewSet):
                 for elem in task_data:
                     if queue == "asr" and elem["name"] == "task.tasks.celery_asr_call":
                         task_list.append(eval(elem["kwargs"])["task_id"])
-                    elif queue == "tts" and elem["name"] == "task.tasks.celery_tts_call":
+                    elif (
+                        queue == "tts" and elem["name"] == "task.tasks.celery_tts_call"
+                    ):
                         # task_list.append(eval(elem["kwargs"])["task_id"])
-                        task_list.append(eval(elem['args'].split(',')[0].split('(')[1]))
-                    elif queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call":
+                        task_list.append(eval(elem["args"].split(",")[0].split("(")[1]))
+                    elif (
+                        queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call"
+                    ):
                         task_list.append(eval(elem["kwargs"])["task_id"])
                     else:
                         pass
@@ -3272,7 +3300,9 @@ class TaskViewSet(ModelViewSet):
                         "video__id",
                         "created_by__organization__title",
                         submitter_name=Concat(
-                            "created_by__first_name", Value(" "), "created_by__last_name"
+                            "created_by__first_name",
+                            Value(" "),
+                            "created_by__last_name",
                         ),
                     )
                     for elem in task_details:
@@ -3287,7 +3317,8 @@ class TaskViewSet(ModelViewSet):
                         task_list[i] = task_dict
 
                 return Response(
-                    {"message": "successful", "data": task_list}, status=status.HTTP_200_OK
+                    {"message": "successful", "data": task_list},
+                    status=status.HTTP_200_OK,
                 )
             except Exception as e:
                 print(e)
@@ -3370,7 +3401,6 @@ class TaskViewSet(ModelViewSet):
             {"message": f"{api} API is being processed."}, status=status.HTTP_200_OK
         )
 
-
     @action(detail=True, methods=["get"], url_path="get_fail_info")
     def get_fail_info(self, request, pk, *args, **kwargs):
         try:
@@ -3405,17 +3435,23 @@ class TaskViewSet(ModelViewSet):
                     )
             else:
                 return Response(
-                    {"message": "Failed to retrieve response from Translation API. Please regenerate the response."},
+                    {
+                        "message": "Failed to retrieve response from Translation API. Please regenerate the response."
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         elif "TRANSCRIPTION" in task.task_type:
             if Transcript.objects.filter(task=task).first() is None:
                 return Response(
-                    {"message": "Failed to retrieve response from Transcription API. Please regenerate the response."},
+                    {
+                        "message": "Failed to retrieve response from Transcription API. Please regenerate the response."
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             transcript = get_transcript_id(task)
-            bad_sentences = get_bad_sentences_in_progress_for_transcription(transcript, "")
+            bad_sentences = get_bad_sentences_in_progress_for_transcription(
+                transcript, ""
+            )
             if len(bad_sentences) > 0:
                 return Response(
                     {
@@ -3450,12 +3486,14 @@ class TaskViewSet(ModelViewSet):
     )
     @action(detail=True, methods=["post"], url_path="reopen_translation_task")
     def reopen_translation_task(self, request, pk, *args, **kwargs):
-        delete_voiceover_and_reopen=request.query_params.get("delete_voiceover_and_reopen")
-        if delete_voiceover_and_reopen=='true':
-            delete_voiceover_and_reopen=True
+        delete_voiceover_and_reopen = request.query_params.get(
+            "delete_voiceover_and_reopen"
+        )
+        if delete_voiceover_and_reopen == "true":
+            delete_voiceover_and_reopen = True
         else:
-            delete_voiceover_and_reopen=False
-        
+            delete_voiceover_and_reopen = False
+
         try:
             task = Task.objects.get(pk=pk)
         except Task.DoesNotExist:
@@ -3496,7 +3534,11 @@ class TaskViewSet(ModelViewSet):
                 translation_completed_obj.parent = None
                 translation_completed_obj.save()
                 translation_inprogress_obj.delete()
-                translation_completed_obj.status = "TRANSLATION_REVIEW_INPROGRESS" if "TRANSLATION_REVIEW" in task.task_type else "TRANSLATION_EDIT_INPROGRESS"
+                translation_completed_obj.status = (
+                    "TRANSLATION_REVIEW_INPROGRESS"
+                    if "TRANSLATION_REVIEW" in task.task_type
+                    else "TRANSLATION_EDIT_INPROGRESS"
+                )
                 translation_completed_obj.save()
                 task.status = "REOPEN"
                 task.save()
@@ -3506,7 +3548,7 @@ class TaskViewSet(ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         if task.status == "COMPLETE" and "TRANSLATION" in task.task_type:
-            translation_review_task=(
+            translation_review_task = (
                 Task.objects.filter(video=task.video)
                 .filter(target_language=task.target_language)
                 .filter(task_type="TRANSLATION_REVIEW")
@@ -3515,13 +3557,15 @@ class TaskViewSet(ModelViewSet):
             if (
                 "TRANSLATION_EDIT" in task.task_type
                 and translation_review_task is not None
-                and translation_review_task.is_active==True
+                and translation_review_task.is_active == True
             ):
                 return Response(
-                    {"message": "Can not reopen this task. Corrosponding Translation Review task is active"},
+                    {
+                        "message": "Can not reopen this task. Corrosponding Translation Review task is active"
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-                
+
             voiceover_task = (
                 Task.objects.filter(video=task.video)
                 .filter(target_language=task.target_language)
@@ -3529,7 +3573,7 @@ class TaskViewSet(ModelViewSet):
                 .first()
             )
             if voiceover_task is not None:
-                if delete_voiceover_and_reopen==False:
+                if delete_voiceover_and_reopen == False:
                     response = [
                         {
                             "task_type": voiceover_task.get_task_type_label,
@@ -3549,13 +3593,17 @@ class TaskViewSet(ModelViewSet):
                 else:
                     if "TRANSLATION_REVIEW" in task.task_type:
                         translation_completed_obj = (
-                            Translation.objects.filter(status="TRANSLATION_REVIEW_COMPLETE")
+                            Translation.objects.filter(
+                                status="TRANSLATION_REVIEW_COMPLETE"
+                            )
                             .filter(target_language=task.target_language)
                             .filter(video=task.video)
                             .first()
                         )
                         translation_inprogress_obj = (
-                            Translation.objects.filter(status="TRANSLATION_REVIEW_INPROGRESS")
+                            Translation.objects.filter(
+                                status="TRANSLATION_REVIEW_INPROGRESS"
+                            )
                             .filter(target_language=task.target_language)
                             .filter(video=task.video)
                             .all()
@@ -3563,30 +3611,34 @@ class TaskViewSet(ModelViewSet):
 
                     else:
                         translation_completed_obj = (
-                            Translation.objects.filter(status="TRANSLATION_EDIT_COMPLETE")
+                            Translation.objects.filter(
+                                status="TRANSLATION_EDIT_COMPLETE"
+                            )
                             .filter(target_language=task.target_language)
                             .filter(video=task.video)
                             .first()
                         )
                         translation_inprogress_obj = (
-                            Translation.objects.filter(status="TRANSLATION_EDIT_INPROGRESS")
+                            Translation.objects.filter(
+                                status="TRANSLATION_EDIT_INPROGRESS"
+                            )
                             .filter(target_language=task.target_language)
                             .filter(video=task.video)
                             .all()
                         )
                     voice_over_selected_source_obj = (
-                            VoiceOver.objects.filter(status="VOICEOVER_SELECT_SOURCE")
-                            .filter(video=task.video)
-                            .filter(target_language=task.target_language)
-                            .first()
-                        )
+                        VoiceOver.objects.filter(status="VOICEOVER_SELECT_SOURCE")
+                        .filter(video=task.video)
+                        .filter(target_language=task.target_language)
+                        .first()
+                    )
                     voice_over_inprogress_obj = (
-                            VoiceOver.objects.filter(status="VOICEOVER_EDIT_INPROGRESS")
-                            .filter(video=task.video)
-                            .filter(target_language=task.target_language)
-                            .first()
-                        )
-                    
+                        VoiceOver.objects.filter(status="VOICEOVER_EDIT_INPROGRESS")
+                        .filter(video=task.video)
+                        .filter(target_language=task.target_language)
+                        .first()
+                    )
+
                     if (
                         translation_inprogress_obj is not None
                         and translation_completed_obj is not None
@@ -3596,16 +3648,19 @@ class TaskViewSet(ModelViewSet):
                         translation_completed_obj.parent = None
                         translation_completed_obj.save()
                         translation_inprogress_obj.delete()
-                        translation_completed_obj.status = "TRANSLATION_REVIEW_INPROGRESS" if "TRANSLATION_REVIEW" in task.task_type else "TRANSLATION_EDIT_INPROGRESS"
+                        translation_completed_obj.status = (
+                            "TRANSLATION_REVIEW_INPROGRESS"
+                            if "TRANSLATION_REVIEW" in task.task_type
+                            else "TRANSLATION_EDIT_INPROGRESS"
+                        )
                         translation_completed_obj.save()
                         task.status = "REOPEN"
                         task.save()
-                        
+
                         voice_over_selected_source_obj.delete()
                         voiceover_task.is_active = False
                         voiceover_task.save()
 
-                    
                     else:
                         return Response(
                             {"message": "Can not reopen this task."},
@@ -3620,7 +3675,9 @@ class TaskViewSet(ModelViewSet):
                         .first()
                     )
                     translation_inprogress_obj = (
-                        Translation.objects.filter(status="TRANSLATION_REVIEW_INPROGRESS")
+                        Translation.objects.filter(
+                            status="TRANSLATION_REVIEW_INPROGRESS"
+                        )
                         .filter(target_language=task.target_language)
                         .filter(video=task.video)
                         .all()
@@ -3646,7 +3703,11 @@ class TaskViewSet(ModelViewSet):
                     translation_completed_obj.parent = None
                     translation_completed_obj.save()
                     translation_inprogress_obj.delete()
-                    translation_completed_obj.status = "TRANSLATION_REVIEW_INPROGRESS" if "TRANSLATION_REVIEW" in task.task_type else "TRANSLATION_EDIT_INPROGRESS"
+                    translation_completed_obj.status = (
+                        "TRANSLATION_REVIEW_INPROGRESS"
+                        if "TRANSLATION_REVIEW" in task.task_type
+                        else "TRANSLATION_EDIT_INPROGRESS"
+                    )
                     translation_completed_obj.save()
                     task.status = "REOPEN"
                     task.save()
@@ -3690,8 +3751,10 @@ class TaskViewSet(ModelViewSet):
         Adding word count for existing translations and transcriptions
         """
         project_id = request.query_params.get("project_id")
-        translations = Translation.objects.filter(Q(video__project_id=project_id)
-            & Q(status__in=["TRANSLATION_EDIT_COMPLETE", "TRANSLATION_REVIEW_COMPLETE"]))
+        translations = Translation.objects.filter(
+            Q(video__project_id=project_id)
+            & Q(status__in=["TRANSLATION_EDIT_COMPLETE", "TRANSLATION_REVIEW_COMPLETE"])
+        )
         for translation_obj in translations:
             try:
                 if (
@@ -3721,14 +3784,18 @@ class TaskViewSet(ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        transcripts = Transcript.objects.filter(Q(video__project_id=project_id) 
-            & Q(status__in=["TRANSCRIPTION_EDIT_COMPLETE", "TRANSCRIPTION_REVIEW_COMPLETE"]))
+        transcripts = Transcript.objects.filter(
+            Q(video__project_id=project_id)
+            & Q(
+                status__in=[
+                    "TRANSCRIPTION_EDIT_COMPLETE",
+                    "TRANSCRIPTION_REVIEW_COMPLETE",
+                ]
+            )
+        )
         for transcript_obj in transcripts:
             try:
-                if (
-                    transcript_obj.payload != "" 
-                    and transcript_obj.payload is not None
-                ):
+                if transcript_obj.payload != "" and transcript_obj.payload is not None:
                     num_words = 0
                     for idv_transcription in transcript_obj.payload["payload"]:
                         if "text" in idv_transcription.keys():
