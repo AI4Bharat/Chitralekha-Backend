@@ -658,13 +658,16 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
             user_id = str(user_id)
             org_id = None
             tmx_level = "USER"
+            print("Glossary Input", source["text"])
             tmx_phrases, res_dict = tmxservice.get_tmx_phrases(
                 user_id, org_id, locale, source["text"], tmx_level
             )
+            print("Glossary Output", tmx_phrases)
             # [{'src_phrase': 'Python', 'tmx_tgt': 'अजगर', 'tgt': 'पायथन', 'type': 'NMT'}]
             tgt, tmx_replacement = tmxservice.replace_nmt_tgt_with_user_tgt(
                 tmx_phrases, source["text"], target
             )
+            print("Replacement Output",tmx_replacement)
             if len(tmx_replacement) > 0:
                 for i in range(len(tmx_replacement)):
                     target = target.replace(
