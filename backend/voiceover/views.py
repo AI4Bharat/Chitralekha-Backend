@@ -613,6 +613,13 @@ def save_voice_over(request):
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    
+    user.user_history = {
+        "task_id": task_id,
+        "offset": offset,
+        "task_type": task.task_type,
+    }
+    user.save()
     try:
         voice_over = VoiceOver.objects.get(pk=voice_over_id)
         target_language = voice_over.target_language

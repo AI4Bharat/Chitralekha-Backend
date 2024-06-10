@@ -1324,6 +1324,13 @@ def save_translation(request):
             {"message": "Translation doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    user = request.user
+    user.user_history = {
+        "task_id": task_id,
+        "offset": offset,
+        "task_type": task.task_type,
+    }
+    user.save()
     try:
         translation = Translation.objects.get(pk=translation_id)
         target_language = translation.target_language
