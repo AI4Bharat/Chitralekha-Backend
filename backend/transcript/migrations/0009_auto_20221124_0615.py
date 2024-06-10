@@ -5,7 +5,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("task", "0001_initial"),
         ("transcript", "0008_alter_transcript_language"),

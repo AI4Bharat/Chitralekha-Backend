@@ -51,7 +51,9 @@ class RestorePuncts:
         # use_cuda isnt working and this hack seems to load the model correctly to the gpu
         self.model.device = torch.device("cuda")
         # dummy punctuate to load the model onto gpu
-        self.punctuate("इस श्रेणी में केवल निम्नलिखित उपश्रेणी है मेहुल को भारत को सौंप दिया जाए")
+        self.punctuate(
+            "इस श्रेणी में केवल निम्नलिखित उपश्रेणी है मेहुल को भारत को सौंप दिया जाए"
+        )
 
     def punctuate(self, text: str, batch_size: int = 32):
         """
@@ -220,7 +222,6 @@ class RestorePuncts:
 
 
 if __name__ == "__main__":
-
     start = time.time()
     punct_model = RestorePuncts()
 

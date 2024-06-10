@@ -12,7 +12,6 @@ def update_human_edited_to_updated_machine_generated(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("translation", "0003_rename_target_lang_translation_target_language"),
     ]

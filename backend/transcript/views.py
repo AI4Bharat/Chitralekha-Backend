@@ -269,7 +269,6 @@ def export_transcript(request):
     elif export_type == "TTML":
         lines = generate_ttml(payload)
         for index, segment in enumerate(payload):
-
             lines.append(
                 "\t\t\t<p xml:id='subtitle"
                 + str(index + 1)
@@ -1793,17 +1792,15 @@ def save_transcription(request):
                                 r"\s+", " ", cleaned_text
                             )  # for removing multiple blank spaces
                             num_words += len(cleaned_text.split(" "))
-                            transcript_obj.payload["payload"][index]["start_time"] = (
-                                format_timestamp(
-                                    transcript_obj.payload["payload"][index][
-                                        "start_time"
-                                    ]
-                                )
+                            transcript_obj.payload["payload"][index][
+                                "start_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["start_time"]
                             )
-                            transcript_obj.payload["payload"][index]["end_time"] = (
-                                format_timestamp(
-                                    transcript_obj.payload["payload"][index]["end_time"]
-                                )
+                            transcript_obj.payload["payload"][index][
+                                "end_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["end_time"]
                             )
                     transcript_obj.payload["word_count"] = num_words
                     transcript_obj.save()

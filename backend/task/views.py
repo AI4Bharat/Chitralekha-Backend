@@ -1868,7 +1868,6 @@ class TaskViewSet(ModelViewSet):
                         )
                         continue
                     if type(payloads) != dict:
-
                         asr_errors += 1
                         detailed_error.append(
                             {
@@ -2567,9 +2566,9 @@ class TaskViewSet(ModelViewSet):
         response = HttpResponse(
             zip_file, content_type="application/zip", status=status.HTTP_200_OK
         )
-        response["Content-Disposition"] = (
-            f"attachment; filename={app_name}_{time_now}_all.zip"
-        )
+        response[
+            "Content-Disposition"
+        ] = f"attachment; filename={app_name}_{time_now}_all.zip"
         return response
 
     @swagger_auto_schema(
@@ -2657,15 +2656,15 @@ class TaskViewSet(ModelViewSet):
             response["error_report"] = error_report
             response["task_ids"] = list(tasks_to_delete)
             if len(list(videos)) > 1:
-                response["message"] = (
-                    "The Transcription task for video_id(s) {0} has dependent translation tasks. Do you still want to delete all related translations as well?.".format(
-                        str(list(videos))
-                    )
+                response[
+                    "message"
+                ] = "The Transcription task for video_id(s) {0} has dependent translation tasks. Do you still want to delete all related translations as well?.".format(
+                    str(list(videos))
                 )
             else:
-                response["message"] = (
-                    "The Transcription task has dependent translation tasks. Do you still want to delete all related translations as well?."
-                )
+                response[
+                    "message"
+                ] = "The Transcription task has dependent translation tasks. Do you still want to delete all related translations as well?."
             return Response(
                 response,
                 status=status.HTTP_409_CONFLICT,
@@ -2981,7 +2980,6 @@ class TaskViewSet(ModelViewSet):
                         user_obj, [task.video]
                     )
                 else:
-
                     logging.info("test1 Not a Valid Type")
 
                 if permission:
@@ -3231,7 +3229,6 @@ class TaskViewSet(ModelViewSet):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
         else:
-
             if queue == "nmt":
                 queue_type = "celery@nmt_worker"
             elif queue == "tts":

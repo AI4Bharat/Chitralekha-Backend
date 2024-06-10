@@ -511,9 +511,9 @@ def download_all(request):
     response = HttpResponse(
         zip_file, content_type="application/zip", status=status.HTTP_200_OK
     )
-    response["Content-Disposition"] = (
-        f"attachment; filename={config.app_name}_{time_now}_all.zip"
-    )
+    response[
+        "Content-Disposition"
+    ] = f"attachment; filename={config.app_name}_{time_now}_all.zip"
     return response
 
 

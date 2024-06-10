@@ -245,7 +245,6 @@ def export_translation(request):
     elif export_type == "TTML":
         lines = generate_ttml(payload)
         for index, segment in enumerate(payload):
-
             lines.append(
                 "\t\t\t<p xml:id='subtitle"
                 + str(index + 1)
@@ -1064,7 +1063,6 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                 "text" in payload["payload"][i].keys()
                 and "text" not in translation.payload["payload"][start_offset + i]
             ):
-
                 translation.payload["payload"][start_offset + i] = {
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
@@ -1585,19 +1583,15 @@ def save_translation(request):
                                 r"\s+", " ", cleaned_text
                             )  # for removing multiple blank spaces
                             num_words += len(cleaned_text.split(" "))
-                            translation_obj.payload["payload"][index]["start_time"] = (
-                                format_timestamp(
-                                    translation_obj.payload["payload"][index][
-                                        "start_time"
-                                    ]
-                                )
+                            translation_obj.payload["payload"][index][
+                                "start_time"
+                            ] = format_timestamp(
+                                translation_obj.payload["payload"][index]["start_time"]
                             )
-                            translation_obj.payload["payload"][index]["end_time"] = (
-                                format_timestamp(
-                                    translation_obj.payload["payload"][index][
-                                        "end_time"
-                                    ]
-                                )
+                            translation_obj.payload["payload"][index][
+                                "end_time"
+                            ] = format_timestamp(
+                                translation_obj.payload["payload"][index]["end_time"]
                             )
 
                     translation_obj.payload["word_count"] = num_words

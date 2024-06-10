@@ -45,7 +45,6 @@ def get_data_from_google_video(url: str):
 
     # Check if the link is for Google Drive or YouTube
     if "drive.google.com" in url:
-
         # Get the file ID from the URL
         file_id = info["id"]
 
@@ -316,7 +315,6 @@ def get_video_func(request):
     ## PATCH: Handle audio_only files separately for google drive links
     ## TODO: Move it to an util function
     if "drive.google.com" in url and is_audio_only:
-
         # Construct a direct download link from the google drive url
         # get the id from the drive link
         try:
@@ -593,7 +591,6 @@ def get_video_func(request):
                     and "TRANSCRIPTION" not in task_type
                 ):
                     for target_language in default_target_languages:
-
                         task_response = create_tasks(
                             video.id,
                             task_type,

@@ -438,9 +438,9 @@ class TMXService:
                                     "type": "Attention API",
                                 }
                             )
-                            tmx_replace_dict[nmt_aligned_phrases[aligned_phrase]] = (
-                                phrase["user_tgt"]
-                            )
+                            tmx_replace_dict[
+                                nmt_aligned_phrases[aligned_phrase]
+                            ] = phrase["user_tgt"]
                             modified_nmt_tgt = phrase["nmt_tgt"]
                             modified_nmt_tgt.append(nmt_aligned_phrases[aligned_phrase])
                             phrase["nmt_tgt"] = modified_nmt_tgt

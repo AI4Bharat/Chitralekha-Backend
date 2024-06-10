@@ -66,7 +66,6 @@ STATUS_OPTIONS = (
 
 
 class OnboardingOrgAccountSerializer(serializers.ModelSerializer):
-
     orgname = serializers.CharField()
     org_portal = serializers.CharField()
     email_domain_name = serializers.CharField()
