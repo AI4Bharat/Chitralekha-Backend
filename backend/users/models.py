@@ -99,7 +99,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=False,
         help_text=("Indicates whether mailing is enable or not."),
     )
-
+    user_history = models.JSONField(verbose_name="User History", null=True)
     date_joined = models.DateTimeField(
         verbose_name="date joined", blank=True, null=True
     )
