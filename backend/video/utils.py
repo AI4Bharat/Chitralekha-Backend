@@ -232,7 +232,7 @@ def create_tasks(
 def get_video_func(request):
     url = request.GET.get("multimedia_url")
     lang = request.GET.get("lang", "en")
-    project_id = request.GET.get("project_id")
+    project_id = int(request.GET.get("project_id"))
     description = request.GET.get("description", "")
     is_audio_only = request.GET.get("is_audio_only", "false")
     create = request.GET.get("create", "false")
@@ -257,27 +257,25 @@ def get_video_func(request):
     organization = project.organization_id
     if create:
         videos = Video.objects.filter(url=url)
-        for video_organization in videos.values_list(
-            "project_id__organization_id__id", flat=True
+        for video_project in videos.values_list(
+            "project_id__id", flat=True
         ):
-            if video_organization == organization.id:
+            if video_project == project_id:
                 video = (
                     Video.objects.filter(url=url)
-                    .filter(project_id__organization_id__id=organization.id)
+                    .filter(project_id__id=project_id)
                     .first()
                 )
                 return Response(
                     {
-                        "message": "Video is already a part of project -> {}.".format(
-                            video.project_id.title
-                        )
+                        "message": "Video is already a part of this project. Please upload in another project.",
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
     video = (
         Video.objects.filter(url=url)
-        .filter(project_id__organization_id__id=organization.id)
+        .filter(project_id__id=project_id)
         .first()
     )
     if video is None:
