@@ -334,7 +334,7 @@ def get_payload(request):
         # end_offset = (first_offset + current_offset - 1 * payload_offset_size // 2) + (
         #     payload_offset_size // 2
         # )
-        end_offset=start_offset+voice_over_payload_offset_size-1
+        end_offset = start_offset + voice_over_payload_offset_size - 1
 
         generate_voice_over = True
         if end_offset > count_cards:
@@ -712,7 +712,7 @@ def save_voice_over(request):
             # end_offset = (
             #     first_offset + current_offset - 1 * payload_offset_size // 2
             # ) + (payload_offset_size // 2)
-            end_offset = start_offset+voice_over_payload_offset_size-1
+            end_offset = start_offset + voice_over_payload_offset_size - 1
 
             if end_offset > count_cards:
                 next = None
