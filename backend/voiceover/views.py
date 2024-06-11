@@ -475,7 +475,7 @@ def get_payload(request):
             {
                 "completed_count": voice_over.payload["payload"]["completed_count"],
                 "sentences_count": len(voice_over.translation.payload["payload"]),
-                "count": count_cards,
+                "count": count_cards+1,
                 "next": next,
                 "current": offset,
                 "previous": previous,
@@ -487,8 +487,8 @@ def get_payload(request):
 
     return Response(
         {
-            "completed_count": count_cards,
-            "count": count_cards,
+            "completed_count": count_cards+1,
+            "count": count_cards+1,
             "next": next,
             "current": offset,
             "previous": previous,
@@ -1306,8 +1306,8 @@ def save_voice_over(request):
             else:
                 return Response(
                     {
-                        "completed_count": completed_count,
-                        "count": count_cards,
+                        "completed_count": completed_count+1,
+                        "count": count_cards+1,
                         "next": next,
                         "current": offset,
                         "previous": previous,
