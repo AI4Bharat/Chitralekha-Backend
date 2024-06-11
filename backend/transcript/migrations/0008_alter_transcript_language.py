@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("transcript", "0007_alter_transcript_transcript_type"),
     ]

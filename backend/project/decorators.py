@@ -12,6 +12,7 @@ PERMISSION_ERROR = {
 NO_PROJECT_FOUND = {"message": "No matching project found."}
 NO_PROJECT_MANAGER_ERROR = {"message": "You are not a manager of this project!"}
 
+
 # Allow view only if user has translation editor or above roles.
 def is_project_owner(f):
     @wraps(f)

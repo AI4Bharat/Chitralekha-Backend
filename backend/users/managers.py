@@ -2,7 +2,6 @@ from django.contrib.auth.base_user import BaseUserManager
 
 
 class UserManager(BaseUserManager):
-
     user_in_migrations = True
 
     def _create_user(self, email, password, **extra_fields):

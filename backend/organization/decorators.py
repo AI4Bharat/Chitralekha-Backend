@@ -9,6 +9,7 @@ PERMISSION_ERROR = {
 NO_ORGANIZATION_FOUND = {"message": "No matching organization found."}
 NO_ORGANIZATION_OWNER_ERROR = {"message": "You do not belong to this organization!"}
 
+
 # Allow view only if is a organization owner.
 def is_organization_owner(f):
     @wraps(f)

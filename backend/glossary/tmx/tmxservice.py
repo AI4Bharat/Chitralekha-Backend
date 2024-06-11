@@ -224,7 +224,15 @@ class TMXService:
             if len(phrase_size) <= tmx_word_length:
                 suffix_phrase_list, found = [phrase], False
                 # if phrase.endswith(".") or phrase.endswith(","):
-                if phrase.endswith(".") or phrase.endswith(",") or phrase.endswith("!") or phrase.endswith("?") or phrase.endswith(":") or phrase.endswith(";") or phrase.endswith("'"):
+                if (
+                    phrase.endswith(".")
+                    or phrase.endswith(",")
+                    or phrase.endswith("!")
+                    or phrase.endswith("?")
+                    or phrase.endswith(":")
+                    or phrase.endswith(";")
+                    or phrase.endswith("'")
+                ):
                     short = phrase.rstrip(".,!?:;'")
                     suffix_phrase_list.append(short)
                 for phrases in suffix_phrase_list:

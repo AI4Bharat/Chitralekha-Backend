@@ -12,7 +12,6 @@ def gen_uuid(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("video", "0004_add_uuid_field"),
     ]

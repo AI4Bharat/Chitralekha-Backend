@@ -132,7 +132,6 @@ def download_video_to_local():
     direct_url = info["url"]
     print(direct_url)
     if os.path.isfile(downloaded_audio_path):
-
         # Vieo will be downloaded in background
         Process(target=download_yt_video, args=(yt_url,)).start()
 
@@ -276,7 +275,6 @@ def transcribe_local_audio():
             next_caption_len = len(captions[i + 1].text.split(" "))
 
             if curr_caption_len <= 4 or next_caption_len <= 4:
-
                 m_cap = webvtt.Caption(
                     captions[i].start,
                     captions[i + 1].end,

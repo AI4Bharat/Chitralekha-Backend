@@ -162,7 +162,6 @@ def align_nemo(fp_arr, DEVICE, lang, restore_punct=True):
 
 
 def align_w2v(fp_arr, DEVICE, lang, restore_punct=True):
-
     _, model, (generator, dictionary) = name2model_dict[lang]
     DEVICE = next(model.parameters()).device
 
@@ -193,7 +192,6 @@ def align_w2v(fp_arr, DEVICE, lang, restore_punct=True):
 
 
 def align(fp_arr, DEVICE, lang, restore_punct=True):
-
     model_type, _, _ = name2model_dict[lang]
     if model_type == "IndicWav2Vec":
         text = align_w2v(fp_arr, DEVICE, lang, restore_punct=True)
@@ -304,7 +302,6 @@ async def supported_languages():
 @app.get("/get_youtube_video_link_with_captions")
 @app.post("/get_youtube_video_link_with_captions")
 async def _get_youtube_video_link_with_captions(url: str, lang: str = "en"):
-
     return get_yt_video_and_subs(url, lang)
 
 
@@ -344,7 +341,6 @@ class AudioRequest(BaseModel):
     language: Optional[str] = "en"
     restore_punct: Optional[bool] = True
     denoiser: Optional[bool] = False
-
 
 
 @app.post("/transcribe")
@@ -565,7 +561,6 @@ def process_audio(
             next_caption_len = len(captions[i + 1].text.split(" "))
 
             if curr_caption_len <= 4 or next_caption_len <= 4:
-
                 m_cap = webvtt.Caption(
                     captions[i].start,
                     captions[i + 1].end,
@@ -597,7 +592,7 @@ def process_audio(
 if __name__ == "__main__":
     # .run(app, host="0.0.0.0", port=5050)
     url = "https://drive.google.com/file/d/1C_Ra23tdqYhc7giuGyMIG0oXyvgFyUYH"
-    use_cuda= False
+    use_cuda = False
     vad_val = 3
     language = "hi"
     # chunk_size = audio_request.chunk_size

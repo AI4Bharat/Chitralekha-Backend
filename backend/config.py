@@ -34,7 +34,7 @@ frontend_url = os.getenv("FRONTEND_URL")
 backend_default_translation_type = "MACHINE_GENERATED"
 backend_default_transcript_type = "MACHINE_GENERATED"
 backend_default_voice_over_type = "MACHINE_GENERATED"
-voice_over_payload_offset_size = 5
+voice_over_payload_offset_size = 15
 app_name = os.getenv("APP_NAME")
 
 allowed_roles = {
@@ -44,7 +44,11 @@ allowed_roles = {
     "TRANSLATION_REVIEW": ["TRANSLATION_REVIEWER", "UNIVERSAL_EDITOR"],
     "VOICEOVER_EDIT": ["VOICEOVER_EDITOR", "UNIVERSAL_EDITOR"],
     "VOICEOVER_REVIEW": ["VOICEOVER_REVIEWER", "UNIVERSAL_EDITOR"],
-    "TRANSLATION_VOICEOVER_EDIT": ["VOICEOVER_EDITOR", "UNIVERSAL_EDITOR","TRANSLATION_EDITOR"],
+    "TRANSLATION_VOICEOVER_EDIT": [
+        "VOICEOVER_EDITOR",
+        "UNIVERSAL_EDITOR",
+        "TRANSLATION_EDITOR",
+    ],
 }
 
 DEFAULT_SPEAKER = {

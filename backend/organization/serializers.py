@@ -52,10 +52,10 @@ class InviteGenerationSerializer(serializers.Serializer):
     role = serializers.IntegerField()
 
 
-PENDING="PENDING"
-ON_HOLD="ON_HOLD"
-APPROVED="APPROVED"
-REJECTED="REJECTED"
+PENDING = "PENDING"
+ON_HOLD = "ON_HOLD"
+APPROVED = "APPROVED"
+REJECTED = "REJECTED"
 
 STATUS_OPTIONS = (
     (PENDING, "Pending"),
@@ -63,8 +63,9 @@ STATUS_OPTIONS = (
     (APPROVED, "Approved"),
     (REJECTED, "Rejected"),
 )
-class OnboardingOrgAccountSerializer(serializers.ModelSerializer):
 
+
+class OnboardingOrgAccountSerializer(serializers.ModelSerializer):
     orgname = serializers.CharField()
     org_portal = serializers.CharField()
     email_domain_name = serializers.CharField()
@@ -95,5 +96,5 @@ class OnboardingOrgAccountSerializer(serializers.ModelSerializer):
             "tgt_language",
             "purpose",
             "source",
-            "notes"
+            "notes",
         ]

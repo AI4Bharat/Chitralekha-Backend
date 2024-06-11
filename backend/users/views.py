@@ -31,7 +31,7 @@ from rest_framework.decorators import action
 from django.db.models import Q
 from datetime import datetime
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 from rest_framework.generics import UpdateAPIView
 from task.models import Task
 from task.serializers import TaskSerializer
@@ -41,7 +41,7 @@ import json
 import datetime
 from config import point_of_contacts, app_name
 import ast
-
+from utils.email_template import send_email_template, invite_email_template
 
 regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
 
@@ -50,6 +50,7 @@ def generate_random_string(length=12):
     return "".join(
         secrets.choice(string.ascii_uppercase + string.digits) for i in range(length)
     )
+
 
 onboarding_table = """
         <!DOCTYPE html>
@@ -151,38 +152,76 @@ onboarding_table = """
 
 
 class OnboardingAPIView(APIView):
-    def get(self, request, org_name, org_portal, email_id, phone, org_type, purpose, source, interested_in, src_language, tgt_language, *args, **kwargs):
-        interested_in = ', '.join(str(interested_in).title().split(' '))
-        onboarding_table_1 = onboarding_table.format(org_name=org_name, org_portal=org_portal, email_id=email_id, phone=phone,org_type=org_type,purpose=purpose,source=source,interested_in=interested_in,src_language=src_language.capitalize(),tgt_language=tgt_language.capitalize())
+    def get(
+        self,
+        request,
+        org_name,
+        org_portal,
+        email_id,
+        phone,
+        org_type,
+        purpose,
+        source,
+        interested_in,
+        src_language,
+        tgt_language,
+        *args,
+        **kwargs,
+    ):
+        interested_in = ", ".join(str(interested_in).title().split(" "))
+        onboarding_table_1 = onboarding_table.format(
+            org_name=org_name,
+            org_portal=org_portal,
+            email_id=email_id,
+            phone=phone,
+            org_type=org_type,
+            purpose=purpose,
+            source=source,
+            interested_in=interested_in,
+            src_language=src_language.capitalize(),
+            tgt_language=tgt_language.capitalize(),
+        )
         # current_time = datetime.now()
         # formatted_date = current_time.strftime("%d %b")
         OnboardOrganisationAccount.objects.create(
-                orgname=org_name,
-                org_portal=org_portal,
-                email=email_id,
-                phone=phone,
-                org_type=org_type,
-                interested_in=interested_in,
-                src_language=src_language,
-                tgt_language=tgt_language,
-                purpose=purpose,
-                source=source
-            )
+            orgname=org_name,
+            org_portal=org_portal,
+            email=email_id,
+            phone=phone,
+            org_type=org_type,
+            interested_in=interested_in,
+            src_language=src_language,
+            tgt_language=tgt_language,
+            purpose=purpose,
+            source=source,
+        )
 
         contacts = ast.literal_eval(point_of_contacts)
         for email in contacts:
-            send_mail(
-                "OnBoarding Request for {}".format(org_name),
-                "",
+            subject = "OnBoarding Request for {}".format(org_name)
+            message = f"<p> Hello! Please check the attachment for following onboarind requests information </p>"
+
+            compiled_code = send_email_template(subject, message)
+            msg = EmailMultiAlternatives(
+                subject,
+                compiled_code,
                 settings.DEFAULT_FROM_EMAIL,
                 [email],
-                html_message=onboarding_table_1,
             )
+            msg.attach_alternative(compiled_code, "text/html")
+            msg.attach_alternative(onboarding_table_1, "text/html")
+            msg.send()
+            # send_mail(
+            #     "OnBoarding Request for {}".format(org_name),
+            #     "",
+            #     settings.DEFAULT_FROM_EMAIL,
+            #     [email],
+            #     html_message=onboarding_table_1,
+            # )
         return Response(
             {"message": "Onboarding request is submitted."},
             status=status.HTTP_404_NOT_FOUND,
         )
-
 
 
 class InviteViewSet(viewsets.ViewSet):
@@ -253,32 +292,46 @@ class InviteViewSet(viewsets.ViewSet):
         Invite.create_invite(organization=org, users=users)
         return Response(ret_dict, status=status.HTTP_200_OK)
 
-
     @is_admin
     @swagger_auto_schema(
         method="post",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=['org_name', 'email', 'roles'],
+            required=["org_name", "email", "roles"],
             properties={
-                'org_name': openapi.Schema(type=openapi.TYPE_STRING, description='Name of the organization'),
-                'email': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL, description='Email of the organization'),
-                'roles': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_STRING), description='List of roles'),
+                "org_name": openapi.Schema(
+                    type=openapi.TYPE_STRING, description="Name of the organization"
+                ),
+                "email": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    format=openapi.FORMAT_EMAIL,
+                    description="Email of the organization",
+                ),
+                "roles": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Items(type=openapi.TYPE_STRING),
+                    description="List of roles",
+                ),
             },
         ),
         responses={200: "Organization and users created successfully"},
     )
     @action(
-        detail=False, methods=["post"], url_path="create_onboarding_account", url_name="create_onboarding_account"
+        detail=False,
+        methods=["post"],
+        url_path="create_onboarding_account",
+        url_name="create_onboarding_account",
     )
     def create_onboarding_account(self, request):
-        org_name = request.data.get('org_name')
-        org_email = request.data.get('email')
-        roles = request.data.get('roles')
+        org_name = request.data.get("org_name")
+        org_email = request.data.get("email")
+        roles = request.data.get("roles")
         try:
             organization = Organization.objects.get(title=org_name)
         except:
-            return Response({"message": "Organization not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"message": "Organization not found."}, status=status.HTTP_404_NOT_FOUND
+            )
         first_word = org_name.split()[0]
         password = f"demo@{first_word}"
         created_emails = []
@@ -287,7 +340,7 @@ class InviteViewSet(viewsets.ViewSet):
             for r in roles:
                 email = f"{r.lower()}@{first_word.lower()}.org"
                 role_firstword = f"{r.lower()}_{first_word}"
-                f_name = email.split('@')[0].replace('_', ' ')
+                f_name = email.split("@")[0].replace("_", " ")
                 try:
                     role_user = User.objects.create_user(
                         username=role_firstword,
@@ -297,18 +350,36 @@ class InviteViewSet(viewsets.ViewSet):
                         role=r,
                         first_name=f_name,
                         organization=organization,
-                        languages=["English", "Hindi"]
+                        languages=["English", "Hindi"],
                     )
                     created_emails.append(email)
                 except:
                     existing_emails.append(email)
 
-        email_subject = f'Welcome to {app_name}'
+        email_subject = f"Welcome to {app_name}"
         email_message = f'Hi,\n\nUsers have been registered to {app_name} under your organization {org_name}.\n\nCreated emails: {", ".join(created_emails)}\n\nPassword for all users: {password}\n\nPlease distribute these credentials to the users accordingly.\n\nBest regards,\nThe {app_name} Team'
-        send_mail(email_subject, email_message, settings.DEFAULT_FROM_EMAIL, [org_email])
+        # send_mail(email_subject, email_message, settings.DEFAULT_FROM_EMAIL, [org_email])
+
+        try:
+            compiled_code = invite_email_template(email_subject, email_message)
+            msg = EmailMultiAlternatives(
+                email_subject,
+                compiled_code,
+                settings.DEFAULT_FROM_EMAIL,
+                [org_email],
+            )
+            msg.attach_alternative(compiled_code, "text/html")
+            msg.send()
+
+        except Exception as e:
+            print(e)
+
         if existing_emails:
             if created_emails:
-                msg = ", ".join(existing_emails) + " already exists. Other Users created successfully."
+                msg = (
+                    ", ".join(existing_emails)
+                    + " already exists. Other Users created successfully."
+                )
                 return Response({"message": msg}, status=status.HTTP_200_OK)
             else:
                 msg = ", ".join(existing_emails) + " already exists."
@@ -316,7 +387,6 @@ class InviteViewSet(viewsets.ViewSet):
         elif created_emails:
             msg = "Users successfully created."
             return Response({"message": msg}, status=status.HTTP_200_OK)
-
 
     @permission_classes([AllowAny])
     @swagger_auto_schema(request_body=UserSignUpSerializer)
@@ -496,7 +566,6 @@ class UserViewSet(viewsets.ViewSet):
             },
             required=["tips"],
         ),
-        
     )
     @action(detail=False, methods=["patch"], url_path="tips", url_name="update_tips")
     def update_tips(self, request, pk=None):
@@ -504,20 +573,26 @@ class UserViewSet(viewsets.ViewSet):
         Checks if first-time-user and updates tip settings
         """
         user = request.user
-        tip_setting = request.data.get('tips', None)
+        tip_setting = request.data.get("tips", None)
 
         if tip_setting is None:
-            return Response({'error': 'Tips setting is required'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Tips setting is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if not isinstance(tip_setting, bool):
-            return Response({'error': 'Tips setting must be a boolean value'}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response(
+                {"error": "Tips setting must be a boolean value"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         user.tips = tip_setting
         user.save()
-        
+
         return Response(
-                {"message": "Tips updated successfully"}, status=status.HTTP_200_OK
-            )
+            {"message": "Tips updated successfully"}, status=status.HTTP_200_OK
+        )
 
     @swagger_auto_schema(responses={200: UserProfileSerializer})
     @action(detail=True, methods=["get"], url_path="fetch")
@@ -771,15 +846,29 @@ class RoleViewSet(viewsets.ViewSet):
         if not request.user.is_anonymous:
             user_role = request.user.role
             if user_role == "ORG_OWNER":
-                data = [{"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES[:8]]
+                data = [
+                    {"label": role[1], "value": role[0]}
+                    for role in User.ROLE_CHOICES[:8]
+                ]
             elif user_role == "PROJECT_MANAGER":
-                data = [{"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES[:7]]
+                data = [
+                    {"label": role[1], "value": role[0]}
+                    for role in User.ROLE_CHOICES[:7]
+                ]
             elif user_role == "ADMIN":
-                data = [{"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES[:9]]
+                data = [
+                    {"label": role[1], "value": role[0]}
+                    for role in User.ROLE_CHOICES[:9]
+                ]
             else:
-                data = [{"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES[:9]]
+                data = [
+                    {"label": role[1], "value": role[0]}
+                    for role in User.ROLE_CHOICES[:9]
+                ]
         else:
-            data = [{"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES[:9]]
+            data = [
+                {"label": role[1], "value": role[0]} for role in User.ROLE_CHOICES[:9]
+            ]
 
         return Response(data, status=status.HTTP_200_OK)
 
@@ -876,18 +965,12 @@ class RoleViewSet(viewsets.ViewSet):
                     else:
                         check_if_tasks_assign = True
                 elif user.role == "TRANSCRIPT_REVIEWER":
-                    if (
-                        (role == "UNIVERSAL_EDITOR")
-                        or (role == "PROJECT_MANAGER")
-                    ):
+                    if (role == "UNIVERSAL_EDITOR") or (role == "PROJECT_MANAGER"):
                         update_user_role = True
                     else:
                         check_if_tasks_assign = True
                 elif user.role == "TRANSLATION_REVIEWER":
-                    if (
-                        (role == "UNIVERSAL_EDITOR")
-                        or (role == "PROJECT_MANAGER")
-                    ):
+                    if (role == "UNIVERSAL_EDITOR") or (role == "PROJECT_MANAGER"):
                         update_user_role = True
                     else:
                         check_if_tasks_assign = True

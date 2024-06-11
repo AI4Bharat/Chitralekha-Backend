@@ -24,7 +24,6 @@ class SubtitleTimestamps:
         console.log(f"Language:  [green]{language}")
 
     def read_subtitles(self):
-
         with open(self.srt_path, "r", encoding="utf-8") as f:
             subtitles = f.read()
 
@@ -38,7 +37,6 @@ class SubtitleTimestamps:
         return self.wav[start * 1000 : end * 1000]
 
     def filter_text(self, text):
-
         cleaned_text = re.sub("[%s]" % re.escape(string.punctuation + "।"), "", text)
 
         if self.language == "en":
@@ -54,13 +52,11 @@ class SubtitleTimestamps:
             return normalizer.normalize(cleaned_text)
 
     def adjust_alignment(self, data):
-
         if self.language == "en":
             for d, k in data.items():
                 words = k["text"].split()
 
                 for i in range(len(words)):
-
                     old_key = list(k["timestamps"][i].keys())[0]
 
                     if old_key != words[i]:
@@ -73,7 +69,6 @@ class SubtitleTimestamps:
 
 
 def filter_text(text, language):
-
     factory = IndicNormalizerFactory()
     cleaned_text = re.sub("[%s]" % re.escape(string.punctuation + "।" + "-"), "", text)
 
@@ -117,7 +112,6 @@ class SubtitleJson:
         return wav[start * 1000 : end * 1000]
 
     def adjust_alignment(data, language):
-
         if language == "en":
             for d, k in data.items():
                 words = k["text"].split()

@@ -5,7 +5,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("video", "0009_video_language"),
         ("task", "0001_initial"),

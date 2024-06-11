@@ -8,7 +8,11 @@ import json
 import webvtt
 import datetime
 from voiceover.models import VoiceOver
-from voiceover.utils import generate_tts_output, send_mail_to_user, process_translation_payload
+from voiceover.utils import (
+    generate_tts_output,
+    send_mail_to_user,
+    process_translation_payload,
+)
 from translation.models import Translation
 import pysrt
 import logging
@@ -250,7 +254,10 @@ def celery_nmt_call(task_id):
     source_type = "MACHINE_GENERATED"
     if translation_obj is not None and type(translation_obj.payload) != dict:
         payloads = generate_translation_payload(
-            translation_obj.transcript, translation_obj.target_language, [source_type], task_obj.user.id
+            translation_obj.transcript,
+            translation_obj.target_language,
+            [source_type],
+            task_obj.user.id,
         )
         if type(payloads[source_type]) == Response:
             task_obj.status = "FAILED"
@@ -272,6 +279,7 @@ def celery_nmt_call(task_id):
     else:
         logging.info("Translation already exists")
 
+
 @celery_app.task(queue="nmt")
 def celery_nmt_tts_call(task_id):
     task_obj = Task.objects.get(pk=task_id)
@@ -279,7 +287,10 @@ def celery_nmt_tts_call(task_id):
     source_type = "MACHINE_GENERATED"
     if translation_obj is not None and type(translation_obj.payload) != dict:
         payloads = generate_translation_payload(
-            translation_obj.transcript, translation_obj.target_language, [source_type], task_obj.user.id
+            translation_obj.transcript,
+            translation_obj.target_language,
+            [source_type],
+            task_obj.user.id,
         )
         if type(payloads[source_type]) == Response:
             task_obj.status = "FAILED"
@@ -309,14 +320,19 @@ def celery_nmt_tts_call(task_id):
                 return message
 
             (
-                    tts_input,
-                    target_language,
-                    translation,
-                    translation_id,
-                    empty_sentences,
+                tts_input,
+                target_language,
+                translation,
+                translation_id,
+                empty_sentences,
             ) = tts_payload
             tts_payload = generate_tts_output(
-            tts_input, target_language, translation, translation_obj, empty_sentences, False
+                tts_input,
+                target_language,
+                translation,
+                translation_obj,
+                empty_sentences,
+                False,
             )
             payloads = tts_payload
 
@@ -338,7 +354,7 @@ def celery_nmt_tts_call(task_id):
                 voiceover_obj.save()
             else:
                 existing_voiceover.payload = tts_payload
-                existing_voiceover.translation=translation_obj
+                existing_voiceover.translation = translation_obj
                 existing_voiceover.save()
             task_obj.is_active = True
             task_obj.status = "SELECTED_SOURCE"
@@ -353,7 +369,6 @@ def celery_nmt_tts_call(task_id):
             except:
                 logging.info("Error in sending mail")
 
-            
             # send_mail_to_user(task_obj)
     else:
         logging.info("Translation already exists")

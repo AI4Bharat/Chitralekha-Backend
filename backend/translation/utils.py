@@ -469,10 +469,7 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
     vtt_output = transcript.payload
     ratio_per_sentence = []
 
-    if (
-        transcript.language == "en"
-        and transcript.transcript_type != "ORIGINAL_SOURCE"
-    ):
+    if transcript.language == "en" and transcript.transcript_type != "ORIGINAL_SOURCE":
         ratio_per_sentence = get_ratio_of_words(transcript.payload["payload"])
         full_transcript = ""
         for index, vtt_line in enumerate(vtt_output["payload"]):
@@ -591,6 +588,7 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
     payload = []
     tmxservice = TMXService()
     import platform
+
     for source, target in zip(vtt_output["payload"], all_translated_sentences):
         # start_time = datetime.datetime.strptime(source["start_time"], "%H:%M:%S.%f")
         # end_time = datetime.datetime.strptime(source["end_time"], "%H:%M:%S.%f")
@@ -608,7 +606,6 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
         unix_start_time = datetime.datetime.timestamp(start_time)
         end_time = datetime.datetime.strptime(source["end_time"], "%H:%M:%S.%f")
         unix_end_time = datetime.datetime.timestamp(end_time)
-        
 
         try:
             if transcript.language == "en":
@@ -660,7 +657,7 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
             tmx_level = "USER"
             tmx_phrases, res_dict = tmxservice.get_tmx_phrases(
                 user_id, org_id, locale, source["text"], tmx_level
-            )
+            ) 
             # [{'src_phrase': 'Python', 'tmx_tgt': 'अजगर', 'tgt': 'पायथन', 'type': 'NMT'}]
             tgt, tmx_replacement = tmxservice.replace_nmt_tgt_with_user_tgt(
                 tmx_phrases, source["text"], target

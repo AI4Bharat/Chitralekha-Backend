@@ -72,7 +72,19 @@ from transcript.utils.timestamp import *
 @api_view(["GET"])
 def get_translation_export_types(request):
     return Response(
-        {"export_types": ["srt", "vtt", "txt", "docx", "docx-bilingual", "sbv", "TTML", "scc", "rt"]},
+        {
+            "export_types": [
+                "srt",
+                "vtt",
+                "txt",
+                "docx",
+                "docx-bilingual",
+                "sbv",
+                "TTML",
+                "scc",
+                "rt",
+            ]
+        },
         status=status.HTTP_200_OK,
     )
 
@@ -90,7 +102,9 @@ def get_translation_export_types(request):
         openapi.Parameter(
             "export_type",
             openapi.IN_QUERY,
-            description=("export type parameter srt/vtt/txt/docx/docx-bilingual/sbv/TTML/scc/rt"),
+            description=(
+                "export type parameter srt/vtt/txt/docx/docx-bilingual/sbv/TTML/scc/rt"
+            ),
             type=openapi.TYPE_STRING,
             required=True,
         ),
@@ -147,7 +161,17 @@ def export_translation(request):
             speaker["label"]: speaker["value"] for speaker in speaker_info
         }
 
-    supported_types = ["srt", "vtt", "txt", "docx", "docx-bilingual", "scc", "sbv", "TTML", "rt"]
+    supported_types = [
+        "srt",
+        "vtt",
+        "txt",
+        "docx",
+        "docx-bilingual",
+        "scc",
+        "sbv",
+        "TTML",
+        "rt",
+    ]
     if export_type not in supported_types:
         return Response(
             {
@@ -221,7 +245,6 @@ def export_translation(request):
     elif export_type == "TTML":
         lines = generate_ttml(payload)
         for index, segment in enumerate(payload):
-
             lines.append(
                 "\t\t\t<p xml:id='subtitle"
                 + str(index + 1)
@@ -975,7 +998,10 @@ def generate_translation_output(request):
         if source_type == None:
             source_type = config.backend_default_translation_type
         payloads = generate_translation_payload(
-            translation.transcript, translation.target_language, [source_type], task.user.id
+            translation.transcript,
+            translation.target_language,
+            [source_type],
+            task.user.id,
         )
         if type(translation.payload) == str or (
             type(translation.payload) == dict
@@ -1037,7 +1063,6 @@ def modify_payload(limit, payload, start_offset, end_offset, translation):
                 "text" in payload["payload"][i].keys()
                 and "text" not in translation.payload["payload"][start_offset + i]
             ):
-
                 translation.payload["payload"][start_offset + i] = {
                     "start_time": payload["payload"][i]["start_time"],
                     "end_time": payload["payload"][i]["end_time"],
@@ -1299,6 +1324,13 @@ def save_translation(request):
             {"message": "Translation doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    user = request.user
+    user.user_history = {
+        "task_id": task_id,
+        "offset": offset,
+        "task_type": task.task_type,
+    }
+    user.save()
     try:
         translation = Translation.objects.get(pk=translation_id)
         target_language = translation.target_language
@@ -1877,7 +1909,7 @@ def generate_translation(request):
 
     # Update the translation payload with the generated translations
     payload = []
-    for (source, target) in zip(sentence_list, all_translated_sentences):
+    for source, target in zip(sentence_list, all_translated_sentences):
         payload.append(
             {"source": source, "target": target if source.strip() else source}
         )
