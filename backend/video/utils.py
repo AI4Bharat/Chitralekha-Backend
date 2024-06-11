@@ -195,7 +195,6 @@ def send_mail_to_user(task):
                 [task.user.email],
             )
             msg.attach_alternative(compiled_code, "text/html")
-            msg.attach_file(final_table, "text/html")
             msg.send()
 
             # send_mail(
