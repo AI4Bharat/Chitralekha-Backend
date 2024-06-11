@@ -661,53 +661,46 @@ import re
 
 @swagger_auto_schema(
     method="post",
-    manual_parameters=[
-        openapi.Parameter(
-            "task_id",
-            openapi.IN_QUERY,
-            description=("An integer to pass the task id"),
-            type=openapi.TYPE_INTEGER,
-            required=True,
-        ),
-        openapi.Parameter(
-            "word_to_replace",
-            openapi.IN_QUERY,
-            description=("A string to pass the word to replace"),
-            type=openapi.TYPE_STRING,
-            required=True,
-        ),
-        openapi.Parameter(
-            "replace_word",
-            openapi.IN_QUERY,
-            description=("A string to pass the replace word"),
-            type=openapi.TYPE_STRING,
-            required=True,
-        ),
-        openapi.Parameter(
-            "replace_full_word",
-            openapi.IN_QUERY,
-            description=("A boolean to indicate whether to replace full words only"),
-            type=openapi.TYPE_BOOLEAN,
-            required=True,
-        ),
-        openapi.Parameter(
-            "transliteration_language",
-            openapi.IN_QUERY,
-            description=("A string to pass the transliteration language"),
-            type=openapi.TYPE_STRING,
-            required=True,
-        ),
-    ],
+
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_id", "word_to_replace", "replace_word","transliteration_language","replace_full_word"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the voice_over instance",
+            ),
+            "word_to_replace": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="The word to replace ",
+            ),
+            "replace_word": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Replacement word ",
+            ),
+            "replace_full_word": openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description="Replace full word",
+            ),
+            "transliteration_language": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Transliteration Language",
+            ),
+        },
+        description="Post request body",
+    ),
     responses={200: "Returns the updated transcript."},
 )
 @api_view(["POST"])
 def replace_all_words(request):
     try:
-        task_id = request.query_params["task_id"]
-        word_to_replace = request.query_params["word_to_replace"]
-        replace_word = request.query_params["replace_word"]
-        replace_full_word = request.query_params["replace_full_word"]
-        transliteration_language = request.query_params["transliteration_language"]
+
+        task_id = request.data["task_id"]
+        word_to_replace = request.data["word_to_replace"]
+        replace_word = request.data["replace_word"]
+        replace_full_word = request.data["replace_full_word"]
+        transliteration_language = request.data["transliteration_language"]
+
     except KeyError:
         return Response(
             {"message": "Missing required parameters."},
@@ -1625,7 +1618,7 @@ def save_transcription(request):
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     try:
         task = Task.objects.get(pk=task_id)
     except Task.DoesNotExist:
@@ -1907,17 +1900,15 @@ def save_transcription(request):
                                 r"\s+", " ", cleaned_text
                             )  # for removing multiple blank spaces
                             num_words += len(cleaned_text.split(" "))
-                            transcript_obj.payload["payload"][index]["start_time"] = (
-                                format_timestamp(
-                                    transcript_obj.payload["payload"][index][
-                                        "start_time"
-                                    ]
-                                )
+                            transcript_obj.payload["payload"][index][
+                                "start_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["start_time"]
                             )
-                            transcript_obj.payload["payload"][index]["end_time"] = (
-                                format_timestamp(
-                                    transcript_obj.payload["payload"][index]["end_time"]
-                                )
+                            transcript_obj.payload["payload"][index][
+                                "end_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["end_time"]
                             )
                     transcript_obj.payload["word_count"] = num_words
                     transcript_obj.save()
