@@ -522,43 +522,33 @@ import re
 
 @swagger_auto_schema(
     method="post",
-    manual_parameters=[
-        openapi.Parameter(
-            "task_id",
-            openapi.IN_QUERY,
-            description=("An integer to pass the task id"),
-            type=openapi.TYPE_INTEGER,
-            required=True,
-        ),
-        openapi.Parameter(
-            "word_to_replace",
-            openapi.IN_QUERY,
-            description=("A string to pass the word to replace"),
-            type=openapi.TYPE_STRING,
-            required=True,
-        ),
-        openapi.Parameter(
-            "replace_word",
-            openapi.IN_QUERY,
-            description=("A string to pass the replace word"),
-            type=openapi.TYPE_STRING,
-            required=True,
-        ),
-        openapi.Parameter(
-            "replace_full_word",
-            openapi.IN_QUERY,
-            description=("A boolean to indicate whether to replace full words only"),
-            type=openapi.TYPE_BOOLEAN,
-            required=True,
-        ),
-        openapi.Parameter(
-            "transliteration_language",
-            openapi.IN_QUERY,
-            description=("A string to pass the transliteration language"),
-            type=openapi.TYPE_STRING,
-            required=True,
-        ),
-    ],
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_id", "word_to_replace", "replace_word","transliteration_language","replace_full_word"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the voice_over instance",
+            ),
+            "word_to_replace": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="The word to replace ",
+            ),
+            "replace_word": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Replacement word ",
+            ),
+            "replace_full_word": openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description="Replace full word",
+            ),
+            "transliteration_language": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Transliteration Language",
+            ),
+        },
+        description="Post request body",
+    ),
     responses={200: "Returns the updated transcript."},
 )
 @api_view(["POST"])
