@@ -661,6 +661,7 @@ import re
 
 @swagger_auto_schema(
     method="post",
+
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         required=["task_id", "word_to_replace", "replace_word","transliteration_language","replace_full_word"],
@@ -693,11 +694,13 @@ import re
 @api_view(["POST"])
 def replace_all_words(request):
     try:
+
         task_id = request.data["task_id"]
         word_to_replace = request.data["word_to_replace"]
         replace_word = request.data["replace_word"]
         replace_full_word = request.data["replace_full_word"]
         transliteration_language = request.data["transliteration_language"]
+
     except KeyError:
         return Response(
             {"message": "Missing required parameters."},
