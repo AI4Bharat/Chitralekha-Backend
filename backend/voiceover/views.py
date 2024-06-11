@@ -602,7 +602,7 @@ def replace_all_words(request):
         )
 
     # Replace all occurrences of word_to_replace with replace_word
-    for record in voiceOver.translation.payload["payload"]:
+    for record in voiceOver.payload["payload"].values():
         if "text" in record:
             if replace_full_word:
                 if transliteration_language == "en":
@@ -615,9 +615,10 @@ def replace_all_words(request):
                     )
             else:
                 record["text"] = record["text"].replace(word_to_replace, replace_word)
+            
     
 
-
+    voiceOver.save()
  
 
     return Response(
