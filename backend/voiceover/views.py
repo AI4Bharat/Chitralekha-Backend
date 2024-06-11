@@ -524,7 +524,13 @@ import re
     method="post",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        required=["task_id", "word_to_replace", "replace_word","transliteration_language","replace_full_word"],
+        required=[
+            "task_id",
+            "word_to_replace",
+            "replace_word",
+            "transliteration_language",
+            "replace_full_word",
+        ],
         properties={
             "task_id": openapi.Schema(
                 type=openapi.TYPE_INTEGER,
@@ -605,11 +611,8 @@ def replace_all_words(request):
                     )
             else:
                 record["text"] = record["text"].replace(word_to_replace, replace_word)
-            
-    
 
     voiceOver.save()
- 
 
     return Response(
         {"message": "Voiceover updated successfully."},
