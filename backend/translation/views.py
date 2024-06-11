@@ -619,11 +619,11 @@ import re
 @api_view(["POST"])
 def replace_all_words(request):
     try:
-        task_id = request.query_params["task_id"]
-        word_to_replace = request.query_params["word_to_replace"]
-        replace_word = request.query_params["replace_word"]
-        replace_full_word = request.query_params["replace_full_word"]
-        transliteration_language = request.query_params["transliteration_language"]
+        task_id = request.data["task_id"]
+        word_to_replace = request.data["word_to_replace"]
+        replace_word = request.data["replace_word"]
+        replace_full_word = request.data["replace_full_word"]
+        transliteration_language = request.data["transliteration_language"]
     except KeyError:
         return Response(
             {"message": "Missing required parameters."},
