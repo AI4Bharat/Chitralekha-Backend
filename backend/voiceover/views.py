@@ -722,7 +722,7 @@ def save_voice_over(request):
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     user.user_history = {
         "task_id": task_id,
         "offset": offset,
@@ -868,22 +868,39 @@ def save_voice_over(request):
                         )
 
                         if type(translated_text) == list:
-                            locale = task.get_src_language_label + "|" + voice_over.target_language
+                            locale = (
+                                task.get_src_language_label
+                                + "|"
+                                + voice_over.target_language
+                            )
                             user_id = str(user.id)
                             org_id = None
                             tmx_level = "USER"
                             tmx_phrases, res_dict = tmxservice.get_tmx_phrases(
-                                user_id, org_id, locale, voice_over_payload["text"], tmx_level
+                                user_id,
+                                org_id,
+                                locale,
+                                voice_over_payload["text"],
+                                tmx_level,
                             )
-                            
-                            tgt, tmx_replacement = tmxservice.replace_nmt_tgt_with_user_tgt(
-                            tmx_phrases, voice_over_payload["transcription_text"], voice_over_payload["text"]
+
+                            (
+                                tgt,
+                                tmx_replacement,
+                            ) = tmxservice.replace_nmt_tgt_with_user_tgt(
+                                tmx_phrases,
+                                voice_over_payload["transcription_text"],
+                                voice_over_payload["text"],
                             )
-                          
+
                             if len(tmx_replacement) > 0:
                                 for i in range(len(tmx_replacement)):
-                                    voice_over_payload["text"] = voice_over_payload["text"].replace(
-                                        tmx_replacement[i]["tgt"], tmx_replacement[i]["tmx_tgt"])
+                                    voice_over_payload["text"] = voice_over_payload[
+                                        "text"
+                                    ].replace(
+                                        tmx_replacement[i]["tgt"],
+                                        tmx_replacement[i]["tmx_tgt"],
+                                    )
                             voice_over_payload["text"] = translated_text[0]
                         else:
                             logging.info(
