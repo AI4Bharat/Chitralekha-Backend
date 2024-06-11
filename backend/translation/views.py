@@ -582,6 +582,104 @@ def get_payload(request):
     )
 
 
+import re
+
+
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_id", "word_to_replace", "replace_word","transliteration_language","replace_full_word"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the voice_over instance",
+            ),
+            "word_to_replace": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="The word to replace ",
+            ),
+            "replace_word": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Replacement word ",
+            ),
+            "replace_full_word": openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description="Replace full word",
+            ),
+            "transliteration_language": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Transliteration Language",
+            ),
+        },
+        description="Post request body",
+    ),
+    responses={200: "Returns the updated translation."},
+)
+@api_view(["POST"])
+def replace_all_words(request):
+    try:
+        task_id = request.data["task_id"]
+        word_to_replace = request.data["word_to_replace"]
+        replace_word = request.data["replace_word"]
+        replace_full_word = request.data["replace_full_word"]
+        transliteration_language = request.data["transliteration_language"]
+    except KeyError:
+        return Response(
+            {"message": "Missing required parameters."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    translation = get_translation_id(task)
+    if translation is None:
+        return Response(
+            {"message": "Translation not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    else:
+        translation_id = translation.id
+
+    # Retrieve the translation object
+    try:
+        translation = Translation.objects.get(pk=translation_id)
+    except Translation.DoesNotExist:
+        return Response(
+            {"message": "Translation doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Replace all occurrences of word_to_replace with replace_word
+    for record in translation.payload["payload"]:
+        if "text" in record:
+            if replace_full_word:
+                if transliteration_language == "en":
+                    record["text"] = re.sub(
+                        r"\b" + word_to_replace + r"\b", replace_word, record["text"]
+                    )
+                else:
+                    record["text"] = record["text"].replace(
+                        word_to_replace, replace_word
+                    )
+            else:
+                record["text"] = record["text"].replace(word_to_replace, replace_word)
+
+    # Save the updated translation
+    translation.save()
+
+    return Response(
+        {"message": "Translation updated successfully."},
+        status=status.HTTP_200_OK,
+    )
+
+
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
@@ -1324,6 +1422,13 @@ def save_translation(request):
             {"message": "Translation doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    user = request.user
+    user.user_history = {
+        "task_id": task_id,
+        "offset": offset,
+        "task_type": task.task_type,
+    }
+    user.save()
     try:
         translation = Translation.objects.get(pk=translation_id)
         target_language = translation.target_language

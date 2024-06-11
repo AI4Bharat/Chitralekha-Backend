@@ -656,6 +656,107 @@ def get_payload(request):
     )
 
 
+import re
+
+
+@swagger_auto_schema(
+    method="post",
+
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_id", "word_to_replace", "replace_word","transliteration_language","replace_full_word"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the voice_over instance",
+            ),
+            "word_to_replace": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="The word to replace ",
+            ),
+            "replace_word": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Replacement word ",
+            ),
+            "replace_full_word": openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description="Replace full word",
+            ),
+            "transliteration_language": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Transliteration Language",
+            ),
+        },
+        description="Post request body",
+    ),
+    responses={200: "Returns the updated transcript."},
+)
+@api_view(["POST"])
+def replace_all_words(request):
+    try:
+
+        task_id = request.data["task_id"]
+        word_to_replace = request.data["word_to_replace"]
+        replace_word = request.data["replace_word"]
+        replace_full_word = request.data["replace_full_word"]
+        transliteration_language = request.data["transliteration_language"]
+
+    except KeyError:
+        return Response(
+            {"message": "Missing required parameters."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    transcript = get_transcript_id(task)
+    if transcript is None:
+        return Response(
+            {"message": "Transcript not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    else:
+        transcript_id = transcript.id
+
+    # Retrieve the transcript object
+    try:
+        transcript = Transcript.objects.get(pk=transcript_id)
+    except Transcript.DoesNotExist:
+        return Response(
+            {"message": "Transcript doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Replace all occurrences of word_to_replace with replace_word
+    for record in transcript.payload["payload"]:
+        if "text" in record:
+            if replace_full_word:
+                if transliteration_language == "en":
+                    record["text"] = re.sub(
+                        r"\b" + word_to_replace + r"\b", replace_word, record["text"]
+                    )
+                else:
+                    record["text"] = record["text"].replace(
+                        word_to_replace, replace_word
+                    )
+            else:
+                record["text"] = record["text"].replace(word_to_replace, replace_word)
+
+    # Save the updated transcript
+    transcript.save()
+
+    return Response(
+        {"message": "Transcript updated successfully."},
+        status=status.HTTP_200_OK,
+    )
+
+
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
@@ -1509,6 +1610,7 @@ def save_transcription(request):
         payload = request.data["payload"]
         offset = request.data["offset"]
         limit = request.data["limit"]
+
     except KeyError:
         return Response(
             {
@@ -1539,7 +1641,13 @@ def save_transcription(request):
         )
     else:
         transcript_id = transcript.id
-
+    user = request.user
+    user.user_history = {
+        "task_id": task_id,
+        "offset": offset,
+        "task_type": task.task_type,
+    }
+    user.save()
     start_offset = (int(offset) - 1) * int(limit)
     end_offset = start_offset + int(limit)
     # Retrieve the transcript object
@@ -1611,6 +1719,7 @@ def save_transcription(request):
                             },
                             status=status.HTTP_400_BAD_REQUEST,
                         )
+
                     delete_indices = []
                     for index, sentence in enumerate(transcript_obj.payload["payload"]):
                         if "text" not in sentence.keys():
@@ -1719,6 +1828,7 @@ def save_transcription(request):
                                 },
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
+
                         delete_indices = []
                         for index, sentence in enumerate(
                             transcript_obj.payload["payload"]

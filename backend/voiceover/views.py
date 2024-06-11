@@ -39,6 +39,7 @@ from pydub import AudioSegment
 import copy
 import uuid
 import regex
+from glossary.tmx.tmxservice import TMXService
 
 
 @api_view(["GET"])
@@ -309,7 +310,7 @@ def get_payload(request):
     translation_payload = []
     completed_count = 0
     if voice_over.translation:
-        payload_offset_size = voice_over_payload_offset_size - 1
+        # payload_offset_size = voice_over_payload_offset_size - 1
         if voice_over.voice_over_type == "MACHINE_GENERATED":
             count_cards = (
                 len(list(voice_over.payload["payload"].keys()))
@@ -326,18 +327,20 @@ def get_payload(request):
             )
             """
             count_cards = len(voice_over.translation.payload["payload"]) - 1
-        first_offset = voice_over_payload_offset_size // 2 + 1
-        start_offset = (
-            first_offset + current_offset - 1 * payload_offset_size // 2
-        ) - (payload_offset_size // 2)
-        end_offset = (first_offset + current_offset - 1 * payload_offset_size // 2) + (
-            payload_offset_size // 2
-        )
+        # first_offset = voice_over_payload_offset_size // 2 + 1
+        # start_offset = (
+        #     first_offset + current_offset - 1 * payload_offset_size // 2
+        # ) - (payload_offset_size // 2)
+        start_offset = current_offset
+        # end_offset = (first_offset + current_offset - 1 * payload_offset_size // 2) + (
+        #     payload_offset_size // 2
+        # )
+        end_offset = start_offset + voice_over_payload_offset_size - 1
 
         generate_voice_over = True
         if end_offset > count_cards:
             next = None
-            previous = offset - 1
+            previous = offset - voice_over_payload_offset_size
         elif offset == 1:
             delete_indices = []
             for index, sentence in enumerate(voice_over.translation.payload["payload"]):
@@ -348,10 +351,10 @@ def get_payload(request):
                 voice_over.translation.payload["payload"].pop(ind)
             voice_over.translation.save()
             previous = None
-            next = offset + 1
+            next = offset + voice_over_payload_offset_size
         else:
-            next = offset + 1
-            previous = offset - 1
+            next = offset + voice_over_payload_offset_size
+            previous = offset - voice_over_payload_offset_size
 
         for index, translation_text in enumerate(
             voice_over.translation.payload["payload"][start_offset : end_offset + 1]
@@ -514,6 +517,106 @@ def get_payload(request):
     )
 
 
+import re
+
+
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_id", "word_to_replace", "replace_word","transliteration_language","replace_full_word"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the voice_over instance",
+            ),
+            "word_to_replace": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="The word to replace ",
+            ),
+            "replace_word": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Replacement word ",
+            ),
+            "replace_full_word": openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description="Replace full word",
+            ),
+            "transliteration_language": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Transliteration Language",
+            ),
+        },
+        description="Post request body",
+    ),
+    responses={200: "Returns the updated transcript."},
+)
+@api_view(["POST"])
+def replace_all_words(request):
+    try:
+        task_id = request.data["task_id"]
+        word_to_replace = request.data["word_to_replace"]
+        replace_word = request.data["replace_word"]
+        replace_full_word = request.data["replace_full_word"]
+        transliteration_language = request.data["transliteration_language"]
+    except KeyError:
+        return Response(
+            {"message": "Missing required parameters."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    voice_over = get_voice_over_id(task)
+    if voice_over is None:
+        return Response(
+            {"message": "Voiceover not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    else:
+        voice_over_id = voice_over.id
+
+    # Retrieve the transcript object
+    try:
+        voiceOver = VoiceOver.objects.get(pk=voice_over_id)
+    except VoiceOver.DoesNotExist:
+        return Response(
+            {"message": "Voiceover doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Replace all occurrences of word_to_replace with replace_word
+    for record in voiceOver.payload["payload"].values():
+        if "text" in record:
+            if replace_full_word:
+                if transliteration_language == "en":
+                    record["text"] = re.sub(
+                        r"\b" + word_to_replace + r"\b", replace_word, record["text"]
+                    )
+                else:
+                    record["text"] = record["text"].replace(
+                        word_to_replace, replace_word
+                    )
+            else:
+                record["text"] = record["text"].replace(word_to_replace, replace_word)
+            
+    
+
+    voiceOver.save()
+ 
+
+    return Response(
+        {"message": "Voiceover updated successfully."},
+        status=status.HTTP_200_OK,
+    )
+
+
 def change_active_status_of_next_tasks(task, target_language, voice_over_obj):
     task = (
         Task.objects.filter(video=task.video)
@@ -611,6 +714,13 @@ def save_voice_over(request):
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    user.user_history = {
+        "task_id": task_id,
+        "offset": offset,
+        "task_type": task.task_type,
+    }
+    user.save()
     try:
         voice_over = VoiceOver.objects.get(pk=voice_over_id)
         target_language = voice_over.target_language
@@ -684,7 +794,7 @@ def save_voice_over(request):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            payload_offset_size = voice_over_payload_offset_size - 1
+            # payload_offset_size = voice_over_payload_offset_size - 1
             if voice_over.voice_over_type == "MACHINE_GENERATED":
                 count_cards = (
                     len(list(voice_over.payload["payload"].keys()))
@@ -701,24 +811,26 @@ def save_voice_over(request):
                 )
                 """
                 count_cards = len(voice_over.translation.payload["payload"]) - 1
-            first_offset = voice_over_payload_offset_size // 2 + 1
+            # first_offset = voice_over_payload_offset_size // 2 + 1
             current_offset = offset - 1
-            start_offset = (
-                first_offset + current_offset - 1 * payload_offset_size // 2
-            ) - (payload_offset_size // 2)
-            end_offset = (
-                first_offset + current_offset - 1 * payload_offset_size // 2
-            ) + (payload_offset_size // 2)
+            # start_offset = (
+            #     first_offset + current_offset - 1 * payload_offset_size // 2
+            # ) - (payload_offset_size // 2)
+            start_offset = current_offset
+            # end_offset = (
+            #     first_offset + current_offset - 1 * payload_offset_size // 2
+            # ) + (payload_offset_size // 2)
+            end_offset = start_offset + voice_over_payload_offset_size - 1
 
             if end_offset > count_cards:
                 next = None
-                previous = offset - 1
+                previous = offset - voice_over_payload_offset_size
             elif offset == 1:
                 previous = None
-                next = offset + 1
+                next = offset + voice_over_payload_offset_size
             else:
-                next = offset + 1
-                previous = offset - 1
+                next = offset + voice_over_payload_offset_size
+                previous = offset - voice_over_payload_offset_size
 
             sentences_list = []
             if "EDIT" in task.task_type:
@@ -738,6 +850,7 @@ def save_voice_over(request):
                         "retranslate" in voice_over_payload
                         and voice_over_payload["retranslate"] == True
                     ):
+                        tmxservice = TMXService()
                         translated_text = (
                             get_batch_translations_using_indictrans_nmt_api(
                                 [voice_over_payload["transcription_text"]],
@@ -745,7 +858,41 @@ def save_voice_over(request):
                                 translation.task.target_language,
                             )
                         )
+
                         if type(translated_text) == list:
+                            locale = (
+                                task.get_src_language_label
+                                + "|"
+                                + voice_over.target_language
+                            )
+                            user_id = str(user.id)
+                            org_id = None
+                            tmx_level = "USER"
+                            tmx_phrases, res_dict = tmxservice.get_tmx_phrases(
+                                user_id,
+                                org_id,
+                                locale,
+                                voice_over_payload["text"],
+                                tmx_level,
+                            )
+
+                            (
+                                tgt,
+                                tmx_replacement,
+                            ) = tmxservice.replace_nmt_tgt_with_user_tgt(
+                                tmx_phrases,
+                                voice_over_payload["transcription_text"],
+                                voice_over_payload["text"],
+                            )
+
+                            if len(tmx_replacement) > 0:
+                                for i in range(len(tmx_replacement)):
+                                    voice_over_payload["text"] = voice_over_payload[
+                                        "text"
+                                    ].replace(
+                                        tmx_replacement[i]["tgt"],
+                                        tmx_replacement[i]["tmx_tgt"],
+                                    )
                             voice_over_payload["text"] = translated_text[0]
                         else:
                             logging.info(
