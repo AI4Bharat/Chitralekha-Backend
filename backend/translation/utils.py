@@ -657,7 +657,7 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
             tmx_level = "USER"
             tmx_phrases, res_dict = tmxservice.get_tmx_phrases(
                 user_id, org_id, locale, source["text"], tmx_level
-            )
+            ) 
             # [{'src_phrase': 'Python', 'tmx_tgt': 'अजगर', 'tgt': 'पायथन', 'type': 'NMT'}]
             tgt, tmx_replacement = tmxservice.replace_nmt_tgt_with_user_tgt(
                 tmx_phrases, source["text"], target
