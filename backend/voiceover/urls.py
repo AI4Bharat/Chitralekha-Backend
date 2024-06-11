@@ -29,6 +29,11 @@ urlpatterns = [
         views.get_payload,
         name="get_payload",
     ),
+    path(
+        "replace_all_words/",
+        views.replace_all_words,
+        name="replace_all_words",
+    ),
     path("export_voiceover/", views.export_voiceover, name="export_voiceover/"),
     path(
         "bulk_export_voiceover/",
