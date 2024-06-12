@@ -67,6 +67,8 @@ import json
 import regex
 import requests
 from transcript.utils.timestamp import *
+from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
 
 
 @api_view(["GET"])
@@ -589,7 +591,13 @@ import re
     method="post",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        required=["task_id", "word_to_replace", "replace_word","transliteration_language","replace_full_word"],
+        required=[
+            "task_id",
+            "word_to_replace",
+            "replace_word",
+            "transliteration_language",
+            "replace_full_word",
+        ],
         properties={
             "task_id": openapi.Schema(
                 type=openapi.TYPE_INTEGER,
@@ -883,13 +891,14 @@ def send_mail_to_user(task):
         )
         final_table = table_to_send + data
         try:
-            send_mail(
-                f"{task.get_task_type_label} is active",
-                "Dear User, Following task is active.",
-                settings.DEFAULT_FROM_EMAIL,
-                [task.user.email],
-                html_message=final_table,
+            email = EmailMultiAlternatives(
+                subject=f"{task.get_task_type_label} is active",
+                body="Dear User, Following task is active.",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[task.user.email],
             )
+            email.attach_alternative(final_table, "text/html")
+            email.send()
         except:
             logging.info("Error in sending Email")
     else:

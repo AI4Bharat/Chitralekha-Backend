@@ -1457,7 +1457,7 @@ def send_mail_to_user(task):
         if task.eta is not None:
             try:
                 task_eta = str(task.eta.strftime("%Y-%m-%d"))
-            except:
+            except AttributeError:
                 task_eta = str(task.eta)
         else:
             task_eta = "-"
@@ -1471,25 +1471,19 @@ def send_mail_to_user(task):
             description=task.description,
         )
         final_table = table_to_send + data
-        subject = f"{task.get_task_type_label} is now active"
-        message = f"Following task is active you may check the attachment below \n {final_table}"
-        compiled_code = send_email_template(subject, message)
-        msg = EmailMultiAlternatives(
-            subject,
-            compiled_code,
-            settings.DEFAULT_FROM_EMAIL,
-            [task.user.email],
-        )
-        msg.attach_alternative(compiled_code, "text/html")
-        msg.attach_file(final_table, "text/html")
-        msg.send()
-
-        # send_mail(
-        #     f"{task.get_task_type_label} is active",
-        #     "Dear User, Following task is active.",
-        #     settings.DEFAULT_FROM_EMAIL,
-        #     [task.user.email],
-        #     html_message=final_table,
-        # )
+        try:
+            subject = f"{task.get_task_type_label()} is now active"
+            message = f"Following task is active you may check the attachment below \n {final_table}"
+            compiled_code = send_email_template(subject, message)
+            msg = EmailMultiAlternatives(
+                subject,
+                compiled_code,
+                settings.DEFAULT_FROM_EMAIL,
+                [task.user.email],
+            )
+            msg.attach_alternative(compiled_code, "text/html")
+            msg.send()
+        except Exception as e:
+            logging.error("Error in sending Email: %s", str(e))
     else:
         logging.info("Email is not enabled %s", task.user.email)

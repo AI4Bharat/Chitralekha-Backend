@@ -67,7 +67,7 @@ import datetime
 import math
 import logging
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 import logging
 from config import align_json_url, app_name
 import regex
@@ -661,10 +661,15 @@ import re
 
 @swagger_auto_schema(
     method="post",
-
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
-        required=["task_id", "word_to_replace", "replace_word","transliteration_language","replace_full_word"],
+        required=[
+            "task_id",
+            "word_to_replace",
+            "replace_word",
+            "transliteration_language",
+            "replace_full_word",
+        ],
         properties={
             "task_id": openapi.Schema(
                 type=openapi.TYPE_INTEGER,
@@ -694,7 +699,6 @@ import re
 @api_view(["POST"])
 def replace_all_words(request):
     try:
-
         task_id = request.data["task_id"]
         word_to_replace = request.data["word_to_replace"]
         replace_word = request.data["replace_word"]
@@ -933,33 +937,37 @@ def get_full_payload(request):
 
 
 def send_mail_to_user(task):
-    if task.user.enable_mail:
-        if task.eta is not None:
-            try:
-                task_eta = str(task.eta.strftime("%Y-%m-%d"))
-            except:
-                task_eta = str(task.eta)
+    try:
+        if task.user.enable_mail:
+            if task.eta is not None:
+                try:
+                    task_eta = str(task.eta.strftime("%Y-%m-%d"))
+                except:
+                    task_eta = str(task.eta)
+            else:
+                task_eta = "-"
+            logging.info("Send email to user %s", task.user.email)
+            table_to_send = "<p>Dear User, Following task is active.</p><p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+            data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr><tr><th>ETA</th><td>{eta}</td></tr><tr><th>Description</th><td>{description}</td></tr></table></body></p>".format(
+                name=task.video.name,
+                url=task.video.url,
+                project_name=task.video.project_id.title,
+                eta=task_eta,
+                description=task.description,
+            )
+            final_table = table_to_send + data
+            email = EmailMultiAlternatives(
+                subject=f"{task.get_task_type_label} is active",
+                body="Dear User, Following task is active.",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[task.user.email],
+            )
+            email.attach_alternative(final_table, "text/html")
+            email.send()
         else:
-            task_eta = "-"
-        logging.info("Send email to user %s", task.user.email)
-        table_to_send = "<p>Dear User, Following task is active.</p><p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
-        data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr><tr><th>ETA</th><td>{eta}</td></tr><tr><th>Description</th><td>{description}</td></tr></table></body></p>".format(
-            name=task.video.name,
-            url=task.video.url,
-            project_name=task.video.project_id.title,
-            eta=task_eta,
-            description=task.description,
-        )
-        final_table = table_to_send + data
-        send_mail(
-            f"{task.get_task_type_label} is active",
-            "Dear User, Following task is active.",
-            settings.DEFAULT_FROM_EMAIL,
-            [task.user.email],
-            html_message=final_table,
-        )
-    else:
-        logging.info("Email is not enabled %s", task.user.email)
+            logging.info("Email is not enabled %s", task.user.email)
+    except Exception as e:
+        logging.error("Error in send_mail_to_user: %s", str(e))
 
 
 def check_if_transcription_correct(transcription_obj, task):
