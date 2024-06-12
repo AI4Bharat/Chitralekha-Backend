@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from transcript.utils.TTML import generate_ttml
 from transcript.models import Transcript
 from video.models import Video
-from task.models import Task
+from task.models import Task,TRANSLATION_VOICEOVER_EDIT
 from rest_framework.decorators import action
 from django.http import HttpResponse
 from django.http import HttpRequest
@@ -150,12 +150,13 @@ def export_translation(request):
         )
     if task.task_type == TRANSLATION_VOICEOVER_EDIT:
         voice_over_obj = VoiceOver.objects.filter(task=task).first()
-        final_tl = voice_over_obj.translation
+        
         index = 0
         for segment in voice_over_obj.payload["payload"].values():
-            final_tl.payload["payload"][index]["target_text"] = segment["text"]
+            translation.payload["payload"][index]["target_text"] = segment["text"]
             index = index + 1
-        final_tl.save()
+        translation.save()
+ 
     payload = translation.payload["payload"]
     if with_speaker_info:
         speaker_info = translation.payload.get("speaker_info", None)
