@@ -203,7 +203,7 @@ class Project(models.Model):
     )
     pre_generate_audio = models.BooleanField(
         verbose_name="Pre generate voiceovers",
-        default=False,
+        default=True,
         help_text=(
             "Indicates whether voiceovers should be generated at the time of task creation"
         ),
