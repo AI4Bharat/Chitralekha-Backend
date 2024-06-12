@@ -1185,29 +1185,29 @@ def adjust_audio(audio_file, original_time, audio_speed):
         combined_audio.export(audio_file, format="ogg")
     elif audio_time_difference == 0:
         logging.info("No time difference")
-     elif audio_time_difference < -0.001:
-        logging.info("Speed up the audio by %s", str(seconds / original_time))
-        sound = AudioSegment.from_file(audio_file)
-        if (seconds / original_time) > 1.009:
-            faster_sound = speedup(sound, seconds / original_time, 200)
-            final_sound = faster_sound[: original_time * 1000]
-            final_sound.export(audio_file, format="ogg")
-        speedup_factor = seconds / original_time
-        if speedup_factor > 1.009:
+    elif audio_time_difference < -0.001:
+    logging.info("Speed up the audio by %s", str(seconds / original_time))
+    sound = AudioSegment.from_file(audio_file)
+    if (seconds / original_time) > 1.009:
+        faster_sound = speedup(sound, seconds / original_time, 200)
+        final_sound = faster_sound[: original_time * 1000]
+        final_sound.export(audio_file, format="ogg")
+    speedup_factor = seconds / original_time
+    if speedup_factor > 1.009:
 
-            output_file = "temp_output.ogg"
-            subprocess.run([
-                "ffmpeg", "-y", "-i", audio_file, "-filter:a", f"atempo={speedup_factor}", output_file
-            ])
-            # Trim the audio to the original length
-            subprocess.run([
-                "ffmpeg", "-y", "-i", output_file, "-t", str(original_time), audio_file
-            ])
-            subprocess.run(["rm", output_file])
+        output_file = "temp_output.ogg"
+        subprocess.run([
+            "ffmpeg", "-y", "-i", audio_file, "-filter:a", f"atempo={speedup_factor}", output_file
+        ])
+        # Trim the audio to the original length
+        subprocess.run([
+            "ffmpeg", "-y", "-i", output_file, "-t", str(original_time), audio_file
+        ])
+        subprocess.run(["rm", output_file])
 
-            audio = AudioFileClip(audio_file)
-            seconds = audio.duration
-            logging.info("Seconds of adjusted ogg audio %s", str(seconds))
+        audio = AudioFileClip(audio_file)
+        seconds = audio.duration
+        logging.info("Seconds of adjusted ogg audio %s", str(seconds))
 
     else:
         pass
