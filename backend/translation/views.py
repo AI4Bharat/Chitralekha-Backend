@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from transcript.utils.TTML import generate_ttml
 from transcript.models import Transcript
 from video.models import Video
-from task.models import Task,TRANSLATION_VOICEOVER_EDIT
+from task.models import Task,TRANSLATION_VOICEOVER_EDIT, COMPLETE
 from rest_framework.decorators import action
 from django.http import HttpResponse
 from django.http import HttpRequest
@@ -150,7 +150,7 @@ def export_translation(request):
             {"message": "Translation doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    if task.task_type == TRANSLATION_VOICEOVER_EDIT:
+    if task.task_type == TRANSLATION_VOICEOVER_EDIT and task.status != COMPLETE:
         voice_over_obj = VoiceOver.objects.filter(task=task).first()
         
         index = 0
