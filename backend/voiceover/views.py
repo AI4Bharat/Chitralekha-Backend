@@ -706,7 +706,7 @@ def save_voice_over(request):
         "task_id": task_id,
         "offset": offset,
         "task_type": task.task_type,
-        "bookmark" : bookmarked_segment
+        "segment" : bookmarked_segment
     }
     user.save()
     try:
