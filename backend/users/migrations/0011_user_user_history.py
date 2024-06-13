@@ -4,14 +4,15 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
+
     dependencies = [
-        ("users", "0010_user_tips"),
+        ('users', '0010_user_tips'),
     ]
 
     operations = [
         migrations.AddField(
-            model_name="user",
-            name="user_history",
-            field=models.JSONField(null=True, verbose_name="User History"),
+            model_name='user',
+            name='user_history',
+            field=models.JSONField(null=True, verbose_name='User History'),
         ),
     ]

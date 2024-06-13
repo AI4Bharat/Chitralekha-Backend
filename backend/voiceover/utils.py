@@ -1189,6 +1189,7 @@ def adjust_audio(audio_file, original_time, audio_speed):
         logging.info("Speed up the audio by %s", str(seconds / original_time))
         speedup_factor = seconds / original_time
         if speedup_factor > 1.009:
+
             output_file = "temp_output.ogg"
             subprocess.run([
                 "ffmpeg", "-y", "-i", audio_file, "-filter:a", f"atempo={speedup_factor}", output_file
@@ -1198,6 +1199,7 @@ def adjust_audio(audio_file, original_time, audio_speed):
                 "ffmpeg", "-y", "-i", output_file, "-t", str(original_time), audio_file
             ])
             subprocess.run(["rm", output_file])
+
             audio = AudioFileClip(audio_file)
             seconds = audio.duration
             logging.info("Seconds of adjusted ogg audio %s", str(seconds))
@@ -1456,7 +1458,7 @@ def send_mail_to_user(task):
         if task.eta is not None:
             try:
                 task_eta = str(task.eta.strftime("%Y-%m-%d"))
-            except AttributeError:
+            except:
                 task_eta = str(task.eta)
         else:
             task_eta = "-"
@@ -1470,19 +1472,25 @@ def send_mail_to_user(task):
             description=task.description,
         )
         final_table = table_to_send + data
-        try:
-            subject = f"{task.get_task_type_label()} is now active"
-            message = f"Following task is active you may check the attachment below \n {final_table}"
-            compiled_code = send_email_template(subject, message)
-            msg = EmailMultiAlternatives(
-                subject,
-                compiled_code,
-                settings.DEFAULT_FROM_EMAIL,
-                [task.user.email],
-            )
-            msg.attach_alternative(compiled_code, "text/html")
-            msg.send()
-        except Exception as e:
-            logging.error("Error in sending Email: %s", str(e))
+        subject = f"{task.get_task_type_label} is now active"
+        message = f"Following task is active you may check the attachment below \n {final_table}"
+        compiled_code = send_email_template(subject, message)
+        msg = EmailMultiAlternatives(
+            subject,
+            compiled_code,
+            settings.DEFAULT_FROM_EMAIL,
+            [task.user.email],
+        )
+        msg.attach_alternative(compiled_code, "text/html")
+        msg.attach_file(final_table, "text/html")
+        msg.send()
+
+        # send_mail(
+        #     f"{task.get_task_type_label} is active",
+        #     "Dear User, Following task is active.",
+        #     settings.DEFAULT_FROM_EMAIL,
+        #     [task.user.email],
+        #     html_message=final_table,
+        # )
     else:
         logging.info("Email is not enabled %s", task.user.email)
