@@ -737,6 +737,8 @@ def save_voice_over(request):
                         num_words += len(cleaned_text.split(" "))
                 complete_translation.payload["word_count"] = num_words
                 complete_translation.save()
+                voice_over.translation = complete_translation
+                voice_over.save()
             else:
                 complete_translation.payload = {"payload": [], "word_count": 0}
                 complete_translation.save()
@@ -757,6 +759,8 @@ def save_voice_over(request):
                 )
                 inprogress_translation.parent = translation
                 inprogress_translation.save()
+                voice_over.translation = inprogress_translation
+                voice_over.save()
                 print("Saved IP Translation with inprogress")
 
         # Check if the transcript has a user
