@@ -1441,7 +1441,7 @@ def save_translation(request):
         )
     bookmarked_segment = payload.get("bookmark", None)
     user = request.user
-    if bokmarked_segment:
+    if bookmarked_segment:
         user.user_history = {
             "task_id": task_id,
             "offset": offset,
