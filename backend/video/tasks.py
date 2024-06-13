@@ -65,8 +65,8 @@ def send_mail_csv_upload(user_id, email_data):
             settings.DEFAULT_FROM_EMAIL,
             [user.email],
         )
-        msg.attach_alternative(compiled_code, "text/html")
-        msg.attach_file(html_table_df_tasks, "text/html")
+        email_content = email_to_send + compiled_code
+        msg.attach_alternative(email_content, "text/html")
         msg.send()
         # send_mail(
         #     f"{app_name} - CSV Upload Reports",
