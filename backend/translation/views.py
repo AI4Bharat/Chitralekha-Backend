@@ -1441,13 +1441,14 @@ def save_translation(request):
         )
     bookmarked_segment = payload.get("bookmark", None)
     user = request.user
-    user.user_history = {
-        "task_id": task_id,
-        "offset": offset,
-        "task_type": task.task_type,
-        "segment" : bookmarked_segment
-    }
-    user.save()
+    if bookmarked_segment:
+        user.user_history = {
+            "task_id": task_id,
+            "offset": offset,
+            "task_type": task.task_type,
+            "segment" : bookmarked_segment
+        }
+        user.save()
     try:
         translation = Translation.objects.get(pk=translation_id)
         target_language = translation.target_language
