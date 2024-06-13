@@ -1649,9 +1649,11 @@ def save_transcription(request):
         )
     else:
         transcript_id = transcript.id
-    bookmarked_segment = payload.get("bookmark", None)
+    bookmarked_segment = request.data.get("bookmark", None)
     user = request.user
+    print(bookmarked_segment)
     if bookmarked_segment:
+        print("Saving History")
         user.user_history = {
             "task_id": task_id,
             "offset": offset,

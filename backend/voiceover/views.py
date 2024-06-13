@@ -700,7 +700,7 @@ def save_voice_over(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    bookmarked_segment = payload.get("bookmark", None)
+    bookmarked_segment = request.data.get("bookmark", None)
     user = request.user
     if bookmarked_segment:
         user.user_history = {
