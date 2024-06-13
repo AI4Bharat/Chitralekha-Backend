@@ -30,11 +30,6 @@ urlpatterns = [
         name="get_payload",
     ),
     path(
-        "replace_all_words/",
-        views.replace_all_words,
-        name="replace_all_words",
-    ),
-    path(
         "get_full_payload/",
         views.get_full_payload,
         name="get_full_payload",

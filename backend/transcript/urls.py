@@ -39,11 +39,6 @@ urlpatterns = [
         name="get_payload",
     ),
     path(
-        "replace_all_words/",
-        views.replace_all_words,
-        name="replace_all_words",
-    ),
-    path(
         "export_transcript/",
         views.export_transcript,
         name="export_transcript",

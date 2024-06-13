@@ -100,8 +100,8 @@ def get_completed_tasks():
                     settings.DEFAULT_FROM_EMAIL,
                     [manager.email],
                 )
-                email_content = compiled_msg + html_table_df_tasks
-                msg.attach_alternative(email_content, "text/html")
+                msg.attach_alternative(compiled_msg, "text/html")
+                msg.attach_alternative(html_table_df_tasks, "text/html")
                 msg.send()
                 # send_mail(
                 #     f"{app_name} - Completed Tasks Report",
@@ -185,10 +185,9 @@ def get_new_tasks():
                     settings.DEFAULT_FROM_EMAIL,
                     [manager.email],
                 )
-                email_content = compiled_msg + html_table_df_tasks
-                msg.attach_alternative(email_content, "text/html")
+                msg.attach_alternative(compiled_msg, "text/html")
+                msg.attach_alternative(html_table_df_tasks, "text/html")
                 msg.send()
-
                 # send_mail(
                 #     f"{app_name} - Tasks Assignment Status Report",
                 #     message,
@@ -261,6 +260,7 @@ def get_eta_reminders():
                 [user.email],
             )
             msg.attach_alternative(compiled_msg, "text/html")
+            msg.attach_alternative(html_table_df_tasks, "text/html")
             msg.send()
             # send_mail(
             #     f"{app_name} - Due Tasks",
@@ -330,7 +330,7 @@ def get_new_users():
                 [user.email],
             )
             msg.attach_alternative(compiled_msg, "text/html")
-            # msg.attach_alternative(html_table_df_tasks, "text/html")
+            msg.attach_alternative(html_table_df_tasks, "text/html")
             msg.send()
             # send_mail(
             #     f"{app_name} - New Users",

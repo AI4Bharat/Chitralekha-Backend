@@ -29,5 +29,4 @@ class ProjectSerializer(serializers.ModelSerializer):
             "default_priority",
             "default_description",
             "video_integration",
-            "pre_generate_audio"
         ]

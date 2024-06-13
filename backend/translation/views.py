@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from transcript.utils.TTML import generate_ttml
 from transcript.models import Transcript
 from video.models import Video
-from task.models import Task,TRANSLATION_VOICEOVER_EDIT
+from task.models import Task
 from rest_framework.decorators import action
 from django.http import HttpResponse
 from django.http import HttpRequest
@@ -67,8 +67,6 @@ import json
 import regex
 import requests
 from transcript.utils.timestamp import *
-from django.core.mail import EmailMultiAlternatives
-from django.conf import settings
 
 
 @api_view(["GET"])
@@ -128,7 +126,7 @@ def export_translation(request):
     export_type = request.query_params.get("export_type")
     return_file_content = request.query_params.get("return_file_content")
     with_speaker_info = request.query_params.get("with_speaker_info", "false")
- 
+
     with_speaker_info = with_speaker_info.lower() == "true"
     if task_id is None or export_type is None:
         return Response(
@@ -150,15 +148,7 @@ def export_translation(request):
             {"message": "Translation doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    if task.task_type == TRANSLATION_VOICEOVER_EDIT:
-        voice_over_obj = VoiceOver.objects.filter(task=task).first()
-        
-        index = 0
-        for segment in voice_over_obj.payload["payload"].values():
-            translation.payload["payload"][index]["target_text"] = segment["text"]
-            index = index + 1
-        translation.save()
- 
+
     payload = translation.payload["payload"]
     if with_speaker_info:
         speaker_info = translation.payload.get("speaker_info", None)
@@ -592,110 +582,6 @@ def get_payload(request):
     )
 
 
-import re
-
-
-@swagger_auto_schema(
-    method="post",
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        required=[
-            "task_id",
-            "word_to_replace",
-            "replace_word",
-            "transliteration_language",
-            "replace_full_word",
-        ],
-        properties={
-            "task_id": openapi.Schema(
-                type=openapi.TYPE_INTEGER,
-                description="An integer identifying the voice_over instance",
-            ),
-            "word_to_replace": openapi.Schema(
-                type=openapi.TYPE_STRING,
-                description="The word to replace ",
-            ),
-            "replace_word": openapi.Schema(
-                type=openapi.TYPE_STRING,
-                description="Replacement word ",
-            ),
-            "replace_full_word": openapi.Schema(
-                type=openapi.TYPE_BOOLEAN,
-                description="Replace full word",
-            ),
-            "transliteration_language": openapi.Schema(
-                type=openapi.TYPE_STRING,
-                description="Transliteration Language",
-            ),
-        },
-        description="Post request body",
-    ),
-    responses={200: "Returns the updated translation."},
-)
-@api_view(["POST"])
-def replace_all_words(request):
-    try:
-        task_id = request.data["task_id"]
-        word_to_replace = request.data["word_to_replace"]
-        replace_word = request.data["replace_word"]
-        replace_full_word = request.data["replace_full_word"]
-        transliteration_language = request.data["transliteration_language"]
-    except KeyError:
-        return Response(
-            {"message": "Missing required parameters."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    try:
-        task = Task.objects.get(pk=task_id)
-    except Task.DoesNotExist:
-        return Response(
-            {"message": "Task doesn't exist."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    translation = get_translation_id(task)
-    if translation is None:
-        return Response(
-            {"message": "Translation not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-    else:
-        translation_id = translation.id
-
-    # Retrieve the translation object
-    try:
-        translation = Translation.objects.get(pk=translation_id)
-    except Translation.DoesNotExist:
-        return Response(
-            {"message": "Translation doesn't exist."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    # Replace all occurrences of word_to_replace with replace_word
-    for record in translation.payload["payload"]:
-        if "text" in record:
-            if replace_full_word:
-                if transliteration_language == "en":
-                    record["text"] = re.sub(
-                        r"\b" + word_to_replace + r"\b", replace_word, record["text"]
-                    )
-                else:
-                    record["text"] = record["text"].replace(
-                        word_to_replace, replace_word
-                    )
-            else:
-                record["text"] = record["text"].replace(word_to_replace, replace_word)
-
-    # Save the updated translation
-    translation.save()
-
-    return Response(
-        {"message": "Translation updated successfully."},
-        status=status.HTTP_200_OK,
-    )
-
-
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
@@ -899,14 +785,13 @@ def send_mail_to_user(task):
         )
         final_table = table_to_send + data
         try:
-            email = EmailMultiAlternatives(
-                subject=f"{task.get_task_type_label} is active",
-                body="Dear User, Following task is active.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[task.user.email],
+            send_mail(
+                f"{task.get_task_type_label} is active",
+                "Dear User, Following task is active.",
+                settings.DEFAULT_FROM_EMAIL,
+                [task.user.email],
+                html_message=final_table,
             )
-            email.attach_alternative(final_table, "text/html")
-            email.send()
         except:
             logging.info("Error in sending Email")
     else:
