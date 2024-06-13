@@ -1189,7 +1189,6 @@ def adjust_audio(audio_file, original_time, audio_speed):
         logging.info("Speed up the audio by %s", str(seconds / original_time))
         speedup_factor = seconds / original_time
         if speedup_factor > 1.009:
-           
             output_file = "temp_output.ogg"
             subprocess.run([
                 "ffmpeg", "-y", "-i", audio_file, "-filter:a", f"atempo={speedup_factor}", output_file
@@ -1199,10 +1198,10 @@ def adjust_audio(audio_file, original_time, audio_speed):
                 "ffmpeg", "-y", "-i", output_file, "-t", str(original_time), audio_file
             ])
             subprocess.run(["rm", output_file])
-            
             audio = AudioFileClip(audio_file)
             seconds = audio.duration
             logging.info("Seconds of adjusted ogg audio %s", str(seconds))
+
     else:
         pass
 
