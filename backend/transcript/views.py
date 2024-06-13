@@ -1649,11 +1649,13 @@ def save_transcription(request):
         )
     else:
         transcript_id = transcript.id
+    bookmarked_segment = payload.get("bookmark", None)
     user = request.user
     user.user_history = {
         "task_id": task_id,
         "offset": offset,
         "task_type": task.task_type,
+        "segment" : bookmarked_segment
     }
     user.save()
     start_offset = (int(offset) - 1) * int(limit)
