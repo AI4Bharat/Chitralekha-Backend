@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from transcript.utils.TTML import generate_ttml
 from transcript.models import Transcript
 from video.models import Video
-from task.models import Task,TRANSLATION_VOICEOVER_EDIT
+from task.models import Task
 from rest_framework.decorators import action
 from django.http import HttpResponse
 from django.http import HttpRequest
@@ -128,7 +128,7 @@ def export_translation(request):
     export_type = request.query_params.get("export_type")
     return_file_content = request.query_params.get("return_file_content")
     with_speaker_info = request.query_params.get("with_speaker_info", "false")
- 
+
     with_speaker_info = with_speaker_info.lower() == "true"
     if task_id is None or export_type is None:
         return Response(
@@ -150,15 +150,7 @@ def export_translation(request):
             {"message": "Translation doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    if task.task_type == TRANSLATION_VOICEOVER_EDIT:
-        voice_over_obj = VoiceOver.objects.filter(task=task).first()
-        
-        index = 0
-        for segment in voice_over_obj.payload["payload"].values():
-            translation.payload["payload"][index]["target_text"] = segment["text"]
-            index = index + 1
-        translation.save()
- 
+
     payload = translation.payload["payload"]
     if with_speaker_info:
         speaker_info = translation.payload.get("speaker_info", None)
