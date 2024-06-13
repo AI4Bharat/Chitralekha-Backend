@@ -796,7 +796,7 @@ def upload_csv(request):
 
         valid_row["task_description"] = row["Task Description"]
         valid_row["video_description"] = row["Video Description"]
-        video = Video.objects.filter(url=row["Youtube URL"]).first()
+        video = Video.objects.filter(url=row["Youtube URL"].strip()).first()
         existing_videos = []
         if video is not None:
             if video.project_id.id != project.id:
@@ -895,7 +895,7 @@ def upload_csv_data(request):
             new_row = ",".join(row)
             csv_data.append(new_row)
 
-    if len(csv_data) > 30:
+    if len(csv_data) > 100:
         return Response(
             {"message": "Number of rows is greater than 30."},
             status=status.HTTP_400_BAD_REQUEST,
@@ -1020,7 +1020,7 @@ def upload_csv_data(request):
 
         valid_row["video_description"] = row["Video Description"]
         valid_row["task_description"] = row["Task Description"]
-        video = Video.objects.filter(url=row["Youtube URL"]).first()
+        video = Video.objects.filter(url=row["Youtube URL"].strip()).first()
         existing_videos = []
         if len(errors) == 0:
             if video is not None:
@@ -1156,7 +1156,7 @@ def upload_csv_org(request):
         string_counts["transcription edit"] + string_counts["voiceover edit"]
     )
     logging.info("Sum of Transcription and VO tasks is %s", str(asr_tts_tasks))
-    if asr_tts_tasks > 50:
+    if asr_tts_tasks > 100:
         return Response(
             {
                 "message": "Sum of Transcription and VoiceOver in a CSV can't be more than 50."
@@ -1334,7 +1334,7 @@ def upload_csv_org(request):
 
         valid_row["task_description"] = row["Task Description"]
         valid_row["video_description"] = row["Video Description"]
-        video = Video.objects.filter(url=row["Youtube URL"]).first()
+        video = Video.objects.filter(url=row["Youtube URL"].strip()).first()
         if len(errors) == 0:
             if video is not None:
                 if video.project_id.id != project.id:
