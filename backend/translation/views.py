@@ -1439,11 +1439,13 @@ def save_translation(request):
             {"message": "Translation doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    bookmarked_segment = payload.get("bookmark", None)
     user = request.user
     user.user_history = {
         "task_id": task_id,
         "offset": offset,
         "task_type": task.task_type,
+        "bookmark" : bookmarked_segment
     }
     user.save()
     try:
