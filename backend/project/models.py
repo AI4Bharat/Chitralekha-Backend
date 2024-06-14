@@ -28,6 +28,7 @@ TASK_TYPE = (
     ("TRANSLATION_EDIT", "Translation Edit"),
     ("TRANSLATION_REVIEW", "Translation Review"),
     ("VOICEOVER_EDIT", "VoiceOver Edit"),
+    ("TRANSLATION_VOICEOVER_EDIT","Translation Voiceover Edit")
 )
 
 PRIORITY = (
@@ -200,6 +201,12 @@ class Project(models.Model):
             "Indicates whether video integration is needed for VO tasks or not."
         ),
     )
-
+    pre_generate_audio = models.BooleanField(
+        verbose_name="Pre generate voiceovers",
+        default=True,
+        help_text=(
+            "Indicates whether voiceovers should be generated at the time of task creation"
+        ),
+    )
     def __str__(self):
         return str(self.title)

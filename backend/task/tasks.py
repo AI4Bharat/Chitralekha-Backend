@@ -326,13 +326,15 @@ def celery_nmt_tts_call(task_id):
                 translation_id,
                 empty_sentences,
             ) = tts_payload
+
+            generate_audio = task_obj.video.project_id.pre_generate_audio
             tts_payload = generate_tts_output(
                 tts_input,
                 target_language,
                 translation,
                 translation_obj,
                 empty_sentences,
-                False,
+                generate_audio,
             )
             payloads = tts_payload
 
