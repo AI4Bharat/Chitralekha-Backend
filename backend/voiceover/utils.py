@@ -1471,7 +1471,7 @@ def send_mail_to_user(task):
         )
         final_table = table_to_send + data
         try:
-            subject = f"{task.get_task_type_label()} is now active"
+            subject = f"{task.get_task_type_label} is now active"
             message = f"Following task is active you may check the attachment below \n {final_table}"
             compiled_code = send_email_template(subject, message)
             msg = EmailMultiAlternatives(

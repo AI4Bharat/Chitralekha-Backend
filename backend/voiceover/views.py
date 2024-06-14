@@ -700,18 +700,26 @@ def save_voice_over(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    user.user_history = {
-        "task_id": task_id,
-        "offset": offset,
-        "task_type": task.task_type,
-    }
-    user.save()
+    bookmarked_segment = request.data.get("bookmark", None)
+    user = request.user
+    if bookmarked_segment:
+        user.user_history = {
+            "task_id": task_id,
+            "offset": offset,
+            "task_type": task.task_type,
+            "segment" : bookmarked_segment
+        }
+        user.save()
     try:
         voice_over = VoiceOver.objects.get(pk=voice_over_id)
         target_language = voice_over.target_language
         translation = voice_over.translation
 
-        if task.task_type == TRANSLATION_VOICEOVER_EDIT and request.data.get("final"):
+        if task.task_type == TRANSLATION_VOICEOVER_EDIT and request.data.get("final") and Translation.objects.filter(
+                task=task, status=TRANSLATION_EDIT_COMPLETE
+            ).first() == None:
+            
+
             inprogress_translation = Translation.objects.filter(
                 task=task, status=TRANSLATION_EDIT_INPROGRESS
             ).first()
@@ -742,6 +750,9 @@ def save_voice_over(request):
             else:
                 complete_translation.payload = {"payload": [], "word_count": 0}
                 complete_translation.save()
+                voice_over.translation = complete_translation
+                voice_over.save()
+            translation = complete_translation
             print("Saved Complete Translation with inprogress", inprogress_translation)
         else:
             inprogress_translation = Translation.objects.filter(
@@ -762,7 +773,7 @@ def save_voice_over(request):
                 voice_over.translation = inprogress_translation
                 voice_over.save()
                 print("Saved IP Translation with inprogress")
-
+                translation = inprogress_translation
         # Check if the transcript has a user
         if task.user != request.user:
             return Response(

@@ -1649,13 +1649,18 @@ def save_transcription(request):
         )
     else:
         transcript_id = transcript.id
+    bookmarked_segment = request.data.get("bookmark", None)
     user = request.user
-    user.user_history = {
-        "task_id": task_id,
-        "offset": offset,
-        "task_type": task.task_type,
-    }
-    user.save()
+    print(bookmarked_segment)
+    if bookmarked_segment:
+        print("Saving History")
+        user.user_history = {
+            "task_id": task_id,
+            "offset": offset,
+            "task_type": task.task_type,
+            "segment" : bookmarked_segment
+        }
+        user.save()
     start_offset = (int(offset) - 1) * int(limit)
     end_offset = start_offset + int(limit)
     # Retrieve the transcript object
