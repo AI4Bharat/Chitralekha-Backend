@@ -978,7 +978,10 @@ def adjust_voiceover(translation_payload):
 
 def generate_voiceover_payload(translation_payload, target_language, task):
     tts_input = []
-    output = [0] * voice_over_payload_offset_size
+    if(len(translation_payload)>voice_over_payload_offset_size):
+        output = [0] * len(translation_payload)
+    else:
+        output = [0] * voice_over_payload_offset_size
     pre_generated_audio_indices = []
     post_generated_audio_indices = []
     post_generated_audio_indices = []
