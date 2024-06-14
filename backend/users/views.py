@@ -208,9 +208,11 @@ class OnboardingAPIView(APIView):
                 settings.DEFAULT_FROM_EMAIL,
                 [email],
             )
+            with open("onboarding_request.html", "w") as email_file:
+                email_file.write(onboarding_table_1)
+
+            msg.attach_file("onboarding_request.html")
             msg.attach_alternative(compiled_code, "text/html")
-            msg.attach_alternative(onboarding_table_1, "text/html")
-            msg.send()
             # send_mail(
             #     "OnBoarding Request for {}".format(org_name),
             #     "",
