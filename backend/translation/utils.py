@@ -469,34 +469,34 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
     vtt_output = transcript.payload
     ratio_per_sentence = []
 
-    if transcript.language == "en" and transcript.transcript_type != "ORIGINAL_SOURCE":
-        ratio_per_sentence = get_ratio_of_words(transcript.payload["payload"])
-        full_transcript = ""
-        for index, vtt_line in enumerate(vtt_output["payload"]):
-            if "text" in vtt_line.keys():
-                text = vtt_line["text"]
-                full_transcript = full_transcript + text
-        sentence_list = split_at(full_transcript, ".")
+    # if transcript.language == "en" and transcript.transcript_type != "ORIGINAL_SOURCE":
+    #     ratio_per_sentence = get_ratio_of_words(transcript.payload["payload"])
+    #     full_transcript = ""
+    #     for index, vtt_line in enumerate(vtt_output["payload"]):
+    #         if "text" in vtt_line.keys():
+    #             text = vtt_line["text"]
+    #             full_transcript = full_transcript + text
+    #     sentence_list = split_at(full_transcript, ".")
 
-        if sentence_list[-1] == "":
-            sentence_list.pop()
-        if sentence_list[-1] == "":
-            sentence_list.pop()
+    #     if sentence_list[-1] == "":
+    #         sentence_list.pop()
+    #     if sentence_list[-1] == "":
+    #         sentence_list.pop()
 
-    else:
-        for index, vtt_line in enumerate(vtt_output["payload"]):
-            if "text" in vtt_line.keys():
-                text = vtt_line["text"]
-                if transcript.language == "en":
-                    for noise_tag in english_noise_tags:
-                        text = text.replace(noise_tag, "")
-                    sentence_list.append(text)
-                else:
-                    sentence_list.append(text)
-                if vtt_line["text"] == "." or vtt_line["text"] == "..":
-                    delete_indices.append(index)
+    # else:
+    for index, vtt_line in enumerate(vtt_output["payload"]):
+        if "text" in vtt_line.keys():
+            text = vtt_line["text"]
+            if transcript.language == "en":
+                for noise_tag in english_noise_tags:
+                    text = text.replace(noise_tag, "")
+                sentence_list.append(text)
             else:
+                sentence_list.append(text)
+            if vtt_line["text"] == "." or vtt_line["text"] == "..":
                 delete_indices.append(index)
+        else:
+            delete_indices.append(index)
 
     delete_indices.reverse()
     for ind in delete_indices:

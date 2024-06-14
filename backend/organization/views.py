@@ -620,6 +620,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             buttons["Info"] = True
                         if task["status"] == "INPROGRESS":
                             buttons["Preview"] = True
+                            if "TRANSLATION_VOICEOVER" in task["task_type"]:
+                                buttons["Export"] = True
                         if task["task_type"] == "VOICEOVER_EDIT":
                             buttons["Preview"] = False
                             buttons["Info"] = False

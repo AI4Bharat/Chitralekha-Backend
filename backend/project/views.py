@@ -927,6 +927,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         buttons["Info"] = True
                     if data["status"] == "INPROGRESS":
                         buttons["Preview"] = True
+                        if "TRANSLATION_VOICEOVER" in data["task_type"]:
+                            buttons["Export"] = True
                     if data["task_type"] == "VOICEOVER_EDIT":
                         buttons["Preview"] = False
                         buttons["Info"] = False
