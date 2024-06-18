@@ -49,10 +49,24 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
             .filter(status=TRANSLATION_EDIT_COMPLETE)
             .first()
         )
-        index = 0
+        updated_payload = []
         for segment in voice_over_obj.payload["payload"].values():
-            final_tl.payload["payload"][index]["target_text"] = segment["text"]
-            index = index + 1
+            unix_start_time = datetime.datetime.timestamp(segment["start_time"])
+            unix_end_time = datetime.datetime.timestamp(segment["end_time"])
+            target_text = segment["text"]
+            target_text = segment["transcription_text"]
+
+            updated_segment = {
+                    "start_time": segment["start_time"],
+                    "end_time": segment["end_time"],
+                    "target_text": segment["text"],
+                    "speaker_id": "",
+                    "unix_start_time": unix_start_time,
+                    "unix_end_time": unix_end_time,
+                    "text": segment["transcription_text"],
+                }
+            updated_payload.append(updated_segment)
+        final_tl.payload["payload"] = updated_payload
         final_tl.save()
 
     integrate_audio_with_video(file_name, voice_over_obj, voice_over_obj.video)
