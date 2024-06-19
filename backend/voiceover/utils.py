@@ -1039,6 +1039,7 @@ def generate_voiceover_payload(translation_payload, target_language, task):
                     os.remove(audio_file)
                     os.remove("temp_" + uuid_num + ".ogg")
                 else:
+                    ind = post_generated_audio_indices.pop(0)
                     output[ind] = (
                         translation_payload[ind][0],
                         {"audioContent": ""},
