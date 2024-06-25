@@ -311,9 +311,7 @@ def get_payload(request):
     completed_count = 0
     if voice_over.translation:
         if voice_over.voice_over_type == "MACHINE_GENERATED":
-            count_cards = (
-                len(list(voice_over.payload["payload"].keys())) - 1
-            )
+            count_cards = len(list(voice_over.payload["payload"].keys())) - 1
         else:
             count_cards = len(voice_over.translation.payload["payload"]) - 1
         start_offset = current_offset
@@ -475,7 +473,7 @@ def get_payload(request):
             {
                 "completed_count": voice_over.payload["payload"]["completed_count"],
                 "sentences_count": len(voice_over.translation.payload["payload"]),
-                "count": count_cards+1,
+                "count": count_cards + 1,
                 "next": next,
                 "current": offset,
                 "previous": previous,
@@ -487,8 +485,8 @@ def get_payload(request):
 
     return Response(
         {
-            "completed_count": count_cards+1,
-            "count": count_cards+1,
+            "completed_count": count_cards + 1,
+            "count": count_cards + 1,
             "next": next,
             "current": offset,
             "previous": previous,
@@ -627,6 +625,88 @@ def change_active_status_of_next_tasks(task, target_language, voice_over_obj):
 
 
 @swagger_auto_schema(
+    method="get",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=[
+            "text",
+            "source_language"
+            "target_language"
+        ],
+        properties={
+            "text": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Text to be translated",
+            ),
+            "source_language": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Source Language",
+            ),
+            "target_language": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Target language ",
+            )
+        },
+        description="Post request body",
+    ),
+    responses={200: "Returns the translated text"},
+)
+@api_view(["GET"])
+def get_translated_text(request):
+    try:
+        # Get the required data from the POST body
+        text = request.data["text"]
+        source_language = request.data["source_language"]
+        target_language = request.data["target_language"]
+
+
+    except KeyError:
+        return Response(
+            {
+                "message": "Missing required parameters"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    tmxservice = TMXService()
+    translated_text = get_batch_translations_using_indictrans_nmt_api(
+        text,
+        source_language,
+        target_language,
+    )
+
+    if type(translated_text) == list:
+        locale = task.get_src_language_label + "|" + voice_over.target_language
+        user_id = str(request.user.id)
+        org_id = None
+        tmx_level = "USER"
+        tmx_phrases, res_dict = tmxservice.get_tmx_phrases(
+            user_id,
+            org_id,
+            locale,
+            voice_over_payload["text"],
+            tmx_level,
+        )
+
+        (
+            tgt,
+            tmx_replacement,
+        ) = tmxservice.replace_nmt_tgt_with_user_tgt(
+            tmx_phrases,
+            voice_over_payload["transcription_text"],
+            voice_over_payload["text"],
+        )
+
+        if len(tmx_replacement) > 0:
+            for i in range(len(tmx_replacement)):
+                voice_over_payload["text"] = voice_over_payload["text"].replace(
+                    tmx_replacement[i]["tgt"],
+                    tmx_replacement[i]["tmx_tgt"],
+                )
+        voice_over_payload["text"] = translated_text[0]
+    pass
+
+
+@swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
@@ -707,7 +787,7 @@ def save_voice_over(request):
             "task_id": task_id,
             "offset": offset,
             "task_type": task.task_type,
-            "segment" : bookmarked_segment
+            "segment": bookmarked_segment,
         }
         user.save()
     try:
@@ -715,10 +795,14 @@ def save_voice_over(request):
         target_language = voice_over.target_language
         translation = voice_over.translation
 
-        if task.task_type == TRANSLATION_VOICEOVER_EDIT and request.data.get("final") and Translation.objects.filter(
+        if (
+            task.task_type == TRANSLATION_VOICEOVER_EDIT
+            and request.data.get("final")
+            and Translation.objects.filter(
                 task=task, status=TRANSLATION_EDIT_COMPLETE
-            ).first() == None:
-            
+            ).first()
+            == None
+        ):
 
             inprogress_translation = Translation.objects.filter(
                 task=task, status=TRANSLATION_EDIT_INPROGRESS
@@ -795,9 +879,7 @@ def save_voice_over(request):
                 )
 
             if voice_over.voice_over_type == "MACHINE_GENERATED":
-                count_cards = (
-                    len(list(voice_over.payload["payload"].keys()))-1
-                )
+                count_cards = len(list(voice_over.payload["payload"].keys())) - 1
             else:
                 count_cards = len(voice_over.translation.payload["payload"]) - 1
             current_offset = offset - 1
@@ -857,7 +939,7 @@ def save_voice_over(request):
                                 voice_over_payload["text"],
                                 tmx_level,
                             )
-
+                            print("tmx phrases", tmx_phrases)
                             (
                                 tgt,
                                 tmx_replacement,
@@ -866,7 +948,7 @@ def save_voice_over(request):
                                 voice_over_payload["transcription_text"],
                                 voice_over_payload["text"],
                             )
-
+                            print("Replacement texts" ,tgt, tmx_replacement )
                             if len(tmx_replacement) > 0:
                                 for i in range(len(tmx_replacement)):
                                     voice_over_payload["text"] = voice_over_payload[
@@ -875,6 +957,7 @@ def save_voice_over(request):
                                         tmx_replacement[i]["tgt"],
                                         tmx_replacement[i]["tmx_tgt"],
                                     )
+                            print("Unchanged translation",translated_text[0])
                             voice_over_payload["text"] = translated_text[0]
                         else:
                             logging.info(
@@ -1441,8 +1524,8 @@ def save_voice_over(request):
             else:
                 return Response(
                     {
-                        "completed_count": completed_count+1,
-                        "count": count_cards+1,
+                        "completed_count": completed_count + 1,
+                        "count": count_cards + 1,
                         "next": next,
                         "current": offset,
                         "previous": previous,
