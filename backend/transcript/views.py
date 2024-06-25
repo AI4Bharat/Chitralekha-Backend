@@ -1010,7 +1010,6 @@ def check_if_transcription_correct(transcription_obj, task):
 
 
 def change_active_status_of_next_tasks(task, transcript_obj):
-    print(celery_nmt_tts_call)
     tasks = Task.objects.filter(video=task.video)
     activate_translations = True
 
@@ -1651,14 +1650,13 @@ def save_transcription(request):
         transcript_id = transcript.id
     bookmarked_segment = request.data.get("bookmark", None)
     user = request.user
-    print(bookmarked_segment)
     if bookmarked_segment:
-        print("Saving History")
+
         user.user_history = {
             "task_id": task_id,
             "offset": offset,
             "task_type": task.task_type,
-            "segment" : bookmarked_segment
+            "segment": bookmarked_segment,
         }
         user.save()
     start_offset = (int(offset) - 1) * int(limit)
@@ -1705,44 +1703,64 @@ def save_transcription(request):
                             {"message": "Final Edited Transcript already submitted."},
                             status=status.HTTP_201_CREATED,
                         )
-                    tc_status = TRANSCRIPTION_EDIT_COMPLETE
-                    transcript_type = transcript.transcript_type
-                    transcript_obj = Transcript.objects.create(
-                        transcript_type=transcript_type,
-                        parent_transcript=transcript,
-                        video=transcript.video,
-                        language=transcript.language,
-                        payload=transcript.payload,
-                        user=request.user,
-                        task=task,
-                        status=tc_status,
-                    )
-                    modify_payload(
-                        offset, limit, payload, start_offset, end_offset, transcript_obj
-                    )
-                    transcript_obj.save()
-                    task.status = "COMPLETE"
-                    task.save()
-                    response = check_if_transcription_correct(transcript_obj, task)
-                    if type(response) == dict:
-                        return Response(
-                            {
-                                "data": response["data"],
-                                "message": response["message"],
-                            },
-                            status=status.HTTP_400_BAD_REQUEST,
+
+                    if (
+                        task.video.project.paraphrasing_enabled == True
+                        and transcript.paraphrase_stage != True
+                    ):
+                        transcript.paraphrase_stage = True
+                        transcript.save()
+                        task.status = "PARAPHRASE"
+                        task.save()
+                        modify_payload(
+                            offset, limit, payload, start_offset, end_offset, transcript
                         )
+                    else:
+                        tc_status = TRANSCRIPTION_EDIT_COMPLETE
+                        transcript_type = transcript.transcript_type
+                        transcript_obj = Transcript.objects.create(
+                            transcript_type=transcript_type,
+                            parent_transcript=transcript,
+                            video=transcript.video,
+                            language=transcript.language,
+                            payload=transcript.payload,
+                            user=request.user,
+                            task=task,
+                            status=tc_status,
+                        )
+                        modify_payload(
+                            offset,
+                            limit,
+                            payload,
+                            start_offset,
+                            end_offset,
+                            transcript_obj,
+                        )
+                        transcript_obj.save()
+                        task.status = "COMPLETE"
+                        task.save()
+                        response = check_if_transcription_correct(transcript_obj, task)
+                        if type(response) == dict:
+                            return Response(
+                                {
+                                    "data": response["data"],
+                                    "message": response["message"],
+                                },
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
 
-                    delete_indices = []
-                    for index, sentence in enumerate(transcript_obj.payload["payload"]):
-                        if "text" not in sentence.keys():
-                            delete_indices.append(index)
+                        delete_indices = []
+                        for index, sentence in enumerate(
+                            transcript_obj.payload["payload"]
+                        ):
+                            if "text" not in sentence.keys():
+                                delete_indices.append(index)
 
-                    delete_indices.reverse()
-                    for ind in delete_indices:
-                        transcript_obj.payload["payload"].pop(ind)
-                    transcript_obj.save()
-                    change_active_status_of_next_tasks(task, transcript_obj)
+                        delete_indices.reverse()
+                        for ind in delete_indices:
+                            transcript_obj.payload["payload"].pop(ind)
+                        transcript_obj.save()
+                        change_active_status_of_next_tasks(task, transcript_obj)
                 else:
                     transcript_obj = (
                         Transcript.objects.filter(status=TRANSCRIPTION_EDIT_INPROGRESS)
@@ -1810,50 +1828,62 @@ def save_transcription(request):
                             status=status.HTTP_201_CREATED,
                         )
                     else:
-                        tc_status = TRANSCRIPTION_REVIEW_COMPLETE
-                        transcript_obj = Transcript.objects.create(
-                            transcript_type=transcript.transcript_type,
-                            parent_transcript=transcript,
-                            video=transcript.video,
-                            language=transcript.language,
-                            payload=transcript.payload,
-                            user=request.user,
-                            task=task,
-                            status=tc_status,
-                        )
-                        modify_payload(
-                            offset,
-                            limit,
-                            payload,
-                            start_offset,
-                            end_offset,
-                            transcript_obj,
-                        )
-                        transcript_obj.save()
-                        task.status = "COMPLETE"
-                        task.save()
-                        response = check_if_transcription_correct(transcript_obj, task)
-                        if type(response) == dict:
-                            return Response(
-                                {
-                                    "data": response["data"],
-                                    "message": response["message"],
-                                },
-                                status=status.HTTP_400_BAD_REQUEST,
+                        if (
+                        task.video.project.paraphrasing_enabled == True
+                        and transcript.paraphrase_stage != True
+                    ):
+                            transcript.paraphrase_stage = True
+                            transcript.save()
+                            task.status = "PARAPHRASE"
+                            task.save()
+                            modify_payload(
+                                offset, limit, payload, start_offset, end_offset, transcript
                             )
+                        else:
+                            tc_status = TRANSCRIPTION_REVIEW_COMPLETE
+                            transcript_obj = Transcript.objects.create(
+                                transcript_type=transcript.transcript_type,
+                                parent_transcript=transcript,
+                                video=transcript.video,
+                                language=transcript.language,
+                                payload=transcript.payload,
+                                user=request.user,
+                                task=task,
+                                status=tc_status,
+                            )
+                            modify_payload(
+                                offset,
+                                limit,
+                                payload,
+                                start_offset,
+                                end_offset,
+                                transcript_obj,
+                            )
+                            transcript_obj.save()
+                            task.status = "COMPLETE"
+                            task.save()
+                            response = check_if_transcription_correct(transcript_obj, task)
+                            if type(response) == dict:
+                                return Response(
+                                    {
+                                        "data": response["data"],
+                                        "message": response["message"],
+                                    },
+                                    status=status.HTTP_400_BAD_REQUEST,
+                                )
 
-                        delete_indices = []
-                        for index, sentence in enumerate(
-                            transcript_obj.payload["payload"]
-                        ):
-                            if "text" not in sentence.keys():
-                                delete_indices.append(index)
+                            delete_indices = []
+                            for index, sentence in enumerate(
+                                transcript_obj.payload["payload"]
+                            ):
+                                if "text" not in sentence.keys():
+                                    delete_indices.append(index)
 
-                        delete_indices.reverse()
-                        for ind in delete_indices:
-                            transcript_obj.payload["payload"].pop(ind)
-                        transcript_obj.save()
-                        change_active_status_of_next_tasks(task, transcript_obj)
+                            delete_indices.reverse()
+                            for ind in delete_indices:
+                                transcript_obj.payload["payload"].pop(ind)
+                            transcript_obj.save()
+                            change_active_status_of_next_tasks(task, transcript_obj)
                 else:
                     tc_status = TRANSCRIPTION_REVIEW_INPROGRESS
                     transcript_type = transcript.transcript_type
@@ -1913,15 +1943,17 @@ def save_transcription(request):
                                 r"\s+", " ", cleaned_text
                             )  # for removing multiple blank spaces
                             num_words += len(cleaned_text.split(" "))
-                            transcript_obj.payload["payload"][index][
-                                "start_time"
-                            ] = format_timestamp(
-                                transcript_obj.payload["payload"][index]["start_time"]
+                            transcript_obj.payload["payload"][index]["start_time"] = (
+                                format_timestamp(
+                                    transcript_obj.payload["payload"][index][
+                                        "start_time"
+                                    ]
+                                )
                             )
-                            transcript_obj.payload["payload"][index][
-                                "end_time"
-                            ] = format_timestamp(
-                                transcript_obj.payload["payload"][index]["end_time"]
+                            transcript_obj.payload["payload"][index]["end_time"] = (
+                                format_timestamp(
+                                    transcript_obj.payload["payload"][index]["end_time"]
+                                )
                             )
                     transcript_obj.payload["word_count"] = num_words
                     transcript_obj.save()

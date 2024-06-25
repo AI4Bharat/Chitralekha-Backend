@@ -103,6 +103,12 @@ class Transcript(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True, verbose_name="Transcript Updated At"
     )
-
+    paraphrase_stage = models.BooleanField(
+        verbose_name="Paraphrasing Stage",
+        default=False,
+        help_text=(
+            "Indicates whether transcription is in paraphrasing stage"
+        ),
+    )
     def __str__(self):
         return str(self.id)
