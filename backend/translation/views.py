@@ -674,18 +674,18 @@ def replace_all_words(request):
 
     # Replace all occurrences of word_to_replace with replace_word
     for record in translation.payload["payload"]:
-        if "text" in record:
+        if "target_text" in record:
             if replace_full_word:
                 if transliteration_language == "en":
-                    record["text"] = re.sub(
-                        r"\b" + word_to_replace + r"\b", replace_word, record["text"]
+                    record["target_text"] = re.sub(
+                        r"\b" + word_to_replace + r"\b", replace_word, record["target_text"]
                     )
                 else:
-                    record["text"] = record["text"].replace(
+                    record["target_text"] = record["target_text"].replace(
                         word_to_replace, replace_word
                     )
             else:
-                record["text"] = record["text"].replace(word_to_replace, replace_word)
+                record["target_text"] = record["target_text"].replace(word_to_replace, replace_word)
 
     # Save the updated translation
     translation.save()
