@@ -924,6 +924,7 @@ def save_voice_over(request):
                         )
 
                         if type(translated_text) == list:
+                            voice_over_payload["text"] = translated_text[0]
                             locale = (
                                 task.get_src_language_label
                                 + "|"
@@ -936,7 +937,7 @@ def save_voice_over(request):
                                 user_id,
                                 org_id,
                                 locale,
-                                voice_over_payload["text"],
+                                voice_over_payload["transcription_text"],
                                 tmx_level,
                             )
                             print("tmx phrases", tmx_phrases)
@@ -957,8 +958,8 @@ def save_voice_over(request):
                                         tmx_replacement[i]["tgt"],
                                         tmx_replacement[i]["tmx_tgt"],
                                     )
-                            print("Unchanged translation",translated_text[0])
-                            voice_over_payload["text"] = translated_text[0]
+                            print("Updated translation",voice_over_payload["text"])
+                            
                         else:
                             logging.info(
                                 "Failed to retranslate for task_id %s",
