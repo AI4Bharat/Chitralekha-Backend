@@ -3,6 +3,7 @@ from . import views
 
 
 urlpatterns = [
+    path("get_translated_text/", views.get_translated_text, name = "get_translated_text"),
     path("save/", views.save_voice_over, name="save_voice_over"),
     path(
         "get_voiceover_supported_languages",

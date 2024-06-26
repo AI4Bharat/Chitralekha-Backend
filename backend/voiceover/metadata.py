@@ -42,3 +42,30 @@ VOICEOVER_SUPPORTED_LANGUAGES = {
     "Tamil": "ta",
     "Telugu": "te",
 }
+
+LANGUAGE_LABELS = {
+    "English": "en",
+    "Hindi": "hi",
+    "Assamese": "as",
+    "Bengali": "bn",
+    "Bodo": "brx",
+    "Dogri": "doi",
+    "Gujarati": "gu",
+    "Kannada": "kn",
+    "Kashmiri": "ks",
+    "Konkani": "gom",
+    "Maithili": "mai",
+    "Malayalam": "ml",
+    "Marathi": "mr",
+    "Manipuri": "mni",
+    "Nepali": "ne",
+    "Oriya": "or",
+    "Punjabi": "pa",
+    "Sanskrit": "sa",
+    "Santali": "sat",
+    "Sindhi": "sd",
+    "Sinhala": "si",
+    "Tamil": "ta",
+    "Telugu": "te",
+    "Urdu": "ur"
+}
