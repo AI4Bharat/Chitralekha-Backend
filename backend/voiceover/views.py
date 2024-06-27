@@ -14,7 +14,7 @@ from translation.models import (
     TRANSLATION_EDIT_COMPLETE,
     TRANSLATION_EDIT_INPROGRESS,
 )
-from .metadata import VOICEOVER_SUPPORTED_LANGUAGES, VOICEOVER_LANGUAGE_CHOICES
+from .metadata import VOICEOVER_SUPPORTED_LANGUAGES, VOICEOVER_LANGUAGE_CHOICES, LANGUAGE_LABELS
 from .models import (
     VoiceOver,
     VOICEOVER_TYPE_CHOICES,
@@ -625,6 +625,91 @@ def change_active_status_of_next_tasks(task, target_language, voice_over_obj):
     else:
         print("No change in status")
 
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=[
+            "text",
+            "source_language"
+            "target_language"
+        ],
+        properties={
+            "text": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Text to be translated",
+            ),
+            "source_language": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Source Language",
+            ),
+            "target_language": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Target language ",
+            )
+        },
+        description="Post request body",
+    ),
+    responses={200: "Returns the translated text"},
+)
+@api_view(["POST"])
+def get_translated_text(request):
+    try:
+        # Get the required data from the POST body
+        text = request.data["text"]
+        source_language = request.data["source_language"]
+        target_language = request.data["target_language"]
+
+
+    except KeyError:
+        return Response(
+            {
+                "message": "Missing required parameters"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        tmxservice = TMXService()
+        translated_text = get_batch_translations_using_indictrans_nmt_api(
+            [text],
+            source_language,
+            target_language,
+        )
+
+        if type(translated_text) == list:
+            locale = source_language + "|" + target_language
+            user_id = str(request.user.id)
+            org_id = None
+            tmx_level = "USER"
+            tmx_phrases, res_dict = tmxservice.get_tmx_phrases(
+                user_id,
+                org_id,
+                locale,
+                text,
+                tmx_level,
+            )
+
+            (
+                tgt,
+                tmx_replacement,
+            ) = tmxservice.replace_nmt_tgt_with_user_tgt(
+                tmx_phrases,
+                text,
+                translated_text[0],
+            )
+
+            if len(tmx_replacement) > 0:
+                for i in range(len(tmx_replacement)):
+                    translated_text[0] = translated_text[0].replace(
+                        tmx_replacement[i]["tgt"],
+                        tmx_replacement[i]["tmx_tgt"],
+                    )
+            return Response({"Translated text": translated_text[0]},status=status.HTTP_200_OK)
+    except:
+        return Response(
+            {"message": "Translation failed"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 @swagger_auto_schema(
     method="post",
@@ -842,8 +927,9 @@ def save_voice_over(request):
                         )
 
                         if type(translated_text) == list:
+                            voice_over_payload["text"] = translated_text[0]
                             locale = (
-                                task.get_src_language_label
+                                LANGUAGE_LABELS[task.get_src_language_label]
                                 + "|"
                                 + voice_over.target_language
                             )
@@ -854,7 +940,7 @@ def save_voice_over(request):
                                 user_id,
                                 org_id,
                                 locale,
-                                voice_over_payload["text"],
+                                voice_over_payload["transcription_text"],
                                 tmx_level,
                             )
 
