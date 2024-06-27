@@ -1209,7 +1209,7 @@ def save_voice_over(request):
                                     "start_time": payload["payload"][i]["start_time"],
                                     "end_time": payload["payload"][i]["end_time"],
                                     "text": payload["payload"][i]["text"],
-                                    "audio": voiceover_machine_generated[i][1],
+                                    "audio": voiceover_machine_generated[i][1] if voiceover_machine_generated[i][1] != "" else voice_over_obj.payload["payload"][str(start_offset + i)]["audio"],
                                     "audio_speed": 1,
                                     "transcription_text": payload["payload"][i][
                                         "transcription_text"
@@ -1224,7 +1224,7 @@ def save_voice_over(request):
                                         ],
                                         "end_time": payload["payload"][i]["end_time"],
                                         "text": payload["payload"][i]["text"],
-                                        "audio": voiceover_machine_generated[i][1],
+                                        "audio": voiceover_machine_generated[i][1] if voiceover_machine_generated[i][1] != "" else voice_over_obj.payload["payload"][str(start_offset + i)]["audio"],
                                         "audio_speed": 1,
                                         "transcription_text": payload["payload"][i][
                                             "transcription_text"
