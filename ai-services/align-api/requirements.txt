@@ -4,6 +4,6 @@ tensorboardX
 rich==12.6.0
 srt==3.5.2
 Cython==0.29.32
-urduhack==1.1.1
-fastapi['all']
+urduhack
+fastapi
 indic-nlp-library
