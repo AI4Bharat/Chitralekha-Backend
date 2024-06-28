@@ -961,7 +961,6 @@ def save_voice_over(request):
                                         tmx_replacement[i]["tgt"],
                                         tmx_replacement[i]["tmx_tgt"],
                                     )
-                            voice_over_payload["text"] = translated_text[0]
                         else:
                             logging.info(
                                 "Failed to retranslate for task_id %s",
