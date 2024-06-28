@@ -1399,7 +1399,7 @@ def integrate_all_audios(file_name, payload, video_duration):
 def send_audio_mail_to_user(task, azure_url, user):
     if task.user.enable_mail:
         logging.info("Send Audio email to user %s", azure_url)
-        subject = f"Audio is generated for Video ID - {task.video.id}"
+        subject = f"Audio is generated for Video ID - {task.video.id} for the Task - {task.id}"
         message = """The requested audio has been successfully generated. You can access the audio by copying and pasting the following link into your web browser.
             {url}""".format(
             url=azure_url
@@ -1436,7 +1436,7 @@ def send_audio_zip_mail_to_user(task, azure_url, user):
             #     settings.DEFAULT_FROM_EMAIL,
             #     [user.email],
             # )
-            subject = f"Audio is generated for Video ID - {task.video.id}"
+            subject = f"Audio is generated for Video ID - {task.video.id} for the Task - {task.id}"
             message = f"The requested audios have been successfully generated. You can access the audios by copying and pasting the following link into your web browser: {azure_url}"
             compiled_code = send_email_template(subject, message)
             msg = EmailMultiAlternatives(
