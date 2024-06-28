@@ -13,6 +13,6 @@ COPY . .
 RUN chmod -R 777 .
 
 # RUN python3 manage.py makemigrations
-RUN python3 manage.py migrate
+# RUN python3 manage.py migrate
 
 CMD ["python3", "manage.py", "runserver", "0:8000", "--noreload", "--insecure"]
