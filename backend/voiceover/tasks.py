@@ -49,6 +49,21 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
             .filter(status=TRANSLATION_EDIT_COMPLETE)
             .first()
         )
+        if (
+                final_tl.payload != ""
+                and final_tl.payload is not None
+            ):
+                num_words = 0
+                for idv_translation in final_tl.payload["payload"]:
+                    if "target_text" in idv_translation.keys():
+                        cleaned_text = regex.sub(
+                            r"[^\p{L}\s]", "", idv_translation["target_text"]
+                        ).lower()  # for removing special characters
+                        cleaned_text = regex.sub(
+                            r"\s+", " ", cleaned_text
+                        )  # for removing multiple blank spaces
+                        num_words += len(cleaned_text.split(" "))
+                final_tl.payload["word_count"] = num_words
         updated_payload = []
         for segment in voice_over_obj.payload["payload"].values():
             start_time = datetime.datetime.strptime(segment["start_time"], "%H:%M:%S.%f")
