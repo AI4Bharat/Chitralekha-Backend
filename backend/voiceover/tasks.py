@@ -55,8 +55,6 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
             end_time = datetime.datetime.strptime(segment["end_time"], "%H:%M:%S.%f")
             unix_start_time = datetime.datetime.timestamp(start_time)
             unix_end_time = datetime.datetime.timestamp(end_time)
-            target_text = segment["text"]
-            target_text = segment["transcription_text"]
 
             updated_segment = {
                     "start_time": segment["start_time"],
@@ -79,7 +77,9 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
     azure_url_video, azure_url_audio = uploadToBlobStorage(file_name, voice_over_obj)
     ts_status = "VOICEOVER_EDIT_COMPLETE"
     voice_over_obj.status = ts_status
-    voice_over_obj.payload = {"payload": ""}
+    # voice_over_obj.payload = {"payload": ""}
+    for segment in voice_over_obj.payload["payload"].values():
+        segment["audio"] = ""
     voice_over_obj.azure_url = azure_url_video
     voice_over_obj.azure_url_audio = azure_url_audio
     task.status = "COMPLETE"
