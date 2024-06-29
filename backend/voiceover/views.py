@@ -149,16 +149,22 @@ def get_empty_audios(request):
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
+    empty_audios = []
     if (
         voice_over.payload
         and "payload" in voice_over.payload
-        and "audio_not_generated" in voice_over.payload
-        and len(voice_over.payload["audio_not_generated"]) > 0
     ):
+        for sentence in voice_over.payload["payload"].values():
+            if sentence.get("audio", "") == "":
+                empty_audios.append(sentence)
+                continue
+            if sentence.get("audio", {}).get("audio_content", {}) == False:
+                empty_audios.append(sentence)
+
+    if empty_audios:
         return Response(
             {
-                "data": voice_over.payload["audio_not_generated"],
+                "data": empty_audios,
                 "message": "Sentences with empty audios are returned.",
             },
             status=status.HTTP_200_OK,
