@@ -158,7 +158,8 @@ def get_empty_audios(request):
             if sentence.get("audio", "") == "":
                 empty_audios.append(sentence)
                 continue
-            if sentence.get("audio", {}).get("audio_content", {}) == False:
+            if sentence["audio"]["audioContent"] == "":
+                print("Empty audio with dict found", sentence.get("audio", {}).get("audioContent", {}))
                 empty_audios.append(sentence)
 
     if empty_audios:
