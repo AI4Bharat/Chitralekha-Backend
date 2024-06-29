@@ -846,14 +846,11 @@ def save_voice_over(request):
                 for index, voice_over_payload in enumerate(payload["payload"]):
                     start_time = voice_over_payload["start_time"]
                     end_time = voice_over_payload["end_time"]
-                    text = voice_over_payload["text"]
-                    if text == "" or len(text) == 0:
+                    if voice_over_payload["transcription_text"] == "" or len(voice_over_payload["transcription_text"]) == 0:
                         return Response(
-                            {"message": "Text can't be empty."},
+                            {"message": "Transcript can't be empty."},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
-
-                    original_duration = get_original_duration(start_time, end_time)
                     if (
                         "retranslate" in voice_over_payload
                         and voice_over_payload["retranslate"] == True
@@ -907,6 +904,15 @@ def save_voice_over(request):
                                 "Failed to retranslate for task_id %s",
                                 str(translation.task.id),
                             )
+                    text = voice_over_payload["text"]
+                    if text == "" or len(text) == 0:
+                        return Response(
+                            {"message": "Text can't be empty."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    original_duration = get_original_duration(start_time, end_time)
+                    
                     if (
                         voice_over.voice_over_type == "MACHINE_GENERATED"
                         and "text_changed" in voice_over_payload
@@ -1459,8 +1465,6 @@ def save_voice_over(request):
             if task.task_type == TRANSLATION_VOICEOVER_EDIT and request.data.get("final") and Translation.objects.filter(
                 task=task, status=TRANSLATION_EDIT_COMPLETE
             ).first() == None:
-            
-
                 inprogress_translation = Translation.objects.filter(
                     task=task, status=TRANSLATION_EDIT_INPROGRESS
                 ).first()
@@ -1470,29 +1474,8 @@ def save_voice_over(request):
                 complete_translation.id = None  # Reset the ID to create a new instance
                 complete_translation.parent = inprogress_translation
                 complete_translation.save()
-                if (
-                    complete_translation.payload != ""
-                    and complete_translation.payload is not None
-                ):
-                    num_words = 0
-                    for idv_translation in complete_translation.payload["payload"]:
-                        if "target_text" in idv_translation.keys():
-                            cleaned_text = regex.sub(
-                                r"[^\p{L}\s]", "", idv_translation["target_text"]
-                            ).lower()  # for removing special characters
-                            cleaned_text = regex.sub(
-                                r"\s+", " ", cleaned_text
-                            )  # for removing multiple blank spaces
-                            num_words += len(cleaned_text.split(" "))
-                    complete_translation.payload["word_count"] = num_words
-                    complete_translation.save()
-                    voice_over.translation = complete_translation
-                    voice_over.save()
-                else:
-                    complete_translation.payload = {"payload": [], "word_count": 0}
-                    complete_translation.save()
-                    voice_over.translation = complete_translation
-                    voice_over.save()
+                voice_over.translation = complete_translation
+                voice_over.save()
                 translation = complete_translation
                 print("Saved Complete Translation with inprogress", inprogress_translation)
             else:
