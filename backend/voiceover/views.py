@@ -171,6 +171,7 @@ def get_empty_audios(request):
                     sentence.get("audio", {}).get("audioContent", {}),
                 )
                 empty_audios.append(data_dict)
+            index = index + 1
 
     if empty_audios:
         return Response(
