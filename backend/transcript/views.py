@@ -1013,6 +1013,13 @@ def change_active_status_of_next_tasks(task, transcript_obj):
     tasks = Task.objects.filter(video=task.video)
     activate_translations = True
 
+    if task.video.project_id.paraphrasing_enabled and transcript_obj.paraphrase_stage != True:
+        # change status of transcript object to inprogress again and call function to generate initial paraphrasing with the payload
+        # Handle failure by updating task status to fail and post process while working (if celery)
+
+        pass
+
+
     if (
         "EDIT" in task.task_type
         and tasks.filter(task_type="TRANSCRIPTION_REVIEW").first()
@@ -1093,7 +1100,384 @@ def change_active_status_of_next_tasks(task, transcript_obj):
         print("No change in status")
 
 
-def modify_payload(offset, limit, payload, start_offset, end_offset, transcript):
+import math
+import logging
+
+# Helper function to call the paraphrasing API
+def paraphrase_text(api_key, text):
+    api_base = ""
+    api_version = "2023-07-01-preview"
+    endpoint = f"{api_base}/openai/deployments/text-davinci-003/completions?api-version={api_version}"
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    data = {
+        "prompt": f"Paraphrase this text: {text}",
+        "max_tokens": 100,
+        "temperature": 0.7,
+        "n": 1,
+        "stop": None
+    }
+
+    response = requests.post(endpoint, headers=headers, data=json.dumps(data))
+
+    if response.status_code == 200:
+        result = response.json()
+        paraphrased_text = result['choices'][0]['text'].strip()
+        return paraphrased_text
+    else:
+        print(f"Request failed with status code {response.status_code}: {response.text}")
+        return None
+
+# Helper function to update the transcript
+def update_transcript(i, start_offset, payload, transcript, api_key):
+    transcript.payload["payload"][start_offset + i] = {
+        "start_time": payload["payload"][i]["start_time"],
+        "end_time": payload["payload"][i]["end_time"],
+        "text": payload["payload"][i]["text"],
+        "speaker_id": payload["payload"][i]["speaker_id"],
+        "paraphrased_text": paraphrase_text(api_key, payload["payload"][i]["text"])  # Add the paraphrased text here
+    }
+
+def modify_payload(offset, limit, payload, start_offset, end_offset, transcript, api_key):
+    count_sentences = len(transcript.payload["payload"])
+    total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
+    if (
+        offset != total_pages
+        and type(payload) == dict
+        and "payload" in payload.keys()
+        and len(payload["payload"]) == 0
+    ):
+        return
+
+    if len(payload["payload"]) == limit:
+        logging.info(
+            "Limit is equal to length of payload %s", str(len(payload["payload"]))
+        )
+        length = len(payload["payload"])
+        length_2 = -1
+        if end_offset > count_sentences:
+            length_2 = end_offset - count_sentences
+            length = length - length_2
+        for i in range(length):
+            if "text" in payload["payload"][i].keys():
+                update_transcript(i, start_offset, payload, transcript, api_key)
+            else:
+                logging.info("Text missing in payload")
+        if length_2 > 0:
+            for i in range(length_2):
+                if "text" in payload["payload"][i].keys():
+                    transcript.payload["payload"].insert(
+                        start_offset + i + length,
+                        {
+                            "start_time": payload["payload"][length + i]["start_time"],
+                            "end_time": payload["payload"][length + i]["end_time"],
+                            "text": payload["payload"][length + i]["text"],
+                            "speaker_id": payload["payload"][i]["speaker_id"],
+                            "paraphrased_text": paraphrase_text(api_key, payload["payload"][length + i]["text"])  # Add the paraphrased text here
+                        },
+                    )
+                else:
+                    logging.info("Text missing in payload")
+    elif len(payload["payload"]) < limit:
+        logging.info(
+            "Limit is less than length of payload, %s", str(len(payload["payload"]))
+        )
+        length = len(payload["payload"])
+        length_2 = -1
+        length_3 = -1
+        if end_offset > count_sentences:
+            if length > len(transcript.payload["payload"][start_offset:end_offset]):
+                length_2 = length - len(
+                    transcript.payload["payload"][start_offset:end_offset]
+                )
+                length = length - length_2
+                logging.info(
+                    "Length of payload {}, end_offset {}, count of sentences {}, after splitting {}".format(
+                        str(length),
+                        str(end_offset),
+                        str(count_sentences),
+                        str(length_2),
+                    )
+                )
+            else:
+                length_3 = (
+                    len(transcript.payload["payload"][start_offset:end_offset]) - length
+                )
+                logging.info(
+                    "Length of payload {}, end_offset {}, count of sentences {}, after merging {}".format(
+                        str(length),
+                        str(end_offset),
+                        str(count_sentences),
+                        str(length_3),
+                    )
+                )
+            for i in range(length):
+                if "text" in payload["payload"][i].keys():
+                    update_transcript(i, start_offset, payload, transcript, api_key)
+                else:
+                    logging.info("Text missing in payload")
+            if length_2 > 0:
+                for i in range(length_2):
+                    if "text" in payload["payload"][i].keys():
+                        transcript.payload["payload"].insert(
+                            start_offset + i + length,
+                            {
+                                "start_time": payload["payload"][length + i]["start_time"],
+                                "end_time": payload["payload"][length + i]["end_time"],
+                                "text": payload["payload"][length + i]["text"],
+                                "speaker_id": payload["payload"][length + i]["speaker_id"],
+                                "paraphrased_text": paraphrase_text(api_key, payload["payload"][length + i]["text"])  # Add the paraphrased text here
+                            },
+                        )
+                    else:
+                        logging.info("Text missing in payload")
+            if length_3 > 0:
+                for i in range(length_3):
+                    transcript.payload["payload"][start_offset + i + length] = {}
+        else:
+            logging.info("length of payload %s", str(length))
+            for i in range(length):
+                if "text" in payload["payload"][i].keys():
+                    update_transcript(i, start_offset, payload, transcript, api_key)
+                else:
+                    logging.info("Text missing in payload")
+            delete_indices = []
+            logging.info(
+                "length exceeds limit by limit - length %s", str(limit - length)
+            )
+            for i in range(limit - length):
+                delete_indices.append(start_offset + i + length)
+
+            logging.info("delete_indices %s", str(delete_indices))
+            for ind in delete_indices:
+                transcript.payload["payload"][ind] = {}
+    else:
+        logging.info("Limit is greater than length of payload")
+        if end_offset > count_sentences:
+            length = count_sentences - start_offset
+            length_2 = len(payload["payload"]) - length
+            insert_at = start_offset + length
+        else:
+            length = limit
+            length_2 = len(payload["payload"]) - limit
+            insert_at = start_offset + length
+        for i in range(length):
+            if "text" in payload["payload"][i].keys():
+                update_transcript(i, start_offset, payload, transcript, api_key)
+            else:
+                logging.info("Text missing in payload")
+        for i in range(length_2):
+            if "text" in payload["payload"][i].keys():
+                transcript.payload["payload"].insert(
+                    insert_at + i,
+                    {
+                        "start_time": payload["payload"][length + i]["start_time"],
+                        "end_time": payload["payload"][length + i]["end_time"],
+                        "text": payload["payload"][length + i]["text"],
+                        "speaker_id": payload["payload"][length + i]["speaker_id"],
+                        "paraphrased_text": paraphrase_text(api_key, payload["payload"][length + i]["text"])  # Add the paraphrased text here
+                    },
+                )
+        last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
+            "end_time"
+        ]
+        offset_to_check = start_offset + len(payload["payload"])
+        last_valid_start_time = transcript.payload["payload"][offset_to_check - 1][
+            "start_time"
+        ]
+        delete_indices = []
+        for i in range(offset_to_check, offset_to_check + 50):
+            if (
+                i < len(transcript.payload["payload"])
+                and "start_time" in transcript.payload["payload"][i].keys()
+                and last_valid_start_time
+                >= transcript.payload["payload"][i]["start_time"]
+            ):
+                delete_indices.append(i)
+                transcript.payload["payload"][i] = {}
+            else:
+                break
+        delete_indices.reverse()
+        for ind in delete_indices:
+            transcript.payload["payload"].pop(ind)
+
+
+
+    count_sentences = len(transcript.payload["payload"])
+    total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
+    if (
+        offset != total_pages
+        and type(payload) == dict
+        and "payload" in payload.keys()
+        and len(payload["payload"]) == 0
+    ):
+        return
+
+    def update_transcript(i, start_offset, payload, transcript):
+        transcript.payload["payload"][start_offset + i] = {
+            "start_time": payload["payload"][i]["start_time"],
+            "end_time": payload["payload"][i]["end_time"],
+            "text": payload["payload"][i]["text"],
+            "speaker_id": payload["payload"][i]["speaker_id"],
+            "paraphrased_text": paraphrase_text(api_key, payload["payload"][i]["text"])  # Add the paraphrased text here
+        }
+
+    if len(payload["payload"]) == limit:
+        logging.info(
+            "Limit is equal to length of payload %s", str(len(payload["payload"]))
+        )
+        length = len(payload["payload"])
+        length_2 = -1
+        if end_offset > count_sentences:
+            length_2 = end_offset - count_sentences
+            length = length - length_2
+        for i in range(length):
+            if "text" in payload["payload"][i].keys():
+                update_transcript(i, start_offset, payload, transcript)
+            else:
+                logging.info("Text missing in payload")
+        if length_2 > 0:
+            for i in range(length_2):
+                if "text" in payload["payload"][i].keys():
+                    transcript.payload["payload"].insert(
+                        start_offset + i + length,
+                        {
+                            "start_time": payload["payload"][length + i]["start_time"],
+                            "end_time": payload["payload"][length + i]["end_time"],
+                            "text": payload["payload"][length + i]["text"],
+                            "speaker_id": payload["payload"][i]["speaker_id"],
+                            "paraphrased_text": paraphrase_text(api_key, payload["payload"][length + i]["text"])  # Add the paraphrased text here
+                        },
+                    )
+                else:
+                    logging.info("Text missing in payload")
+    elif len(payload["payload"]) < limit:
+        logging.info(
+            "Limit is less than length of payload, %s", str(len(payload["payload"]))
+        )
+        length = len(payload["payload"])
+        length_2 = -1
+        length_3 = -1
+        if end_offset > count_sentences:
+            if length > len(transcript.payload["payload"][start_offset:end_offset]):
+                length_2 = length - len(
+                    transcript.payload["payload"][start_offset:end_offset]
+                )
+                length = length - length_2
+                logging.info(
+                    "Length of payload {}, end_offset {}, count of sentences {}, after splitting {}".format(
+                        str(length),
+                        str(end_offset),
+                        str(count_sentences),
+                        str(length_2),
+                    )
+                )
+            else:
+                length_3 = (
+                    len(transcript.payload["payload"][start_offset:end_offset]) - length
+                )
+                logging.info(
+                    "Length of payload {}, end_offset {}, count of sentences {}, after merging {}".format(
+                        str(length),
+                        str(end_offset),
+                        str(count_sentences),
+                        str(length_3),
+                    )
+                )
+            for i in range(length):
+                if "text" in payload["payload"][i].keys():
+                    update_transcript(i, start_offset, payload, transcript)
+                else:
+                    logging.info("Text missing in payload")
+            if length_2 > 0:
+                for i in range(length_2):
+                    if "text" in payload["payload"][i].keys():
+                        transcript.payload["payload"].insert(
+                            start_offset + i + length,
+                            {
+                                "start_time": payload["payload"][length + i]["start_time"],
+                                "end_time": payload["payload"][length + i]["end_time"],
+                                "text": payload["payload"][length + i]["text"],
+                                "speaker_id": payload["payload"][i]["speaker_id"],
+                                "paraphrased_text": paraphrase_text(api_key, payload["payload"][length + i]["text"])  # Add the paraphrased text here
+                            },
+                        )
+                    else:
+                        logging.info("Text missing in payload")
+            if length_3 > 0:
+                for i in range(length_3):
+                    transcript.payload["payload"][start_offset + i + length] = {}
+        else:
+            logging.info("length of payload %s", str(length))
+            for i in range(length):
+                if "text" in payload["payload"][i].keys():
+                    update_transcript(i, start_offset, payload, transcript)
+                else:
+                    logging.info("Text missing in payload")
+            delete_indices = []
+            logging.info(
+                "length exceeds limit by limit - length %s", str(limit - length)
+            )
+            for i in range(limit - length):
+                delete_indices.append(start_offset + i + length)
+
+            logging.info("delete_indices %s", str(delete_indices))
+            for ind in delete_indices:
+                transcript.payload["payload"][ind] = {}
+    else:
+        logging.info("Limit is greater than length of payload")
+        if end_offset > count_sentences:
+            length = count_sentences - start_offset
+            length_2 = len(payload["payload"]) - length
+            insert_at = start_offset + length
+        else:
+            length = limit
+            length_2 = len(payload["payload"]) - limit
+            insert_at = start_offset + length
+        for i in range(length):
+            if "text" in payload["payload"][i].keys():
+                update_transcript(i, start_offset, payload, transcript)
+            else:
+                logging.info("Text missing in payload")
+        for i in range(length_2):
+            if "text" in payload["payload"][i].keys():
+                transcript.payload["payload"].insert(
+                    insert_at + i,
+                    {
+                        "start_time": payload["payload"][length + i]["start_time"],
+                        "end_time": payload["payload"][length + i]["end_time"],
+                        "text": payload["payload"][length + i]["text"],
+                        "speaker_id": payload["payload"][length + i]["speaker_id"],
+                        "paraphrased_text": paraphrase_text(api_key, payload["payload"][length + i]["text"])  # Add the paraphrased text here
+                    },
+                )
+        last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
+            "end_time"
+        ]
+        offset_to_check = start_offset + len(payload["payload"])
+        last_valid_start_time = transcript.payload["payload"][offset_to_check - 1][
+            "start_time"
+        ]
+        delete_indices = []
+        for i in range(offset_to_check, offset_to_check + 50):
+            if (
+                i < len(transcript.payload["payload"])
+                and "start_time" in transcript.payload["payload"][i].keys()
+                and last_valid_start_time
+                >= transcript.payload["payload"][i]["start_time"]
+            ):
+                delete_indices.append(i)
+                transcript.payload["payload"][i] = {}
+            else:
+                break
+        delete_indices.reverse()
+        for ind in delete_indices:
+            transcript.payload["payload"].pop(ind)
+
     count_sentences = len(transcript.payload["payload"])
     total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
     if (
@@ -1455,6 +1839,8 @@ def save_full_transcription(request):
                     )
                     task.status = "COMPLETE"
                     task.save()
+
+                    # First call for this should result only in the paraphrase text being generated
                     change_active_status_of_next_tasks(task, transcript_obj)
                 else:
                     transcript_obj = (
@@ -1805,6 +2191,7 @@ def save_transcription(request):
                             task=task,
                             status=tc_status,
                         )
+
                         modify_payload(
                             offset,
                             limit,
