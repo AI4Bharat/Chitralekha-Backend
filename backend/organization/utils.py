@@ -324,13 +324,17 @@ def format_completion_time(completion_time):
     return full_time
 
 
-def get_org_report_tasks(pk, user, limit, offset):
+def get_org_report_tasks(pk, user, limit, offset, taskStartDate, taskEndDate):
     start_offset = (int(offset) - 1) * int(limit)
     end_offset = start_offset + int(limit)
 
     org_videos = Video.objects.filter(project_id__organization_id=pk)
-    total_count = len(Task.objects.filter(video__in=org_videos))
-    task_orgs = Task.objects.filter(video__in=org_videos)[start_offset:end_offset]
+    task_orgs = Task.objects.filter(
+        video__in=org_videos,
+        updated_at__date__range=(taskStartDate, taskEndDate)
+        ).order_by('-updated_at')
+    total_count=len(task_orgs)
+    task_orgs = task_orgs[start_offset:end_offset]
 
     tasks_list = []
     for task in task_orgs:
@@ -438,6 +442,10 @@ def get_org_report_tasks(pk, user, limit, offset):
                     "value": word_count,
                     "label": "Word Count",
                 },
+                "updated_at" : {
+                    "value": task.updated_at,
+                    "label": "Updated At",
+                }
             }
         )
     return tasks_list, total_count
