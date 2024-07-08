@@ -55,15 +55,16 @@ def process_history(history):
     return messages
 
 
-def get_gpt4_output(system_prompt, user_prompt, history = None):
+def get_gpt4_output(system_prompt=None, user_prompt=None, history = None):
     openai.api_type = os.getenv("LLM_INTERACTIONS_OPENAI_API_TYPE")
     openai.api_base = os.getenv("LLM_INTERACTIONS_OPENAI_API_BASE")
     openai.api_version = os.getenv("LLM_INTERACTIONS_OPENAI_API_VERSION")
     openai.api_key = os.getenv("OPENAI_API_KEY")
     engine = "prompt-chat-gpt4"
 
-    
-    messages = [{"role": "system", "content": system_prompt}]
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
     if history:
         messages.extend(process_history(history))
     messages.append({"role": "user", "content": user_prompt})
@@ -82,16 +83,19 @@ def get_gpt4_output(system_prompt, user_prompt, history = None):
     return response["choices"][0]["message"]["content"].strip()
 
 
-def get_gpt3_output(system_prompt, user_prompt, history=None):
+def get_gpt3_output(system_prompt=None, user_prompt=None, history=None):
     openai.api_type = os.getenv("LLM_INTERACTIONS_OPENAI_API_TYPE")
     openai.api_base = os.getenv("LLM_INTERACTIONS_OPENAI_API_BASE")
     openai.api_version = os.getenv("LLM_INTERACTIONS_OPENAI_API_VERSION")
     openai.api_key = os.getenv("OPENAI_API_KEY")
     engine = "prompt-chat-gpt35"
 
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
     if history:
         messages.extend(process_history(history))
-    messages = [{"role": "system", "content": system_prompt}]
+    
     
     messages.append({"role": "user", "content": user_prompt})
 
@@ -109,14 +113,17 @@ def get_gpt3_output(system_prompt, user_prompt, history=None):
     return response["choices"][0]["message"]["content"].strip()
 
 
-def get_llama2_output(system_prompt, conv_history = None, user_prompt):
+def get_llama2_output(system_prompt=None, conv_history = None, user_prompt=None):
     api_base = os.getenv("LLM_INTERACTION_LLAMA2_API_BASE")
     token = os.getenv("LLM_INTERACTION_LLAMA2_API_TOKEN")
     url = f"{api_base}/chat/completions"
 
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
     if conv_history:
         messages = process_history(conv_history)
-    messages = [{"role": "system", "content": system_prompt}]
+    
 
     messages.append({"role": "user", "content": user_prompt})
 
@@ -132,7 +139,7 @@ def get_llama2_output(system_prompt, conv_history = None, user_prompt):
     return result.json()["choices"][0]["message"]["content"].strip()
 
 
-def get_model_output(system_prompt, user_prompt, history=None, model="gpt3.5"):
+def get_model_output(user_prompt, system_prompt=None,  history=None, model="gpt3.5"):
     # Assume that translation happens outside (and the prompt is already translated)
     out = ""
     if model == "GPT3.5":
