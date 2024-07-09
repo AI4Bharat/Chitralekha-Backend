@@ -1134,7 +1134,8 @@ def update_transcript_paraphrases(transcript):
             entry["paraphrased_text"] = paraphrase_text(entry["text"])
         else:
             entry["paraphrased_text"] = None
-
+    transcript.paraphrase_stage = True
+    transcript.save()
     task = transcript.task
     task.status = "PARAPHRASE"
     task.save()
@@ -1700,12 +1701,10 @@ def save_transcription(request):
                         task.video.project_id.paraphrasing_enabled
                         and transcript.paraphrase_stage != True
                     ):
-                        update_transcript_paraphrases(transcript)
-                        transcript.paraphrase_stage = True
-                        transcript.save()
                         task.status = "POST PROCESS"
                         task.save()
-                        print("Paraphrasing done")
+                        update_transcript_paraphrases(transcript)
+                        
                         transcript_obj = transcript
                     else:
 
