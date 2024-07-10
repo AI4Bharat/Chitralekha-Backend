@@ -650,6 +650,7 @@ def get_video_func(request):
             user_id = None
         if upload_task_type is not None:
             if "TRANSCRIPTION" in upload_task_type:
+                print("Task type is transcription")
                 task_response = create_tasks(
                     video.id,
                     upload_task_type,
@@ -661,6 +662,7 @@ def get_video_func(request):
                     user_id,
                 )
             else:
+                print("Task type is not transcription")
                 task_response = create_tasks(
                     video.id,
                     upload_task_type,
@@ -729,6 +731,7 @@ def create_video(
     new_request.GET["assignee"] = assignee
     new_request.GET["task_type"] = task_type
     new_request.GET["target_language"] = target_language
+    print("Running get_video_func")
     return get_video_func(new_request)
 
 

@@ -58,6 +58,7 @@ accepted_task_types = [
     "translation edit",
     "translation review",
     "voiceover edit",
+    "translation voiceover edit"
 ]
 mapped_task_type = {
     "transcription edit": "TRANSCRIPTION_EDIT",
@@ -65,6 +66,7 @@ mapped_task_type = {
     "translation edit": "TRANSLATION_EDIT",
     "translation review": "TRANSLATION_REVIEW",
     "voiceover edit": "VOICEOVER_EDIT",
+    "translation voiceover edit": "TRANSLATION_VOICEOVER_EDIT",
 }
 mapped_gender = {"male": "Male", "female": "Female"}
 required_fields_project = [
@@ -822,6 +824,7 @@ def upload_csv(request):
 
 
 def call_async_video(user_id, valid_rows, existing_videos, project_id):
+    print("Calling Create Async Video...")
     create_videos_async.delay(user_id, valid_rows, existing_videos, project_id)
 
 
@@ -1076,7 +1079,7 @@ def upload_csv_org(request):
     Endpoint: /video/upload_csv/
     Method: POST
     """
-
+    print("Calling Upload API for Org...")
     logging.info("Calling Upload API for Org...")
     org_id = request.data.get("org_id")
     csv_content = request.data.get("csv")
@@ -1156,6 +1159,7 @@ def upload_csv_org(request):
         string_counts["transcription edit"] + string_counts["voiceover edit"]
     )
     logging.info("Sum of Transcription and VO tasks is %s", str(asr_tts_tasks))
+    #! Modify checking logic
     if asr_tts_tasks > 100:
         return Response(
             {
@@ -1243,6 +1247,7 @@ def upload_csv_org(request):
             not isinstance(row["Task Type"], str)
             or row["Task Type"].lower() not in accepted_task_types
         ):
+            #! Modify accepted task types
             errors.append(
                 {
                     "row_no": f"Row {row_num}",
@@ -1355,6 +1360,7 @@ def upload_csv_org(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     else:
+        print("Calling Async Video...")
         call_async_video(request.user.id, valid_rows, existing_videos, project_id)
         return Response(
             {"message": "CSV uploaded successfully"}, status=status.HTTP_200_OK
