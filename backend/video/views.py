@@ -58,6 +58,7 @@ accepted_task_types = [
     "translation edit",
     "translation review",
     "voiceover edit",
+    "translation voiceover edit"
 ]
 mapped_task_type = {
     "transcription edit": "TRANSCRIPTION_EDIT",
@@ -65,6 +66,7 @@ mapped_task_type = {
     "translation edit": "TRANSLATION_EDIT",
     "translation review": "TRANSLATION_REVIEW",
     "voiceover edit": "VOICEOVER_EDIT",
+    "translation voiceover edit": "TRANSLATION_VOICEOVER_EDIT",
 }
 mapped_gender = {"male": "Male", "female": "Female"}
 required_fields_project = [
