@@ -1919,7 +1919,7 @@ def reopen_translation_task(request):
                 .first()
             )
         if (
-            and translation_review_task is not None
+            translation_review_task is not None
             and translation_review_task.is_active == True
         ):
             return Response(
