@@ -1090,7 +1090,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         limit = int(request.query_params["limit"])
         offset = int(request.query_params["offset"])
         taskStartDate = request.query_params["taskStartDate"] or "2020-01-01"
-        taskEndDate = request.query_params["taskStartDate"] or datetime.now().date()
+        taskEndDate = request.query_params["taskEndDate"] or datetime.now().date()
 
         try:
             org = Organization.objects.get(pk=pk)
