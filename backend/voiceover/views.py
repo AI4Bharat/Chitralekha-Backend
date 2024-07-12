@@ -1884,7 +1884,7 @@ def get_voiceover_report(request):
     responses={200: "Task is reopened"},
 )
 @api_view(["POST"])
-def reopen_translation_task(request):
+def reopen_translation_voiceover_task(request):
     task_id = request.query_params.get("task_id")
 
     try:
