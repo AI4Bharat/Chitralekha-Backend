@@ -80,6 +80,37 @@ def download_from_azure_blob(file_path):
         sample_blob.write(download_stream.readall())
 
 
+
+
+def download_json_from_azure_blob(video_id, language_code):
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+    container_client = blob_service_client.get_container_client(container_name)
+    
+    # Create regex pattern to match the filename
+    pattern = re.compile(rf".*_Video_{video_id}_.*_{language_code}.json")
+    
+    # List blobs and find the one matching the partial filename using regex
+    blob_list = container_client.list_blobs()
+    matching_blob = None
+    
+    for blob in blob_list:
+        if pattern.search(blob.name):
+            matching_blob = blob.name
+            break
+    
+    if not matching_blob:
+        raise FileNotFoundError(f"No file matching the pattern 'Video_{video_id}_*_{last_part}.json' found in the container.")
+    
+    # Download the matched blob
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=matching_blob)
+    download_stream = blob_client.download_blob()
+    file_content = download_stream.readall().decode('utf-8')
+    
+    # Parse JSON content
+    json_data = json.loads(file_content)
+
+    return json_data
+
 def upload_video(file_path):
     full_path = file_path + ".mp4"
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
