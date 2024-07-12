@@ -1956,8 +1956,8 @@ def reopen_translation_voiceover_task(request):
             else "TRANSLATION_EDIT_INPROGRESS"
         )
         translation_completed_obj.save()
-
-        voice_over_obj.payload = {"payload": []}
+        data = download_json_from_azure_blob(voice_over_obj.id, voice_over_obj.target_language)
+        voice_over_obj.payload = data
         voice_over_obj.status = "VOICEOVER_EDIT_INPROGRESS"
         voice_over_obj.save()
         task.status = "REOPEN"
