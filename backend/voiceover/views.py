@@ -793,6 +793,7 @@ def save_voice_over(request):
                 {"message": "VoiceOver is in Post Process stage."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        print("Here")
         return Response(
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
@@ -1162,6 +1163,7 @@ def save_voice_over(request):
                             task.id,
                         )
                 else:
+                    print("Fetching inprogress")
                     voice_over_obj = (
                         VoiceOver.objects.filter(status=VOICEOVER_EDIT_INPROGRESS)
                         .filter(target_language=target_language)
@@ -1302,6 +1304,7 @@ def save_voice_over(request):
                                 )
                         voice_over_obj.save()
                     else:
+                        print("Fetching select")
                         voice_over_obj = (
                             VoiceOver.objects.filter(status=VOICEOVER_SELECT_SOURCE)
                             .filter(target_language=target_language)
@@ -1426,6 +1429,7 @@ def save_voice_over(request):
                                         ],
                                     }
                                 )
+                        print("Setting status")
                         voice_over_obj.status = VOICEOVER_EDIT_INPROGRESS
                         voice_over_obj.save()
                         task.status = "INPROGRESS"
@@ -1557,6 +1561,7 @@ def save_voice_over(request):
                     status=status.HTTP_200_OK,
                 )
     except VoiceOver.DoesNotExist:
+        print("Exception")
         return Response(
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
