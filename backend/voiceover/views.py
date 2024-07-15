@@ -1163,7 +1163,6 @@ def save_voice_over(request):
                             task.id,
                         )
                 else:
-                    print("Fetching inprogress")
                     voice_over_obj = (
                         VoiceOver.objects.filter(status=VOICEOVER_EDIT_INPROGRESS)
                         .filter(target_language=target_language)
@@ -1304,7 +1303,7 @@ def save_voice_over(request):
                                 )
                         voice_over_obj.save()
                     else:
-                        print("Fetching select")
+                 
                         voice_over_obj = (
                             VoiceOver.objects.filter(status=VOICEOVER_SELECT_SOURCE)
                             .filter(target_language=target_language)
@@ -1429,7 +1428,7 @@ def save_voice_over(request):
                                         ],
                                     }
                                 )
-                        print("Setting status")
+            
                         voice_over_obj.status = VOICEOVER_EDIT_INPROGRESS
                         voice_over_obj.save()
                         task.status = "INPROGRESS"
@@ -1511,7 +1510,6 @@ def save_voice_over(request):
                 complete_translation.save()
                 voice_over_obj.translation = complete_translation
                 voice_over_obj.status = VOICEOVER_EDIT_COMPLETE
-                print("Voiceover status when complete", voice_over_obj.status)
                 voice_over_obj.save()
                 translation = complete_translation
                 print(
@@ -1534,10 +1532,7 @@ def save_voice_over(request):
                     inprogress_translation.parent = translation
                     inprogress_translation.save()
                     voice_over_obj.translation = inprogress_translation
-                    
-                    print("Voiceover status when in progress", voice_over_obj.status)
                     voice_over_obj.save()
-                    print("Saved IP Translation with inprogress")
                     translation = inprogress_translation
             if request.data.get("final"):
                 return Response(
