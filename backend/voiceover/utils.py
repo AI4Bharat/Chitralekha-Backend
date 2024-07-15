@@ -99,7 +99,7 @@ def download_json_from_azure_blob(video_id, language_code):
             break
     
     if not matching_blob:
-        raise FileNotFoundError(f"No file matching the pattern 'Video_{video_id}_*_{last_part}.json' found in the container.")
+        raise FileNotFoundError(f"No file matching the pattern 'Video_{video_id}_*_{language}.json' found in the container.")
     
     # Download the matched blob
     blob_client = blob_service_client.get_blob_client(container=container_name, blob=matching_blob)
