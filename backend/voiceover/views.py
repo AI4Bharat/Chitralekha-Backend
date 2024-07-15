@@ -1509,8 +1509,10 @@ def save_voice_over(request):
                 complete_translation.id = None  # Reset the ID to create a new instance
                 complete_translation.parent = inprogress_translation
                 complete_translation.save()
-                voice_over.translation = complete_translation
-                voice_over.save()
+                voice_over_obj.translation = complete_translation
+                voice_over_obj.status = VOICEOVER_EDIT_COMPLETE
+                print("Voiceover status when complete", voice_over_obj.status)
+                voice_over_obj.save()
                 translation = complete_translation
                 print(
                     "Saved Complete Translation with inprogress", inprogress_translation
@@ -1531,8 +1533,10 @@ def save_voice_over(request):
                     )
                     inprogress_translation.parent = translation
                     inprogress_translation.save()
-                    voice_over.translation = inprogress_translation
-                    voice_over.save()
+                    voice_over_obj.translation = inprogress_translation
+                    
+                    print("Voiceover status when in progress", voice_over_obj.status)
+                    voice_over_obj.save()
                     print("Saved IP Translation with inprogress")
                     translation = inprogress_translation
             if request.data.get("final"):
@@ -1893,7 +1897,7 @@ def reopen_translation_voiceover_task(request):
     task_id = request.query_params.get("task_id")
 
     try:
-        task = Task.objects.get(pk=pk)
+        task = Task.objects.get(pk=task_id)
     except Task.DoesNotExist:
         return Response({"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1908,10 +1912,10 @@ def reopen_translation_voiceover_task(request):
             Translation.objects.filter(status="TRANSLATION_REVIEW_INPROGRESS")
             .filter(target_language=task.target_language)
             .filter(video=task.video)
-            .all()
+            .first()
         )
         voice_over_obj = (
-            VoiceOver.objects.filter(status="VOICEOVER_REVIEW_INPROGRESS")
+            VoiceOver.objects.filter(status="VOICEOVER_REVIEW_COMPLETE")
             .filter(video=task.video)
             .filter(target_language=task.target_language)
             .first()
@@ -1943,14 +1947,17 @@ def reopen_translation_voiceover_task(request):
             Translation.objects.filter(status="TRANSLATION_EDIT_INPROGRESS")
             .filter(target_language=task.target_language)
             .filter(video=task.video)
-            .all()
+            .first()
         )
         voice_over_obj = (
-            VoiceOver.objects.filter(status="VOICEOVER_EDIT_INPROGRESS")
+            VoiceOver.objects.filter(status="VOICEOVER_EDIT_COMPLETE")
             .filter(video=task.video)
             .filter(target_language=task.target_language)
             .first()
         )
+    print("Translation Completed", translation_completed_obj)
+    print("Translation In Progress", translation_inprogress_obj)
+    print("VOiceover Completed", voice_over_obj)
     if translation_inprogress_obj is not None and translation_completed_obj is not None and voice_over_obj is not None:
         translation_completed_obj.parent = None
         translation_completed_obj.save()
@@ -1961,7 +1968,8 @@ def reopen_translation_voiceover_task(request):
             else "TRANSLATION_EDIT_INPROGRESS"
         )
         translation_completed_obj.save()
-        data = download_json_from_azure_blob(voice_over_obj.id, voice_over_obj.target_language)
+        # data = download_json_from_azure_blob(voice_over_obj.id, voice_over_obj.target_language)
+        data = {}
         voice_over_obj.payload = data
         voice_over_obj.status = "VOICEOVER_EDIT_INPROGRESS"
         voice_over_obj.save()
