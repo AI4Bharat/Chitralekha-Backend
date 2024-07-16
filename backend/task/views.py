@@ -615,7 +615,7 @@ class TaskViewSet(ModelViewSet):
             if "EDIT" in task_type:
                 permitted = self.has_translate_edit_permission(
                     user_ids[0], videos
-                ) or has_voice_over_edit_permission(user_ids[0], videos)
+                ) or self.has_voice_over_edit_permission(user_ids[0], videos)
             else:
                 permitted = self.has_translate_review_permission(
                     user_ids[0], videos

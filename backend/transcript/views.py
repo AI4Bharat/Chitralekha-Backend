@@ -500,7 +500,7 @@ def get_transcript_id(task):
                 .filter(status="TRANSCRIPTION_SELECT_SOURCE")
                 .first()
             )
-        if task.status == "INPROGRESS":
+        if task.status == "INPROGRESS" or task.status == "PARAPHRASE":
             transcript_id = (
                 transcript.filter(video=task.video)
                 .filter(status="TRANSCRIPTION_EDIT_INPROGRESS")
