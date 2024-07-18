@@ -109,6 +109,8 @@ class Transcript(models.Model):
         help_text=(
             "Indicates whether transcription is in paraphrasing stage"
         ),
+        null = True,
+        blank = True
     )
     def __str__(self):
         return str(self.id)
