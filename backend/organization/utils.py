@@ -332,7 +332,7 @@ def get_org_report_tasks(pk, user, limit, offset, taskStartDate, taskEndDate):
     task_orgs = Task.objects.filter(
         video__in=org_videos,
         created_at__date__range=(taskStartDate, taskEndDate)
-        ).order_by('-updated_at')
+        ).order_by('-created_at')
     total_count=len(task_orgs)
     task_orgs = task_orgs[start_offset:end_offset]
 
@@ -441,6 +441,10 @@ def get_org_report_tasks(pk, user, limit, offset, taskStartDate, taskEndDate):
                 "word_count": {
                     "value": word_count,
                     "label": "Word Count",
+                },
+                "created_at" : {
+                    "value": task.created_at,
+                    "label": "Created At",
                 },
                 "updated_at" : {
                     "value": task.updated_at,
