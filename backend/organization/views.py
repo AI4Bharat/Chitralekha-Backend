@@ -1089,6 +1089,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     def get_tasks_report(self, request, pk=None, *args, **kwargs):
         limit = int(request.query_params["limit"])
         offset = int(request.query_params["offset"])
+        if "filter" in request.query_params:
+            filter_dict = json.loads(request.query_params["filter"])
         taskStartDate = request.query_params["taskStartDate"] or "2020-01-01"
         taskEndDate = request.query_params["taskEndDate"] or datetime.now().date()
 
@@ -1098,7 +1100,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        tasks_list, total_count = get_org_report_tasks(pk, request.user, limit, offset, taskStartDate, taskEndDate)
+        tasks_list, total_count = get_org_report_tasks(pk, request.user, limit, offset, taskStartDate, taskEndDate, filter_dict)
         return Response(
             {"reports": tasks_list, "total_count": total_count},
             status=status.HTTP_200_OK,
