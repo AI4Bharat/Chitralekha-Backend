@@ -1101,31 +1101,12 @@ def change_active_status_of_next_tasks(task, transcript_obj):
 # Helper function to call the paraphrasing API
 def paraphrase_text(text):
     # Set API configuration
+
+
     print("Paraphrase call")
+    text = get_model_output(user_prompt = "Paraphrase this text")
+    print(text)
     return text
-    openai.api_type = os.getenv("LLM_INTERACTIONS_OPENAI_API_TYPE")
-    openai.api_base = os.getenv("LLM_INTERACTIONS_OPENAI_API_BASE")
-    openai.api_version = os.getenv("LLM_INTERACTIONS_OPENAI_API_VERSION")
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    engine = "prompt-chat-gpt4"  # Ensure this matches the deployment name
-
-    messages = [{"role": "user", "content": f"Paraphrase this text: {text}"}]
-
-    try:
-        response = openai.ChatCompletion.create(
-            engine=engine,
-            messages=messages,
-            temperature=0.7,
-            max_tokens=100,
-            top_p=0.95,
-            frequency_penalty=0,
-            presence_penalty=0,
-            stop=None,
-        )
-        return response["choices"][0]["message"]["content"].strip()
-    except openai.error.OpenAIError as e:
-        print(f"Request failed with error: {e}")
-        return None
 
 
 def update_transcript_paraphrases(transcript):
