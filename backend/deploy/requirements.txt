@@ -2,6 +2,8 @@ Django==4.0.5
 djangorestframework==3.13.1
 django-cors-headers>=3.13
 python-dotenv==0.20.0
+Jinja2==3.1.4
+itsdangerous==2.1.2
 yt-dlp>=2024.07.25
 requests==2.25.1
 webvtt-py==0.4.6
