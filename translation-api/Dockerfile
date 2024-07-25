@@ -40,6 +40,6 @@ WORKDIR /workspace/translation-api
 #     cp -r /workspace/translation-api/indicTrans/model_configs/ /workspace/translation-api
 
 COPY ./requirements.txt /workspace/translation-api/requirements.txt
-RUN pip install -r requirements.txt
+RUN pip3 install -r requirements.txt
 
 COPY . /workspace/translation-api/
