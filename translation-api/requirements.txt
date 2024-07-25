@@ -6,5 +6,5 @@ ffmpeg
 gevent
 tensorboardX
 webrtcvad
-fastapi[all]
+fastapi
 spacy
