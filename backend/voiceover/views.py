@@ -368,8 +368,8 @@ def get_payload(request):
         for text, index in translation_payload:
             audio_index = str(start_offset + index)
             if audio_index in voice_over.payload["payload"].keys():
-                start_time = translation_payload[index][0]["start_time"]
-                end_time = translation_payload[index][0]["end_time"]
+                start_time = voice_over.payload["payload"][str(audio_index)]["start_time"]
+                end_time = voice_over.payload["payload"][str(audio_index)]["end_time"]
                 if (
                     "transcription_text"
                     in voice_over.payload["payload"][str(audio_index)].keys()
