@@ -298,9 +298,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        users = User.objects.filter(organization=organization).filter(
-            has_accepted_invite=True
-        )
+        users = User.objects.filter(organization=organization)
         serializer = UserFetchSerializer(users, many=True)
         if "role" in request.query_params:
             role = request.query_params["role"]
