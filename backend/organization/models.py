@@ -64,12 +64,11 @@ class Organization(models.Model):
         verbose_name="created_by",
     )
 
-    organization_owner = models.OneToOneField(
+    organization_owners = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name="organization_owned",
-        verbose_name="organization_owner",
+        related_name="organizations_owned",
+        verbose_name="organization_owners",
+        blank=True
     )
 
     default_transcript_editor = models.ForeignKey(

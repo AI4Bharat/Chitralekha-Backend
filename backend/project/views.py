@@ -801,7 +801,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             if not (
                 request.user in project.managers.all()
                 or request.user.is_superuser
-                or request.user.id == project.organization_id.organization_owner_id
+                or project.organization_owners.filter(id=request.user.id).exists()
             ):
                 all_tasks = all_tasks.filter(user=request.user).order_by(sort_by)
 
@@ -816,7 +816,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             src_languages = set()
             target_languages = set()
             if (
-                request.user.id == project.organization_id.organization_owner_id
+                project.organization_owners.filter(id=request.user.id).exists()
                 or request.user in project.managers.all()
                 or request.user.is_superuser
             ):
