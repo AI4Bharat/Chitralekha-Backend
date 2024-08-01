@@ -486,10 +486,17 @@ def get_video_func(request):
             direct_audio_url,
         ) = get_data_from_google_video(url)
     except DownloadError:
+        response_data = {
+            "direct_video_url": url.replace("https://www.youtube.com/watch?v=", "https://www.youtube.com/embed/"),
+        }
         return Response(
-            {"message": "This is an invalid video URL."},
-            status=status.HTTP_400_BAD_REQUEST,
+            response_data,
+            status=status.HTTP_200_OK,
         )
+        # return Response(
+        #     {"message": "This is an invalid video URL."},
+        #     status=status.HTTP_400_BAD_REQUEST,
+        # )
 
     if title[-4:] == ".mp4" and "youtube.com" not in normalized_url:
         return Response(
