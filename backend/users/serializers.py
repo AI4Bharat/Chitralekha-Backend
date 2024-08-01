@@ -128,6 +128,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "id",
             "username",
             "email",
+            "has_accepted_invite",
             "availability_status",
             "enable_mail",
             "first_name",

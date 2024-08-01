@@ -505,7 +505,7 @@ class InviteViewSet(viewsets.ViewSet):
             "request_path": "/regenerate",
         }
         if absent_user_emails and present_user_emails:
-            logger.info("Re_invite sent successfully", extra=extra_data)
+            # logger.info("Re_invite sent successfully", extra=extra_data)
             return Response(
                 {
                     "message": message_for_absent_users
@@ -517,7 +517,7 @@ class InviteViewSet(viewsets.ViewSet):
                 status=status.HTTP_201_CREATED,
             )
         elif absent_user_emails:
-            logger.info("Re_invite was not sent", extra=extra_data)
+            # logger.info("Re_invite was not sent", extra=extra_data)
             return Response(
                 {
                     "message": message_for_absent_users
@@ -527,7 +527,7 @@ class InviteViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         elif present_user_emails:
-            logger.info("Re_invite sent successfully", extra=extra_data)
+            # logger.info("Re_invite sent successfully", extra=extra_data)
             return Response(
                 {
                     "message": message_for_present_users
@@ -537,7 +537,7 @@ class InviteViewSet(viewsets.ViewSet):
                 status=status.HTTP_201_CREATED,
             )
         else:
-            logger.info("Re_invite sent successfully", extra=extra_data)
+            # logger.info("Re_invite sent successfully", extra=extra_data)
             return Response(
                 {"message": message_for_already_invited}, status=status.HTTP_201_CREATED
             )
