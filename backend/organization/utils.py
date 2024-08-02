@@ -324,13 +324,38 @@ def format_completion_time(completion_time):
     return full_time
 
 
-def get_org_report_tasks(pk, user, limit, offset):
+def get_org_report_tasks(pk, user, limit, offset, taskStartDate, taskEndDate, filter_dict={}):
     start_offset = (int(offset) - 1) * int(limit)
     end_offset = start_offset + int(limit)
 
-    org_videos = Video.objects.filter(project_id__organization_id=pk)
-    total_count = len(Task.objects.filter(video__in=org_videos))
-    task_orgs = Task.objects.filter(video__in=org_videos)[start_offset:end_offset]
+    if "src_language" in filter_dict and len(filter_dict["src_language"]):
+        src_lang_list = []
+        for lang in filter_dict["src_language"]:
+            lang_shortcode = get_language_label(lang)
+            src_lang_list.append(lang_shortcode)
+        if len(src_lang_list):
+            org_videos = Video.objects.filter(project_id__organization_id=pk, language__in=src_lang_list)
+    else:
+        org_videos = Video.objects.filter(project_id__organization_id=pk)
+    task_orgs = Task.objects.filter(
+        video__in=org_videos,
+        created_at__date__range=(taskStartDate, taskEndDate)
+        ).order_by('-created_at')
+    total_count=len(task_orgs)
+
+    if "task_type" in filter_dict and len(filter_dict["task_type"]):
+        task_orgs = task_orgs.filter(task_type__in=filter_dict["task_type"])
+    if "target_language" in filter_dict and len(filter_dict["target_language"]):
+        target_lang_list = []
+        for lang in filter_dict["target_language"]:
+            lang_shortcode = get_language_label(lang)
+            target_lang_list.append(lang_shortcode)
+        if len(target_lang_list):
+            task_orgs = task_orgs.filter(target_language__in=target_lang_list)
+    if "status" in filter_dict and len(filter_dict["status"]):
+        task_orgs = task_orgs.filter(status__in=filter_dict["status"])
+
+    task_orgs = task_orgs[start_offset:end_offset]
 
     tasks_list = []
     for task in task_orgs:
@@ -438,6 +463,14 @@ def get_org_report_tasks(pk, user, limit, offset):
                     "value": word_count,
                     "label": "Word Count",
                 },
+                "created_at" : {
+                    "value": task.created_at,
+                    "label": "Created At",
+                },
+                "updated_at" : {
+                    "value": task.updated_at,
+                    "label": "Updated At",
+                }
             }
         )
     return tasks_list, total_count
