@@ -1,6 +1,18 @@
 version: '3.8'
 
 services:
+  web:
+    container_name: web
+    command: gunicorn --bind 0.0.0.0:8000 --workers 4 backend.wsgi --timeout 300
+    # image: server_image
+    build: ./backend
+    volumes: 
+      - logs_vol:/logs
+      - static_volume:/usr/src/backend/static
+    env_file:
+      - backend/.env
+    ports:
+      - "8000:8000"
   # speech:
   #   build: ./speech-api
   #   command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000"]
@@ -30,3 +42,44 @@ services:
       - ./translation-api/:/workspace/translation-api/
     ports:
       - 6060:5050
+
+  nginx:
+    build: ./nginx
+    image: evgeniy-khyst/nginx
+    env_file:
+      - ./config.env
+    volumes:
+      - nginx_conf:/etc/nginx/sites
+      - letsencrypt_certs:/etc/letsencrypt
+      - certbot_acme_challenge:/var/www/certbot
+      - ./vhosts:/etc/nginx/vhosts
+      # - static_volume:/backend/static
+    depends_on:
+      web:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+
+  certbot:
+    build: ./certbot
+    image: evgeniy-khyst/certbot
+    env_file:
+      - ./config.env
+    depends_on:
+      nginx:
+        condition: service_started
+    volumes:
+      - letsencrypt_certs:/etc/letsencrypt
+      - certbot_acme_challenge:/var/www/certbot
+
+
+volumes:
+  nginx_conf:
+    # external: true
+  letsencrypt_certs:
+    # external: true
+  certbot_acme_challenge:
+  static_volume:
+  logs_vol:

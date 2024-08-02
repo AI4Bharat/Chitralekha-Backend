@@ -2,13 +2,13 @@ Django==4.0.5
 djangorestframework==3.13.1
 django-cors-headers>=3.13
 python-dotenv==0.20.0
-yt-dlp>=2024.07.25
-requests==2.25.1
+yt-dlp>=2024.08.01
+requests==2.32.2
 webvtt-py==0.4.6
 psycopg2-binary>=2.9
 drf-yasg==1.21.3
 mutagen==1.45.1
-
+gunicorn
 # Deps for knox
 knox>=0.1
 boto3>=1.24
