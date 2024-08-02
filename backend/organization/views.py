@@ -152,7 +152,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             organization = Organization(
                 title=title,
                 email_domain_name=email_domain_name,
-                organization_owner=organization_owner,
                 created_by=request.user,
                 default_transcript_type=default_transcript_type,
                 default_translation_type=default_translation_type,
@@ -161,6 +160,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 default_target_languages=default_target_languages,
             )
             organization.save()
+
+            organization_owner_list = [organization_owner]
+            for owner in organization_owner_list:
+                organization.organization_owners.add(owner)
+
             print()
         except:
             return Response(
@@ -232,7 +236,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 return Response(
                     {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
                 )
-            organization.organization_owner = user
+            organization.organization_owners.set([user])
             user.organization = organization
 
         if default_task_types is not None and len(default_task_types) > 0:
@@ -434,7 +438,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         target_languages = set()
         total_count = 0
         if (
-            organization.organization_owner == user
+            organization.organization_owners.filter(id=user.id).exists()
             or user.role == "ADMIN"
             or user.is_superuser
         ):

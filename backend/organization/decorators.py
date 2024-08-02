@@ -56,11 +56,12 @@ def is_particular_organization_owner(f):
             if not organization:
                 return Response(NO_ORGANIZATION_FOUND, status=404)
             elif (
-                request.user.email != organization.organization_owner.email
-                and request.user.is_superuser == False
+                not organization.organization_owners.filter(id=request.user.id).exists()
+                and not request.user.is_superuser
                 and request.user.role != User.ADMIN
             ):
                 return Response(NO_ORGANIZATION_OWNER_ERROR, status=403)
+
             return f(self, request, pk, *args, **kwargs)
         else:
             return Response(PERMISSION_ERROR, status=403)

@@ -25,7 +25,7 @@ class OrgUserSerializer(serializers.ModelSerializer):
 
 class OrganizationSerializer(serializers.ModelSerializer):
     created_by = OrgUserSerializer(read_only=True)
-    organization_owner = OrgUserSerializer(read_only=True)
+    organization_owners = OrgUserSerializer(many=True, read_only=True)
 
     class Meta:
         model = Organization
@@ -35,7 +35,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "email_domain_name",
             "created_by",
             "created_at",
-            "organization_owner",
+            "organization_owners",
             "default_task_types",
             "default_target_languages",
             "default_transcript_type",
@@ -44,6 +44,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "enable_upload",
         ]
         read_only_fields = ["id", "created_by", "created_at"]
+
 
 
 class InviteGenerationSerializer(serializers.Serializer):
