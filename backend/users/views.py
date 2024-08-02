@@ -451,6 +451,97 @@ class InviteViewSet(viewsets.ViewSet):
         return Response(UserProfileSerializer(invite.user).data)
 
 
+
+    @swagger_auto_schema(request_body=InviteGenerationSerializer)
+    @permission_classes((IsAuthenticated,))
+    @is_organization_owner
+    @action(detail=False, methods=["post"], url_path="regenerate", url_name="re_invite")
+    def re_invite(self, request):
+        """
+        The invited user are again invited if they have not accepted the
+        invitation previously.
+        """
+        all_emails = request.data.get("emails")
+        distinct_emails = list(set(all_emails))
+        existing_emails_set = set(Invite.objects.values_list("user__email", flat=True))
+        # absent_users- for those who have never been invited
+        # present_users- for those who have been invited earlier
+        (
+            absent_user_emails,
+            present_users,
+            present_user_emails,
+            already_accepted_invite,
+        ) = ([], [], [], [])
+        for user_email in distinct_emails:
+            if user_email in existing_emails_set:
+                user = User.objects.get(email=user_email)
+                if user.has_accepted_invite:
+                    already_accepted_invite.append(user_email)
+                    continue
+                present_users.append(user)
+                present_user_emails.append(user_email)
+            else:
+                absent_user_emails.append(user_email)
+        if present_users:
+            Invite.re_invite(users=present_users)
+        # setting up error messages
+        (
+            message_for_already_invited,
+            message_for_absent_users,
+            message_for_present_users,
+        ) = ("", "", "")
+        if already_accepted_invite:
+            message_for_already_invited = (
+                f" {','.join(already_accepted_invite)} have already accepted invite"
+            )
+        if absent_user_emails:
+            message_for_absent_users = (
+                f"Kindly send a new invite to: {','.join(absent_user_emails)}"
+            )
+        if present_user_emails:
+            message_for_present_users = f"{','.join(present_user_emails)} re-invited"
+        extra_data = {
+            "user_email": request.user.email,
+            "request_path": "/regenerate",
+        }
+        if absent_user_emails and present_user_emails:
+            # logger.info("Re_invite sent successfully", extra=extra_data)
+            return Response(
+                {
+                    "message": message_for_absent_users
+                    + ", "
+                    + message_for_present_users
+                    + "."
+                    + message_for_already_invited
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        elif absent_user_emails:
+            # logger.info("Re_invite was not sent", extra=extra_data)
+            return Response(
+                {
+                    "message": message_for_absent_users
+                    + "."
+                    + message_for_already_invited
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        elif present_user_emails:
+            # logger.info("Re_invite sent successfully", extra=extra_data)
+            return Response(
+                {
+                    "message": message_for_present_users
+                    + "."
+                    + message_for_already_invited
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        else:
+            # logger.info("Re_invite sent successfully", extra=extra_data)
+            return Response(
+                {"message": message_for_already_invited}, status=status.HTTP_201_CREATED
+            )
+
 class UserViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthenticated,)
 
