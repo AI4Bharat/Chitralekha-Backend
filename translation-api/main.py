@@ -9,8 +9,10 @@ import time
 import re
 from math import floor
 import webvtt
+import os 
+import sys
 from io import StringIO
-
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'indicTrans')))
 from indicTrans.inference.engine import Model, split_sentences
 
 # from punctuate import RestorePuncts
