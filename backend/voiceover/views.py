@@ -78,6 +78,12 @@ def get_voice_over_id(task):
                 .filter(status="VOICEOVER_EDIT_COMPLETE")
                 .first()
             )
+        if task.status == "REOPEN":
+            voice_over_id = (
+                voice_over.filter(video=task.video)
+                .filter(status="VOICEOVER_EDIT_INPROGRESS")
+                .first()
+            )
     else:
         if task.status == "NEW":
             voice_over_id = (
