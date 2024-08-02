@@ -71,6 +71,15 @@ class Organization(models.Model):
         blank=True
     )
 
+
+    # organization_owner = models.OneToOneField(
+    #     settings.AUTH_USER_MODEL,
+    #     on_delete=models.SET_NULL,
+    #     null=True,
+    #     related_name="organization_owned",
+    #     verbose_name="organization_owner",
+    # )
+
     default_transcript_editor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         verbose_name="transcript editor",
