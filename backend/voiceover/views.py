@@ -1929,7 +1929,6 @@ def reopen_translation_voiceover_task(request):
             .first()
         )
     else:
-        print("1")
         translation_review_task = (
                 Task.objects.filter(video=task.video)
                 .filter(target_language=task.target_language)
@@ -1964,10 +1963,6 @@ def reopen_translation_voiceover_task(request):
             .filter(target_language=task.target_language)
             .first()
         )
-        print("2")
-    print("Translation Completed", translation_completed_obj)
-    print("Translation In Progress", translation_inprogress_obj)
-    print("VOiceover Completed", voice_over_obj)
     if translation_inprogress_obj is not None and translation_completed_obj is not None and voice_over_obj is not None:
         translation_completed_obj.parent = None
         translation_completed_obj.save()
@@ -1978,16 +1973,14 @@ def reopen_translation_voiceover_task(request):
             else "TRANSLATION_EDIT_INPROGRESS"
         )
         translation_completed_obj.save()
-        print("3")
+
         data = download_json_from_azure_blob(app_name,voice_over_obj.video.id,voice_over_obj.task.id, voice_over_obj.target_language)
-        print(data)
-        # data = {}
         voice_over_obj.payload = data
         voice_over_obj.status = "VOICEOVER_EDIT_INPROGRESS"
         voice_over_obj.save()
         task.status = "REOPEN"
         task.save()
-        print("4")
+     
         return Response({"message": "Task is reopened."}, status=status.HTTP_200_OK)
     else:
         return Response(
