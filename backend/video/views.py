@@ -764,7 +764,7 @@ def upload_csv(request):
             errors.append(
                 {
                     "row_no": f"Row {row_num}",
-                    "message": f"Invalid gender: {row['Speaker']}",
+                    "message": f"Invalid gender: {row['Gender']}",
                 }
             )
         else:
@@ -783,7 +783,7 @@ def upload_csv(request):
             )
         else:
             valid_row["target_language"] = row["Target Language"]
-        if row["Assignee"] not in project.members.all().values_list("email", flat=True):
+        if row["Assignee"].strip() not in project.members.all().values_list("email", flat=True):
             if row["Assignee"] is None or len(row["Assignee"]) == 0:
                 valid_row["assignee"] = None
             else:
@@ -794,7 +794,7 @@ def upload_csv(request):
                     }
                 )
         else:
-            valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
+            valid_row["assignee"] = User.objects.get(email=row["Assignee"].strip()).id
 
         valid_row["task_description"] = row["Task Description"]
         valid_row["video_description"] = row["Video Description"]
@@ -985,7 +985,7 @@ def upload_csv_data(request):
             errors.append(
                 {
                     "row_no": f"Row {row_num}",
-                    "message": f"Invalid gender: {row['Speaker']}",
+                    "message": f"Invalid gender: {row['Gender']}",
                 }
             )
         else:
@@ -1007,7 +1007,7 @@ def upload_csv_data(request):
         else:
             valid_row["target_language"] = row["Target Language"]
 
-        if row["Assignee"] not in project.members.all().values_list("email", flat=True):
+        if row["Assignee"].strip() not in project.members.all().values_list("email", flat=True):
             if row["Assignee"] is None or len(row["Assignee"]) == 0:
                 valid_row["assignee"] = None
             else:
@@ -1018,7 +1018,7 @@ def upload_csv_data(request):
                     }
                 )
         else:
-            valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
+            valid_row["assignee"] = User.objects.get(email=row["Assignee"].strip()).id
 
         valid_row["video_description"] = row["Video Description"]
         valid_row["task_description"] = row["Task Description"]
@@ -1274,7 +1274,7 @@ def upload_csv_org(request):
             errors.append(
                 {
                     "row_no": f"Row {row_num}",
-                    "message": f"Invalid gender: {row['Speaker']}",
+                    "message": f"Invalid gender: {row['Gender']}",
                 }
             )
         else:
@@ -1295,8 +1295,8 @@ def upload_csv_org(request):
             valid_row["target_language"] = None
         else:
             valid_row["target_language"] = row["Target Language"]
-
-        if row["Assignee"] not in project.members.all().values_list("email", flat=True):
+        
+        if row["Assignee"].strip() not in project.members.all().values_list("email", flat=True):
             if row["Assignee"] is None or len(row["Assignee"]) == 0:
                 valid_row["assignee"] = None
             else:
@@ -1307,7 +1307,7 @@ def upload_csv_org(request):
                     }
                 )
         else:
-            valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
+            valid_row["assignee"] = User.objects.get(email=row["Assignee"].strip()).id
 
         # ETA Validation
         format = "%d-%m-%Y"
