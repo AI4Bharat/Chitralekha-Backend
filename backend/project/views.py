@@ -854,7 +854,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         if "TRANSLATION" in data["task_type"]:
                             buttons["Reopen"] = True
                             if data["task_type"] == "TRANSLATION_VOICEOVER":
-                                buttons["Reopen"] = False
+                                if datetime(2024, 8, 1) > data["updated_at"]:
+                                    buttons["Reopen"] = False
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if data["status"] == "FAILED":
