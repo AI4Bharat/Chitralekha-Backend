@@ -491,7 +491,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if "TRANSLATION" in task["task_type"]:
                         buttons["Reopen"] = True
                     if "TRANSLATION_VOICEOVER" in task["task_type"]:
-                        buttons["Reopen"] = False
+                        if datetime(2024, 8, 1) > task["updated_at"]:
+                            buttons["Reopen"] = False
                 if task["status"] == "POST_PROCESS":
                     buttons["Update"] = True
                 if task["status"] == "FAILED":
