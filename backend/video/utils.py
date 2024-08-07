@@ -6,7 +6,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 from yt_dlp.extractor import get_info_extractor
 
-ydl = YoutubeDL({"format": "best"})
+ydl = YoutubeDL({"format": "best*[acodec!=none]"})
 
 # Declare a global variable to save the object for Google Drive ID extraction
 drive_info_extractor = get_info_extractor("GoogleDrive")()

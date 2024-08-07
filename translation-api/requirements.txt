@@ -1,7 +1,7 @@
 pydub
 webvtt-py
 nltk
-yt-dlp>=2024.07.25
+yt-dlp>=2024.08.06
 ffmpeg
 gevent
 tensorboardX
