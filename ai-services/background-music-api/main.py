@@ -25,9 +25,9 @@ export_type = "flac"
 
 def utils_add_bg_music(file_path, video_link):
     file_name = file_path.replace(".flac", "")
-    ydl = YoutubeDL({"format": "best"})
+    ydl = YoutubeDL({"format": "best*[acodec!=none]"})
     with YoutubeDL(
-        {"format": "best", "outtmpl": "{}.%(ext)s".format(file_name)}
+        {"format": "best*[acodec!=none]", "outtmpl": "{}.%(ext)s".format(file_name)}
     ) as ydl:
         ydl.download([video_link])
 
