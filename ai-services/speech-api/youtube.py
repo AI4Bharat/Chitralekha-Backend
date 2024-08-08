@@ -8,7 +8,7 @@ ydl = YoutubeDL(ydl_options)
 
 
 ydl_audio_options = {
-    "format": "bestaudio",
+    "format": "best*[acodec!=none]",
     # 'outtmpl': '%(id)s',
 }
 ydl_audio = YoutubeDL(ydl_audio_options)
