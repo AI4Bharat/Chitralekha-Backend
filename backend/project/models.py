@@ -28,7 +28,7 @@ TASK_TYPE = (
     ("TRANSLATION_EDIT", "Translation Edit"),
     ("TRANSLATION_REVIEW", "Translation Review"),
     ("VOICEOVER_EDIT", "VoiceOver Edit"),
-    ("TRANSLATION_VOICEOVER_EDIT","Translation Voiceover Edit")
+    ("TRANSLATION_VOICEOVER_EDIT", "Translation Voiceover Edit"),
 )
 
 PRIORITY = (
@@ -208,5 +208,11 @@ class Project(models.Model):
             "Indicates whether voiceovers should be generated at the time of task creation"
         ),
     )
+    paraphrasing_enabled = models.BooleanField(
+        verbose_name="Paraphrasing Enabled",
+        default=False,
+        help_text=("Indicates whether paraphrasing stage is enabled for the project"),
+    )
+
     def __str__(self):
         return str(self.title)
