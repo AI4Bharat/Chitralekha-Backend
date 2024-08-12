@@ -26,7 +26,7 @@ import json
 from utils.email_template import send_email_template
 
 
-ydl = YoutubeDL({"format": "best*[acodec!=none]"})
+ydl = YoutubeDL({"format": "best"})
 
 # Declare a global variable to save the object for Google Drive ID extraction
 drive_info_extractor = get_info_extractor("GoogleDrive")()
@@ -489,7 +489,7 @@ def get_video_func(request):
         direct_video_url = ""
         direct_audio_url = ""
         duration = timedelta(seconds=0)
-        normalized_url = ""
+        normalized_url = url
         title = url
         # return Response(
         #     {"message": "This is an invalid video URL."},
