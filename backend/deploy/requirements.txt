@@ -4,7 +4,7 @@ django-cors-headers>=3.13
 django-import-export
 django-smtp-ssl
 python-dotenv==0.20.0
-yt-dlp==2024.08.06
+yt-dlp==2023.07.06
 requests==2.32.2
 webvtt-py==0.4.6
 psycopg2-binary>=2.9
