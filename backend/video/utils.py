@@ -24,7 +24,7 @@ import urllib
 from mutagen.mp3 import MP3
 import json
 from utils.email_template import send_email_template
-
+from pytube import YouTube
 
 ydl = YoutubeDL({"format": "best"})
 
@@ -488,9 +488,14 @@ def get_video_func(request):
     except DownloadError:
         direct_video_url = ""
         direct_audio_url = ""
-        duration = timedelta(seconds=0)
         normalized_url = url
-        title = url
+        try:
+            yt = YouTube(url)
+            duration = timedelta(seconds=yt.length)
+            title = yt.title
+        except: 
+            duration = timedelta(seconds=0)
+            title = url
         # return Response(
         #     {"message": "This is an invalid video URL."},
         #     status=status.HTTP_400_BAD_REQUEST,
