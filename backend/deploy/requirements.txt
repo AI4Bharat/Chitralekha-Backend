@@ -24,7 +24,6 @@ git+https://github.com/mher/flower
 pydub
 moviepy
 pympler
-pytube
 soundfile
 pandas
 pretty-html-table
