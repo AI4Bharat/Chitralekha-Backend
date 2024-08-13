@@ -24,7 +24,9 @@ import urllib
 from mutagen.mp3 import MP3
 import json
 from utils.email_template import send_email_template
-from pytube import YouTube
+from config import youtube_api_key
+from googleapiclient.discovery import build
+import re
 
 ydl = YoutubeDL({"format": "best"})
 
@@ -232,6 +234,16 @@ def create_tasks(
     ret = data.create(new_request)
     return ret.data
 
+def iso8601_duration_to_seconds(iso_duration):
+    regex = re.compile(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?')
+    matches = regex.match(iso_duration)
+
+    hours = int(matches.group(1)) if matches.group(1) else 0
+    minutes = int(matches.group(2)) if matches.group(2) else 0
+    seconds = int(matches.group(3)) if matches.group(3) else 0
+
+    total_seconds = hours * 3600 + minutes * 60 + seconds
+    return total_seconds
 
 def get_video_func(request):
     url = request.GET.get("multimedia_url")
@@ -485,21 +497,31 @@ def get_video_func(request):
             duration,
             direct_audio_url,
         ) = get_data_from_google_video(url)
-    except DownloadError:
+    except:
         direct_video_url = ""
         direct_audio_url = ""
         normalized_url = url
         try:
-            yt = YouTube(url)
-            duration = timedelta(seconds=yt.length)
-            title = yt.title
+            API_KEY = youtube_api_key
+            youtube = build("youtube", "v3", developerKey=API_KEY)
+            
+            pattern = r'(?:v=|\/)([0-9A-Za-z_-]{11}).*'
+            match = re.search(pattern, url)
+
+            videos_response = youtube.videos().list(
+                part="snippet,contentDetails",
+                id=match.group(1)
+            ).execute()
+            
+            video = videos_response["items"][0]
+            title = video["snippet"]["title"]
+            duration_iso8601 = video["contentDetails"]["duration"]
+            duration = timedelta(seconds=iso8601_duration_to_seconds(duration_iso8601))
         except: 
-            duration = timedelta(seconds=0)
-            title = url
-        # return Response(
-        #     {"message": "This is an invalid video URL."},
-        #     status=status.HTTP_400_BAD_REQUEST,
-        # )
+            return Response(
+                {"message": "This is an invalid video URL."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     if title[-4:] == ".mp4" and "youtube.com" not in normalized_url:
         return Response(
