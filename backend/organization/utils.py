@@ -459,7 +459,6 @@ def get_org_report_tasks(pk, user, limit, offset, taskStartDate, taskEndDate, fi
                 "completion_time": {
                     "value": completion_time,
                     "label": "Completion Time",
-                    "display": "exclude",
                 },
                 "word_count": {
                     "value": word_count,

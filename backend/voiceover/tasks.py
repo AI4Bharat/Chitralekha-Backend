@@ -35,7 +35,7 @@ import json
 import requests
 import zipfile
 from translation.models import Translation, TRANSLATION_EDIT_COMPLETE
-
+import regex
 
 @shared_task()
 def celery_integration(file_name, voice_over_obj_id, video, task_id):
@@ -49,10 +49,41 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
             .filter(status=TRANSLATION_EDIT_COMPLETE)
             .first()
         )
-        index = 0
+        if (
+                final_tl.payload != ""
+                and final_tl.payload is not None
+            ):
+                num_words = 0
+                for idv_translation in final_tl.payload["payload"]:
+                    if "target_text" in idv_translation.keys():
+                        cleaned_text = regex.sub(
+                            r"[^\p{L}\s]", "", idv_translation["target_text"]
+                        ).lower()  # for removing special characters
+                        cleaned_text = regex.sub(
+                            r"\s+", " ", cleaned_text
+                        )  # for removing multiple blank spaces
+                        num_words += len(cleaned_text.split(" "))
+                final_tl.payload["word_count"] = num_words
+        updated_payload = []
         for segment in voice_over_obj.payload["payload"].values():
-            final_tl.payload["payload"][index]["target_text"] = segment["text"]
-            index = index + 1
+            start_time = datetime.datetime.strptime(segment["start_time"], "%H:%M:%S.%f")
+            end_time = datetime.datetime.strptime(segment["end_time"], "%H:%M:%S.%f")
+            unix_start_time = datetime.datetime.timestamp(start_time)
+            unix_end_time = datetime.datetime.timestamp(end_time)
+            target_text = segment["text"]
+            target_text = segment["transcription_text"]
+
+            updated_segment = {
+                    "start_time": segment["start_time"],
+                    "end_time": segment["end_time"],
+                    "target_text": segment["text"],
+                    "speaker_id": "",
+                    "unix_start_time": unix_start_time,
+                    "unix_end_time": unix_end_time,
+                    "text": segment["transcription_text"],
+                }
+            updated_payload.append(updated_segment)
+        final_tl.payload["payload"] = updated_payload
         final_tl.save()
 
     integrate_audio_with_video(file_name, voice_over_obj, voice_over_obj.video)

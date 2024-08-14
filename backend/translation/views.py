@@ -153,10 +153,26 @@ def export_translation(request):
     if task.task_type == TRANSLATION_VOICEOVER_EDIT and task.status != COMPLETE:
         voice_over_obj = VoiceOver.objects.filter(task=task).first()
         
-        index = 0
+        updated_payload = []
         for segment in voice_over_obj.payload["payload"].values():
-            translation.payload["payload"][index]["target_text"] = segment["text"]
-            index = index + 1
+            start_time = datetime.datetime.strptime(segment["start_time"], "%H:%M:%S.%f")
+            end_time = datetime.datetime.strptime(segment["end_time"], "%H:%M:%S.%f")
+            unix_start_time = datetime.datetime.timestamp(start_time)
+            unix_end_time = datetime.datetime.timestamp(end_time)
+            target_text = segment["text"]
+            target_text = segment["transcription_text"]
+
+            updated_segment = {
+                    "start_time": segment["start_time"],
+                    "end_time": segment["end_time"],
+                    "target_text": segment["text"],
+                    "speaker_id": "",
+                    "unix_start_time": unix_start_time,
+                    "unix_end_time": unix_end_time,
+                    "text": segment["transcription_text"],
+                }
+            updated_payload.append(updated_segment)
+        translation.payload["payload"] = updated_payload
         translation.save()
  
     payload = translation.payload["payload"]

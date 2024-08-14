@@ -450,8 +450,6 @@ class InviteViewSet(viewsets.ViewSet):
             )
         return Response(UserProfileSerializer(invite.user).data)
 
-
-
     @swagger_auto_schema(request_body=InviteGenerationSerializer)
     @permission_classes((IsAuthenticated,))
     @is_organization_owner
@@ -541,7 +539,6 @@ class InviteViewSet(viewsets.ViewSet):
             return Response(
                 {"message": message_for_already_invited}, status=status.HTTP_201_CREATED
             )
-
 class UserViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthenticated,)
 
@@ -905,25 +902,41 @@ class UserViewSet(viewsets.ViewSet):
         if "role" in request.query_params:
             role = request.query_params["role"]
             if role == "ORG_OWNER":
-                organization_owners = users.filter(
-                    pk__in=list(
-                        Organization.objects.all().values_list(
-                            "organization_owner", flat=True
-                        )
-                    )
-                )
+            # Get all user IDs from organization owners
+                owner_ids = Organization.objects.values_list(
+                    'organization_owners', flat=True
+                ).distinct()
+
+                # Filter users based on these IDs
+                organization_owners = users.filter(pk__in=owner_ids)
+
+                # Filter users based on their roles
                 user_by_roles = users.filter(role__in=["ORG_OWNER", "ADMIN"])
-                if len(user_by_roles) == 0:
+                if user_by_roles.count() == 0:
                     return Response(
                         {"message": "There is no user available with ORG_OWNER role."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
-                users = set(list(user_by_roles)) - set(list(organization_owners))
+
+                # Determine the set of users who are not organization owners
+                users_set = set(user_by_roles) - set(organization_owners)
+
+                # Check if 'org_id' is in the request query parameters
                 if "org_id" in request.query_params:
                     org_id = request.query_params["org_id"]
-                    organization_obj = Organization.objects.get(pk=org_id)
-                    organization_owner = organization_obj.organization_owner
-                    users.add(organization_owner)
+                    try:
+                        organization_obj = Organization.objects.get(pk=org_id)
+                        # Get the organization owners and add them to the users_set
+                        organization_owners_specific = organization_obj.organization_owners.all()
+                        users_set.update(organization_owners_specific)
+                    except Organization.DoesNotExist:
+                        return Response(
+                            {"message": "Organization not found."},
+                            status=status.HTTP_404_NOT_FOUND,
+                        )
+
+                # Convert the set to a list if necessary for further processing
+                users_list = list(users_set)
                 serializer = UserProfileSerializer(list(users), many=True)
         return Response(serializer.data)
 

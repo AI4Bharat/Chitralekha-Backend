@@ -783,6 +783,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
             reverse = request.query_params.get("reverse", "True")
             reverse = reverse.lower() == "true"
             project = Project.objects.get(pk=pk)
+            project_data = ProjectSerializer(project)
+            organization = Organization.objects.get(pk=project_data["organization_id"].value)
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
 
             # filter data based on search parameters
@@ -801,7 +803,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             if not (
                 request.user in project.managers.all()
                 or request.user.is_superuser
-                or request.user.id == project.organization_id.organization_owner_id
+                or organization.organization_owners.filter(id=request.user.id).exists()
             ):
                 all_tasks = all_tasks.filter(user=request.user).order_by(sort_by)
 
@@ -816,7 +818,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             src_languages = set()
             target_languages = set()
             if (
-                request.user.id == project.organization_id.organization_owner_id
+                organization.organization_owners.filter(id=request.user.id).exists()
                 or request.user in project.managers.all()
                 or request.user.is_superuser
             ):
@@ -851,8 +853,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             buttons["Upload"] = True
                         if "TRANSLATION" in data["task_type"]:
                             buttons["Reopen"] = True
-                            if data["task_type"] == "TRANSLATION_VOICEOVER_EDIT":
-                                buttons["Reopen"] = False
+                            if data["task_type"] == "TRANSLATION_VOICEOVER":
+                                if datetime(2024, 8, 1) > data["updated_at"]:
+                                    buttons["Reopen"] = False
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if data["status"] == "FAILED":

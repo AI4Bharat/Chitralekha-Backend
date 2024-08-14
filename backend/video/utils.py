@@ -28,7 +28,7 @@ from config import youtube_api_key
 from googleapiclient.discovery import build
 import re
 
-ydl = YoutubeDL({"format": "best"})
+ydl = YoutubeDL({"format": "best*[acodec!=none]"})
 
 # Declare a global variable to save the object for Google Drive ID extraction
 drive_info_extractor = get_info_extractor("GoogleDrive")()
