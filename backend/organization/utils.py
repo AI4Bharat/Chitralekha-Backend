@@ -325,8 +325,9 @@ def format_completion_time(completion_time):
 
 
 def get_org_report_tasks(pk, user, limit, offset, taskStartDate, taskEndDate, filter_dict={}):
-    start_offset = (int(offset) - 1) * int(limit)
-    end_offset = start_offset + int(limit)
+    if limit != "All" and limit != "undefined":
+        start_offset = (int(offset) - 1) * int(limit)
+        end_offset = start_offset + int(limit)
 
     if "src_language" in filter_dict and len(filter_dict["src_language"]):
         src_lang_list = []
@@ -355,7 +356,8 @@ def get_org_report_tasks(pk, user, limit, offset, taskStartDate, taskEndDate, fi
     if "status" in filter_dict and len(filter_dict["status"]):
         task_orgs = task_orgs.filter(status__in=filter_dict["status"])
 
-    task_orgs = task_orgs[start_offset:end_offset]
+    if limit != "All" and limit != "undefined":
+        task_orgs = task_orgs[start_offset:end_offset]
 
     tasks_list = []
     for task in task_orgs:
@@ -495,14 +497,19 @@ def get_org_report_tasks_email(org_id, user):
 
 
 def get_org_report_projects(pk, user, limit, offset):
-    start_offset = (int(offset) - 1) * int(limit)
-    end_offset = start_offset + int(limit)
+    if limit != "All":
+        start_offset = (int(offset) - 1) * int(limit)
+        end_offset = start_offset + int(limit)
 
     all_org_projects = (
         Project.objects.filter(organization_id=pk).values("title", "id").order_by("id")
     )
     total_count = all_org_projects.count()
-    org_projects = all_org_projects[start_offset:end_offset]
+    
+    if limit != "All":
+        org_projects = all_org_projects[start_offset:end_offset]
+    else:
+        org_projects = all_org_projects
 
     project_stats = org_projects.annotate(num_videos=Count("video"))
 
