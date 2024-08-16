@@ -139,7 +139,7 @@ def get_llama2_output(system_prompt=None, conv_history = None, user_prompt=None)
     return result.json()["choices"][0]["message"]["content"].strip()
 
 
-def get_model_output(user_prompt, system_prompt=os.getenv("LLM_INTERACTIONS_SYSTEM_PROMPT"),  history=None, model="gpt3.5"):
+def get_model_output(user_prompt, system_prompt=os.getenv("LLM_INTERACTIONS_SYSTEM_PROMPT"),  history=None, model="GPT3.5"):
     # Assume that translation happens outside (and the prompt is already translated)
     out = ""
     if model == "GPT3.5":
