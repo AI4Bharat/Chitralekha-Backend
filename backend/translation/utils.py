@@ -319,7 +319,7 @@ def generate_translation_payload(
             payload.append(txt)
         payloads["MANUALLY_CREATED"] = {"payload": payload}
     if "ORIGINAL_SOURCE" in list_compare_sources:
-        ydl = YoutubeDL({"format": "best"})
+        ydl = YoutubeDL({"format": "best*[acodec!=none]"})
         info = ydl.extract_info(url, download=False)
         subtitles = None
         if "subtitles" in info:
