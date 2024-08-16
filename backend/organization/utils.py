@@ -326,8 +326,8 @@ def format_completion_time(completion_time):
 
 def get_org_report_tasks(pk, user, limit, offset, taskStartDate="2020-01-01", taskEndDate=datetime.now().date(), filter_dict={}):
     if limit != "All" and limit != "undefined":
-         start_offset = (int(offset) - 1) * int(limit)
-         end_offset = start_offset + int(limit)
+        start_offset = (int(offset) - 1) * int(limit)
+        end_offset = start_offset + int(limit)
 
     if "src_language" in filter_dict and len(filter_dict["src_language"]):
         src_lang_list = []
