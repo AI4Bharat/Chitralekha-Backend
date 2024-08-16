@@ -43,7 +43,7 @@ from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from voiceover.metadata import VOICEOVER_LANGUAGE_CHOICES
 import logging
 from django.http import HttpRequest
-
+from dateutil import parser
 
 class ProjectViewSet(viewsets.ModelViewSet):
     """
@@ -854,7 +854,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         if "TRANSLATION" in data["task_type"]:
                             buttons["Reopen"] = True
                             if data["task_type"] == "TRANSLATION_VOICEOVER":
-                                if datetime(2024, 8, 1) > data["updated_at"]:
+                                if datetime(2024, 8, 1) > parser.parse(data["updated_at"]).replace(tzinfo=None):
                                     buttons["Reopen"] = False
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
