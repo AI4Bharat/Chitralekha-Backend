@@ -1149,6 +1149,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         default_task_priority = request.data.get("default_task_priority")
         default_task_description = request.data.get("default_task_description")
         video_integration = request.data.get("video_integration")
+        paraphrasing_enabled = request.data.get("paraphrase_enabled")
 
         try:
             project = Project.objects.get(pk=pk)
@@ -1215,6 +1216,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         if description is not None:
             project.description = description
+
+        if paraphrasing_enabled is not None:
+            print(paraphrasing_enabled)
+            project.paraphrasing_enabled = paraphrasing_enabled
 
         project.save()
 
