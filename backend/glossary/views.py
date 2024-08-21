@@ -167,7 +167,29 @@ class GlossaryViewSet(ModelViewSet):
                 {"message": "Glossary is successfully deleted."},
                 status=status.HTTP_200_OK,
             )
-
+    @action(detail=False, methods=["get"], url_path="populate")
+    def populate(self, request):
+        tmx_service = TMXService()
+        glossary_entries = Glossary.objects.all()
+        for entry in glossary_entries:
+            tmx_input = {
+                "sentences": [
+                    {
+                        "src": entry.source_text,
+                        "tgt": entry.target_text,
+                        "locale": f"{entry.source_language}|{entry.target_language}",
+                        "context": entry.context,
+                    }
+                ],
+                "userID": f"{entry.user_id.id}",
+                "orgID": None,
+            }
+            tmx_service.push_to_tmx_store(tmx_input)
+        return Response(
+            {"message": "Glossary updated"},
+            status=status.HTTP_200_OK,
+        )
+    
     @swagger_auto_schema(
         method="post",
         request_body=openapi.Schema(
@@ -188,6 +210,7 @@ class GlossaryViewSet(ModelViewSet):
             200: "CSV uploaded successfully",
         },
     )
+    
     @action(detail=False, methods=["post"], url_path="upload_glossary")
     def upload_glossary(self, request, *args, **kwargs):
         logging.info("Calling Upload API for Glossary...")
@@ -201,11 +224,12 @@ class GlossaryViewSet(ModelViewSet):
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        if org.organization_owner.id != request.user.id:
+        if not org.organization_owners.filter(id=request.user.id).exists():
             return Response(
                 {"message": "You are not allowed to upload CSV."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
         decrypted = base64.b64decode(csv_content).decode("utf-8")
         csv_data = []
         with io.StringIO(decrypted) as fp:

@@ -58,6 +58,7 @@ accepted_task_types = [
     "translation edit",
     "translation review",
     "voiceover edit",
+    "translation voiceover edit"
 ]
 mapped_task_type = {
     "transcription edit": "TRANSCRIPTION_EDIT",
@@ -65,6 +66,7 @@ mapped_task_type = {
     "translation edit": "TRANSLATION_EDIT",
     "translation review": "TRANSLATION_REVIEW",
     "voiceover edit": "VOICEOVER_EDIT",
+    "translation voiceover edit": "TRANSLATION_VOICEOVER_EDIT",
 }
 mapped_gender = {"male": "Male", "female": "Female"}
 required_fields_project = [
@@ -762,7 +764,7 @@ def upload_csv(request):
             errors.append(
                 {
                     "row_no": f"Row {row_num}",
-                    "message": f"Invalid gender: {row['Speaker']}",
+                    "message": f"Invalid gender: {row['Gender']}",
                 }
             )
         else:
@@ -781,7 +783,7 @@ def upload_csv(request):
             )
         else:
             valid_row["target_language"] = row["Target Language"]
-        if row["Assignee"] not in project.members.all().values_list("email", flat=True):
+        if row["Assignee"].strip() not in project.members.all().values_list("email", flat=True):
             if row["Assignee"] is None or len(row["Assignee"]) == 0:
                 valid_row["assignee"] = None
             else:
@@ -792,7 +794,7 @@ def upload_csv(request):
                     }
                 )
         else:
-            valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
+            valid_row["assignee"] = User.objects.get(email=row["Assignee"].strip()).id
 
         valid_row["task_description"] = row["Task Description"]
         valid_row["video_description"] = row["Video Description"]
@@ -983,7 +985,7 @@ def upload_csv_data(request):
             errors.append(
                 {
                     "row_no": f"Row {row_num}",
-                    "message": f"Invalid gender: {row['Speaker']}",
+                    "message": f"Invalid gender: {row['Gender']}",
                 }
             )
         else:
@@ -1005,7 +1007,7 @@ def upload_csv_data(request):
         else:
             valid_row["target_language"] = row["Target Language"]
 
-        if row["Assignee"] not in project.members.all().values_list("email", flat=True):
+        if row["Assignee"].strip() not in project.members.all().values_list("email", flat=True):
             if row["Assignee"] is None or len(row["Assignee"]) == 0:
                 valid_row["assignee"] = None
             else:
@@ -1016,7 +1018,7 @@ def upload_csv_data(request):
                     }
                 )
         else:
-            valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
+            valid_row["assignee"] = User.objects.get(email=row["Assignee"].strip()).id
 
         valid_row["video_description"] = row["Video Description"]
         valid_row["task_description"] = row["Task Description"]
@@ -1088,7 +1090,7 @@ def upload_csv_org(request):
             {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
         )
 
-    if org.organization_owner.id != request.user.id:
+    if not org.organization_owners.filter(id=request.user.id).exists():
         return Response(
             {"message": "You are not allowed to upload CSV."},
             status=status.HTTP_403_FORBIDDEN,
@@ -1272,7 +1274,7 @@ def upload_csv_org(request):
             errors.append(
                 {
                     "row_no": f"Row {row_num}",
-                    "message": f"Invalid gender: {row['Speaker']}",
+                    "message": f"Invalid gender: {row['Gender']}",
                 }
             )
         else:
@@ -1293,8 +1295,8 @@ def upload_csv_org(request):
             valid_row["target_language"] = None
         else:
             valid_row["target_language"] = row["Target Language"]
-
-        if row["Assignee"] not in project.members.all().values_list("email", flat=True):
+        
+        if row["Assignee"].strip() not in project.members.all().values_list("email", flat=True):
             if row["Assignee"] is None or len(row["Assignee"]) == 0:
                 valid_row["assignee"] = None
             else:
@@ -1305,7 +1307,7 @@ def upload_csv_org(request):
                     }
                 )
         else:
-            valid_row["assignee"] = User.objects.get(email=row["Assignee"]).id
+            valid_row["assignee"] = User.objects.get(email=row["Assignee"].strip()).id
 
         # ETA Validation
         format = "%d-%m-%Y"

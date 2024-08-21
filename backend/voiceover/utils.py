@@ -14,6 +14,7 @@ from config import (
     indo_aryan_tts_url,
     dravidian_tts_url,
     DEFAULT_SPEAKER,
+    app_name
 )
 from pydub import AudioSegment
 from datetime import datetime, date, timedelta
@@ -79,6 +80,28 @@ def download_from_azure_blob(file_path):
         download_stream = blob_client.download_blob()
         sample_blob.write(download_stream.readall())
 
+
+
+
+def download_json_from_azure_blob(app_name, video_id, task_id, target_language):
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+    container_client = blob_service_client.get_container_client(container_name)
+    
+    # Create the exact filename
+    file_name = "{}_Video_{}_{}_{}.json".format(app_name, video_id, task_id, target_language)
+    print(file_name)
+    # Get blob client
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=file_name)
+    
+    # Download the blob
+    try:
+        download_stream = blob_client.download_blob()
+        print(download_stream)
+        file_content = download_stream.readall().decode('utf-8')
+        json_data = json.loads(file_content)
+        return json_data
+    except Exception as e:
+        raise FileNotFoundError(f"File {file_name} not found in the container. Error: {str(e)}")
 
 def upload_video(file_path):
     full_path = file_path + ".mp4"

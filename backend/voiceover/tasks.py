@@ -35,7 +35,7 @@ import json
 import requests
 import zipfile
 from translation.models import Translation, TRANSLATION_EDIT_COMPLETE
-
+import regex
 
 @shared_task()
 def celery_integration(file_name, voice_over_obj_id, video, task_id):

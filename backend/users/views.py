@@ -450,7 +450,95 @@ class InviteViewSet(viewsets.ViewSet):
             )
         return Response(UserProfileSerializer(invite.user).data)
 
-
+    @swagger_auto_schema(request_body=InviteGenerationSerializer)
+    @permission_classes((IsAuthenticated,))
+    @is_organization_owner
+    @action(detail=False, methods=["post"], url_path="regenerate", url_name="re_invite")
+    def re_invite(self, request):
+        """
+        The invited user are again invited if they have not accepted the
+        invitation previously.
+        """
+        all_emails = request.data.get("emails")
+        distinct_emails = list(set(all_emails))
+        existing_emails_set = set(Invite.objects.values_list("user__email", flat=True))
+        # absent_users- for those who have never been invited
+        # present_users- for those who have been invited earlier
+        (
+            absent_user_emails,
+            present_users,
+            present_user_emails,
+            already_accepted_invite,
+        ) = ([], [], [], [])
+        for user_email in distinct_emails:
+            if user_email in existing_emails_set:
+                user = User.objects.get(email=user_email)
+                if user.has_accepted_invite:
+                    already_accepted_invite.append(user_email)
+                    continue
+                present_users.append(user)
+                present_user_emails.append(user_email)
+            else:
+                absent_user_emails.append(user_email)
+        if present_users:
+            Invite.re_invite(users=present_users)
+        # setting up error messages
+        (
+            message_for_already_invited,
+            message_for_absent_users,
+            message_for_present_users,
+        ) = ("", "", "")
+        if already_accepted_invite:
+            message_for_already_invited = (
+                f" {','.join(already_accepted_invite)} have already accepted invite"
+            )
+        if absent_user_emails:
+            message_for_absent_users = (
+                f"Kindly send a new invite to: {','.join(absent_user_emails)}"
+            )
+        if present_user_emails:
+            message_for_present_users = f"{','.join(present_user_emails)} re-invited"
+        extra_data = {
+            "user_email": request.user.email,
+            "request_path": "/regenerate",
+        }
+        if absent_user_emails and present_user_emails:
+            # logger.info("Re_invite sent successfully", extra=extra_data)
+            return Response(
+                {
+                    "message": message_for_absent_users
+                    + ", "
+                    + message_for_present_users
+                    + "."
+                    + message_for_already_invited
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        elif absent_user_emails:
+            # logger.info("Re_invite was not sent", extra=extra_data)
+            return Response(
+                {
+                    "message": message_for_absent_users
+                    + "."
+                    + message_for_already_invited
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        elif present_user_emails:
+            # logger.info("Re_invite sent successfully", extra=extra_data)
+            return Response(
+                {
+                    "message": message_for_present_users
+                    + "."
+                    + message_for_already_invited
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        else:
+            # logger.info("Re_invite sent successfully", extra=extra_data)
+            return Response(
+                {"message": message_for_already_invited}, status=status.HTTP_201_CREATED
+            )
 class UserViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthenticated,)
 
@@ -814,25 +902,41 @@ class UserViewSet(viewsets.ViewSet):
         if "role" in request.query_params:
             role = request.query_params["role"]
             if role == "ORG_OWNER":
-                organization_owners = users.filter(
-                    pk__in=list(
-                        Organization.objects.all().values_list(
-                            "organization_owner", flat=True
-                        )
-                    )
-                )
+            # Get all user IDs from organization owners
+                owner_ids = Organization.objects.values_list(
+                    'organization_owners', flat=True
+                ).distinct()
+
+                # Filter users based on these IDs
+                organization_owners = users.filter(pk__in=owner_ids)
+
+                # Filter users based on their roles
                 user_by_roles = users.filter(role__in=["ORG_OWNER", "ADMIN"])
-                if len(user_by_roles) == 0:
+                if user_by_roles.count() == 0:
                     return Response(
                         {"message": "There is no user available with ORG_OWNER role."},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
-                users = set(list(user_by_roles)) - set(list(organization_owners))
+
+                # Determine the set of users who are not organization owners
+                users_set = set(user_by_roles) - set(organization_owners)
+
+                # Check if 'org_id' is in the request query parameters
                 if "org_id" in request.query_params:
                     org_id = request.query_params["org_id"]
-                    organization_obj = Organization.objects.get(pk=org_id)
-                    organization_owner = organization_obj.organization_owner
-                    users.add(organization_owner)
+                    try:
+                        organization_obj = Organization.objects.get(pk=org_id)
+                        # Get the organization owners and add them to the users_set
+                        organization_owners_specific = organization_obj.organization_owners.all()
+                        users_set.update(organization_owners_specific)
+                    except Organization.DoesNotExist:
+                        return Response(
+                            {"message": "Organization not found."},
+                            status=status.HTTP_404_NOT_FOUND,
+                        )
+
+                # Convert the set to a list if necessary for further processing
+                users_list = list(users_set)
                 serializer = UserProfileSerializer(list(users), many=True)
         return Response(serializer.data)
 

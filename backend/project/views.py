@@ -43,7 +43,7 @@ from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from voiceover.metadata import VOICEOVER_LANGUAGE_CHOICES
 import logging
 from django.http import HttpRequest
-
+from dateutil import parser
 
 class ProjectViewSet(viewsets.ModelViewSet):
     """
@@ -783,6 +783,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
             reverse = request.query_params.get("reverse", "True")
             reverse = reverse.lower() == "true"
             project = Project.objects.get(pk=pk)
+            project_data = ProjectSerializer(project)
+            organization = Organization.objects.get(pk=project_data["organization_id"].value)
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
 
             # filter data based on search parameters
@@ -801,7 +803,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             if not (
                 request.user in project.managers.all()
                 or request.user.is_superuser
-                or request.user.id == project.organization_id.organization_owner_id
+                or organization.organization_owners.filter(id=request.user.id).exists()
             ):
                 all_tasks = all_tasks.filter(user=request.user).order_by(sort_by)
 
@@ -816,7 +818,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             src_languages = set()
             target_languages = set()
             if (
-                request.user.id == project.organization_id.organization_owner_id
+                organization.organization_owners.filter(id=request.user.id).exists()
                 or request.user in project.managers.all()
                 or request.user.is_superuser
             ):
@@ -841,7 +843,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Regenerate": False,
                     }
                     buttons["Update"] = True
-                    buttons["Delete"] = True
+                    buttons["Delete"] = True               
                     if data["status"] == "COMPLETE":
                         buttons["Export"] = True
                         buttons["Preview"] = True
@@ -852,7 +854,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         if "TRANSLATION" in data["task_type"]:
                             buttons["Reopen"] = True
                             if data["task_type"] == "TRANSLATION_VOICEOVER":
-                                buttons["Reopen"] = False
+                                if datetime(2024, 8, 1) > parser.parse(data["updated_at"]).replace(tzinfo=None):
+                                    buttons["Reopen"] = False
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if data["status"] == "FAILED":
@@ -1146,6 +1149,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         default_task_priority = request.data.get("default_task_priority")
         default_task_description = request.data.get("default_task_description")
         video_integration = request.data.get("video_integration")
+        paraphrasing_enabled = request.data.get("paraphrase_enabled")
 
         try:
             project = Project.objects.get(pk=pk)
@@ -1213,6 +1217,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         if description is not None:
             project.description = description
+
+        if paraphrasing_enabled is not None:
+            print(paraphrasing_enabled)
+            project.paraphrasing_enabled = paraphrasing_enabled
 
         project.save()
 

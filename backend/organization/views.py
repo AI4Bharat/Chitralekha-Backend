@@ -40,7 +40,7 @@ from .utils import *
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 import ast
-
+from dateutil import parser
 
 class OrganizationViewSet(viewsets.ModelViewSet):
     """
@@ -152,7 +152,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             organization = Organization(
                 title=title,
                 email_domain_name=email_domain_name,
-                organization_owner=organization_owner,
                 created_by=request.user,
                 default_transcript_type=default_transcript_type,
                 default_translation_type=default_translation_type,
@@ -161,6 +160,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 default_target_languages=default_target_languages,
             )
             organization.save()
+
+            organization_owner_list = [organization_owner]
+            for owner in organization_owner_list:
+                organization.organization_owners.add(owner)
+
             print()
         except:
             return Response(
@@ -232,7 +236,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 return Response(
                     {"message": "User not found"}, status=status.HTTP_404_NOT_FOUND
                 )
-            organization.organization_owner = user
+            organization.organization_owners.set([user])
             user.organization = organization
 
         if default_task_types is not None and len(default_task_types) > 0:
@@ -298,9 +302,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        users = User.objects.filter(organization=organization).filter(
-            has_accepted_invite=True
-        )
+        users = User.objects.filter(organization=organization)
         serializer = UserFetchSerializer(users, many=True)
         if "role" in request.query_params:
             role = request.query_params["role"]
@@ -436,7 +438,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         target_languages = set()
         total_count = 0
         if (
-            organization.organization_owner == user
+            organization.organization_owners.filter(id=user.id).exists()
             or user.role == "ADMIN"
             or user.is_superuser
         ):
@@ -489,7 +491,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if "TRANSLATION" in task["task_type"]:
                         buttons["Reopen"] = True
                     if "TRANSLATION_VOICEOVER" in task["task_type"]:
-                        buttons["Reopen"] = False
+                        if datetime(2024, 8, 1) > parser.parse(task["updated_at"]).replace(tzinfo=None):
+                            buttons["Reopen"] = False
                 if task["status"] == "POST_PROCESS":
                     buttons["Update"] = True
                 if task["status"] == "FAILED":
@@ -829,7 +832,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     )
     @is_particular_organization_owner
     def get_report_users(self, request, pk=None, *args, **kwargs):
-        limit = int(request.query_params["limit"])
+        limit = request.query_params["limit"]
         offset = int(request.query_params["offset"])
 
         try:
@@ -863,7 +866,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     project_users_data.append((project.id, len(members_project)))
 
             total_count = sum(i[1] for i in project_users_data)
-            user_data = paginate_reports(project_users_data, limit)
+            if (limit != "All"):
+                user_data = paginate_reports(project_users_data, int(limit))
+            else:
+                user_data = paginate_reports(project_users_data, 100000)
 
             for project_report_user in user_data[offset]:
                 project_report, _ = get_reports_for_users(
@@ -1087,7 +1093,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     )
     @is_particular_organization_owner
     def get_tasks_report(self, request, pk=None, *args, **kwargs):
-        limit = int(request.query_params["limit"])
+        limit = request.query_params["limit"]
         offset = int(request.query_params["offset"])
         if "filter" in request.query_params:
             filter_dict = json.loads(request.query_params["filter"])
@@ -1141,7 +1147,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     )
     @is_particular_organization_owner
     def get_report_languages(self, request, pk=None, *args, **kwargs):
-        limit = int(request.query_params["limit"])
+        limit = request.query_params["limit"]
         offset = int(request.query_params["offset"])
         task_type = request.query_params["task_type"]
         try:
@@ -1151,13 +1157,18 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
         aggregated_project_report = get_org_report_languages(pk, request.user)
-        start_offset = (int(offset) - 1) * int(limit)
-        end_offset = start_offset + int(limit)
+
+        if limit != "All":
+            start_offset = (int(offset) - 1) * int(limit)
+            end_offset = start_offset + int(limit)
+            final_reports = aggregated_project_report[task_type][
+                start_offset:end_offset
+            ]
+        else:
+            final_reports = aggregated_project_report[task_type]
         return Response(
             {
-                "reports": aggregated_project_report[task_type][
-                    start_offset:end_offset
-                ],
+                "reports": final_reports,
                 "total_count": len(aggregated_project_report[task_type]),
             },
             status=status.HTTP_200_OK,
@@ -1273,7 +1284,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     )
     @is_particular_organization_owner
     def get_report_projects(self, request, pk=None, *args, **kwargs):
-        limit = int(request.query_params["limit"])
+        limit = request.query_params["limit"]
         offset = int(request.query_params["offset"])
 
         try:
