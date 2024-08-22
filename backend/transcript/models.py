@@ -106,11 +106,10 @@ class Transcript(models.Model):
     paraphrase_stage = models.BooleanField(
         verbose_name="Paraphrasing Stage",
         default=False,
-        help_text=(
-            "Indicates whether transcription is in paraphrasing stage"
-        ),
-        null = True,
-        blank = True
+        help_text=("Indicates whether transcription is in paraphrasing stage"),
+        null=True,
+        blank=True,
     )
+
     def __str__(self):
         return str(self.id)

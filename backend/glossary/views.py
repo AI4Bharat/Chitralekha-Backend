@@ -167,6 +167,7 @@ class GlossaryViewSet(ModelViewSet):
                 {"message": "Glossary is successfully deleted."},
                 status=status.HTTP_200_OK,
             )
+
     @action(detail=False, methods=["get"], url_path="populate")
     def populate(self, request):
         tmx_service = TMXService()
@@ -189,7 +190,7 @@ class GlossaryViewSet(ModelViewSet):
             {"message": "Glossary updated"},
             status=status.HTTP_200_OK,
         )
-    
+
     @swagger_auto_schema(
         method="post",
         request_body=openapi.Schema(
@@ -210,7 +211,6 @@ class GlossaryViewSet(ModelViewSet):
             200: "CSV uploaded successfully",
         },
     )
-    
     @action(detail=False, methods=["post"], url_path="upload_glossary")
     def upload_glossary(self, request, *args, **kwargs):
         logging.info("Calling Upload API for Glossary...")
