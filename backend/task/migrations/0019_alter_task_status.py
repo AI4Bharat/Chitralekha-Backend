@@ -4,15 +4,28 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('task', '0018_alter_task_task_type'),
+        ("task", "0018_alter_task_task_type"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='task',
-            name='status',
-            field=models.CharField(choices=[('NEW', 'New'), ('SELECTED_SOURCE', 'Selected Source'), ('INPROGRESS', 'In Progress'), ('POST_PROCESS', 'Post Process'), ('FAILED', 'Failed'), ('COMPLETE', 'Complete'), ('REOPEN', 'Reopen'), ('PARAPHRASE', 'Paraphrase')], default=None, max_length=35, verbose_name='Task Status'),
+            model_name="task",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("NEW", "New"),
+                    ("SELECTED_SOURCE", "Selected Source"),
+                    ("INPROGRESS", "In Progress"),
+                    ("POST_PROCESS", "Post Process"),
+                    ("FAILED", "Failed"),
+                    ("COMPLETE", "Complete"),
+                    ("REOPEN", "Reopen"),
+                    ("PARAPHRASE", "Paraphrase"),
+                ],
+                default=None,
+                max_length=35,
+                verbose_name="Task Status",
+            ),
         ),
     ]
