@@ -234,8 +234,9 @@ def create_tasks(
     ret = data.create(new_request)
     return ret.data
 
+
 def iso8601_duration_to_seconds(iso_duration):
-    regex = re.compile(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?')
+    regex = re.compile(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?")
     matches = regex.match(iso_duration)
 
     hours = int(matches.group(1)) if matches.group(1) else 0
@@ -244,6 +245,7 @@ def iso8601_duration_to_seconds(iso_duration):
 
     total_seconds = hours * 3600 + minutes * 60 + seconds
     return total_seconds
+
 
 def get_video_func(request):
     url = request.GET.get("multimedia_url")
@@ -504,20 +506,21 @@ def get_video_func(request):
         try:
             API_KEY = youtube_api_key
             youtube = build("youtube", "v3", developerKey=API_KEY)
-            
-            pattern = r'(?:v=|\/)([0-9A-Za-z_-]{11}).*'
+
+            pattern = r"(?:v=|\/)([0-9A-Za-z_-]{11}).*"
             match = re.search(pattern, url)
 
-            videos_response = youtube.videos().list(
-                part="snippet,contentDetails",
-                id=match.group(1)
-            ).execute()
-            
+            videos_response = (
+                youtube.videos()
+                .list(part="snippet,contentDetails", id=match.group(1))
+                .execute()
+            )
+
             video = videos_response["items"][0]
             title = video["snippet"]["title"]
             duration_iso8601 = video["contentDetails"]["duration"]
             duration = timedelta(seconds=iso8601_duration_to_seconds(duration_iso8601))
-        except: 
+        except:
             return Response(
                 {"message": "This is an invalid video URL."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -624,9 +627,11 @@ def get_video_func(request):
                             target_language,
                             user_id,
                         )
-                        if ("response" in task_response and task_response["response"]) :    
+                        if "response" in task_response and task_response["response"]:
                             if (
-                                task_response["response"]["detailed_report"][0]["status"]
+                                task_response["response"]["detailed_report"][0][
+                                    "status"
+                                ]
                                 == "Fail"
                             ):
                                 fail_count += 1
@@ -649,7 +654,7 @@ def get_video_func(request):
                         user_id,
                     )
 
-                    if ("response" in task_response and task_response["response"]) :
+                    if "response" in task_response and task_response["response"]:
                         if (
                             task_response["response"]["detailed_report"][0]["status"]
                             == "Fail"
@@ -657,7 +662,9 @@ def get_video_func(request):
                             fail_count += 1
                         else:
                             success_count += 1
-                            detailed_report.extend(task_response["response"]["detailed_report"])
+                            detailed_report.extend(
+                                task_response["response"]["detailed_report"]
+                            )
                     else:
                         fail_count += 1
 

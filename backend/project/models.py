@@ -28,7 +28,7 @@ TASK_TYPE = (
     ("TRANSLATION_EDIT", "Translation Edit"),
     ("TRANSLATION_REVIEW", "Translation Review"),
     ("VOICEOVER_EDIT", "VoiceOver Edit"),
-    ("TRANSLATION_VOICEOVER_EDIT","Translation Voiceover Edit")
+    ("TRANSLATION_VOICEOVER_EDIT", "Translation Voiceover Edit"),
 )
 
 PRIORITY = (
@@ -208,5 +208,6 @@ class Project(models.Model):
             "Indicates whether voiceovers should be generated at the time of task creation"
         ),
     )
+
     def __str__(self):
         return str(self.title)
