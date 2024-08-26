@@ -415,6 +415,51 @@ def retrieve_translation(request):
                 {"message": "No translation found"}, status=status.HTTP_404_NOT_FOUND
             )
 
+@api_view(["GET"])
+def retrieve_all_translations(request):
+    """
+    Endpoint to retrieve all translations for a video entry, regardless of status
+    """
+    if "video_id" not in dict(request.query_params):
+        return Response(
+            {"message": "missing param: video_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    video_id = request.query_params["video_id"]
+
+    try:
+        video = Video.objects.get(pk=video_id)
+    except Video.DoesNotExist:
+        return Response(
+            {"message": "Video not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    translations = Translation.objects.filter(video=video)
+    if not translations.exists():
+        return Response(
+            {"message": "No translations found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    all_translations = []
+
+    
+    for translation_obj in translations:
+        print(translation_obj)
+        translation_payload = translation_obj.payload  
+        data = {}
+        data["payload"] = []
+
+        for segment in translation_payload.get("payload", []):
+            if "target_text" in segment and segment["target_text"]:
+                data["payload"].append(segment)
+        all_translations.append({
+            "id": translation_obj.id,
+            "data": data
+        })
+    return Response(all_translations, status=status.HTTP_200_OK)
 
 def get_translation_id(task):
     translation = Translation.objects.filter(task=task)
