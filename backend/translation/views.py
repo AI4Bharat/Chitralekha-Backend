@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from transcript.utils.TTML import generate_ttml
 from transcript.models import Transcript
 from video.models import Video
-from task.models import Task,TRANSLATION_VOICEOVER_EDIT, COMPLETE
+from task.models import Task, TRANSLATION_VOICEOVER_EDIT, COMPLETE
 from rest_framework.decorators import action
 from django.http import HttpResponse
 from django.http import HttpRequest
@@ -128,7 +128,7 @@ def export_translation(request):
     export_type = request.query_params.get("export_type")
     return_file_content = request.query_params.get("return_file_content")
     with_speaker_info = request.query_params.get("with_speaker_info", "false")
- 
+
     with_speaker_info = with_speaker_info.lower() == "true"
     if task_id is None or export_type is None:
         return Response(
@@ -152,13 +152,13 @@ def export_translation(request):
         )
     if task.task_type == TRANSLATION_VOICEOVER_EDIT and task.status != COMPLETE:
         voice_over_obj = VoiceOver.objects.filter(task=task).first()
-        
+
         index = 0
         for segment in voice_over_obj.payload["payload"].values():
             translation.payload["payload"][index]["target_text"] = segment["text"]
             index = index + 1
         translation.save()
- 
+
     payload = translation.payload["payload"]
     if with_speaker_info:
         speaker_info = translation.payload.get("speaker_info", None)
@@ -678,14 +678,18 @@ def replace_all_words(request):
             if replace_full_word:
                 if transliteration_language == "en":
                     record["target_text"] = re.sub(
-                        r"\b" + word_to_replace + r"\b", replace_word, record["target_text"]
+                        r"\b" + word_to_replace + r"\b",
+                        replace_word,
+                        record["target_text"],
                     )
                 else:
                     record["target_text"] = record["target_text"].replace(
                         word_to_replace, replace_word
                     )
             else:
-                record["target_text"] = record["target_text"].replace(word_to_replace, replace_word)
+                record["target_text"] = record["target_text"].replace(
+                    word_to_replace, replace_word
+                )
 
     # Save the updated translation
     translation.save()
@@ -1446,7 +1450,7 @@ def save_translation(request):
             "task_id": task_id,
             "offset": offset,
             "task_type": task.task_type,
-            "segment" : bookmarked_segment
+            "segment": bookmarked_segment,
         }
         user.save()
     try:

@@ -841,7 +841,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Regenerate": False,
                     }
                     buttons["Update"] = True
-                    buttons["Delete"] = True               
+                    buttons["Delete"] = True
                     if data["status"] == "COMPLETE":
                         buttons["Export"] = True
                         buttons["Preview"] = True

@@ -58,7 +58,7 @@ accepted_task_types = [
     "translation edit",
     "translation review",
     "voiceover edit",
-    "translation voiceover edit"
+    "translation voiceover edit",
 ]
 mapped_task_type = {
     "transcription edit": "TRANSCRIPTION_EDIT",
@@ -783,7 +783,9 @@ def upload_csv(request):
             )
         else:
             valid_row["target_language"] = row["Target Language"]
-        if row["Assignee"].strip() not in project.members.all().values_list("email", flat=True):
+        if row["Assignee"].strip() not in project.members.all().values_list(
+            "email", flat=True
+        ):
             if row["Assignee"] is None or len(row["Assignee"]) == 0:
                 valid_row["assignee"] = None
             else:
@@ -1007,7 +1009,9 @@ def upload_csv_data(request):
         else:
             valid_row["target_language"] = row["Target Language"]
 
-        if row["Assignee"].strip() not in project.members.all().values_list("email", flat=True):
+        if row["Assignee"].strip() not in project.members.all().values_list(
+            "email", flat=True
+        ):
             if row["Assignee"] is None or len(row["Assignee"]) == 0:
                 valid_row["assignee"] = None
             else:
@@ -1295,8 +1299,10 @@ def upload_csv_org(request):
             valid_row["target_language"] = None
         else:
             valid_row["target_language"] = row["Target Language"]
-        
-        if row["Assignee"].strip() not in project.members.all().values_list("email", flat=True):
+
+        if row["Assignee"].strip() not in project.members.all().values_list(
+            "email", flat=True
+        ):
             if row["Assignee"] is None or len(row["Assignee"]) == 0:
                 valid_row["assignee"] = None
             else:

@@ -450,8 +450,6 @@ class InviteViewSet(viewsets.ViewSet):
             )
         return Response(UserProfileSerializer(invite.user).data)
 
-
-
     @swagger_auto_schema(request_body=InviteGenerationSerializer)
     @permission_classes((IsAuthenticated,))
     @is_organization_owner
@@ -541,6 +539,7 @@ class InviteViewSet(viewsets.ViewSet):
             return Response(
                 {"message": message_for_already_invited}, status=status.HTTP_201_CREATED
             )
+
 
 class UserViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthenticated,)

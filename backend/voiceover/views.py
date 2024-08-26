@@ -311,9 +311,7 @@ def get_payload(request):
     completed_count = 0
     if voice_over.translation:
         if voice_over.voice_over_type == "MACHINE_GENERATED":
-            count_cards = (
-                len(list(voice_over.payload["payload"].keys())) - 1
-            )
+            count_cards = len(list(voice_over.payload["payload"].keys())) - 1
         else:
             count_cards = len(voice_over.translation.payload["payload"]) - 1
         start_offset = current_offset
@@ -352,7 +350,9 @@ def get_payload(request):
         for text, index in translation_payload:
             audio_index = str(start_offset + index)
             if audio_index in voice_over.payload["payload"].keys():
-                start_time = voice_over.payload["payload"][str(audio_index)]["start_time"]
+                start_time = voice_over.payload["payload"][str(audio_index)][
+                    "start_time"
+                ]
                 end_time = voice_over.payload["payload"][str(audio_index)]["end_time"]
                 if (
                     "transcription_text"
@@ -475,7 +475,7 @@ def get_payload(request):
             {
                 "completed_count": voice_over.payload["payload"]["completed_count"],
                 "sentences_count": len(voice_over.translation.payload["payload"]),
-                "count": count_cards+1,
+                "count": count_cards + 1,
                 "next": next,
                 "current": offset,
                 "previous": previous,
@@ -487,8 +487,8 @@ def get_payload(request):
 
     return Response(
         {
-            "completed_count": count_cards+1,
-            "count": count_cards+1,
+            "completed_count": count_cards + 1,
+            "count": count_cards + 1,
             "next": next,
             "current": offset,
             "previous": previous,
@@ -707,7 +707,7 @@ def save_voice_over(request):
             "task_id": task_id,
             "offset": offset,
             "task_type": task.task_type,
-            "segment" : bookmarked_segment
+            "segment": bookmarked_segment,
         }
         user.save()
     try:
@@ -715,11 +715,14 @@ def save_voice_over(request):
         target_language = voice_over.target_language
         translation = voice_over.translation
 
-        if task.task_type == TRANSLATION_VOICEOVER_EDIT and request.data.get("final") and Translation.objects.filter(
+        if (
+            task.task_type == TRANSLATION_VOICEOVER_EDIT
+            and request.data.get("final")
+            and Translation.objects.filter(
                 task=task, status=TRANSLATION_EDIT_COMPLETE
-            ).first() == None:
-            
-
+            ).first()
+            == None
+        ):
             inprogress_translation = Translation.objects.filter(
                 task=task, status=TRANSLATION_EDIT_INPROGRESS
             ).first()
@@ -796,12 +799,10 @@ def save_voice_over(request):
 
             if voice_over.voice_over_type == "MACHINE_GENERATED":
                 try:
-                    count_cards = (
-                        len(list(voice_over.payload["payload"].keys()))-1
-                    )
+                    count_cards = len(list(voice_over.payload["payload"].keys())) - 1
                 except:
                     count_cards = (
-                        len(list(json.loads(voice_over.payload["payload"]).keys()))-1
+                        len(list(json.loads(voice_over.payload["payload"]).keys())) - 1
                     )
             else:
                 count_cards = len(voice_over.translation.payload["payload"]) - 1
@@ -1446,8 +1447,8 @@ def save_voice_over(request):
             else:
                 return Response(
                     {
-                        "completed_count": completed_count+1,
-                        "count": count_cards+1,
+                        "completed_count": completed_count + 1,
+                        "count": count_cards + 1,
                         "next": next,
                         "current": offset,
                         "previous": previous,
