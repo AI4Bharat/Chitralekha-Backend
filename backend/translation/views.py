@@ -445,21 +445,43 @@ def retrieve_all_translations(request):
 
     all_translations = []
 
-    
     for translation_obj in translations:
-        print(translation_obj)
-        translation_payload = translation_obj.payload  
+        translation_payload = translation_obj.payload
+
+        if isinstance(translation_payload, str):
+            try:
+                translation_payload = json.loads(translation_payload)
+            except json.JSONDecodeError:
+                translation_payload = {"payload": []}
+
+        if not isinstance(translation_payload, dict):
+            translation_payload = {"payload": []}
+
         data = {}
         data["payload"] = []
 
         for segment in translation_payload.get("payload", []):
             if "target_text" in segment and segment["target_text"]:
                 data["payload"].append(segment)
-        all_translations.append({
+
+        translation_data = {
             "id": translation_obj.id,
-            "data": data
-        })
+            "translation_uuid": translation_obj.translation_uuid,
+            "translation_type": translation_obj.translation_type,
+            "parent": translation_obj.parent_id,
+            "transcript": translation_obj.transcript_id,
+            "target_language": translation_obj.target_language,
+            "user": translation_obj.user_id,
+            "status": translation_obj.status,
+            "data": data,
+            "video": translation_obj.video_id,
+            "task": translation_obj.task_id
+        }
+
+        all_translations.append(translation_data)
     return Response(all_translations, status=status.HTTP_200_OK)
+
+
 
 def get_translation_id(task):
     translation = Translation.objects.filter(task=task)
