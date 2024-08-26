@@ -441,6 +441,12 @@ def retrieve_all_transcriptions(request):
         transcript_data = {
             "id": transcript.id,
             "status": transcript.status,
+            "transcript_type":transcript.transcript_type,
+            "video":transcript.video.video_uuid,
+            "language":transcript.language,
+            "task":transcript.task.task_uuid,
+            "user": transcript.user.username if transcript.user else "No user associated",
+            "parent_transcript": transcript.parent_transcript.id if transcript.parent_transcript else "No parent transcript",
             "data": transcript.payload
         }
         transcript_list.append(transcript_data)
