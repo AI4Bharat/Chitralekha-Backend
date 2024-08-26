@@ -841,7 +841,14 @@ def save_voice_over(request):
                 )
 
             if voice_over.voice_over_type == "MACHINE_GENERATED":
-                count_cards = len(list(voice_over.payload["payload"].keys())) - 1
+                try:
+                    count_cards = (
+                        len(list(voice_over.payload["payload"].keys()))-1
+                    )
+                except:
+                    count_cards = (
+                        len(list(json.loads(voice_over.payload["payload"]).keys()))-1
+                    )
             else:
                 count_cards = len(voice_over.translation.payload["payload"]) - 1
             current_offset = offset - 1

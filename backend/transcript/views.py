@@ -1101,11 +1101,7 @@ def change_active_status_of_next_tasks(task, transcript_obj):
 # Helper function to call the paraphrasing API
 def paraphrase_text(text):
     # Set API configuration
-
-
-    print("Paraphrase call")
-    text = get_model_output(user_prompt = "Paraphrase this text")
-    print(text)
+    text = get_model_output(user_prompt = text)
     return text
 
 
