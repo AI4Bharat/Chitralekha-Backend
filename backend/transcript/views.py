@@ -1982,17 +1982,15 @@ def save_transcription(request):
                                 r"\s+", " ", cleaned_text
                             )  # for removing multiple blank spaces
                             num_words += len(cleaned_text.split(" "))
-                            transcript_obj.payload["payload"][index]["start_time"] = (
-                                format_timestamp(
-                                    transcript_obj.payload["payload"][index][
-                                        "start_time"
-                                    ]
-                                )
+                            transcript_obj.payload["payload"][index][
+                                "start_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["start_time"]
                             )
-                            transcript_obj.payload["payload"][index]["end_time"] = (
-                                format_timestamp(
-                                    transcript_obj.payload["payload"][index]["end_time"]
-                                )
+                            transcript_obj.payload["payload"][index][
+                                "end_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["end_time"]
                             )
                     transcript_obj.payload["word_count"] = num_words
                     transcript_obj.save()
