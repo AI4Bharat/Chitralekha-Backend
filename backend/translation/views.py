@@ -418,6 +418,73 @@ def retrieve_translation(request):
             )
 
 
+@api_view(["GET"])
+def retrieve_all_translations(request):
+    """
+    Endpoint to retrieve all translations for a video entry, regardless of status
+    """
+    if "video_id" not in dict(request.query_params):
+        return Response(
+            {"message": "missing param: video_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    video_id = request.query_params["video_id"]
+
+    try:
+        video = Video.objects.get(pk=video_id)
+    except Video.DoesNotExist:
+        return Response(
+            {"message": "Video not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    translations = Translation.objects.filter(video=video)
+    if not translations.exists():
+        return Response(
+            {"message": "No translations found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    all_translations = []
+
+    for translation_obj in translations:
+        translation_payload = translation_obj.payload
+
+        if isinstance(translation_payload, str):
+            try:
+                translation_payload = json.loads(translation_payload)
+            except json.JSONDecodeError:
+                translation_payload = {"payload": []}
+
+        if not isinstance(translation_payload, dict):
+            translation_payload = {"payload": []}
+
+        data = {}
+        data["payload"] = []
+
+        for segment in translation_payload.get("payload", []):
+            if "target_text" in segment and segment["target_text"]:
+                data["payload"].append(segment)
+
+        translation_data = {
+            "id": translation_obj.id,
+            "translation_uuid": translation_obj.translation_uuid,
+            "translation_type": translation_obj.translation_type,
+            "parent": translation_obj.parent_id,
+            "transcript": translation_obj.transcript_id,
+            "target_language": translation_obj.target_language,
+            "user": translation_obj.user_id,
+            "status": translation_obj.status,
+            "data": data,
+            "video": translation_obj.video_id,
+            "task": translation_obj.task_id,
+        }
+
+        all_translations.append(translation_data)
+    return Response(all_translations, status=status.HTTP_200_OK)
+
+
 def get_translation_id(task):
     translation = Translation.objects.filter(task=task)
     if "EDIT" in task.task_type:
