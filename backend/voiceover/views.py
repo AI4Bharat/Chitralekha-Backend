@@ -374,7 +374,9 @@ def get_payload(request):
         for text, index in translation_payload:
             audio_index = str(start_offset + index)
             if audio_index in voice_over.payload["payload"].keys():
-                start_time = voice_over.payload["payload"][str(audio_index)]["start_time"]
+                start_time = voice_over.payload["payload"][str(audio_index)][
+                    "start_time"
+                ]
                 end_time = voice_over.payload["payload"][str(audio_index)]["end_time"]
                 if (
                     "transcription_text"
@@ -842,12 +844,10 @@ def save_voice_over(request):
 
             if voice_over.voice_over_type == "MACHINE_GENERATED":
                 try:
-                    count_cards = (
-                        len(list(voice_over.payload["payload"].keys()))-1
-                    )
+                    count_cards = len(list(voice_over.payload["payload"].keys())) - 1
                 except:
                     count_cards = (
-                        len(list(json.loads(voice_over.payload["payload"]).keys()))-1
+                        len(list(json.loads(voice_over.payload["payload"]).keys())) - 1
                     )
             else:
                 count_cards = len(voice_over.translation.payload["payload"]) - 1
@@ -1323,7 +1323,6 @@ def save_voice_over(request):
                                 )
                         voice_over_obj.save()
                     else:
-                 
                         voice_over_obj = (
                             VoiceOver.objects.filter(status=VOICEOVER_SELECT_SOURCE)
                             .filter(target_language=target_language)
@@ -1448,7 +1447,7 @@ def save_voice_over(request):
                                         ],
                                     }
                                 )
-            
+
                         voice_over_obj.status = VOICEOVER_EDIT_INPROGRESS
                         voice_over_obj.save()
                         task.status = "INPROGRESS"
@@ -1937,11 +1936,11 @@ def reopen_translation_voiceover_task(request):
         )
     else:
         translation_review_task = (
-                Task.objects.filter(video=task.video)
-                .filter(target_language=task.target_language)
-                .filter(task_type="TRANSLATION_REVIEW")
-                .first()
-            )
+            Task.objects.filter(video=task.video)
+            .filter(target_language=task.target_language)
+            .filter(task_type="TRANSLATION_REVIEW")
+            .first()
+        )
         if (
             translation_review_task is not None
             and translation_review_task.is_active == True
@@ -1970,7 +1969,11 @@ def reopen_translation_voiceover_task(request):
             .filter(target_language=task.target_language)
             .first()
         )
-    if translation_inprogress_obj is not None and translation_completed_obj is not None and voice_over_obj is not None:
+    if (
+        translation_inprogress_obj is not None
+        and translation_completed_obj is not None
+        and voice_over_obj is not None
+    ):
         translation_completed_obj.parent = None
         translation_completed_obj.save()
         translation_inprogress_obj.delete()
@@ -1981,18 +1984,21 @@ def reopen_translation_voiceover_task(request):
         )
         translation_completed_obj.save()
 
-        data = download_json_from_azure_blob(app_name,voice_over_obj.video.id,voice_over_obj.task.id, voice_over_obj.target_language)
+        data = download_json_from_azure_blob(
+            app_name,
+            voice_over_obj.video.id,
+            voice_over_obj.task.id,
+            voice_over_obj.target_language,
+        )
         voice_over_obj.payload = data
         voice_over_obj.status = "VOICEOVER_EDIT_INPROGRESS"
         voice_over_obj.save()
         task.status = "REOPEN"
         task.save()
-     
+
         return Response({"message": "Task is reopened."}, status=status.HTTP_200_OK)
     else:
         return Response(
             {"message": "Can not reopen this task."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
-    

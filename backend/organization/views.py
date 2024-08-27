@@ -42,6 +42,7 @@ from django.core.exceptions import ValidationError
 import ast
 from dateutil import parser
 
+
 class OrganizationViewSet(viewsets.ModelViewSet):
     """
     Viewset for Organization CRUD
@@ -491,7 +492,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     if "TRANSLATION" in task["task_type"]:
                         buttons["Reopen"] = True
                     if "TRANSLATION_VOICEOVER" in task["task_type"]:
-                        if datetime(2024, 8, 1) > parser.parse(task["updated_at"]).replace(tzinfo=None):
+                        if datetime(2024, 8, 1) > parser.parse(
+                            task["updated_at"]
+                        ).replace(tzinfo=None):
                             buttons["Reopen"] = False
                 if task["status"] == "POST_PROCESS":
                     buttons["Update"] = True
@@ -866,7 +869,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                     project_users_data.append((project.id, len(members_project)))
 
             total_count = sum(i[1] for i in project_users_data)
-            if (limit != "All"):
+            if limit != "All":
                 user_data = paginate_reports(project_users_data, int(limit))
             else:
                 user_data = paginate_reports(project_users_data, 100000)
@@ -1106,7 +1109,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        tasks_list, total_count = get_org_report_tasks(pk, request.user, limit, offset, taskStartDate, taskEndDate, filter_dict)
+        tasks_list, total_count = get_org_report_tasks(
+            pk, request.user, limit, offset, taskStartDate, taskEndDate, filter_dict
+        )
         return Response(
             {"reports": tasks_list, "total_count": total_count},
             status=status.HTTP_200_OK,

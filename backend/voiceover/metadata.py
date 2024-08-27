@@ -68,5 +68,5 @@ LANGUAGE_LABELS = {
     "Sinhala": "si",
     "Tamil": "ta",
     "Telugu": "te",
-    "Urdu": "ur"
+    "Urdu": "ur",
 }
