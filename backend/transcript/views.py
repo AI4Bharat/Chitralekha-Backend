@@ -389,6 +389,7 @@ def create_original_source_transcript(request):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
@@ -436,18 +437,22 @@ def retrieve_all_transcriptions(request):
         )
 
     transcript_list = []
-    
+
     for transcript in transcripts:
         transcript_data = {
             "id": transcript.id,
             "status": transcript.status,
-            "transcript_type":transcript.transcript_type,
-            "video":transcript.video.video_uuid,
-            "language":transcript.language,
-            "task":transcript.task.task_uuid,
-            "user": transcript.user.username if transcript.user else "No user associated",
-            "parent_transcript": transcript.parent_transcript.id if transcript.parent_transcript else "No parent transcript",
-            "data": transcript.payload
+            "transcript_type": transcript.transcript_type,
+            "video": transcript.video.video_uuid,
+            "language": transcript.language,
+            "task": transcript.task.task_uuid,
+            "user": transcript.user.username
+            if transcript.user
+            else "No user associated",
+            "parent_transcript": transcript.parent_transcript.id
+            if transcript.parent_transcript
+            else "No parent transcript",
+            "data": transcript.payload,
         }
         transcript_list.append(transcript_data)
 
@@ -455,6 +460,8 @@ def retrieve_all_transcriptions(request):
         {"transcripts": transcript_list},
         status=status.HTTP_200_OK,
     )
+
+
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
@@ -1723,7 +1730,7 @@ def save_transcription(request):
             "task_id": task_id,
             "offset": offset,
             "task_type": task.task_type,
-            "segment" : bookmarked_segment
+            "segment": bookmarked_segment,
         }
         user.save()
     start_offset = (int(offset) - 1) * int(limit)

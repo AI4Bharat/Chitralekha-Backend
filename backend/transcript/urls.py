@@ -18,7 +18,11 @@ urlpatterns = [
         name="save_full_transcript",
     ),
     path("", views.retrieve_transcription, name="retrieve_transcription"),
-    path("retrieve_all_transcriptions/", views.retrieve_all_transcriptions,name="retrieve_all_transcriptions"),
+    path(
+        "retrieve_all_transcriptions/",
+        views.retrieve_all_transcriptions,
+        name="retrieve_all_transcriptions",
+    ),
     path(
         "get_transcription_supported_languages",
         views.get_transcription_supported_languages,

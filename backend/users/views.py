@@ -539,6 +539,8 @@ class InviteViewSet(viewsets.ViewSet):
             return Response(
                 {"message": message_for_already_invited}, status=status.HTTP_201_CREATED
             )
+
+
 class UserViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthenticated,)
 
@@ -902,9 +904,9 @@ class UserViewSet(viewsets.ViewSet):
         if "role" in request.query_params:
             role = request.query_params["role"]
             if role == "ORG_OWNER":
-            # Get all user IDs from organization owners
+                # Get all user IDs from organization owners
                 owner_ids = Organization.objects.values_list(
-                    'organization_owners', flat=True
+                    "organization_owners", flat=True
                 ).distinct()
 
                 # Filter users based on these IDs
@@ -927,7 +929,9 @@ class UserViewSet(viewsets.ViewSet):
                     try:
                         organization_obj = Organization.objects.get(pk=org_id)
                         # Get the organization owners and add them to the users_set
-                        organization_owners_specific = organization_obj.organization_owners.all()
+                        organization_owners_specific = (
+                            organization_obj.organization_owners.all()
+                        )
                         users_set.update(organization_owners_specific)
                     except Organization.DoesNotExist:
                         return Response(

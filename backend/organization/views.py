@@ -1103,7 +1103,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
             )
-        tasks_list, total_count = get_org_report_tasks(pk, request.user, limit, offset, taskStartDate, taskEndDate, filter_dict)
+        tasks_list, total_count = get_org_report_tasks(
+            pk, request.user, limit, offset, taskStartDate, taskEndDate, filter_dict
+        )
         return Response(
             {"reports": tasks_list, "total_count": total_count},
             status=status.HTTP_200_OK,

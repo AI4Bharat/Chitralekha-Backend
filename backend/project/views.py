@@ -784,7 +784,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
             reverse = reverse.lower() == "true"
             project = Project.objects.get(pk=pk)
             project_data = ProjectSerializer(project)
-            organization = Organization.objects.get(pk=project_data["organization_id"].value)
+            organization = Organization.objects.get(
+                pk=project_data["organization_id"].value
+            )
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
 
             # filter data based on search parameters

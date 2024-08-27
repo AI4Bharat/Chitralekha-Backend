@@ -48,6 +48,7 @@ import shutil
 from utils.email_template import send_email_template
 import subprocess
 
+
 def get_tts_url(language):
     if language in ["brx", "en", "mni"]:
         return misc_tts_url
@@ -978,7 +979,7 @@ def adjust_voiceover(translation_payload):
 
 def generate_voiceover_payload(translation_payload, target_language, task):
     tts_input = []
-    if(len(translation_payload)>voice_over_payload_offset_size):
+    if len(translation_payload) > voice_over_payload_offset_size:
         output = [0] * len(translation_payload)
     else:
         output = [0] * voice_over_payload_offset_size
@@ -1194,13 +1195,29 @@ def adjust_audio(audio_file, original_time, audio_speed):
         speedup_factor = seconds / original_time
         if speedup_factor > 1.009:
             output_file = "temp_output.ogg"
-            subprocess.run([
-                "ffmpeg", "-y", "-i", audio_file, "-filter:a", f"atempo={speedup_factor}", output_file
-            ])
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    audio_file,
+                    "-filter:a",
+                    f"atempo={speedup_factor}",
+                    output_file,
+                ]
+            )
             # Trim the audio to the original length
-            subprocess.run([
-                "ffmpeg", "-y", "-i", output_file, "-t", str(original_time), audio_file
-            ])
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    output_file,
+                    "-t",
+                    str(original_time),
+                    audio_file,
+                ]
+            )
             subprocess.run(["rm", output_file])
             audio = AudioFileClip(audio_file)
             seconds = audio.duration

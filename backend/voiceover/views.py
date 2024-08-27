@@ -368,7 +368,9 @@ def get_payload(request):
         for text, index in translation_payload:
             audio_index = str(start_offset + index)
             if audio_index in voice_over.payload["payload"].keys():
-                start_time = voice_over.payload["payload"][str(audio_index)]["start_time"]
+                start_time = voice_over.payload["payload"][str(audio_index)][
+                    "start_time"
+                ]
                 end_time = voice_over.payload["payload"][str(audio_index)]["end_time"]
                 if (
                     "transcription_text"
@@ -857,7 +859,10 @@ def save_voice_over(request):
                 for index, voice_over_payload in enumerate(payload["payload"]):
                     start_time = voice_over_payload["start_time"]
                     end_time = voice_over_payload["end_time"]
-                    if voice_over_payload["transcription_text"] == "" or len(voice_over_payload["transcription_text"]) == 0:
+                    if (
+                        voice_over_payload["transcription_text"] == ""
+                        or len(voice_over_payload["transcription_text"]) == 0
+                    ):
                         return Response(
                             {"message": "Transcript can't be empty."},
                             status=status.HTTP_400_BAD_REQUEST,
@@ -923,7 +928,7 @@ def save_voice_over(request):
                         )
 
                     original_duration = get_original_duration(start_time, end_time)
-                    
+
                     if (
                         voice_over.voice_over_type == "MACHINE_GENERATED"
                         and "text_changed" in voice_over_payload
@@ -1485,9 +1490,14 @@ def save_voice_over(request):
                         task.status = "INPROGRESS"
                         task.save()
 
-            if task.task_type == TRANSLATION_VOICEOVER_EDIT and request.data.get("final") and Translation.objects.filter(
-                task=task, status=TRANSLATION_EDIT_COMPLETE
-            ).first() == None:
+            if (
+                task.task_type == TRANSLATION_VOICEOVER_EDIT
+                and request.data.get("final")
+                and Translation.objects.filter(
+                    task=task, status=TRANSLATION_EDIT_COMPLETE
+                ).first()
+                == None
+            ):
                 inprogress_translation = Translation.objects.filter(
                     task=task, status=TRANSLATION_EDIT_INPROGRESS
                 ).first()
@@ -1500,7 +1510,9 @@ def save_voice_over(request):
                 voice_over.translation = complete_translation
                 voice_over.save()
                 translation = complete_translation
-                print("Saved Complete Translation with inprogress", inprogress_translation)
+                print(
+                    "Saved Complete Translation with inprogress", inprogress_translation
+                )
             else:
                 inprogress_translation = Translation.objects.filter(
                     task=task, status=TRANSLATION_EDIT_INPROGRESS

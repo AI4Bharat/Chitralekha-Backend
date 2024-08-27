@@ -324,7 +324,9 @@ def format_completion_time(completion_time):
     return full_time
 
 
-def get_org_report_tasks(pk, user, limit, offset, taskStartDate, taskEndDate, filter_dict={}):
+def get_org_report_tasks(
+    pk, user, limit, offset, taskStartDate, taskEndDate, filter_dict={}
+):
     start_offset = (int(offset) - 1) * int(limit)
     end_offset = start_offset + int(limit)
 
@@ -334,14 +336,15 @@ def get_org_report_tasks(pk, user, limit, offset, taskStartDate, taskEndDate, fi
             lang_shortcode = get_language_label(lang)
             src_lang_list.append(lang_shortcode)
         if len(src_lang_list):
-            org_videos = Video.objects.filter(project_id__organization_id=pk, language__in=src_lang_list)
+            org_videos = Video.objects.filter(
+                project_id__organization_id=pk, language__in=src_lang_list
+            )
     else:
         org_videos = Video.objects.filter(project_id__organization_id=pk)
     task_orgs = Task.objects.filter(
-        video__in=org_videos,
-        created_at__date__range=(taskStartDate, taskEndDate)
-        ).order_by('-created_at')
-    total_count=len(task_orgs)
+        video__in=org_videos, created_at__date__range=(taskStartDate, taskEndDate)
+    ).order_by("-created_at")
+    total_count = len(task_orgs)
 
     if "task_type" in filter_dict and len(filter_dict["task_type"]):
         task_orgs = task_orgs.filter(task_type__in=filter_dict["task_type"])
@@ -462,14 +465,14 @@ def get_org_report_tasks(pk, user, limit, offset, taskStartDate, taskEndDate, fi
                     "value": word_count,
                     "label": "Word Count",
                 },
-                "created_at" : {
+                "created_at": {
                     "value": task.created_at,
                     "label": "Created At",
                 },
-                "updated_at" : {
+                "updated_at": {
                     "value": task.updated_at,
                     "label": "Updated At",
-                }
+                },
             }
         )
     return tasks_list, total_count
