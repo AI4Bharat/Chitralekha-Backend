@@ -5,7 +5,11 @@ from . import views
 
 urlpatterns = [
     path("", views.retrieve_translation, name="retrieve_translation"),
-    path('retrieve_all_translations/', views.retrieve_all_translations, name='retrieve_all_translations'),
+    path(
+        "retrieve_all_translations/",
+        views.retrieve_all_translations,
+        name="retrieve_all_translations",
+    ),
     path("save/", views.save_translation, name="save_translation"),
     path(
         "get_translation_supported_languages",

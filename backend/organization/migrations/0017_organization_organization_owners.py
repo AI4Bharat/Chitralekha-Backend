@@ -8,13 +8,18 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('organization', '0016_onboardorganisationaccount_email_domain_name_and_more'),
+        ("organization", "0016_onboardorganisationaccount_email_domain_name_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='organization',
-            name='organization_owners',
-            field=models.ManyToManyField(blank=True, related_name='organizations_owned', to=settings.AUTH_USER_MODEL, verbose_name='organization_owners'),
+            model_name="organization",
+            name="organization_owners",
+            field=models.ManyToManyField(
+                blank=True,
+                related_name="organizations_owned",
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="organization_owners",
+            ),
         ),
     ]

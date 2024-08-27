@@ -7,18 +7,41 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('project', '0013_alter_project_default_translation_type'),
+        ("project", "0013_alter_project_default_translation_type"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='project',
-            name='pre_generate_audio',
-            field=models.BooleanField(default=True, help_text='Indicates whether voiceovers should be generated at the time of task creation', verbose_name='Pre generate voiceovers'),
+            model_name="project",
+            name="pre_generate_audio",
+            field=models.BooleanField(
+                default=True,
+                help_text="Indicates whether voiceovers should be generated at the time of task creation",
+                verbose_name="Pre generate voiceovers",
+            ),
         ),
         migrations.AlterField(
-            model_name='project',
-            name='default_task_types',
-            field=django.contrib.postgres.fields.ArrayField(base_field=models.CharField(blank=True, choices=[('TRANSCRIPTION_EDIT', 'Transcription Edit'), ('TRANSCRIPTION_REVIEW', 'Transcription Review'), ('TRANSLATION_EDIT', 'Translation Edit'), ('TRANSLATION_REVIEW', 'Translation Review'), ('VOICEOVER_EDIT', 'VoiceOver Edit'), ('TRANSLATION_VOICEOVER_EDIT', 'Translation Voiceover Edit')], default=None, max_length=50, null=True), blank=True, default=None, null=True, size=None),
+            model_name="project",
+            name="default_task_types",
+            field=django.contrib.postgres.fields.ArrayField(
+                base_field=models.CharField(
+                    blank=True,
+                    choices=[
+                        ("TRANSCRIPTION_EDIT", "Transcription Edit"),
+                        ("TRANSCRIPTION_REVIEW", "Transcription Review"),
+                        ("TRANSLATION_EDIT", "Translation Edit"),
+                        ("TRANSLATION_REVIEW", "Translation Review"),
+                        ("VOICEOVER_EDIT", "VoiceOver Edit"),
+                        ("TRANSLATION_VOICEOVER_EDIT", "Translation Voiceover Edit"),
+                    ],
+                    default=None,
+                    max_length=50,
+                    null=True,
+                ),
+                blank=True,
+                default=None,
+                null=True,
+                size=None,
+            ),
         ),
     ]
