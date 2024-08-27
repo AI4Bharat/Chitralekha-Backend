@@ -24,6 +24,7 @@ COMPLETE = "COMPLETE"
 POST_PROCESS = "POST_PROCESS"
 FAILED = "FAILED"
 REOPEN = "REOPEN"
+PARAPHRASE = "PARAPHRASE"
 P1 = "P1"
 P2 = "P2"
 P3 = "P3"
@@ -37,6 +38,7 @@ TASK_STATUS = (
     (FAILED, "Failed"),
     (COMPLETE, "Complete"),
     (REOPEN, "Reopen"),
+    (PARAPHRASE, "Paraphrase"),
 )
 
 TASK_TYPE = (

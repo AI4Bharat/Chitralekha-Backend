@@ -3,9 +3,8 @@ version: "3"
 services:
   backend:
     container_name: backend
-    image: server_image
-    build:
-      context: ./backend
+    # image: server_image
+    build: ./backend
     volumes: 
       - ./backend/logs:/home/backend/logs
     env_file:
@@ -29,7 +28,8 @@ services:
   
   celery_default:
     container_name: celery_default
-    image: server_image
+    # image: server_image
+    build: ./backend
     working_dir: /home/backend
     volumes:
       - ./backend:/home/backend
@@ -43,7 +43,8 @@ services:
 
   celery_asr_tts:
     container_name: celery_asr_tts
-    image: server_image
+    # image: server_image
+    build: ./backend
     working_dir: /home/backend
     volumes:
       - ./backend:/home/backend
@@ -57,7 +58,8 @@ services:
 
   celery_nmt:
     container_name: celery_nmt
-    image: server_image
+    # image: server_image
+    build: ./backend
     working_dir: /home/backend
     volumes:
       - ./backend:/home/backend
@@ -71,7 +73,8 @@ services:
 
   celery_newsletter:
     container_name: celery_newsletter
-    image: server_image
+    # image: server_image
+    build: ./backend
     working_dir: /home/backend
     volumes:
       - ./backend:/home/backend
@@ -85,7 +88,8 @@ services:
 
   celery_ekstep_asr:
     container_name: celery_ekstep_asr
-    image: server_image
+    # image: server_image
+    build: ./backend
     working_dir: /home/backend
     volumes:
       - ./backend:/home/backend
@@ -99,7 +103,8 @@ services:
 
   celery_beat:
     container_name: celery_beat
-    image: server_image
+    # image: server_image
+    build: ./backend
     working_dir: /home/backend
     volumes:
       - ./backend:/home/backend
@@ -113,7 +118,8 @@ services:
   
   flower:
     container_name: flower
-    image: server_image
+    # image: server_image
+    build: ./backend
     env_file:
       - backend/.env
     working_dir: /home/backend
@@ -167,9 +173,9 @@ services:
 
 volumes:
   nginx_conf:
-    external: true
+    # external: true
   letsencrypt_certs:
-    external: true       
+    # external: true       
   certbot_acme_challenge:
   static_volume:
   redis:

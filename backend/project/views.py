@@ -43,7 +43,7 @@ from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from voiceover.metadata import VOICEOVER_LANGUAGE_CHOICES
 import logging
 from django.http import HttpRequest
-
+from dateutil import parser
 
 class ProjectViewSet(viewsets.ModelViewSet):
     """
@@ -843,7 +843,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Regenerate": False,
                     }
                     buttons["Update"] = True
-                    buttons["Delete"] = True
+                    buttons["Delete"] = True               
                     if data["status"] == "COMPLETE":
                         buttons["Export"] = True
                         buttons["Preview"] = True
@@ -854,7 +854,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         if "TRANSLATION" in data["task_type"]:
                             buttons["Reopen"] = True
                             if data["task_type"] == "TRANSLATION_VOICEOVER":
-                                if datetime(2024, 8, 1) > data["updated_at"]:
+                                if datetime(2024, 8, 1) > parser.parse(data["updated_at"]).replace(tzinfo=None):
                                     buttons["Reopen"] = False
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
@@ -1149,6 +1149,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         default_task_priority = request.data.get("default_task_priority")
         default_task_description = request.data.get("default_task_description")
         video_integration = request.data.get("video_integration")
+        paraphrasing_enabled = request.data.get("paraphrase_enabled")
 
         try:
             project = Project.objects.get(pk=pk)
@@ -1215,6 +1216,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         if description is not None:
             project.description = description
+
+        if paraphrasing_enabled is not None:
+            print(paraphrasing_enabled)
+            project.paraphrasing_enabled = paraphrasing_enabled
 
         project.save()
 

@@ -1,14 +1,14 @@
 from yt_dlp import YoutubeDL
 
 ydl_options = {
-    "format": "best",
+    "format": "best*[acodec!=none]",
     # 'outtmpl': '%(id)s',
 }
 ydl = YoutubeDL(ydl_options)
 
 
 ydl_audio_options = {
-    "format": "bestaudio",
+    "format": "best*[acodec!=none]",
     # 'outtmpl': '%(id)s',
 }
 ydl_audio = YoutubeDL(ydl_audio_options)
