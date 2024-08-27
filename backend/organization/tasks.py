@@ -28,9 +28,9 @@ def send_email_with_languages_report(org_id, user_id):
 
 
 @shared_task()
-def send_email_with_tasks_report(org_id, user_id):
+def send_email_with_tasks_report(org_id, user_id, taskStartDate, taskEndDate):
     user = User.objects.get(pk=user_id)
-    get_org_report_tasks_email(org_id, user)
+    get_org_report_tasks_email(org_id, user, taskStartDate, taskEndDate)
 
 
 @shared_task()

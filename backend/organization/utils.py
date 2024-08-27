@@ -487,10 +487,10 @@ def get_org_report_tasks(
     return tasks_list, total_count
 
 
-def get_org_report_tasks_email(org_id, user):
+def get_org_report_tasks_email(org_id, user, taskStartDate, taskEndDate):
     org = Organization.objects.get(pk=org_id)
     limit = len(Task.objects.filter(video__project_id__organization_id__id=org.id))
-    tasks_list, _ = get_org_report_tasks(org_id, user, limit, 1)
+    tasks_list, _ = get_org_report_tasks(org_id, user, limit, 1, taskStartDate, taskEndDate)
     columns = [field["label"] for field in tasks_list[0].values()]
 
     data = [[field["value"] for field in row.values()] for row in tasks_list]
