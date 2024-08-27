@@ -68,9 +68,8 @@ class Organization(models.Model):
         settings.AUTH_USER_MODEL,
         related_name="organizations_owned",
         verbose_name="organization_owners",
-        blank=True
+        blank=True,
     )
-
 
     # organization_owner = models.OneToOneField(
     #     settings.AUTH_USER_MODEL,

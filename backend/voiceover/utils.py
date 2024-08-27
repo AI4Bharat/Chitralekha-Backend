@@ -14,7 +14,7 @@ from config import (
     indo_aryan_tts_url,
     dravidian_tts_url,
     DEFAULT_SPEAKER,
-    app_name
+    app_name,
 )
 from pydub import AudioSegment
 from datetime import datetime, date, timedelta
@@ -49,6 +49,7 @@ import shutil
 from utils.email_template import send_email_template
 import subprocess
 
+
 def get_tts_url(language):
     if language in ["brx", "en", "mni"]:
         return misc_tts_url
@@ -81,27 +82,32 @@ def download_from_azure_blob(file_path):
         sample_blob.write(download_stream.readall())
 
 
-
-
 def download_json_from_azure_blob(app_name, video_id, task_id, target_language):
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     container_client = blob_service_client.get_container_client(container_name)
-    
+
     # Create the exact filename
-    file_name = "{}_Video_{}_{}_{}.json".format(app_name, video_id, task_id, target_language)
+    file_name = "{}_Video_{}_{}_{}.json".format(
+        app_name, video_id, task_id, target_language
+    )
     print(file_name)
     # Get blob client
-    blob_client = blob_service_client.get_blob_client(container=container_name, blob=file_name)
-    
+    blob_client = blob_service_client.get_blob_client(
+        container=container_name, blob=file_name
+    )
+
     # Download the blob
     try:
         download_stream = blob_client.download_blob()
         print(download_stream)
-        file_content = download_stream.readall().decode('utf-8')
+        file_content = download_stream.readall().decode("utf-8")
         json_data = json.loads(file_content)
         return json_data
     except Exception as e:
-        raise FileNotFoundError(f"File {file_name} not found in the container. Error: {str(e)}")
+        raise FileNotFoundError(
+            f"File {file_name} not found in the container. Error: {str(e)}"
+        )
+
 
 def upload_video(file_path):
     full_path = file_path + ".mp4"
@@ -1001,7 +1007,7 @@ def adjust_voiceover(translation_payload):
 
 def generate_voiceover_payload(translation_payload, target_language, task):
     tts_input = []
-    if(len(translation_payload)>voice_over_payload_offset_size):
+    if len(translation_payload) > voice_over_payload_offset_size:
         output = [0] * len(translation_payload)
     else:
         output = [0] * voice_over_payload_offset_size
@@ -1217,13 +1223,29 @@ def adjust_audio(audio_file, original_time, audio_speed):
         speedup_factor = seconds / original_time
         if speedup_factor > 1.009:
             output_file = "temp_output.ogg"
-            subprocess.run([
-                "ffmpeg", "-y", "-i", audio_file, "-filter:a", f"atempo={speedup_factor}", output_file
-            ])
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    audio_file,
+                    "-filter:a",
+                    f"atempo={speedup_factor}",
+                    output_file,
+                ]
+            )
             # Trim the audio to the original length
-            subprocess.run([
-                "ffmpeg", "-y", "-i", output_file, "-t", str(original_time), audio_file
-            ])
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    output_file,
+                    "-t",
+                    str(original_time),
+                    audio_file,
+                ]
+            )
             subprocess.run(["rm", output_file])
             audio = AudioFileClip(audio_file)
             seconds = audio.duration

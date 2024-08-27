@@ -1101,7 +1101,7 @@ def change_active_status_of_next_tasks(task, transcript_obj):
 # Helper function to call the paraphrasing API
 def paraphrase_text(text):
     # Set API configuration
-    text = get_model_output(user_prompt = text)
+    text = get_model_output(user_prompt=text)
     return text
 
 
@@ -1681,10 +1681,9 @@ def save_transcription(request):
                         task.status = "POST PROCESS"
                         task.save()
                         update_transcript_paraphrases(transcript)
-                        
+
                         transcript_obj = transcript
                     else:
-
                         if (
                             Transcript.objects.filter(
                                 status=TRANSCRIPTION_EDIT_COMPLETE
@@ -1917,17 +1916,15 @@ def save_transcription(request):
                                 r"\s+", " ", cleaned_text
                             )  # for removing multiple blank spaces
                             num_words += len(cleaned_text.split(" "))
-                            transcript_obj.payload["payload"][index]["start_time"] = (
-                                format_timestamp(
-                                    transcript_obj.payload["payload"][index][
-                                        "start_time"
-                                    ]
-                                )
+                            transcript_obj.payload["payload"][index][
+                                "start_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["start_time"]
                             )
-                            transcript_obj.payload["payload"][index]["end_time"] = (
-                                format_timestamp(
-                                    transcript_obj.payload["payload"][index]["end_time"]
-                                )
+                            transcript_obj.payload["payload"][index][
+                                "end_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["end_time"]
                             )
                     transcript_obj.payload["word_count"] = num_words
                     transcript_obj.save()
