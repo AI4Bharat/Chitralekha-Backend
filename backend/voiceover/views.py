@@ -1320,7 +1320,6 @@ def save_voice_over(request):
                                 )
                         voice_over_obj.save()
                     else:
-
                         voice_over_obj = (
                             VoiceOver.objects.filter(status=VOICEOVER_SELECT_SOURCE)
                             .filter(target_language=target_language)
