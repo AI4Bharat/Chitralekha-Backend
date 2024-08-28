@@ -17,6 +17,11 @@ urlpatterns = [
         views.save_full_transcription,
         name="save_full_transcript",
     ),
+    path(
+        "retrieve_all_transcriptions/",
+        views.retrieve_all_transcriptions,
+        name="retrieve_all_transcriptions",
+    ),
     path("", views.retrieve_transcription, name="retrieve_transcription"),
     path("retrieve_all_transcriptions/", views.retrieve_all_transcriptions,name="retrieve_all_transcriptions"),
     path(

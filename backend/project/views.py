@@ -45,6 +45,7 @@ import logging
 from django.http import HttpRequest
 from dateutil import parser
 
+
 class ProjectViewSet(viewsets.ModelViewSet):
     """
     Viewset for Project CRUD
@@ -784,7 +785,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
             reverse = reverse.lower() == "true"
             project = Project.objects.get(pk=pk)
             project_data = ProjectSerializer(project)
-            organization = Organization.objects.get(pk=project_data["organization_id"].value)
+            organization = Organization.objects.get(
+                pk=project_data["organization_id"].value
+            )
             videos = Video.objects.filter(project_id=pk).values_list("id", flat=True)
 
             # filter data based on search parameters
@@ -843,7 +846,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Regenerate": False,
                     }
                     buttons["Update"] = True
-                    buttons["Delete"] = True               
+                    buttons["Delete"] = True
                     if data["status"] == "COMPLETE":
                         buttons["Export"] = True
                         buttons["Preview"] = True
@@ -854,7 +857,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         if "TRANSLATION" in data["task_type"]:
                             buttons["Reopen"] = True
                             if data["task_type"] == "TRANSLATION_VOICEOVER":
-                                if datetime(2024, 8, 1) > parser.parse(data["updated_at"]).replace(tzinfo=None):
+                                if datetime(2024, 8, 1) > parser.parse(
+                                    data["updated_at"]
+                                ).replace(tzinfo=None):
                                     buttons["Reopen"] = False
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True

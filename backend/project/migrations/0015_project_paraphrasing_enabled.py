@@ -4,15 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('project', '0014_project_pre_generate_audio_and_more'),
+        ("project", "0014_project_pre_generate_audio_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='project',
-            name='paraphrasing_enabled',
-            field=models.BooleanField(default=False, help_text='Indicates whether paraphrasing stage is enabled for the project', verbose_name='Paraphrasing Enabled'),
+            model_name="project",
+            name="paraphrasing_enabled",
+            field=models.BooleanField(
+                default=False,
+                help_text="Indicates whether paraphrasing stage is enabled for the project",
+                verbose_name="Paraphrasing Enabled",
+            ),
         ),
     ]

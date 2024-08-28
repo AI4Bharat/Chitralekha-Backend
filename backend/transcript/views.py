@@ -462,6 +462,72 @@ def retrieve_all_transcriptions(request):
             required=True,
         ),
     ],
+    responses={200: "Returns all transcriptions for a particular video."},
+)
+@api_view(["GET"])
+def retrieve_all_transcriptions(request):
+    """
+    Endpoint to retrieve all transcriptions for a given video ID
+    """
+    # Check if video_id and language and transcript_type has been passed
+    if "video_id" not in dict(request.query_params):
+        return Response(
+            {"message": "missing param : video_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    video_id = request.query_params["video_id"]
+    user_id = request.user.id
+    try:
+        video = Video.objects.get(pk=video_id)
+    except Video.DoesNotExist:
+        return Response(
+            {"message": "Video not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    # Get all transcripts for the video
+    transcripts = Transcript.objects.filter(video_id=video_id)
+    if not transcripts.exists():
+        return Response(
+            {"message": "No transcripts found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    transcript_list = []
+    for transcript in transcripts:
+        transcript_data = {
+            "id": transcript.id,
+            "status": transcript.status,
+            "transcript_type": transcript.transcript_type,
+            "video": transcript.video.video_uuid,
+            "language": transcript.language,
+            "task": transcript.task.task_uuid,
+            "user": (
+                transcript.user.username if transcript.user else "No user associated"
+            ),
+            "parent_transcript": (
+                transcript.parent_transcript.id
+                if transcript.parent_transcript
+                else "No parent transcript"
+            ),
+            "data": transcript.payload,
+        }
+        transcript_list.append(transcript_data)
+    return Response(
+        {"transcripts": transcript_list},
+        status=status.HTTP_200_OK,
+    )
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "video_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the video id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
     responses={200: "Returns the transcription for a particular video."},
 )
 @api_view(["GET"])
@@ -1160,7 +1226,7 @@ def change_active_status_of_next_tasks(task, transcript_obj):
 # Helper function to call the paraphrasing API
 def paraphrase_text(text):
     # Set API configuration
-    text = get_model_output(user_prompt = text)
+    text = get_model_output(user_prompt=text)
     return text
 
 
@@ -1740,10 +1806,9 @@ def save_transcription(request):
                         task.status = "POST PROCESS"
                         task.save()
                         update_transcript_paraphrases(transcript)
-                        
+
                         transcript_obj = transcript
                     else:
-
                         if (
                             Transcript.objects.filter(
                                 status=TRANSCRIPTION_EDIT_COMPLETE
@@ -1976,17 +2041,15 @@ def save_transcription(request):
                                 r"\s+", " ", cleaned_text
                             )  # for removing multiple blank spaces
                             num_words += len(cleaned_text.split(" "))
-                            transcript_obj.payload["payload"][index]["start_time"] = (
-                                format_timestamp(
-                                    transcript_obj.payload["payload"][index][
-                                        "start_time"
-                                    ]
-                                )
+                            transcript_obj.payload["payload"][index][
+                                "start_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["start_time"]
                             )
-                            transcript_obj.payload["payload"][index]["end_time"] = (
-                                format_timestamp(
-                                    transcript_obj.payload["payload"][index]["end_time"]
-                                )
+                            transcript_obj.payload["payload"][index][
+                                "end_time"
+                            ] = format_timestamp(
+                                transcript_obj.payload["payload"][index]["end_time"]
                             )
                     transcript_obj.payload["word_count"] = num_words
                     transcript_obj.save()
