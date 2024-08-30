@@ -6,6 +6,7 @@ from rest_framework.decorators import (
     permission_classes,
     authentication_classes,
 )
+from django.utils import timezone
 from rest_framework.response import Response
 from task.models import Task, TRANSLATION_VOICEOVER_EDIT
 from translation.utils import get_batch_translations_using_indictrans_nmt_api
@@ -707,7 +708,10 @@ def get_translated_text(request):
                 tmx_level,
             )
 
-            (tgt, tmx_replacement,) = tmxservice.replace_nmt_tgt_with_user_tgt(
+            (
+                tgt,
+                tmx_replacement,
+            ) = tmxservice.replace_nmt_tgt_with_user_tgt(
                 tmx_phrases,
                 text,
                 translated_text[0],
@@ -1845,7 +1849,23 @@ def get_voice_over_task_counts(request):
 
 @api_view(["GET"])
 def get_voiceover_report(request):
-    voiceovers = VoiceOver.objects.filter(status="VOICEOVER_EDIT_COMPLETE").values(
+    start_date_str = request.query_params.get("start_date")
+    end_date_str = request.query_params.get("end_date")
+
+    voiceovers = VoiceOver.objects.filter(status="VOICEOVER_EDIT_COMPLETE")
+
+    def parse_date(date_str):
+        year, month, day = map(int, date_str.split("-"))
+        return timezone.make_aware(datetime(year, month, day, 0, 0, 0))
+
+    if start_date_str and end_date_str:
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str) + timedelta(days=1)
+        voiceovers = voiceovers.filter(
+            updated_at__date__range=(start_date.date(), end_date.date())
+        )
+
+    voiceovers = voiceovers.values(
         "video__project_id__organization_id__title",
         src_language=F("video__language"),
         tgt_language=F("target_language"),
