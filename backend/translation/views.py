@@ -154,6 +154,7 @@ def export_translation(request):
         voice_over_obj = VoiceOver.objects.filter(task=task).first()
 
         updated_payload = []
+        index = 0
         for segment in voice_over_obj.payload["payload"].values():
             start_time = datetime.datetime.strptime(
                 segment["start_time"], "%H:%M:%S.%f"

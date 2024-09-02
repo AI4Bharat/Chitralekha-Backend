@@ -1190,6 +1190,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if project.default_task_types is not None and (
             "TRANSLATION_EDIT" in project.default_task_types
             or "TRANSLATION_REVIEW" in project.default_task_types
+            or "TRANSLATION_VOICEOVER_EDIT" in project.default_task_types
         ):
             default_target_languages = request.data.get("default_target_languages")
             if default_target_languages is None or len(default_target_languages) == 0:
