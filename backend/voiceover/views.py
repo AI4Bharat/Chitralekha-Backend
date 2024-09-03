@@ -1967,7 +1967,7 @@ def get_voiceover_report(request):
 )
 @api_view(["POST"])
 def reopen_translation_voiceover_task(request):
-    task_id = request.query_params.get("task_id")
+    task_id = request.data["task_id"]
 
     try:
         task = Task.objects.get(pk=task_id)
