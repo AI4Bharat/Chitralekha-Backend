@@ -1744,11 +1744,61 @@ def save_transcription(request):
                         task.video.project_id.paraphrasing_enabled
                         and transcript.paraphrase_stage != True
                     ):
+                        transcript_obj = (
+                            Transcript.objects.filter(status=TRANSCRIPTION_EDIT_INPROGRESS)
+                            .filter(video=task.video)
+                            .first()
+                        )
+
+                        tc_status = TRANSCRIPTION_EDIT_INPROGRESS
+                        if transcript_obj is not None:
+                            modify_payload(
+                                offset,
+                                limit,
+                                payload,
+                                start_offset,
+                                end_offset,
+                                transcript_obj,
+                            )
+                            # transcript_obj.payload = payload
+                            transcript_obj.transcript_type = transcript_obj.transcript_type
+                            transcript_obj.save()
+                        else:
+                            transcript_obj = (
+                                Transcript.objects.filter(
+                                    status=TRANSCRIPTION_SELECT_SOURCE
+                                )
+                                .filter(video=task.video)
+                                .first()
+                            )
+                            if transcript_obj is None:
+                                return Response(
+                                    {"message": "Transcript object does not exist."},
+                                    status=status.HTTP_404_NOT_FOUND,
+                                )
+
+                            transcript_obj = Transcript.objects.create(
+                                transcript_type=transcript_obj.transcript_type,
+                                parent_transcript=transcript_obj,
+                                video=task.video,
+                                language=transcript_obj.language,
+                                payload=transcript_obj.payload,
+                                user=request.user,
+                                task=task,
+                                status=tc_status,
+                            )
+                            modify_payload(
+                                offset,
+                                limit,
+                                payload,
+                                start_offset,
+                                end_offset,
+                                transcript_obj,
+                            )
+                            transcript_obj.save()
                         task.status = "POST PROCESS"
                         task.save()
-                        update_transcript_paraphrases(transcript)
-
-                        transcript_obj = transcript
+                        update_transcript_paraphrases(transcript_obj)
                     else:
                         if (
                             Transcript.objects.filter(

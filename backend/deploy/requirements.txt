@@ -33,4 +33,4 @@ google-auth-oauthlib
 html2text
 regex
 sentence-transformers
-openai==0.28.1
+openai==0.28
