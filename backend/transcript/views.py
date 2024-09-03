@@ -75,6 +75,8 @@ from .tasks import celery_align_json
 from task.tasks import celery_nmt_call, celery_nmt_tts_call
 import os
 from .utils.timestamp import *
+import openai
+from utils.llm_api import get_model_output
 
 
 @api_view(["GET"])
@@ -401,6 +403,72 @@ def create_original_source_transcript(request):
             required=True,
         ),
     ],
+    responses={200: "Returns all transcriptions for a particular video."},
+)
+@api_view(["GET"])
+def retrieve_all_transcriptions(request):
+    """
+    Endpoint to retrieve all transcriptions for a given video ID
+    """
+    # Check if video_id and language and transcript_type has been passed
+    if "video_id" not in dict(request.query_params):
+        return Response(
+            {"message": "missing param : video_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    video_id = request.query_params["video_id"]
+    user_id = request.user.id
+    try:
+        video = Video.objects.get(pk=video_id)
+    except Video.DoesNotExist:
+        return Response(
+            {"message": "Video not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    # Get all transcripts for the video
+    transcripts = Transcript.objects.filter(video_id=video_id)
+    if not transcripts.exists():
+        return Response(
+            {"message": "No transcripts found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    transcript_list = []
+    for transcript in transcripts:
+        transcript_data = {
+            "id": transcript.id,
+            "status": transcript.status,
+            "transcript_type": transcript.transcript_type,
+            "video": transcript.video.video_uuid,
+            "language": transcript.language,
+            "task": transcript.task.task_uuid,
+            "user": (
+                transcript.user.username if transcript.user else "No user associated"
+            ),
+            "parent_transcript": (
+                transcript.parent_transcript.id
+                if transcript.parent_transcript
+                else "No parent transcript"
+            ),
+            "data": transcript.payload,
+        }
+        transcript_list.append(transcript_data)
+    return Response(
+        {"transcripts": transcript_list},
+        status=status.HTTP_200_OK,
+    )
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "video_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the video id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
+    ],
     responses={200: "Returns the transcription for a particular video."},
 )
 @api_view(["GET"])
@@ -498,7 +566,7 @@ def get_transcript_id(task):
                 .filter(status="TRANSCRIPTION_SELECT_SOURCE")
                 .first()
             )
-        if task.status == "INPROGRESS":
+        if task.status == "INPROGRESS" or task.status == "PARAPHRASE":
             transcript_id = (
                 transcript.filter(video=task.video)
                 .filter(status="TRANSCRIPTION_EDIT_INPROGRESS")
@@ -1010,9 +1078,11 @@ def check_if_transcription_correct(transcription_obj, task):
 
 
 def change_active_status_of_next_tasks(task, transcript_obj):
-    print(celery_nmt_tts_call)
     tasks = Task.objects.filter(video=task.video)
     activate_translations = True
+
+    # change status of transcript object to inprogress again and call function to generate initial paraphrasing with the payload
+    # Handle failure by updating task status to fail and post process while working (if celery)
 
     if (
         "EDIT" in task.task_type
@@ -1094,6 +1164,41 @@ def change_active_status_of_next_tasks(task, transcript_obj):
         print("No change in status")
 
 
+# Helper function to call the paraphrasing API
+def paraphrase_text(text):
+    # Set API configuration
+    text = get_model_output(user_prompt=text)
+    return text
+
+
+def update_transcript_paraphrases(transcript):
+    for entry in transcript.payload["payload"]:
+        if "text" in entry and entry["text"]:
+            entry["paraphrased_text"] = paraphrase_text(entry["text"])
+        else:
+            entry["paraphrased_text"] = None
+    transcript.paraphrase_stage = True
+    transcript.save()
+    task = transcript.task
+    task.status = "PARAPHRASE"
+    task.save()
+
+
+# Helper function to update the transcript
+def update_transcript(i, start_offset, payload, transcript):
+    paraphrased_text = payload["payload"][i].get("paraphrased_text")
+    if payload["payload"][i].get("paraphrase"):
+        paraphrased_text = paraphrase_text(payload["payload"][i]["text"])
+
+    transcript.payload["payload"][start_offset + i] = {
+        "start_time": payload["payload"][i]["start_time"],
+        "end_time": payload["payload"][i]["end_time"],
+        "text": payload["payload"][i]["text"],
+        "speaker_id": payload["payload"][i]["speaker_id"],
+        "paraphrased_text": paraphrased_text,
+    }
+
+
 def modify_payload(offset, limit, payload, start_offset, end_offset, transcript):
     count_sentences = len(transcript.payload["payload"])
     total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
@@ -1104,6 +1209,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
         and len(payload["payload"]) == 0
     ):
         return
+
     if len(payload["payload"]) == limit:
         logging.info(
             "Limit is equal to length of payload %s", str(len(payload["payload"]))
@@ -1114,31 +1220,14 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
             length_2 = end_offset - count_sentences
             length = length - length_2
         for i in range(length):
-            if (
-                "text" in payload["payload"][i].keys()
-                and "text" in transcript.payload["payload"][start_offset + i]
-            ):
-                transcript.payload["payload"][start_offset + i] = {
-                    "start_time": payload["payload"][i]["start_time"],
-                    "end_time": payload["payload"][i]["end_time"],
-                    "text": payload["payload"][i]["text"],
-                    "speaker_id": payload["payload"][i]["speaker_id"],
-                }
-            elif (
-                "text" in payload["payload"][i].keys()
-                and "text" not in transcript.payload["payload"][start_offset + i]
-            ):
-                transcript.payload["payload"][start_offset + i] = {
-                    "start_time": payload["payload"][i]["start_time"],
-                    "end_time": payload["payload"][i]["end_time"],
-                    "text": payload["payload"][i]["text"],
-                    "speaker_id": payload["payload"][i]["speaker_id"],
-                }
+            if "text" in payload["payload"][i].keys():
+                update_transcript(i, start_offset, payload, transcript)
             else:
                 logging.info("Text missing in payload")
         if length_2 > 0:
             for i in range(length_2):
                 if "text" in payload["payload"][i].keys():
+                    print("Modifying payload")
                     transcript.payload["payload"].insert(
                         start_offset + i + length,
                         {
@@ -1146,19 +1235,13 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                             "end_time": payload["payload"][length + i]["end_time"],
                             "text": payload["payload"][length + i]["text"],
                             "speaker_id": payload["payload"][i]["speaker_id"],
-                        },
-                    )
-                elif (
-                    "text" in payload["payload"][i].keys()
-                    and "text" not in transcript.payload["payload"][start_offset + i]
-                ):
-                    transcript.payload["payload"].insert(
-                        start_offset + i + length,
-                        {
-                            "start_time": payload["payload"][i]["start_time"],
-                            "end_time": payload["payload"][i]["end_time"],
-                            "text": payload["payload"][i]["text"],
-                            "speaker_id": payload["payload"][i]["speaker_id"],
+                            "paraphrased_text": (
+                                paraphrase_text(payload["payload"][length + i]["text"])
+                                if payload["payload"][i].get("paraphrase")
+                                else payload["payload"][length + i].get(
+                                    "paraphrased_text"
+                                )
+                            ),  # Generate paraphrased text if paraphrase=true
                         },
                     )
                 else:
@@ -1197,26 +1280,8 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                     )
                 )
             for i in range(length):
-                if (
-                    "text" in payload["payload"][i].keys()
-                    and "text" in transcript.payload["payload"][start_offset + i]
-                ):
-                    transcript.payload["payload"][start_offset + i] = {
-                        "start_time": payload["payload"][i]["start_time"],
-                        "end_time": payload["payload"][i]["end_time"],
-                        "text": payload["payload"][i]["text"],
-                        "speaker_id": payload["payload"][i]["speaker_id"],
-                    }
-                elif (
-                    "text" in payload["payload"][i].keys()
-                    and "text" not in transcript.payload["payload"][start_offset + i]
-                ):
-                    transcript.payload["payload"][start_offset + i] = {
-                        "start_time": payload["payload"][i]["start_time"],
-                        "end_time": payload["payload"][i]["end_time"],
-                        "text": payload["payload"][i]["text"],
-                        "speaker_id": payload["payload"][i]["speaker_id"],
-                    }
+                if "text" in payload["payload"][i].keys():
+                    update_transcript(i, start_offset, payload, transcript)
                 else:
                     logging.info("Text missing in payload")
             if length_2 > 0:
@@ -1233,6 +1298,15 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                                 "speaker_id": payload["payload"][length + i][
                                     "speaker_id"
                                 ],
+                                "paraphrased_text": (
+                                    paraphrase_text(
+                                        payload["payload"][length + i]["text"]
+                                    )
+                                    if payload["payload"][i].get("paraphrase")
+                                    else payload["payload"][length + i].get(
+                                        "paraphrased_text"
+                                    )
+                                ),  # Generate paraphrased text if paraphrase=true
                             },
                         )
                     else:
@@ -1243,26 +1317,8 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
         else:
             logging.info("length of payload %s", str(length))
             for i in range(length):
-                if (
-                    "text" in payload["payload"][i].keys()
-                    and "text" in transcript.payload["payload"][start_offset + i]
-                ):
-                    transcript.payload["payload"][start_offset + i] = {
-                        "start_time": payload["payload"][i]["start_time"],
-                        "end_time": payload["payload"][i]["end_time"],
-                        "text": payload["payload"][i]["text"],
-                        "speaker_id": payload["payload"][i]["speaker_id"],
-                    }
-                elif (
-                    "text" in payload["payload"][i].keys()
-                    and "text" not in transcript.payload["payload"][start_offset + i]
-                ):
-                    transcript.payload["payload"][start_offset + i] = {
-                        "start_time": payload["payload"][i]["start_time"],
-                        "end_time": payload["payload"][i]["end_time"],
-                        "text": payload["payload"][i]["text"],
-                        "speaker_id": payload["payload"][i].get("speaker_id"),
-                    }
+                if "text" in payload["payload"][i].keys():
+                    update_transcript(i, start_offset, payload, transcript)
                 else:
                     logging.info("Text missing in payload")
             delete_indices = []
@@ -1286,23 +1342,8 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
             length_2 = len(payload["payload"]) - limit
             insert_at = start_offset + length
         for i in range(length):
-            if (
-                "text" in payload["payload"][i].keys()
-                and "text" in transcript.payload["payload"][start_offset + i]
-            ):
-                transcript.payload["payload"][start_offset + i] = {
-                    "start_time": payload["payload"][i]["start_time"],
-                    "end_time": payload["payload"][i]["end_time"],
-                    "text": payload["payload"][i]["text"],
-                    "speaker_id": payload["payload"][i]["speaker_id"],
-                }
-            elif "text" not in transcript.payload["payload"][start_offset + i]:
-                transcript.payload["payload"][start_offset + i] = {
-                    "start_time": payload["payload"][i]["start_time"],
-                    "end_time": payload["payload"][i]["end_time"],
-                    "text": payload["payload"][i]["text"],
-                    "speaker_id": payload["payload"][i]["speaker_id"],
-                }
+            if "text" in payload["payload"][i].keys():
+                update_transcript(i, start_offset, payload, transcript)
             else:
                 logging.info("Text missing in payload")
         for i in range(length_2):
@@ -1314,6 +1355,11 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                         "end_time": payload["payload"][length + i]["end_time"],
                         "text": payload["payload"][length + i]["text"],
                         "speaker_id": payload["payload"][length + i]["speaker_id"],
+                        "paraphrased_text": (
+                            paraphrase_text(payload["payload"][length + i]["text"])
+                            if payload["payload"][i].get("paraphrase")
+                            else payload["payload"][length + i].get("paraphrased_text")
+                        ),  # Generate paraphrased text if paraphrase=true
                     },
                 )
         last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
@@ -1442,6 +1488,7 @@ def save_full_transcription(request):
                             {"message": "Final Edited Transcript already submitted."},
                             status=status.HTTP_201_CREATED,
                         )
+
                     tc_status = TRANSCRIPTION_EDIT_COMPLETE
                     transcript_type = transcript.transcript_type
                     transcript_obj = Transcript.objects.create(
@@ -1457,6 +1504,7 @@ def save_full_transcription(request):
                     task.status = "COMPLETE"
                     task.save()
                     change_active_status_of_next_tasks(task, transcript_obj)
+                    print("Transcript saved")
                 else:
                     transcript_obj = (
                         Transcript.objects.filter(status=TRANSCRIPTION_EDIT_INPROGRESS)
@@ -1693,56 +1741,77 @@ def save_transcription(request):
             if "EDIT" in task.task_type:
                 if request.data.get("final"):
                     if (
-                        Transcript.objects.filter(status=TRANSCRIPTION_EDIT_COMPLETE)
-                        .filter(video=task.video)
-                        .first()
-                        is not None
+                        task.video.project_id.paraphrasing_enabled
+                        and transcript.paraphrase_stage != True
                     ):
-                        if task.status == "INPROGRESS":
-                            task.status = "COMPLETE"
-                            task.save()
-                        return Response(
-                            {"message": "Final Edited Transcript already submitted."},
-                            status=status.HTTP_201_CREATED,
-                        )
-                    tc_status = TRANSCRIPTION_EDIT_COMPLETE
-                    transcript_type = transcript.transcript_type
-                    transcript_obj = Transcript.objects.create(
-                        transcript_type=transcript_type,
-                        parent_transcript=transcript,
-                        video=transcript.video,
-                        language=transcript.language,
-                        payload=transcript.payload,
-                        user=request.user,
-                        task=task,
-                        status=tc_status,
-                    )
-                    modify_payload(
-                        offset, limit, payload, start_offset, end_offset, transcript_obj
-                    )
-                    transcript_obj.save()
-                    task.status = "COMPLETE"
-                    task.save()
-                    response = check_if_transcription_correct(transcript_obj, task)
-                    if type(response) == dict:
-                        return Response(
-                            {
-                                "data": response["data"],
-                                "message": response["message"],
-                            },
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
+                        task.status = "POST PROCESS"
+                        task.save()
+                        update_transcript_paraphrases(transcript)
 
-                    delete_indices = []
-                    for index, sentence in enumerate(transcript_obj.payload["payload"]):
-                        if "text" not in sentence.keys():
-                            delete_indices.append(index)
+                        transcript_obj = transcript
+                    else:
+                        if (
+                            Transcript.objects.filter(
+                                status=TRANSCRIPTION_EDIT_COMPLETE
+                            )
+                            .filter(video=task.video)
+                            .first()
+                            is not None
+                        ):
+                            if task.status == "INPROGRESS":
+                                task.status = "COMPLETE"
+                                task.save()
+                            return Response(
+                                {
+                                    "message": "Final Edited Transcript already submitted."
+                                },
+                                status=status.HTTP_201_CREATED,
+                            )
+                        tc_status = TRANSCRIPTION_EDIT_COMPLETE
+                        transcript_type = transcript.transcript_type
+                        transcript_obj = Transcript.objects.create(
+                            transcript_type=transcript_type,
+                            parent_transcript=transcript,
+                            video=transcript.video,
+                            language=transcript.language,
+                            payload=transcript.payload,
+                            user=request.user,
+                            task=task,
+                            status=tc_status,
+                        )
+                        modify_payload(
+                            offset,
+                            limit,
+                            payload,
+                            start_offset,
+                            end_offset,
+                            transcript_obj,
+                        )
+                        transcript_obj.save()
+                        task.status = "COMPLETE"
+                        task.save()
+                        response = check_if_transcription_correct(transcript_obj, task)
+                        if type(response) == dict:
+                            return Response(
+                                {
+                                    "data": response["data"],
+                                    "message": response["message"],
+                                },
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
 
-                    delete_indices.reverse()
-                    for ind in delete_indices:
-                        transcript_obj.payload["payload"].pop(ind)
-                    transcript_obj.save()
-                    change_active_status_of_next_tasks(task, transcript_obj)
+                        delete_indices = []
+                        for index, sentence in enumerate(
+                            transcript_obj.payload["payload"]
+                        ):
+                            if "text" not in sentence.keys():
+                                delete_indices.append(index)
+
+                        delete_indices.reverse()
+                        for ind in delete_indices:
+                            transcript_obj.payload["payload"].pop(ind)
+                        transcript_obj.save()
+                        change_active_status_of_next_tasks(task, transcript_obj)
                 else:
                     transcript_obj = (
                         Transcript.objects.filter(status=TRANSCRIPTION_EDIT_INPROGRESS)

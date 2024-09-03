@@ -14,7 +14,11 @@ from translation.models import (
     TRANSLATION_EDIT_COMPLETE,
     TRANSLATION_EDIT_INPROGRESS,
 )
-from .metadata import VOICEOVER_SUPPORTED_LANGUAGES, VOICEOVER_LANGUAGE_CHOICES
+from .metadata import (
+    VOICEOVER_SUPPORTED_LANGUAGES,
+    VOICEOVER_LANGUAGE_CHOICES,
+    LANGUAGE_LABELS,
+)
 from .models import (
     VoiceOver,
     VOICEOVER_TYPE_CHOICES,
@@ -72,6 +76,12 @@ def get_voice_over_id(task):
             voice_over_id = (
                 voice_over.filter(video=task.video)
                 .filter(status="VOICEOVER_EDIT_COMPLETE")
+                .first()
+            )
+        if task.status == "REOPEN":
+            voice_over_id = (
+                voice_over.filter(video=task.video)
+                .filter(status="VOICEOVER_EDIT_INPROGRESS")
                 .first()
             )
     else:
@@ -149,16 +159,30 @@ def get_empty_audios(request):
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    empty_audios = []
+    if voice_over.payload and "payload" in voice_over.payload:
+        index = 0
+        for sentence in voice_over.payload["payload"].values():
+            data_dict = {}
+            data_dict["index"] = index
+            data_dict["sentence"] = sentence.get("text", "")
+            data_dict["reason"] = "Audio not generated"
+            data_dict["page_number"] = index / voice_over_payload_offset_size + 1
+            if sentence.get("audio", "") == "":
+                empty_audios.append(data_dict)
+                continue
+            if sentence["audio"]["audioContent"] == "":
+                print(
+                    "Empty audio with dict found",
+                    sentence.get("audio", {}).get("audioContent", {}),
+                )
+                empty_audios.append(data_dict)
+            index = index + 1
 
-    if (
-        voice_over.payload
-        and "payload" in voice_over.payload
-        and "audio_not_generated" in voice_over.payload
-        and len(voice_over.payload["audio_not_generated"]) > 0
-    ):
+    if empty_audios:
         return Response(
             {
-                "data": voice_over.payload["audio_not_generated"],
+                "data": empty_audios,
                 "message": "Sentences with empty audios are returned.",
             },
             status=status.HTTP_200_OK,
@@ -630,6 +654,85 @@ def change_active_status_of_next_tasks(task, target_language, voice_over_obj):
     method="post",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
+        required=["text", "source_language" "target_language"],
+        properties={
+            "text": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Text to be translated",
+            ),
+            "source_language": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Source Language",
+            ),
+            "target_language": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Target language ",
+            ),
+        },
+        description="Post request body",
+    ),
+    responses={200: "Returns the translated text"},
+)
+@api_view(["POST"])
+def get_translated_text(request):
+    try:
+        # Get the required data from the POST body
+        text = request.data["text"]
+        source_language = request.data["source_language"]
+        target_language = request.data["target_language"]
+
+    except KeyError:
+        return Response(
+            {"message": "Missing required parameters"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        tmxservice = TMXService()
+        translated_text = get_batch_translations_using_indictrans_nmt_api(
+            [text],
+            source_language,
+            target_language,
+        )
+
+        if type(translated_text) == list:
+            locale = source_language + "|" + target_language
+            user_id = str(request.user.id)
+            org_id = None
+            tmx_level = "USER"
+            tmx_phrases, res_dict = tmxservice.get_tmx_phrases(
+                user_id,
+                org_id,
+                locale,
+                text,
+                tmx_level,
+            )
+
+            (tgt, tmx_replacement,) = tmxservice.replace_nmt_tgt_with_user_tgt(
+                tmx_phrases,
+                text,
+                translated_text[0],
+            )
+
+            if len(tmx_replacement) > 0:
+                for i in range(len(tmx_replacement)):
+                    translated_text[0] = translated_text[0].replace(
+                        tmx_replacement[i]["tgt"],
+                        tmx_replacement[i]["tmx_tgt"],
+                    )
+            return Response(
+                {"Translated text": translated_text[0]}, status=status.HTTP_200_OK
+            )
+    except:
+        return Response(
+            {"message": "Translation failed"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
         required=["task_id", "payload", "offset"],
         properties={
             "task_id": openapi.Schema(
@@ -695,6 +798,7 @@ def save_voice_over(request):
                 {"message": "VoiceOver is in Post Process stage."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        print("Here")
         return Response(
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
@@ -826,14 +930,14 @@ def save_voice_over(request):
                 for index, voice_over_payload in enumerate(payload["payload"]):
                     start_time = voice_over_payload["start_time"]
                     end_time = voice_over_payload["end_time"]
-                    text = voice_over_payload["text"]
-                    if text == "" or len(text) == 0:
+                    if (
+                        voice_over_payload["transcription_text"] == ""
+                        or len(voice_over_payload["transcription_text"]) == 0
+                    ):
                         return Response(
-                            {"message": "Text can't be empty."},
+                            {"message": "Transcript can't be empty."},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
-
-                    original_duration = get_original_duration(start_time, end_time)
                     if (
                         "retranslate" in voice_over_payload
                         and voice_over_payload["retranslate"] == True
@@ -848,8 +952,9 @@ def save_voice_over(request):
                         )
 
                         if type(translated_text) == list:
+                            voice_over_payload["text"] = translated_text[0]
                             locale = (
-                                task.get_src_language_label
+                                LANGUAGE_LABELS[task.get_src_language_label]
                                 + "|"
                                 + voice_over.target_language
                             )
@@ -860,7 +965,7 @@ def save_voice_over(request):
                                 user_id,
                                 org_id,
                                 locale,
-                                voice_over_payload["text"],
+                                voice_over_payload["transcription_text"],
                                 tmx_level,
                             )
 
@@ -881,12 +986,20 @@ def save_voice_over(request):
                                         tmx_replacement[i]["tgt"],
                                         tmx_replacement[i]["tmx_tgt"],
                                     )
-                            voice_over_payload["text"] = translated_text[0]
                         else:
                             logging.info(
                                 "Failed to retranslate for task_id %s",
                                 str(translation.task.id),
                             )
+                    text = voice_over_payload["text"]
+                    if text == "" or len(text) == 0:
+                        return Response(
+                            {"message": "Text can't be empty."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    original_duration = get_original_duration(start_time, end_time)
+
                     if (
                         voice_over.voice_over_type == "MACHINE_GENERATED"
                         and "text_changed" in voice_over_payload
@@ -1105,12 +1218,19 @@ def save_voice_over(request):
                             voice_over_obj.save()
                         file_name = voice_over_obj.video.name
                         time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
                         file_name = "{}_Video_{}_{}_{}".format(
                             app_name,
                             voice_over_obj.video.id,
-                            time_now,
+                            voice_over_obj.task.id,
                             voice_over_obj.target_language,
                         )
+                        # file_name = "{}_Video_{}_{}_{}".format(
+                        #     app_name,
+                        #     voice_over_obj.video.id,
+                        #     voice_over_obj.task.id
+                        #     voice_over_obj.target_language,
+                        # )
                         file_path = "temporary_video_audio_storage"
                         task.status = "POST_PROCESS"
                         task.save()
@@ -1226,7 +1346,13 @@ def save_voice_over(request):
                                     "start_time": payload["payload"][i]["start_time"],
                                     "end_time": payload["payload"][i]["end_time"],
                                     "text": payload["payload"][i]["text"],
-                                    "audio": voiceover_machine_generated[i][1],
+                                    "audio": (
+                                        voiceover_machine_generated[i][1]
+                                        if voiceover_machine_generated[i][1] != ""
+                                        else voice_over_obj.payload["payload"][
+                                            str(start_offset + i)
+                                        ]["audio"]
+                                    ),
                                     "audio_speed": 1,
                                     "transcription_text": payload["payload"][i][
                                         "transcription_text"
@@ -1241,7 +1367,13 @@ def save_voice_over(request):
                                         ],
                                         "end_time": payload["payload"][i]["end_time"],
                                         "text": payload["payload"][i]["text"],
-                                        "audio": voiceover_machine_generated[i][1],
+                                        "audio": (
+                                            voiceover_machine_generated[i][1]
+                                            if voiceover_machine_generated[i][1] != ""
+                                            else voice_over_obj.payload["payload"][
+                                                str(start_offset + i)
+                                            ]["audio"]
+                                        ),
                                         "audio_speed": 1,
                                         "transcription_text": payload["payload"][i][
                                             "transcription_text"
@@ -1374,6 +1506,7 @@ def save_voice_over(request):
                                         ],
                                     }
                                 )
+
                         voice_over_obj.status = VOICEOVER_EDIT_INPROGRESS
                         voice_over_obj.save()
                         task.status = "INPROGRESS"
@@ -1435,6 +1568,50 @@ def save_voice_over(request):
                         )
                         task.status = "INPROGRESS"
                         task.save()
+
+            if (
+                task.task_type == TRANSLATION_VOICEOVER_EDIT
+                and request.data.get("final")
+                and Translation.objects.filter(
+                    task=task, status=TRANSLATION_EDIT_COMPLETE
+                ).first()
+                == None
+            ):
+                inprogress_translation = Translation.objects.filter(
+                    task=task, status=TRANSLATION_EDIT_INPROGRESS
+                ).first()
+                complete_translation = copy.deepcopy(translation)
+                complete_translation.translation_uuid = uuid.uuid4()
+                complete_translation.status = TRANSLATION_EDIT_COMPLETE
+                complete_translation.id = None  # Reset the ID to create a new instance
+                complete_translation.parent = inprogress_translation
+                complete_translation.save()
+                voice_over_obj.translation = complete_translation
+                voice_over_obj.status = VOICEOVER_EDIT_COMPLETE
+                voice_over_obj.save()
+                translation = complete_translation
+                print(
+                    "Saved Complete Translation with inprogress", inprogress_translation
+                )
+            else:
+                inprogress_translation = Translation.objects.filter(
+                    task=task, status=TRANSLATION_EDIT_INPROGRESS
+                ).first()
+                if (
+                    task.task_type == TRANSLATION_VOICEOVER_EDIT
+                    and inprogress_translation == None
+                ):
+                    inprogress_translation = copy.deepcopy(translation)
+                    inprogress_translation.translation_uuid = uuid.uuid4()
+                    inprogress_translation.status = TRANSLATION_EDIT_INPROGRESS
+                    inprogress_translation.id = (
+                        None  # Reset the ID to create a new instance
+                    )
+                    inprogress_translation.parent = translation
+                    inprogress_translation.save()
+                    voice_over_obj.translation = inprogress_translation
+                    voice_over_obj.save()
+                    translation = inprogress_translation
             if request.data.get("final"):
                 return Response(
                     {
@@ -1461,6 +1638,7 @@ def save_voice_over(request):
                     status=status.HTTP_200_OK,
                 )
     except VoiceOver.DoesNotExist:
+        print("Exception")
         return Response(
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
@@ -1772,3 +1950,114 @@ def get_voiceover_report(request):
         res.append(temp_data)
 
     return Response(res, status=status.HTTP_200_OK)
+
+
+@swagger_auto_schema(
+    method="post",
+    manual_parameters=[
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the task id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        )
+    ],
+    responses={200: "Task is reopened"},
+)
+@api_view(["POST"])
+def reopen_translation_voiceover_task(request):
+    task_id = request.query_params.get("task_id")
+
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response({"message": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if "REVIEW" in task.task_type:
+        translation_completed_obj = (
+            Translation.objects.filter(status="TRANSLATION_REVIEW_COMPLETE")
+            .filter(target_language=task.target_language)
+            .filter(video=task.video)
+            .first()
+        )
+        translation_inprogress_obj = (
+            Translation.objects.filter(status="TRANSLATION_REVIEW_INPROGRESS")
+            .filter(target_language=task.target_language)
+            .filter(video=task.video)
+            .first()
+        )
+        voice_over_obj = (
+            VoiceOver.objects.filter(status="VOICEOVER_REVIEW_COMPLETE")
+            .filter(video=task.video)
+            .filter(target_language=task.target_language)
+            .first()
+        )
+    else:
+        translation_review_task = (
+            Task.objects.filter(video=task.video)
+            .filter(target_language=task.target_language)
+            .filter(task_type="TRANSLATION_REVIEW")
+            .first()
+        )
+        if (
+            translation_review_task is not None
+            and translation_review_task.is_active == True
+        ):
+            return Response(
+                {
+                    "message": "Can not reopen this task. Corrosponding Translation Review task is active"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        translation_completed_obj = (
+            Translation.objects.filter(status="TRANSLATION_EDIT_COMPLETE")
+            .filter(target_language=task.target_language)
+            .filter(video=task.video)
+            .first()
+        )
+        translation_inprogress_obj = (
+            Translation.objects.filter(status="TRANSLATION_EDIT_INPROGRESS")
+            .filter(target_language=task.target_language)
+            .filter(video=task.video)
+            .first()
+        )
+        voice_over_obj = (
+            VoiceOver.objects.filter(status="VOICEOVER_EDIT_COMPLETE")
+            .filter(video=task.video)
+            .filter(target_language=task.target_language)
+            .first()
+        )
+    if (
+        translation_inprogress_obj is not None
+        and translation_completed_obj is not None
+        and voice_over_obj is not None
+    ):
+        translation_completed_obj.parent = None
+        translation_completed_obj.save()
+        translation_inprogress_obj.delete()
+        translation_completed_obj.status = (
+            "TRANSLATION_REVIEW_INPROGRESS"
+            if "TRANSLATION_REVIEW" in task.task_type
+            else "TRANSLATION_EDIT_INPROGRESS"
+        )
+        translation_completed_obj.save()
+
+        data = download_json_from_azure_blob(
+            app_name,
+            voice_over_obj.video.id,
+            voice_over_obj.task.id,
+            voice_over_obj.target_language,
+        )
+        voice_over_obj.payload = data
+        voice_over_obj.status = "VOICEOVER_EDIT_INPROGRESS"
+        voice_over_obj.save()
+        task.status = "REOPEN"
+        task.save()
+
+        return Response({"message": "Task is reopened."}, status=status.HTTP_200_OK)
+    else:
+        return Response(
+            {"message": "Can not reopen this task."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )

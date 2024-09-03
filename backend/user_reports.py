@@ -274,9 +274,15 @@ def get_eta_reminders():
 
 
 def get_new_users():
-    organization_owners = [
-        organization.organization_owner for organization in Organization.objects.all()
-    ]
+    organization_owners = list(
+        set(
+            chain.from_iterable(
+                organization.organization_owners.all()
+                for organization in Organization.objects.all()
+            )
+        )
+    )
+
     now = timezone.now()
     past_24_hours = now - timezone.timedelta(hours=24)
     users = User.objects.filter(date_joined__gte=past_24_hours)
