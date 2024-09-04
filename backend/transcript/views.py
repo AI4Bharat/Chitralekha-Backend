@@ -181,10 +181,16 @@ def export_transcript(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                    lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                if "verbatim_text" in segment.keys():
+                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                        lines.append(segment["speaker_id"] + ": " + segment["verbatim_text"] + "\n")
+                    else:
+                        lines.append(segment["verbatim_text"] + "\n")
                 else:
-                    lines.append(segment["text"] + "\n")
+                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                        lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                    else:
+                        lines.append(segment["text"] + "\n")
         filename = "transcript.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
@@ -193,22 +199,34 @@ def export_transcript(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                    lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                if "verbatim_text" in segment.keys():
+                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                        lines.append(segment["speaker_id"] + ": " + segment["verbatim_text"] + "\n")
+                    else:
+                        lines.append(segment["verbatim_text"] + "\n")
                 else:
-                    lines.append(segment["text"] + "\n")
+                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                        lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                    else:
+                        lines.append(segment["text"] + "\n")
         filename = "transcript.vtt"
         content = "\n".join(lines)
     elif export_type == "txt":
         for index, segment in enumerate(payload):
             if "text" in segment.keys():
-                lines.append(segment["text"])
+                if "verbatim_text" in segment.keys():
+                    lines.append(segment["verbatim_text"])
+                else:
+                    lines.append(segment["text"])
         filename = "transcript.txt"
         content = convert_to_paragraph(lines, task.video.name)
     elif export_type == "docx":
         for index, segment in enumerate(payload):
             if "text" in segment.keys():
-                lines.append(segment["text"])
+                if "verbatim_text" in segment.keys():
+                    lines.append(segment["verbatim_text"])
+                else:
+                    lines.append(segment["text"])
         filename = "transcript.txt"
         content = convert_to_paragraph(lines, task.video.name)
         return convert_to_docx(content)
@@ -257,31 +275,54 @@ def export_transcript(request):
 
     elif export_type == "sbv":
         for index, segment in enumerate(payload):
-            lines.append(
-                segment["start_time"]
-                + ","
-                + segment["end_time"]
-                + "\n"
-                + segment["text"]
-                + "\n"
-            )
+            if "verbatim_text" in segment.keys():
+                lines.append(
+                    segment["start_time"]
+                    + ","
+                    + segment["end_time"]
+                    + "\n"
+                    + segment["verbatim_text"]
+                    + "\n"
+                )
+            else:
+                lines.append(
+                    segment["start_time"]
+                    + ","
+                    + segment["end_time"]
+                    + "\n"
+                    + segment["text"]
+                    + "\n"
+                )
         filename = "transcript.sbv"
         content = "\n".join(lines)
 
     elif export_type == "TTML":
         lines = generate_ttml(payload)
         for index, segment in enumerate(payload):
-            lines.append(
-                "\t\t\t<p xml:id='subtitle"
-                + str(index + 1)
-                + "' begin='"
-                + segment["start_time"]
-                + "' end='"
-                + segment["end_time"]
-                + "' style='s1'>"
-                + segment["text"].replace(",", "<br/>")
-                + "</p>"
-            )
+            if "verbatim_text" in segment.keys():
+                lines.append(
+                    "\t\t\t<p xml:id='subtitle"
+                    + str(index + 1)
+                    + "' begin='"
+                    + segment["start_time"]
+                    + "' end='"
+                    + segment["end_time"]
+                    + "' style='s1'>"
+                    + segment["verbatim_text"].replace(",", "<br/>")
+                    + "</p>"
+                )
+            else:
+                lines.append(
+                    "\t\t\t<p xml:id='subtitle"
+                    + str(index + 1)
+                    + "' begin='"
+                    + segment["start_time"]
+                    + "' end='"
+                    + segment["end_time"]
+                    + "' style='s1'>"
+                    + segment["text"].replace(",", "<br/>")
+                    + "</p>"
+                )
         lines.append("\t\t</div>\n" + "\t</body>\n" + "</tt>\n")
         filename = "transcript.TTML"
         content = "\n".join(lines)
@@ -1199,7 +1240,7 @@ def update_transcript(i, start_offset, payload, transcript):
     }
 
 
-def modify_payload(offset, limit, payload, start_offset, end_offset, transcript):
+def modify_payload(offset, limit, payload, start_offset, end_offset, transcript, complete=False):
     count_sentences = len(transcript.payload["payload"])
     total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
     if (
@@ -1228,22 +1269,41 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
             for i in range(length_2):
                 if "text" in payload["payload"][i].keys():
                     print("Modifying payload")
-                    transcript.payload["payload"].insert(
-                        start_offset + i + length,
-                        {
-                            "start_time": payload["payload"][length + i]["start_time"],
-                            "end_time": payload["payload"][length + i]["end_time"],
-                            "text": payload["payload"][length + i]["text"],
-                            "speaker_id": payload["payload"][i]["speaker_id"],
-                            "paraphrased_text": (
-                                paraphrase_text(payload["payload"][length + i]["text"])
-                                if payload["payload"][i].get("paraphrase")
-                                else payload["payload"][length + i].get(
-                                    "paraphrased_text"
-                                )
-                            ),  # Generate paraphrased text if paraphrase=true
-                        },
-                    )
+                    if not complete:
+                        transcript.payload["payload"].insert(
+                            start_offset + i + length,
+                            {
+                                "start_time": payload["payload"][length + i]["start_time"],
+                                "end_time": payload["payload"][length + i]["end_time"],
+                                "text": payload["payload"][length + i]["text"],
+                                "speaker_id": payload["payload"][i]["speaker_id"],
+                                "paraphrased_text": (
+                                    paraphrase_text(payload["payload"][length + i]["text"])
+                                    if payload["payload"][i].get("paraphrase")
+                                    else payload["payload"][length + i].get(
+                                        "paraphrased_text"
+                                    )
+                                ),  # Generate paraphrased text if paraphrase=true
+                            },
+                        )
+                    else:
+                        transcript.payload["payload"].insert(
+                            start_offset + i + length,
+                            {
+                                "start_time": payload["payload"][length + i]["start_time"],
+                                "end_time": payload["payload"][length + i]["end_time"],
+                                "text": payload["payload"][length + i]["paraphrased_text"],
+                                "verbatim_text": payload["payload"][length + i]["text"],
+                                "speaker_id": payload["payload"][i]["speaker_id"],
+                                "paraphrased_text": (
+                                    paraphrase_text(payload["payload"][length + i]["text"])
+                                    if payload["payload"][i].get("paraphrase")
+                                    else payload["payload"][length + i].get(
+                                        "paraphrased_text"
+                                    )
+                                ),  # Generate paraphrased text if paraphrase=true
+                            },
+                        )
                 else:
                     logging.info("Text missing in payload")
     elif len(payload["payload"]) < limit:
@@ -1287,28 +1347,53 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
             if length_2 > 0:
                 for i in range(length_2):
                     if "text" in payload["payload"][i].keys():
-                        transcript.payload["payload"].insert(
-                            start_offset + i + length,
-                            {
-                                "start_time": payload["payload"][length + i][
-                                    "start_time"
-                                ],
-                                "end_time": payload["payload"][length + i]["end_time"],
-                                "text": payload["payload"][length + i]["text"],
-                                "speaker_id": payload["payload"][length + i][
-                                    "speaker_id"
-                                ],
-                                "paraphrased_text": (
-                                    paraphrase_text(
-                                        payload["payload"][length + i]["text"]
-                                    )
-                                    if payload["payload"][i].get("paraphrase")
-                                    else payload["payload"][length + i].get(
-                                        "paraphrased_text"
-                                    )
-                                ),  # Generate paraphrased text if paraphrase=true
-                            },
-                        )
+                        if not complete:
+                            transcript.payload["payload"].insert(
+                                start_offset + i + length,
+                                {
+                                    "start_time": payload["payload"][length + i][
+                                        "start_time"
+                                    ],
+                                    "end_time": payload["payload"][length + i]["end_time"],
+                                    "text": payload["payload"][length + i]["text"],
+                                    "speaker_id": payload["payload"][length + i][
+                                        "speaker_id"
+                                    ],
+                                    "paraphrased_text": (
+                                        paraphrase_text(
+                                            payload["payload"][length + i]["text"]
+                                        )
+                                        if payload["payload"][i].get("paraphrase")
+                                        else payload["payload"][length + i].get(
+                                            "paraphrased_text"
+                                        )
+                                    ),  # Generate paraphrased text if paraphrase=true
+                                },
+                            )
+                        else:
+                            transcript.payload["payload"].insert(
+                                start_offset + i + length,
+                                {
+                                    "start_time": payload["payload"][length + i][
+                                        "start_time"
+                                    ],
+                                    "end_time": payload["payload"][length + i]["end_time"],
+                                    "text": payload["payload"][length + i]["paraphrased_text"],
+                                    "verbatim_text": payload["payload"][length + i]["text"],
+                                    "speaker_id": payload["payload"][length + i][
+                                        "speaker_id"
+                                    ],
+                                    "paraphrased_text": (
+                                        paraphrase_text(
+                                            payload["payload"][length + i]["text"]
+                                        )
+                                        if payload["payload"][i].get("paraphrase")
+                                        else payload["payload"][length + i].get(
+                                            "paraphrased_text"
+                                        )
+                                    ),  # Generate paraphrased text if paraphrase=true
+                                },
+                            )
                     else:
                         logging.info("Text missing in payload")
             if length_3 > 0:
@@ -1348,20 +1433,37 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                 logging.info("Text missing in payload")
         for i in range(length_2):
             if "text" in payload["payload"][i].keys():
-                transcript.payload["payload"].insert(
-                    insert_at + i,
-                    {
-                        "start_time": payload["payload"][length + i]["start_time"],
-                        "end_time": payload["payload"][length + i]["end_time"],
-                        "text": payload["payload"][length + i]["text"],
-                        "speaker_id": payload["payload"][length + i]["speaker_id"],
-                        "paraphrased_text": (
-                            paraphrase_text(payload["payload"][length + i]["text"])
-                            if payload["payload"][i].get("paraphrase")
-                            else payload["payload"][length + i].get("paraphrased_text")
-                        ),  # Generate paraphrased text if paraphrase=true
-                    },
-                )
+                if not complete:
+                    transcript.payload["payload"].insert(
+                        insert_at + i,
+                        {
+                            "start_time": payload["payload"][length + i]["start_time"],
+                            "end_time": payload["payload"][length + i]["end_time"],
+                            "text": payload["payload"][length + i]["text"],
+                            "speaker_id": payload["payload"][length + i]["speaker_id"],
+                            "paraphrased_text": (
+                                paraphrase_text(payload["payload"][length + i]["text"])
+                                if payload["payload"][i].get("paraphrase")
+                                else payload["payload"][length + i].get("paraphrased_text")
+                            ),  # Generate paraphrased text if paraphrase=true
+                        },
+                    )
+                else:
+                    transcript.payload["payload"].insert(
+                        insert_at + i,
+                        {
+                            "start_time": payload["payload"][length + i]["start_time"],
+                            "end_time": payload["payload"][length + i]["end_time"],
+                            "text": payload["payload"][length + i]["paraphrased_text"],
+                            "verbatim_text": payload["payload"][length + i]["text"],
+                            "speaker_id": payload["payload"][length + i]["speaker_id"],
+                            "paraphrased_text": (
+                                paraphrase_text(payload["payload"][length + i]["text"])
+                                if payload["payload"][i].get("paraphrase")
+                                else payload["payload"][length + i].get("paraphrased_text")
+                            ),  # Generate paraphrased text if paraphrase=true
+                        },
+                    )
         last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
             "end_time"
         ]
@@ -1836,6 +1938,7 @@ def save_transcription(request):
                             start_offset,
                             end_offset,
                             transcript_obj,
+                            True
                         )
                         transcript_obj.save()
                         task.status = "COMPLETE"
@@ -1878,6 +1981,7 @@ def save_transcription(request):
                             start_offset,
                             end_offset,
                             transcript_obj,
+                            True
                         )
                         # transcript_obj.payload = payload
                         transcript_obj.transcript_type = transcript_obj.transcript_type
