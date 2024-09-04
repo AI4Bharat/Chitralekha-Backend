@@ -1270,6 +1270,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript,
                 if "text" in payload["payload"][i].keys():
                     print("Modifying payload")
                     if not complete:
+                        print("h4")
                         transcript.payload["payload"].insert(
                             start_offset + i + length,
                             {
@@ -1287,6 +1288,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript,
                             },
                         )
                     else:
+                        print("h1")
                         transcript.payload["payload"].insert(
                             start_offset + i + length,
                             {
@@ -1348,6 +1350,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript,
                 for i in range(length_2):
                     if "text" in payload["payload"][i].keys():
                         if not complete:
+                            print("h5")
                             transcript.payload["payload"].insert(
                                 start_offset + i + length,
                                 {
@@ -1371,6 +1374,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript,
                                 },
                             )
                         else:
+                            print("h2")
                             transcript.payload["payload"].insert(
                                 start_offset + i + length,
                                 {
@@ -1434,6 +1438,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript,
         for i in range(length_2):
             if "text" in payload["payload"][i].keys():
                 if not complete:
+                    print("h6")
                     transcript.payload["payload"].insert(
                         insert_at + i,
                         {
@@ -1449,6 +1454,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript,
                         },
                     )
                 else:
+                    print("h3")
                     transcript.payload["payload"].insert(
                         insert_at + i,
                         {
