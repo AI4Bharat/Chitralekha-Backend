@@ -1240,7 +1240,7 @@ def update_transcript(i, start_offset, payload, transcript):
     }
 
 
-def modify_payload(offset, limit, payload, start_offset, end_offset, transcript, complete=False):
+def modify_payload(offset, limit, payload, start_offset, end_offset, transcript):
     count_sentences = len(transcript.payload["payload"])
     total_pages = math.ceil(len(transcript.payload["payload"]) / int(limit))
     if (
@@ -1425,11 +1425,6 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript,
         delete_indices.reverse()
         for ind in delete_indices:
             transcript.payload["payload"].pop(ind)
-    if complete:
-        for item in transcript.payload["payload"]:
-            item['verbatim_text'] = item.pop('text')
-            item['text'] = item['paraphrased_text']
-
 
 @swagger_auto_schema(
     method="post",
@@ -1881,8 +1876,10 @@ def save_transcription(request):
                             start_offset,
                             end_offset,
                             transcript_obj,
-                            True
                         )
+                        for item in transcript_obj.payload["payload"]:
+                            item['verbatim_text'] = item.pop('text')
+                            item['text'] = item['paraphrased_text']
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
@@ -1994,6 +1991,9 @@ def save_transcription(request):
                             end_offset,
                             transcript_obj,
                         )
+                        for item in transcript_obj.payload["payload"]:
+                            item['verbatim_text'] = item.pop('text')
+                            item['text'] = item['paraphrased_text']
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
