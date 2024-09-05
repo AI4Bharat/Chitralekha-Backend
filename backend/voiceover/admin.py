@@ -16,7 +16,7 @@ class VoiceOverAdmin(admin.ModelAdmin):
         "updated_at",
         "task",
     )
-    list_filter = ("video", "voice_over_type", "translation")
+    list_filter = ("video", "voice_over_type", "translation", "video")
     search_fields = ("video", "voice_over_type", "translation")
     ordering = ("-updated_at",)
 
