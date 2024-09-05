@@ -1269,43 +1269,22 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript,
             for i in range(length_2):
                 if "text" in payload["payload"][i].keys():
                     print("Modifying payload")
-                    if not complete:
-                        print("h4")
-                        transcript.payload["payload"].insert(
-                            start_offset + i + length,
-                            {
-                                "start_time": payload["payload"][length + i]["start_time"],
-                                "end_time": payload["payload"][length + i]["end_time"],
-                                "text": payload["payload"][length + i]["text"],
-                                "speaker_id": payload["payload"][i]["speaker_id"],
-                                "paraphrased_text": (
-                                    paraphrase_text(payload["payload"][length + i]["text"])
-                                    if payload["payload"][i].get("paraphrase")
-                                    else payload["payload"][length + i].get(
-                                        "paraphrased_text"
-                                    )
-                                ),  # Generate paraphrased text if paraphrase=true
-                            },
-                        )
-                    else:
-                        print("h1")
-                        transcript.payload["payload"].insert(
-                            start_offset + i + length,
-                            {
-                                "start_time": payload["payload"][length + i]["start_time"],
-                                "end_time": payload["payload"][length + i]["end_time"],
-                                "text": payload["payload"][length + i]["paraphrased_text"],
-                                "verbatim_text": payload["payload"][length + i]["text"],
-                                "speaker_id": payload["payload"][i]["speaker_id"],
-                                "paraphrased_text": (
-                                    paraphrase_text(payload["payload"][length + i]["text"])
-                                    if payload["payload"][i].get("paraphrase")
-                                    else payload["payload"][length + i].get(
-                                        "paraphrased_text"
-                                    )
-                                ),  # Generate paraphrased text if paraphrase=true
-                            },
-                        )
+                    transcript.payload["payload"].insert(
+                        start_offset + i + length,
+                        {
+                            "start_time": payload["payload"][length + i]["start_time"],
+                            "end_time": payload["payload"][length + i]["end_time"],
+                            "text": payload["payload"][length + i]["text"],
+                            "speaker_id": payload["payload"][i]["speaker_id"],
+                            "paraphrased_text": (
+                                paraphrase_text(payload["payload"][length + i]["text"])
+                                if payload["payload"][i].get("paraphrase")
+                                else payload["payload"][length + i].get(
+                                    "paraphrased_text"
+                                )
+                            ),  # Generate paraphrased text if paraphrase=true
+                        },
+                    )
                 else:
                     logging.info("Text missing in payload")
     elif len(payload["payload"]) < limit:
@@ -1349,55 +1328,28 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript,
             if length_2 > 0:
                 for i in range(length_2):
                     if "text" in payload["payload"][i].keys():
-                        if not complete:
-                            print("h5")
-                            transcript.payload["payload"].insert(
-                                start_offset + i + length,
-                                {
-                                    "start_time": payload["payload"][length + i][
-                                        "start_time"
-                                    ],
-                                    "end_time": payload["payload"][length + i]["end_time"],
-                                    "text": payload["payload"][length + i]["text"],
-                                    "speaker_id": payload["payload"][length + i][
-                                        "speaker_id"
-                                    ],
-                                    "paraphrased_text": (
-                                        paraphrase_text(
-                                            payload["payload"][length + i]["text"]
-                                        )
-                                        if payload["payload"][i].get("paraphrase")
-                                        else payload["payload"][length + i].get(
-                                            "paraphrased_text"
-                                        )
-                                    ),  # Generate paraphrased text if paraphrase=true
-                                },
-                            )
-                        else:
-                            print("h2")
-                            transcript.payload["payload"].insert(
-                                start_offset + i + length,
-                                {
-                                    "start_time": payload["payload"][length + i][
-                                        "start_time"
-                                    ],
-                                    "end_time": payload["payload"][length + i]["end_time"],
-                                    "text": payload["payload"][length + i]["paraphrased_text"],
-                                    "verbatim_text": payload["payload"][length + i]["text"],
-                                    "speaker_id": payload["payload"][length + i][
-                                        "speaker_id"
-                                    ],
-                                    "paraphrased_text": (
-                                        paraphrase_text(
-                                            payload["payload"][length + i]["text"]
-                                        )
-                                        if payload["payload"][i].get("paraphrase")
-                                        else payload["payload"][length + i].get(
-                                            "paraphrased_text"
-                                        )
-                                    ),  # Generate paraphrased text if paraphrase=true
-                                },
-                            )
+                        transcript.payload["payload"].insert(
+                            start_offset + i + length,
+                            {
+                                "start_time": payload["payload"][length + i][
+                                    "start_time"
+                                ],
+                                "end_time": payload["payload"][length + i]["end_time"],
+                                "text": payload["payload"][length + i]["text"],
+                                "speaker_id": payload["payload"][length + i][
+                                    "speaker_id"
+                                ],
+                                "paraphrased_text": (
+                                    paraphrase_text(
+                                        payload["payload"][length + i]["text"]
+                                    )
+                                    if payload["payload"][i].get("paraphrase")
+                                    else payload["payload"][length + i].get(
+                                        "paraphrased_text"
+                                    )
+                                ),  # Generate paraphrased text if paraphrase=true
+                            },
+                        )
                     else:
                         logging.info("Text missing in payload")
             if length_3 > 0:
@@ -1437,39 +1389,20 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript,
                 logging.info("Text missing in payload")
         for i in range(length_2):
             if "text" in payload["payload"][i].keys():
-                if not complete:
-                    print("h6")
-                    transcript.payload["payload"].insert(
-                        insert_at + i,
-                        {
-                            "start_time": payload["payload"][length + i]["start_time"],
-                            "end_time": payload["payload"][length + i]["end_time"],
-                            "text": payload["payload"][length + i]["text"],
-                            "speaker_id": payload["payload"][length + i]["speaker_id"],
-                            "paraphrased_text": (
-                                paraphrase_text(payload["payload"][length + i]["text"])
-                                if payload["payload"][i].get("paraphrase")
-                                else payload["payload"][length + i].get("paraphrased_text")
-                            ),  # Generate paraphrased text if paraphrase=true
-                        },
-                    )
-                else:
-                    print("h3")
-                    transcript.payload["payload"].insert(
-                        insert_at + i,
-                        {
-                            "start_time": payload["payload"][length + i]["start_time"],
-                            "end_time": payload["payload"][length + i]["end_time"],
-                            "text": payload["payload"][length + i]["paraphrased_text"],
-                            "verbatim_text": payload["payload"][length + i]["text"],
-                            "speaker_id": payload["payload"][length + i]["speaker_id"],
-                            "paraphrased_text": (
-                                paraphrase_text(payload["payload"][length + i]["text"])
-                                if payload["payload"][i].get("paraphrase")
-                                else payload["payload"][length + i].get("paraphrased_text")
-                            ),  # Generate paraphrased text if paraphrase=true
-                        },
-                    )
+                transcript.payload["payload"].insert(
+                    insert_at + i,
+                    {
+                        "start_time": payload["payload"][length + i]["start_time"],
+                        "end_time": payload["payload"][length + i]["end_time"],
+                        "text": payload["payload"][length + i]["text"],
+                        "speaker_id": payload["payload"][length + i]["speaker_id"],
+                        "paraphrased_text": (
+                            paraphrase_text(payload["payload"][length + i]["text"])
+                            if payload["payload"][i].get("paraphrase")
+                            else payload["payload"][length + i].get("paraphrased_text")
+                        ),  # Generate paraphrased text if paraphrase=true
+                    },
+                )
         last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
             "end_time"
         ]
@@ -1492,6 +1425,10 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript,
         delete_indices.reverse()
         for ind in delete_indices:
             transcript.payload["payload"].pop(ind)
+    if complete:
+        for item in transcript.payload["payload"]:
+            item['verbatim_text'] = item.pop('text')
+            item['text'] = item['paraphrased_text']
 
 
 @swagger_auto_schema(
@@ -1947,8 +1884,8 @@ def save_transcription(request):
                             True
                         )
                         transcript_obj.save()
-                        # task.status = "COMPLETE"
-                        # task.save()
+                        task.status = "COMPLETE"
+                        task.save()
                         response = check_if_transcription_correct(transcript_obj, task)
                         if type(response) == dict:
                             return Response(
@@ -1970,7 +1907,7 @@ def save_transcription(request):
                         for ind in delete_indices:
                             transcript_obj.payload["payload"].pop(ind)
                         transcript_obj.save()
-                        # change_active_status_of_next_tasks(task, transcript_obj)
+                        change_active_status_of_next_tasks(task, transcript_obj)
                 else:
                     transcript_obj = (
                         Transcript.objects.filter(status=TRANSCRIPTION_EDIT_INPROGRESS)
