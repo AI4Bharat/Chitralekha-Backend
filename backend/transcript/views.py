@@ -1947,8 +1947,8 @@ def save_transcription(request):
                             True
                         )
                         transcript_obj.save()
-                        task.status = "COMPLETE"
-                        task.save()
+                        # task.status = "COMPLETE"
+                        # task.save()
                         response = check_if_transcription_correct(transcript_obj, task)
                         if type(response) == dict:
                             return Response(
@@ -1970,7 +1970,7 @@ def save_transcription(request):
                         for ind in delete_indices:
                             transcript_obj.payload["payload"].pop(ind)
                         transcript_obj.save()
-                        change_active_status_of_next_tasks(task, transcript_obj)
+                        # change_active_status_of_next_tasks(task, transcript_obj)
                 else:
                     transcript_obj = (
                         Transcript.objects.filter(status=TRANSCRIPTION_EDIT_INPROGRESS)
@@ -1987,7 +1987,6 @@ def save_transcription(request):
                             start_offset,
                             end_offset,
                             transcript_obj,
-                            True
                         )
                         # transcript_obj.payload = payload
                         transcript_obj.transcript_type = transcript_obj.transcript_type
