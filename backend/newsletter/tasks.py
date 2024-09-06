@@ -19,7 +19,7 @@ def celery_newsletter_call(newsletter_id, subject):
             unsubscribe_link = f"{frontend_url}/#/newsletter/unsubscribe?email={subscribed_user.email}&categories={subscribed_categories}"
             cont = newsletter.content.replace("{unsubscribe_link}", unsubscribe_link)
             try:
-                subject = "Reset Password Link For Shoonya"
+                subject = "Chitralekha Newsletter"
                 message = f"<p> Hello! Please click on the following link to view the newsletter {cont} </p>"
 
                 compiled_code = send_email_template(subject, message)

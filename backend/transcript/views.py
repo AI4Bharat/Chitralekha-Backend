@@ -181,10 +181,16 @@ def export_transcript(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                    lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                if "verbatim_text" in segment.keys():
+                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                        lines.append(segment["speaker_id"] + ": " + segment["verbatim_text"] + "\n")
+                    else:
+                        lines.append(segment["verbatim_text"] + "\n")
                 else:
-                    lines.append(segment["text"] + "\n")
+                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                        lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                    else:
+                        lines.append(segment["text"] + "\n")
         filename = "transcript.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
@@ -193,22 +199,34 @@ def export_transcript(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                    lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                if "verbatim_text" in segment.keys():
+                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                        lines.append(segment["speaker_id"] + ": " + segment["verbatim_text"] + "\n")
+                    else:
+                        lines.append(segment["verbatim_text"] + "\n")
                 else:
-                    lines.append(segment["text"] + "\n")
+                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                        lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                    else:
+                        lines.append(segment["text"] + "\n")
         filename = "transcript.vtt"
         content = "\n".join(lines)
     elif export_type == "txt":
         for index, segment in enumerate(payload):
             if "text" in segment.keys():
-                lines.append(segment["text"])
+                if "verbatim_text" in segment.keys():
+                    lines.append(segment["verbatim_text"])
+                else:
+                    lines.append(segment["text"])
         filename = "transcript.txt"
         content = convert_to_paragraph(lines, task.video.name)
     elif export_type == "docx":
         for index, segment in enumerate(payload):
             if "text" in segment.keys():
-                lines.append(segment["text"])
+                if "verbatim_text" in segment.keys():
+                    lines.append(segment["verbatim_text"])
+                else:
+                    lines.append(segment["text"])
         filename = "transcript.txt"
         content = convert_to_paragraph(lines, task.video.name)
         return convert_to_docx(content)
@@ -257,31 +275,54 @@ def export_transcript(request):
 
     elif export_type == "sbv":
         for index, segment in enumerate(payload):
-            lines.append(
-                segment["start_time"]
-                + ","
-                + segment["end_time"]
-                + "\n"
-                + segment["text"]
-                + "\n"
-            )
+            if "verbatim_text" in segment.keys():
+                lines.append(
+                    segment["start_time"]
+                    + ","
+                    + segment["end_time"]
+                    + "\n"
+                    + segment["verbatim_text"]
+                    + "\n"
+                )
+            else:
+                lines.append(
+                    segment["start_time"]
+                    + ","
+                    + segment["end_time"]
+                    + "\n"
+                    + segment["text"]
+                    + "\n"
+                )
         filename = "transcript.sbv"
         content = "\n".join(lines)
 
     elif export_type == "TTML":
         lines = generate_ttml(payload)
         for index, segment in enumerate(payload):
-            lines.append(
-                "\t\t\t<p xml:id='subtitle"
-                + str(index + 1)
-                + "' begin='"
-                + segment["start_time"]
-                + "' end='"
-                + segment["end_time"]
-                + "' style='s1'>"
-                + segment["text"].replace(",", "<br/>")
-                + "</p>"
-            )
+            if "verbatim_text" in segment.keys():
+                lines.append(
+                    "\t\t\t<p xml:id='subtitle"
+                    + str(index + 1)
+                    + "' begin='"
+                    + segment["start_time"]
+                    + "' end='"
+                    + segment["end_time"]
+                    + "' style='s1'>"
+                    + segment["verbatim_text"].replace(",", "<br/>")
+                    + "</p>"
+                )
+            else:
+                lines.append(
+                    "\t\t\t<p xml:id='subtitle"
+                    + str(index + 1)
+                    + "' begin='"
+                    + segment["start_time"]
+                    + "' end='"
+                    + segment["end_time"]
+                    + "' style='s1'>"
+                    + segment["text"].replace(",", "<br/>")
+                    + "</p>"
+                )
         lines.append("\t\t</div>\n" + "\t</body>\n" + "</tt>\n")
         filename = "transcript.TTML"
         content = "\n".join(lines)
@@ -1385,7 +1426,6 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
         for ind in delete_indices:
             transcript.payload["payload"].pop(ind)
 
-
 @swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
@@ -1837,6 +1877,9 @@ def save_transcription(request):
                             end_offset,
                             transcript_obj,
                         )
+                        for item in transcript_obj.payload["payload"]:
+                            item['verbatim_text'] = item.pop('text')
+                            item['text'] = item['paraphrased_text']
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
@@ -1948,6 +1991,9 @@ def save_transcription(request):
                             end_offset,
                             transcript_obj,
                         )
+                        for item in transcript_obj.payload["payload"]:
+                            item['verbatim_text'] = item.pop('text')
+                            item['text'] = item['paraphrased_text']
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
