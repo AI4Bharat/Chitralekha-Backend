@@ -1054,6 +1054,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         default_task_priority = request.data.get("default_task_priority")
         default_task_description = request.data.get("default_task_description")
         video_integration = request.data.get("video_integration")
+        paraphrasing_enabled = request.data.get("paraphrase_enabled")
 
         if title is None or organization_id is None or len(managers_id) == 0:
             return Response(
@@ -1101,6 +1102,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             default_task_types=default_task_types,
             default_target_languages=default_target_languages,
             description=description,
+            paraphrasing_enabled=paraphrasing_enabled
         )
         project.save()
         if default_task_priority is not None:
@@ -1224,7 +1226,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
             project.description = description
 
         if paraphrasing_enabled is not None:
-            print(paraphrasing_enabled)
             project.paraphrasing_enabled = paraphrasing_enabled
 
         project.save()
