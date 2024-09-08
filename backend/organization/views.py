@@ -764,7 +764,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             )
         taskStartDate = request.query_params["taskStartDate"] or "2020-01-01"
         taskEndDate = request.query_params["taskEndDate"] or datetime.now().date()
-        send_email_with_tasks_report.delay(org.id, request.user.id, taskStartDate, taskEndDate)
+        send_email_with_tasks_report.delay(
+            org.id, request.user.id, taskStartDate, taskEndDate
+        )
         return Response(
             {"message": "Reports will be emailed."}, status=status.HTTP_200_OK
         )
