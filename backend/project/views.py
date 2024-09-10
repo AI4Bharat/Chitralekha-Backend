@@ -803,12 +803,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
             # filter data based on filter parameters
             all_tasks = task_filter_query(all_tasks, filter_dict)
-            if not (
-                request.user in project.managers.all()
-                or request.user.is_superuser
-                or organization.organization_owners.filter(id=request.user.id).exists()
-            ):
-                all_tasks = all_tasks.filter(user=request.user).order_by(sort_by)
+            # if not (
+            #     request.user in project.managers.all()
+            #     or request.user.is_superuser
+            #     or organization.organization_owners.filter(id=request.user.id).exists()
+            # ):
+                # all_tasks = all_tasks.filter(user=request.user).order_by(sort_by)
 
             total_count = len(all_tasks)
             total_pages = math.ceil(total_count / int(limit))
@@ -843,7 +843,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Upload": False,
                         "Info": False,
                         "Reopen": False,
-                        "Regenerate": False,
+                        "Regenerate": True,
                     }
                     buttons["Update"] = True
                     buttons["Delete"] = True
@@ -922,7 +922,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         "Upload": False,
                         "Info": False,
                         "Reopen": False,
-                        "Regenerate": False,
+                        "Regenerate": True,
                     }
                     buttons["Update"] = True
                     buttons["Delete"] = True
