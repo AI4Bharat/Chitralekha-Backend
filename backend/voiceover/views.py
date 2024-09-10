@@ -694,6 +694,7 @@ def get_translated_text(request):
             source_language,
             target_language,
         )
+        
         if type(translated_text) == list:
             locale = source_language + "|" + target_language
             user_id = str(request.user.id)
@@ -727,6 +728,7 @@ def get_translated_text(request):
             {"message": "Translation failed"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+        
 
 @swagger_auto_schema(
     method="post",
