@@ -28,6 +28,7 @@ from .models import (
     VOICEOVER_REVIEW_INPROGRESS,
     VOICEOVER_REVIEW_COMPLETE,
 )
+from django.utils import timezone
 from datetime import datetime, timedelta
 from .utils import *
 from config import voice_over_payload_offset_size, app_name
@@ -1910,7 +1911,23 @@ def get_voice_over_task_counts(request):
 
 @api_view(["GET"])
 def get_voiceover_report(request):
-    voiceovers = VoiceOver.objects.filter(status="VOICEOVER_EDIT_COMPLETE").values(
+    start_date_str = request.query_params.get("start_date")
+    end_date_str = request.query_params.get("end_date")
+
+    voiceovers = VoiceOver.objects.filter(status="VOICEOVER_EDIT_COMPLETE")
+
+    def parse_date(date_str):
+        year, month, day = map(int, date_str.split("-"))
+        return timezone.make_aware(datetime(year, month, day, 0, 0, 0))
+
+    if start_date_str and end_date_str:
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str) + timedelta(days=1)
+        voiceovers = voiceovers.filter(
+            updated_at__date__range=(start_date.date(), end_date.date())
+        )
+
+    voiceovers = voiceovers.values(        
         "video__project_id__organization_id__title",
         src_language=F("video__language"),
         tgt_language=F("target_language"),
