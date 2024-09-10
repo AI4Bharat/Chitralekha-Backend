@@ -694,7 +694,6 @@ def get_translated_text(request):
             source_language,
             target_language,
         )
-
         if type(translated_text) == list:
             locale = source_language + "|" + target_language
             user_id = str(request.user.id)
@@ -708,10 +707,7 @@ def get_translated_text(request):
                 tmx_level,
             )
 
-            (
-                tgt,
-                tmx_replacement,
-            ) = tmxservice.replace_nmt_tgt_with_user_tgt(
+            (tgt, tmx_replacement,) = tmxservice.replace_nmt_tgt_with_user_tgt(
                 tmx_phrases,
                 text,
                 translated_text[0],
@@ -731,7 +727,6 @@ def get_translated_text(request):
             {"message": "Translation failed"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
 
 @swagger_auto_schema(
     method="post",
