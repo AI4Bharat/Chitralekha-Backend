@@ -145,7 +145,7 @@ def get_model_output(
 ):
     # Assume that translation happens outside (and the prompt is already translated)
     out = ""
-    user_prompt=os.getenv("LLM_INTERACTIONS_USER_PROMPT_PREFIX")+user_prompt
+    user_prompt = os.getenv("LLM_INTERACTIONS_USER_PROMPT_PREFIX") + user_prompt
     if model == "GPT3.5":
         out = get_gpt3_output(system_prompt, user_prompt, history)
     elif model == "GPT4":

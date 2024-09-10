@@ -1102,7 +1102,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             default_task_types=default_task_types,
             default_target_languages=default_target_languages,
             description=description,
-            paraphrasing_enabled=paraphrasing_enabled
+            paraphrasing_enabled=paraphrasing_enabled,
         )
         project.save()
         if default_task_priority is not None:
