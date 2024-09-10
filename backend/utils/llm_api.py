@@ -88,7 +88,7 @@ def get_gpt3_output(system_prompt=None, user_prompt=None, history=None):
     openai.api_base = os.getenv("LLM_INTERACTIONS_OPENAI_API_BASE")
     openai.api_version = os.getenv("LLM_INTERACTIONS_OPENAI_API_VERSION")
     openai.api_key = os.getenv("OPENAI_API_KEY")
-    engine = "prompt-chat-gpt35"
+    engine = os.getenv("LLM_INTERACTIONS_OPENAI_ENGINE")
 
     messages = []
     if system_prompt:
