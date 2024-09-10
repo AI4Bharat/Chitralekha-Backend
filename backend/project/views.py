@@ -984,7 +984,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
-    @is_organization_owner
+    @is_project_owner
     @action(
         detail=False,
         methods=["POST"],
@@ -1036,7 +1036,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @is_organization_owner
+    @is_project_owner
     def create(self, request, pk=None, *args, **kwargs):
         """
         Create a Project
