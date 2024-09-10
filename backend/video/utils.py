@@ -28,7 +28,7 @@ from config import youtube_api_key
 from googleapiclient.discovery import build
 import re
 
-ydl = YoutubeDL({"format": "best*[acodec!=none]"})
+ydl = YoutubeDL({"format": "best"})
 
 # Declare a global variable to save the object for Google Drive ID extraction
 drive_info_extractor = get_info_extractor("GoogleDrive")()
@@ -526,11 +526,11 @@ def get_video_func(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-    if title[-4:] == ".mp4" and "youtube.com" not in normalized_url:
-        return Response(
-            {"message": "Invalid file type. Mp4 is not supported"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    # if title[-4:] == ".mp4" and "youtube.com" not in normalized_url:
+    #     return Response(
+    #         {"message": "Invalid file type. Mp4 is not supported"},
+    #         status=status.HTTP_400_BAD_REQUEST,
+    #     )
     # Create a new DB entry if URL does not exist, else return the existing entry
     if create:
         video = Video.objects.create(
