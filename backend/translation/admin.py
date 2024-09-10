@@ -17,6 +17,7 @@ class TranslationAdmin(admin.ModelAdmin):
         "translation_type",
         "updated_at",
         "id",
+        "status",
     )
     list_filter = ("task", "transcript", "target_language", "translation_type")
     search_fields = ("task", "transcript", "target_language", "translation_type")
