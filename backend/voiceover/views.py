@@ -44,7 +44,7 @@ import copy
 import uuid
 import regex
 from glossary.tmx.tmxservice import TMXService
-
+from organization.decorators import is_admin
 
 @api_view(["GET"])
 def get_voice_over_export_types(request):
@@ -727,7 +727,149 @@ def get_translated_text(request):
             {"message": "Translation failed"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+    
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+    openapi.Parameter(
+        "task_id",
+        openapi.IN_QUERY,
+        description=("An integer to pass the task id"),
+        type=openapi.TYPE_INTEGER,
+        required=True,
+    ),
+    ],
+    responses={
+        200: "Status has been fetched successfully",
+        400: "Bad request",
+        404: "No voice_over found for given task",
+    },
+)
+@api_view(["GET"])
+def fetch_voice_over_status(request):
+    if not request.user.is_authenticated:
+        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+    try:
+        task_id = request.query_params.get("task_id")
+    except KeyError:
+        return Response(
+            {
+                "message": "Missing required parameter - task_id"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not active yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    voice_over = get_voice_over_id(task)
+    if voice_over is not None:
+        voice_over_id = voice_over.id
+    try:
+        voice_over = VoiceOver.objects.get(pk=voice_over_id)
+        return Response(
+            {
+                "message": "Status has been fetched successfully",
+                "task_id": task.id,
+                "voiceover_id": voice_over_id,
+                "status": voice_over.status,
+            },
+            status=status.HTTP_200_OK,
+        )
+    except:
+        return Response(
+            {"message": "VoiceOver doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_id", "vo_status"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the voice_over instance",
+            ),
+            "vo_status": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Voiceover task status to be set",
+            )
+        },
+        description="Post request body",
+    ),
+    responses={
+        200: "Status has been updated successfully",
+        400: "Bad request",
+        404: "No voice_over found for given task",
+    },
+)
+@api_view(["POST"])
+def update_voice_over_status(request):
+    if not request.user.is_authenticated:
+        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+    try:
+        # Get the required data from the POST body
+        task_id = request.data["task_id"]
+        vo_status = request.data["vo_status"]
+    except KeyError:
+        return Response(
+            {
+                "message": "Missing required parameters - task_id or vo_status"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not active yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    voice_over = get_voice_over_id(task)
+    if voice_over is not None:
+        voice_over_id = voice_over.id
+    try:
+        voice_over = VoiceOver.objects.get(pk=voice_over_id)
+        if vo_status in ["VOICEOVER_SELECT_SOURCE", "VOICEOVER_EDITOR_ASSIGNED", "VOICEOVER_EDIT_INPROGRESS", "VOICEOVER_EDIT_COMPLETE", "VOICEOVER_REVIEWER_ASSIGNED", "VOICEOVER_REVIEW_INPROGRESS", "VOICEOVER_REVIEW_COMPLETE"]:
+            voice_over.status = vo_status
+            voice_over.save()
+            return Response(
+                {
+                    "message": "Status has been updated successfully",
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {"message": "Invalid Status"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    except:
+        return Response(
+            {"message": "VoiceOver doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 @swagger_auto_schema(
     method="post",

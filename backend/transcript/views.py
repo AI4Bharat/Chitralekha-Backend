@@ -640,6 +640,148 @@ def get_transcript_id(task):
             )
     return transcript_id
 
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+    openapi.Parameter(
+        "task_id",
+        openapi.IN_QUERY,
+        description=("An integer to pass the task id"),
+        type=openapi.TYPE_INTEGER,
+        required=True,
+    ),
+    ],
+    responses={
+        200: "Status has been fetched successfully",
+        400: "Bad request",
+        404: "No transcript found for given task",
+    },
+)
+@api_view(["GET"])
+def fetch_transcript_status(request):
+    if not request.user.is_authenticated:
+        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+    try:
+        task_id = request.query_params.get("task_id")
+    except KeyError:
+        return Response(
+            {
+                "message": "Missing required parameter - task_id"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not active yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    transcript = get_transcript_id(task)
+    if transcript is not None:
+        transcript_id = transcript.id
+    try:
+        transcript = Transcript.objects.get(pk=transcript_id)
+        return Response(
+            {
+                "message": "Status has been fetched successfully",
+                "task_id": task.id,
+                "transcript_id": transcript_id,
+                "status": transcript.status,
+            },
+            status=status.HTTP_200_OK,
+        )
+    except:
+        return Response(
+            {"message": "Transcript doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_id", "trs_status"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the transcript instance",
+            ),
+            "trs_status": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Transcript task status to be set",
+            )
+        },
+        description="Post request body",
+    ),
+    responses={
+        200: "Status has been updated successfully",
+        400: "Bad request",
+        404: "No transcript found for given task",
+    },
+)
+@api_view(["POST"])
+def update_transcript_status(request):
+    if not request.user.is_authenticated:
+        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+    try:
+        # Get the required data from the POST body
+        task_id = request.data["task_id"]
+        trs_status = request.data["trs_status"]
+    except KeyError:
+        return Response(
+            {
+                "message": "Missing required parameters - task_id or trs_status"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not active yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    transcript = get_transcript_id(task)
+    if transcript is not None:
+        transcript_id = transcript.id
+    try:
+        transcript = Transcript.objects.get(pk=transcript_id)
+        if trs_status in ["TRANSCRIPTION_SELECT_SOURCE", "TRANSCRIPTION_EDITOR_ASSIGNED", "TRANSCRIPTION_EDIT_INPROGRESS", "TRANSCRIPTION_EDIT_COMPLETE", "TRANSCRIPTION_REVIEWER_ASSIGNED", "TRANSCRIPTION_REVIEW_INPROGRESS", "TRANSCRIPTION_REVIEW_COMPLETE"]:
+            transcript.status = trs_status
+            transcript.save()
+            return Response(
+                {
+                    "message": "Status has been updated successfully",
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {"message": "Invalid Status"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    except:
+        return Response(
+            {"message": "Transcript doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 @swagger_auto_schema(
     method="get",
