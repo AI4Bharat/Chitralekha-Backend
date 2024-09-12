@@ -97,7 +97,7 @@ SITE_NAME = os.getenv("DOMAIN")
 PROTOCOL = "https"
 
 DJOSER = {
-    "PASSWORD_RESET_CONFIRM_URL": "forget-password/confirm/{uid}/{token}",
+    "PASSWORD_RESET_CONFIRM_URL": os.getenv("FRONTEND_URL_EMAIL_RESET")+"forget-password/confirm/{uid}/{token}",
     "USERNAME_RESET_CONFIRM_URL": "users/auth/users/username/reset/confirm/{uid}/{token}",
     "ACTIVATION_URL": "users/auth/users/activation/{uid}/{token}",
     "SEND_ACTIVATION_EMAIL": True,
