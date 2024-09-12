@@ -11,6 +11,8 @@ urlpatterns = [
         name="retrieve_all_translations",
     ),
     path("save/", views.save_translation, name="save_translation"),
+    path("get_translation_status/", views.fetch_translation_status, name="get_translation_status"),
+    path("set_translation_status/", views.update_translation_status, name="set_translation_status"),
     path(
         "get_translation_supported_languages",
         views.get_translation_supported_languages,
