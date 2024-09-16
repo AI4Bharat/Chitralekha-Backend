@@ -326,7 +326,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             )
 
             user = request.user
-            if user.role == User.ORG_OWNER or user.is_superuser:
+            if user.role == User.ORG_OWNER or user.is_superuser or user.role == User.ADMIN:
                 serializer = ProjectSerializer(projects, many=True)
             else:
                 projects_by_roles = []
