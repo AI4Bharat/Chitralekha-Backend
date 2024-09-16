@@ -1545,9 +1545,9 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                         ),  # Generate paraphrased text if paraphrase=true
                     },
                 )
-        last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
-            "end_time"
-        ]
+        # last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
+        #     "end_time"
+        # ]
         offset_to_check = start_offset + len(payload["payload"])
         last_valid_start_time = transcript.payload["payload"][offset_to_check - 1][
             "start_time"
