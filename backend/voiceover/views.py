@@ -708,10 +708,7 @@ def get_translated_text(request):
                 tmx_level,
             )
 
-            (
-                tgt,
-                tmx_replacement,
-            ) = tmxservice.replace_nmt_tgt_with_user_tgt(
+            (tgt, tmx_replacement,) = tmxservice.replace_nmt_tgt_with_user_tgt(
                 tmx_phrases,
                 text,
                 translated_text[0],
