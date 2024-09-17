@@ -627,16 +627,21 @@ def get_video_func(request):
                             target_language,
                             user_id,
                         )
-                        detailed_report.extend(
-                            task_response["response"]["detailed_report"]
-                        )
-                        if (
-                            task_response["response"]["detailed_report"][0]["status"]
-                            == "Fail"
-                        ):
-                            fail_count += 1
+                        if "response" in task_response and task_response["response"]:
+                            if (
+                                task_response["response"]["detailed_report"][0][
+                                    "status"
+                                ]
+                                == "Fail"
+                            ):
+                                fail_count += 1
+                            else:
+                                success_count += 1
+                                detailed_report.extend(
+                                    task_response["response"]["detailed_report"]
+                                )
                         else:
-                            success_count += 1
+                            fail_count += 1
                 else:
                     task_response = create_tasks(
                         video.id,
@@ -648,15 +653,20 @@ def get_video_func(request):
                         None,
                         user_id,
                     )
-                    detailed_report.extend(task_response["response"]["detailed_report"])
 
-                    if (
-                        task_response["response"]["detailed_report"][0]["status"]
-                        == "Fail"
-                    ):
-                        fail_count += 1
+                    if "response" in task_response and task_response["response"]:
+                        if (
+                            task_response["response"]["detailed_report"][0]["status"]
+                            == "Fail"
+                        ):
+                            fail_count += 1
+                        else:
+                            success_count += 1
+                            detailed_report.extend(
+                                task_response["response"]["detailed_report"]
+                            )
                     else:
-                        success_count += 1
+                        fail_count += 1
 
             if fail_count > 0:
                 message = "{0} Tasks creation failed.".format(fail_count)
