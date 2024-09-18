@@ -1136,11 +1136,16 @@ def save_voice_over(request):
                     text = voice_over_payload["text"]
                     if text == "" or len(text) == 0:
                         return Response(
-                            {"message": "Text can't be empty."},
+                            {"message": "Text can't be empty for segment "+str(index+1)},
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
                     original_duration = get_original_duration(start_time, end_time)
+                    if original_duration < 0.5:
+                        return Response(
+                            {"message": "Duration can't be 0 for segment "+str(index+1)},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
                     if (
                         voice_over.voice_over_type == "MACHINE_GENERATED"
