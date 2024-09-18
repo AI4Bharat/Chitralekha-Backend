@@ -2021,7 +2021,7 @@ def save_transcription(request):
                         )
                         for item in transcript_obj.payload["payload"]:
                             item['verbatim_text'] = item.pop('text')
-                            item['text'] = item['paraphrased_text'] if item['paraphrased_text'] is not None else item ['verbatim_text']
+                            item['text'] = item['paraphrased_text'] if item['paraphrased_text'] is not None else item['verbatim_text']
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
