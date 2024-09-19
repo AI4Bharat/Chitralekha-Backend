@@ -1141,7 +1141,7 @@ def save_voice_over(request):
                         )
 
                     original_duration = get_original_duration(start_time, end_time)
-                    if original_duration < 0.5:
+                    if original_duration < 0.1:
                         return Response(
                             {"message": "Duration can't be 0 for segment "+str(index+1)},
                             status=status.HTTP_400_BAD_REQUEST,
