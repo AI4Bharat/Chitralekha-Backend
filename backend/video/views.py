@@ -1094,7 +1094,11 @@ def upload_csv_org(request):
             {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
         )
 
-    if not org.organization_owners.filter(id=request.user.id).exists():
+    is_owner = org.organization_owners.filter(id=request.user.id).exists()
+
+    is_manager = request.user.role == "PROJECT_MANAGER" and request.user.organization.id == org_id
+
+    if not (is_owner or is_manager ):
         return Response(
             {"message": "You are not allowed to upload CSV."},
             status=status.HTTP_403_FORBIDDEN,
