@@ -10,6 +10,8 @@ from rest_framework.decorators import (
     permission_classes,
     authentication_classes,
 )
+from django.utils import timezone
+from datetime import timedelta
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from transcript.utils.TTML import generate_ttml
@@ -154,6 +156,7 @@ def export_translation(request):
         voice_over_obj = VoiceOver.objects.filter(task=task).first()
 
         updated_payload = []
+        index = 0
         for segment in voice_over_obj.payload["payload"].values():
             start_time = datetime.datetime.strptime(
                 segment["start_time"], "%H:%M:%S.%f"
@@ -416,6 +419,73 @@ def retrieve_translation(request):
             return Response(
                 {"message": "No translation found"}, status=status.HTTP_404_NOT_FOUND
             )
+
+
+@api_view(["GET"])
+def retrieve_all_translations(request):
+    """
+    Endpoint to retrieve all translations for a video entry, regardless of status
+    """
+    if "video_id" not in dict(request.query_params):
+        return Response(
+            {"message": "missing param: video_id"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    video_id = request.query_params["video_id"]
+
+    try:
+        video = Video.objects.get(pk=video_id)
+    except Video.DoesNotExist:
+        return Response(
+            {"message": "Video not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    translations = Translation.objects.filter(video=video)
+    if not translations.exists():
+        return Response(
+            {"message": "No translations found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    all_translations = []
+
+    for translation_obj in translations:
+        translation_payload = translation_obj.payload
+
+        if isinstance(translation_payload, str):
+            try:
+                translation_payload = json.loads(translation_payload)
+            except json.JSONDecodeError:
+                translation_payload = {"payload": []}
+
+        if not isinstance(translation_payload, dict):
+            translation_payload = {"payload": []}
+
+        data = {}
+        data["payload"] = []
+
+        for segment in translation_payload.get("payload", []):
+            if "target_text" in segment and segment["target_text"]:
+                data["payload"].append(segment)
+
+        translation_data = {
+            "id": translation_obj.id,
+            "translation_uuid": translation_obj.translation_uuid,
+            "translation_type": translation_obj.translation_type,
+            "parent": translation_obj.parent_id,
+            "transcript": translation_obj.transcript_id,
+            "target_language": translation_obj.target_language,
+            "user": translation_obj.user_id,
+            "status": translation_obj.status,
+            "data": data,
+            "video": translation_obj.video_id,
+            "task": translation_obj.task_id,
+        }
+
+        all_translations.append(translation_data)
+    return Response(all_translations, status=status.HTTP_200_OK)
 
 
 def get_translation_id(task):
@@ -2077,13 +2147,28 @@ def get_translation_types(request):
 @authentication_classes([])
 @permission_classes([])
 def get_translation_report(request):
-    translations = Translation.objects.filter(
-        status="TRANSLATION_EDIT_COMPLETE"
-    ).values(
+    start_date_str = request.query_params.get("start_date")
+    end_date_str = request.query_params.get("end_date")
+
+    translations = Translation.objects.filter(status="TRANSLATION_EDIT_COMPLETE")
+
+    def parse_date(date_str):
+        year, month, day = map(int, date_str.split("-"))
+        return timezone.make_aware(datetime.datetime(year, month, day, 0, 0, 0))
+
+    if start_date_str and end_date_str:
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str) + timedelta(days=1)
+        translations = translations.filter(
+            updated_at__date__range=(start_date.date(), end_date.date())
+        )
+
+    translations = translations.values(
         "video__project_id__organization_id__title",
         src_language=F("video__language"),
         tgt_language=F("target_language"),
     )
+
     translation_statistics = (
         translations.annotate(transcripts_translated=Count("id"))
         .annotate(translation_duration=Sum(F("video__duration")))

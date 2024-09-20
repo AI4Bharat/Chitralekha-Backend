@@ -7,6 +7,8 @@ from rest_framework.decorators import (
     authentication_classes,
     permission_classes,
 )
+from django.utils import timezone
+from datetime import timedelta
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
@@ -181,10 +183,16 @@ def export_transcript(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                    lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                if "verbatim_text" in segment.keys():
+                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                        lines.append(segment["speaker_id"] + ": " + segment["verbatim_text"] + "\n")
+                    else:
+                        lines.append(segment["verbatim_text"] + "\n")
                 else:
-                    lines.append(segment["text"] + "\n")
+                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                        lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                    else:
+                        lines.append(segment["text"] + "\n")
         filename = "transcript.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
@@ -193,22 +201,34 @@ def export_transcript(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                    lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                if "verbatim_text" in segment.keys():
+                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                        lines.append(segment["speaker_id"] + ": " + segment["verbatim_text"] + "\n")
+                    else:
+                        lines.append(segment["verbatim_text"] + "\n")
                 else:
-                    lines.append(segment["text"] + "\n")
+                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                        lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                    else:
+                        lines.append(segment["text"] + "\n")
         filename = "transcript.vtt"
         content = "\n".join(lines)
     elif export_type == "txt":
         for index, segment in enumerate(payload):
             if "text" in segment.keys():
-                lines.append(segment["text"])
+                if "verbatim_text" in segment.keys():
+                    lines.append(segment["verbatim_text"])
+                else:
+                    lines.append(segment["text"])
         filename = "transcript.txt"
         content = convert_to_paragraph(lines, task.video.name)
     elif export_type == "docx":
         for index, segment in enumerate(payload):
             if "text" in segment.keys():
-                lines.append(segment["text"])
+                if "verbatim_text" in segment.keys():
+                    lines.append(segment["verbatim_text"])
+                else:
+                    lines.append(segment["text"])
         filename = "transcript.txt"
         content = convert_to_paragraph(lines, task.video.name)
         return convert_to_docx(content)
@@ -257,31 +277,54 @@ def export_transcript(request):
 
     elif export_type == "sbv":
         for index, segment in enumerate(payload):
-            lines.append(
-                segment["start_time"]
-                + ","
-                + segment["end_time"]
-                + "\n"
-                + segment["text"]
-                + "\n"
-            )
+            if "verbatim_text" in segment.keys():
+                lines.append(
+                    segment["start_time"]
+                    + ","
+                    + segment["end_time"]
+                    + "\n"
+                    + segment["verbatim_text"]
+                    + "\n"
+                )
+            else:
+                lines.append(
+                    segment["start_time"]
+                    + ","
+                    + segment["end_time"]
+                    + "\n"
+                    + segment["text"]
+                    + "\n"
+                )
         filename = "transcript.sbv"
         content = "\n".join(lines)
 
     elif export_type == "TTML":
         lines = generate_ttml(payload)
         for index, segment in enumerate(payload):
-            lines.append(
-                "\t\t\t<p xml:id='subtitle"
-                + str(index + 1)
-                + "' begin='"
-                + segment["start_time"]
-                + "' end='"
-                + segment["end_time"]
-                + "' style='s1'>"
-                + segment["text"].replace(",", "<br/>")
-                + "</p>"
-            )
+            if "verbatim_text" in segment.keys():
+                lines.append(
+                    "\t\t\t<p xml:id='subtitle"
+                    + str(index + 1)
+                    + "' begin='"
+                    + segment["start_time"]
+                    + "' end='"
+                    + segment["end_time"]
+                    + "' style='s1'>"
+                    + segment["verbatim_text"].replace(",", "<br/>")
+                    + "</p>"
+                )
+            else:
+                lines.append(
+                    "\t\t\t<p xml:id='subtitle"
+                    + str(index + 1)
+                    + "' begin='"
+                    + segment["start_time"]
+                    + "' end='"
+                    + segment["end_time"]
+                    + "' style='s1'>"
+                    + segment["text"].replace(",", "<br/>")
+                    + "</p>"
+                )
         lines.append("\t\t</div>\n" + "\t</body>\n" + "</tt>\n")
         filename = "transcript.TTML"
         content = "\n".join(lines)
@@ -1385,7 +1428,6 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
         for ind in delete_indices:
             transcript.payload["payload"].pop(ind)
 
-
 @swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
@@ -1744,11 +1786,61 @@ def save_transcription(request):
                         task.video.project_id.paraphrasing_enabled
                         and transcript.paraphrase_stage != True
                     ):
+                        transcript_obj = (
+                            Transcript.objects.filter(status=TRANSCRIPTION_EDIT_INPROGRESS)
+                            .filter(video=task.video)
+                            .first()
+                        )
+
+                        tc_status = TRANSCRIPTION_EDIT_INPROGRESS
+                        if transcript_obj is not None:
+                            modify_payload(
+                                offset,
+                                limit,
+                                payload,
+                                start_offset,
+                                end_offset,
+                                transcript_obj,
+                            )
+                            # transcript_obj.payload = payload
+                            transcript_obj.transcript_type = transcript_obj.transcript_type
+                            transcript_obj.save()
+                        else:
+                            transcript_obj = (
+                                Transcript.objects.filter(
+                                    status=TRANSCRIPTION_SELECT_SOURCE
+                                )
+                                .filter(video=task.video)
+                                .first()
+                            )
+                            if transcript_obj is None:
+                                return Response(
+                                    {"message": "Transcript object does not exist."},
+                                    status=status.HTTP_404_NOT_FOUND,
+                                )
+
+                            transcript_obj = Transcript.objects.create(
+                                transcript_type=transcript_obj.transcript_type,
+                                parent_transcript=transcript_obj,
+                                video=task.video,
+                                language=transcript_obj.language,
+                                payload=transcript_obj.payload,
+                                user=request.user,
+                                task=task,
+                                status=tc_status,
+                            )
+                            modify_payload(
+                                offset,
+                                limit,
+                                payload,
+                                start_offset,
+                                end_offset,
+                                transcript_obj,
+                            )
+                            transcript_obj.save()
                         task.status = "POST PROCESS"
                         task.save()
-                        update_transcript_paraphrases(transcript)
-
-                        transcript_obj = transcript
+                        update_transcript_paraphrases(transcript_obj)
                     else:
                         if (
                             Transcript.objects.filter(
@@ -1787,6 +1879,9 @@ def save_transcription(request):
                             end_offset,
                             transcript_obj,
                         )
+                        for item in transcript_obj.payload["payload"]:
+                            item['verbatim_text'] = item.pop('text')
+                            item['text'] = item['paraphrased_text']
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
@@ -1898,6 +1993,9 @@ def save_transcription(request):
                             end_offset,
                             transcript_obj,
                         )
+                        for item in transcript_obj.payload["payload"]:
+                            item['verbatim_text'] = item.pop('text')
+                            item['text'] = item['paraphrased_text']
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
@@ -2151,9 +2249,25 @@ def get_transcript_types(request):
 @authentication_classes([])
 @permission_classes([])
 def get_transcription_report(request):
-    transcripts = Transcript.objects.filter(
-        status="TRANSCRIPTION_EDIT_COMPLETE"
-    ).values("language", "video__project_id__organization_id__title")
+    start_date_str = request.query_params.get("start_date")
+    end_date_str = request.query_params.get("end_date")
+
+    transcripts = Transcript.objects.filter(status="TRANSCRIPTION_EDIT_COMPLETE")
+
+    def parse_date(date_str):
+        year, month, day = map(int, date_str.split("-"))
+        return timezone.make_aware(datetime.datetime(year, month, day, 0, 0, 0))
+
+    if start_date_str and end_date_str:
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str) + timedelta(days=1)
+        transcripts = transcripts.filter(
+            updated_at__date__range=(start_date.date(), end_date.date())
+        )
+
+    transcripts = transcripts.values(
+        "language", "video__project_id__organization_id__title"
+    )
     transcription_statistics = transcripts.annotate(
         total_duration=Sum(F("video__duration"))
     ).order_by("-total_duration")

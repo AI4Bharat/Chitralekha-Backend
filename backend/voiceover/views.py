@@ -28,6 +28,7 @@ from .models import (
     VOICEOVER_REVIEW_INPROGRESS,
     VOICEOVER_REVIEW_COMPLETE,
 )
+from django.utils import timezone
 from datetime import datetime, timedelta
 from .utils import *
 from config import voice_over_payload_offset_size, app_name
@@ -707,10 +708,7 @@ def get_translated_text(request):
                 tmx_level,
             )
 
-            (
-                tgt,
-                tmx_replacement,
-            ) = tmxservice.replace_nmt_tgt_with_user_tgt(
+            (tgt, tmx_replacement,) = tmxservice.replace_nmt_tgt_with_user_tgt(
                 tmx_phrases,
                 text,
                 translated_text[0],
@@ -822,6 +820,68 @@ def save_voice_over(request):
         target_language = voice_over.target_language
         translation = voice_over.translation
 
+        if (
+            task.task_type == TRANSLATION_VOICEOVER_EDIT
+            and request.data.get("final")
+            and Translation.objects.filter(
+                task=task, status=TRANSLATION_EDIT_COMPLETE
+            ).first()
+            == None
+        ):
+            inprogress_translation = Translation.objects.filter(
+                task=task, status=TRANSLATION_EDIT_INPROGRESS
+            ).first()
+            complete_translation = copy.deepcopy(translation)
+            complete_translation.translation_uuid = uuid.uuid4()
+            complete_translation.status = TRANSLATION_EDIT_COMPLETE
+            complete_translation.id = None  # Reset the ID to create a new instance
+            complete_translation.parent = inprogress_translation
+            complete_translation.save()
+            if (
+                complete_translation.payload != ""
+                and complete_translation.payload is not None
+            ):
+                num_words = 0
+                for idv_translation in complete_translation.payload["payload"]:
+                    if "target_text" in idv_translation.keys():
+                        cleaned_text = regex.sub(
+                            r"[^\p{L}\s]", "", idv_translation["target_text"]
+                        ).lower()  # for removing special characters
+                        cleaned_text = regex.sub(
+                            r"\s+", " ", cleaned_text
+                        )  # for removing multiple blank spaces
+                        num_words += len(cleaned_text.split(" "))
+                complete_translation.payload["word_count"] = num_words
+                complete_translation.save()
+                voice_over.translation = complete_translation
+                voice_over.save()
+            else:
+                complete_translation.payload = {"payload": [], "word_count": 0}
+                complete_translation.save()
+                voice_over.translation = complete_translation
+                voice_over.save()
+            translation = complete_translation
+            print("Saved Complete Translation with inprogress", inprogress_translation)
+        else:
+            inprogress_translation = Translation.objects.filter(
+                task=task, status=TRANSLATION_EDIT_INPROGRESS
+            ).first()
+            if (
+                task.task_type == TRANSLATION_VOICEOVER_EDIT
+                and inprogress_translation == None
+            ):
+                inprogress_translation = copy.deepcopy(translation)
+                inprogress_translation.translation_uuid = uuid.uuid4()
+                inprogress_translation.status = TRANSLATION_EDIT_INPROGRESS
+                inprogress_translation.id = (
+                    None  # Reset the ID to create a new instance
+                )
+                inprogress_translation.parent = translation
+                inprogress_translation.save()
+                voice_over.translation = inprogress_translation
+                voice_over.save()
+                print("Saved IP Translation with inprogress")
+                translation = inprogress_translation
         # Check if the transcript has a user
         if task.user != request.user:
             return Response(
@@ -1848,7 +1908,23 @@ def get_voice_over_task_counts(request):
 
 @api_view(["GET"])
 def get_voiceover_report(request):
-    voiceovers = VoiceOver.objects.filter(status="VOICEOVER_EDIT_COMPLETE").values(
+    start_date_str = request.query_params.get("start_date")
+    end_date_str = request.query_params.get("end_date")
+
+    voiceovers = VoiceOver.objects.filter(status="VOICEOVER_EDIT_COMPLETE")
+
+    def parse_date(date_str):
+        year, month, day = map(int, date_str.split("-"))
+        return timezone.make_aware(datetime(year, month, day, 0, 0, 0))
+
+    if start_date_str and end_date_str:
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str) + timedelta(days=1)
+        voiceovers = voiceovers.filter(
+            updated_at__date__range=(start_date.date(), end_date.date())
+        )
+
+    voiceovers = voiceovers.values(        
         "video__project_id__organization_id__title",
         src_language=F("video__language"),
         tgt_language=F("target_language"),
@@ -1908,7 +1984,7 @@ def get_voiceover_report(request):
 )
 @api_view(["POST"])
 def reopen_translation_voiceover_task(request):
-    task_id = request.query_params.get("task_id")
+    task_id = request.data["task_id"]
 
     try:
         task = Task.objects.get(pk=task_id)

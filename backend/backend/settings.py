@@ -94,6 +94,7 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 
 DOMAIN = os.getenv("DOMAIN")
 SITE_NAME = os.getenv("DOMAIN")
+PROTOCOL = "https"
 
 DJOSER = {
     "PASSWORD_RESET_CONFIRM_URL": "forget-password/confirm/{uid}/{token}",

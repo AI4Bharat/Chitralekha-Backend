@@ -10,7 +10,6 @@ def transfer_organization_owner(apps, schema_editor):
             organization.organization_owners.add(organization.organization_owner_id)
             organization.save()
 
-
 class Migration(migrations.Migration):
     dependencies = [
         (
