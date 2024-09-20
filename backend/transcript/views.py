@@ -445,15 +445,6 @@ def retrieve_all_transcriptions(request):
             "transcript_type": transcript.transcript_type,
             "video": transcript.video.pk,
             "language": transcript.language,
-<<<<<<< Updated upstream
-            "task": transcript.task.task_uuid,
-            "user": transcript.user.username
-            if transcript.user
-            else "No user associated",
-            "parent_transcript": transcript.parent_transcript.id
-            if transcript.parent_transcript
-            else "No parent transcript",
-=======
             "task": transcript.task.pk,
             "user": (
                 transcript.user.username if transcript.user else "No user associated"
@@ -463,7 +454,6 @@ def retrieve_all_transcriptions(request):
                 if transcript.parent_transcript
                 else "No parent transcript"
             ),
->>>>>>> Stashed changes
             "data": transcript.payload,
         }
         transcript_list.append(transcript_data)
