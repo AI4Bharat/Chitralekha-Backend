@@ -438,9 +438,9 @@ def retrieve_all_transcriptions(request):
             "id": transcript.id,
             "status": transcript.status,
             "transcript_type": transcript.transcript_type,
-            "video": transcript.video.video_uuid,
+            "video": transcript.video.pk,
             "language": transcript.language,
-            "task": transcript.task.task_uuid,
+            "task": transcript.task.pk,
             "user": (
                 transcript.user.username if transcript.user else "No user associated"
             ),
