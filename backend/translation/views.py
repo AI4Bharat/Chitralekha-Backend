@@ -1673,7 +1673,7 @@ def save_translation(request):
         )
     bookmarked_segment = request.data.get("bookmark", None)
     user = request.user
-    if bookmarked_segment:
+    if bookmarked_segment is not None:
         user.user_history = {
             "task_id": task_id,
             "offset": offset,
