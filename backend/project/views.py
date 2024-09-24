@@ -1002,7 +1002,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         data_list = project_data["managers"].value
         managers_id = [user_dict["id"] for user_dict in data_list]
-
         for title in titles:
             project_data_1 = {
                 "title": title,
@@ -1024,6 +1023,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 "video_integration": project_data["video_integration"].value,
                 "default_task_description": project_data["default_description"].value,
                 "description": project_data["description"].value,
+                "paraphrase_enabled":project_data["paraphrasing_enabled"].value
             }
             # Create a request object with the necessary dat
             new_request = HttpRequest()
