@@ -652,6 +652,66 @@ def get_transcript_id(task):
     ),
     ],
     responses={
+        200: "Status has been changed successfully",
+        400: "Bad request",
+        404: "No transcript found for given task",
+    },
+)
+@api_view(["GET"])
+def reopen_completed_transcription_task(request):
+    if not request.user.is_authenticated:
+        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+    try:
+        task_id = request.query_params.get("task_id")
+    except KeyError:
+        return Response(
+            {
+                "message": "Missing required parameter - task_id"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    transcript = get_transcript_id(task)
+    if transcript is not None:
+        transcript_id = transcript.id
+    try:
+        transcript = Transcript.objects.get(pk=transcript_id)
+        transcript.delete()
+        task.status = "INPROGRESS"
+        task.save()
+        return Response(
+            {
+                "message": "Status has been changed successfully"
+            },
+            status=status.HTTP_200_OK,
+        )
+    except:
+        return Response(
+            {"message": "Transcript doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+    openapi.Parameter(
+        "task_id",
+        openapi.IN_QUERY,
+        description=("An integer to pass the task id"),
+        type=openapi.TYPE_INTEGER,
+        required=True,
+    ),
+    ],
+    responses={
         200: "Status has been fetched successfully",
         400: "Bad request",
         404: "No transcript found for given task",
@@ -2024,7 +2084,7 @@ def save_transcription(request):
                             transcript_obj,
                         )
                         for item in transcript_obj.payload["payload"]:
-                            item['verbatim_text'] = item.pop('text')
+                            item['verbatim_text'] = item['text']
                             item['text'] = item['paraphrased_text'] if item['paraphrased_text'] is not None else item['verbatim_text']
                         transcript_obj.save()
                         task.status = "COMPLETE"
@@ -2138,7 +2198,7 @@ def save_transcription(request):
                             transcript_obj,
                         )
                         for item in transcript_obj.payload["payload"]:
-                            item['verbatim_text'] = item.pop('text')
+                            item['verbatim_text'] = item['text']
                             item['text'] = item['paraphrased_text']
                         transcript_obj.save()
                         task.status = "COMPLETE"
