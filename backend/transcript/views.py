@@ -1967,7 +1967,7 @@ def save_transcription(request):
                 {"message": "Invalid Transcript."}, status=status.HTTP_400_BAD_REQUEST
             )
         # Check if the transcript has a user
-        if task.user == request.user:
+        if task.user != request.user:
             return Response(
                 {"message": "You are not allowed to update this transcript."},
                 status=status.HTTP_400_BAD_REQUEST,
