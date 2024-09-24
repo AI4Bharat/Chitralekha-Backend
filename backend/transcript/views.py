@@ -2057,6 +2057,9 @@ def save_transcription(request):
                             if task.status == "SELECTED_SOURCE":
                                 task.status = "COMPLETE"
                                 task.save()
+                            if task.status == "PARAPHRASE":
+                                task.status = "COMPLETE"
+                                task.save()
                             return Response(
                                 {
                                     "message": "Final Edited Transcript already submitted."
