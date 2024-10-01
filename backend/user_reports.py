@@ -26,7 +26,7 @@ from video.models import Video
 import logging
 from organization.models import Organization
 from config import app_name
-from utils.email_template import send_email_template_with_attachment
+from utils.email_template import send_email_template_with_attachment,complete_email_template_with_attachment
 
 
 def get_completed_tasks():
@@ -105,7 +105,7 @@ def get_completed_tasks():
                 )
                 logging.info("Sending Mail to %s", manager.email)
 
-                compiled_msg = send_email_template_with_attachment(
+                compiled_msg = complete_email_template_with_attachment(
                     subject=f"{app_name} - Completed Tasks Report",
                     username=manager["email"].split("@")[0],
                     message=email_to_send,
