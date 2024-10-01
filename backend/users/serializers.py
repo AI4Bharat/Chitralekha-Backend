@@ -6,8 +6,11 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from newsletter.serializers import SubscribedUsersSerializers
 from newsletter.models import SubscribedUsers
-
-
+from djoser.serializers import TokenCreateSerializer
+from django.contrib.auth import authenticate
+from rest_framework.exceptions import ValidationError
+from django.contrib.auth.hashers import check_password
+from rest_framework_simplejwt.tokens import RefreshToken
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(max_length=128, write_only=True, required=True)
     new_password1 = serializers.CharField(
@@ -97,6 +100,66 @@ class UserUpdateSerializerOrgOwner(serializers.ModelSerializer):
             "languages",
         ]
         read_only_fields = ["email"]
+
+
+class CustomTokenCreateSerializer(TokenCreateSerializer):
+    def validate(self, attrs):
+        email = attrs.get('email')
+        password = attrs.get('password')
+
+        if not email:
+            raise ValidationError({"detail": _("Email field is required.")})
+
+        # Authenticate using the custom email-based backend
+        user = authenticate(email=email, password=password)
+
+        if user is None:
+            # Check if the email exists in the database
+            if User.objects.filter(email=email).exists():
+                raise ValidationError({"detail": _("Email and password do not match.")})
+            else:
+                raise ValidationError({"detail": _("User does not exist.")})
+
+        # Return tokens after successful authentication
+        refresh = RefreshToken.for_user(user)
+        
+        return {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            
+        }
+    
+
+
+
+
+
+
+
+
+
+
+# class CustomTokenCreateSerializer(TokenCreateSerializer):
+#     def validate(self, attrs):
+#         email = attrs.get('email')
+#         password = attrs.get('password')
+
+#         if not email:
+#             raise ValidationError({"detail": _("Email field is required.")})
+
+#         # Authenticate using the custom email-based backend
+#         user = authenticate(email=email, password=password)
+
+#         if user is None:
+#             # Check if the email exists in the database
+#             if User.objects.filter(email=email).exists():
+#                 raise ValidationError({"detail": _("Email and password do not match.")})
+#             else:
+#                 raise ValidationError({"detail": _("User does not exist.")})
+
+#         # Return tokens after successful authentication
+#         return super().validate(attrs)
+   
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

@@ -11,6 +11,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import permission_classes
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import CustomTokenCreateSerializer
+
 from .serializers import (
     ChangePasswordSerializer,
     UserProfileSerializer,
@@ -20,6 +23,8 @@ from .serializers import (
     LanguageSerializer,
     UpdateUserPasswordSerializer,
 )
+from djoser.views import TokenCreateView
+from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from organization.models import Invite, Organization
 from organization.serializers import InviteGenerationSerializer
@@ -149,6 +154,19 @@ onboarding_table = """
         </body>
         </html>
 """
+
+class CustomTokenCreateView(APIView):
+    
+    serializer_class = CustomTokenCreateSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        
+        if serializer.is_valid(raise_exception=True):
+            token_data = serializer.validated_data  # This now contains the tokens
+            return Response(token_data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST) 
 
 
 class OnboardingAPIView(APIView):
