@@ -69,7 +69,8 @@ import requests
 from transcript.utils.timestamp import *
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
-
+from transcript.views import get_transcript_id
+from task.tasks import celery_nmt_tts_call
 
 @api_view(["GET"])
 def get_translation_export_types(request):
@@ -2335,3 +2336,17 @@ def get_translation_report(request):
         res.append(temp_data)
 
     return Response(res, status=status.HTTP_200_OK)
+
+def regenerate_translation_voiceover(task_id):
+    task_obj = Task.objects.get(pk=task_id)
+    video = Video.objects.filter(id=task_obj.video_id).first()
+    transcription_task = Task.objects.filter(video=video, task_type="TRANSCRIPTION_EDIT", status="COMPLETE").first()
+    if transcription_task is None:
+        return False
+    transcript = get_transcript_id(transcription_task)
+    transcript_obj = Transcript.objects.get(pk=transcript.id)
+    translation = Translation.objects.filter(task=task_obj).first()
+    translation.transcript = transcript_obj
+    translation.save()
+    celery_nmt_tts_call.delay(task_id)
+    return True
