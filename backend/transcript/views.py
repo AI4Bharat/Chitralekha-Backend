@@ -1362,8 +1362,6 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                 translation.save()
                 if source_type == None or source_type == "MACHINE_GENERATED":
                     source_type = "MACHINE_GENERATED"
-                    translation.transcript = transcript_obj
-                    translation.save()
                     celery_nmt_tts_call.delay(task_id=translation.task.id)
                 else:
                     payloads = generate_translation_payload(

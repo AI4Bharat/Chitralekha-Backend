@@ -87,7 +87,7 @@ from translation.views import export_translation, get_translation_id
 from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 import regex
-
+from translation.views import regenerate_translation_voiceover
 
 def get_export_translation(request, task_id, export_type):
     new_request = HttpRequest()
@@ -3392,6 +3392,12 @@ class TaskViewSet(ModelViewSet):
         elif task.task_type == "VOICEOVER_EDIT":
             celery_tts_call.delay(task_id=task.id)
             api = "TTS"
+        elif task.task_type == "TRANSLATION_VOICEOVER_EDIT":
+            if regenerate_translation_voiceover(task.id) is False:
+                return Response(
+                    {"message": "Transcription task is not complete yet"}, status=status.HTTP_400_BAD_REQUEST
+                )
+            api = "NMT-TTS"
         else:
             return Response(
                 {"message": "Invalid task"}, status=status.HTTP_400_BAD_REQUEST
