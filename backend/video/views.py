@@ -11,6 +11,7 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from transcript.models import ORIGINAL_SOURCE, Transcript
+from .utils import fetch_video_details 
 from translation.models import Translation
 from project.decorators import is_project_owner
 from .models import Video, GENDER, MULTISPEAKER_AGE_GROUP
@@ -233,6 +234,12 @@ def delete_video(request):
     ],
     responses={200: "Return the video subtitle payload"},
 )
+
+
+
+
+
+
 @api_view(["GET"])
 def get_video(request):
     """
@@ -243,6 +250,51 @@ def get_video(request):
     """
     return get_video_func(request)
     # Get the video URL from the query params
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+        openapi.Parameter(
+            "video_uuid",
+            openapi.IN_QUERY,
+            description="UUID of the video to fetch",
+            type=openapi.TYPE_STRING,
+            required=False,
+        ),
+        openapi.Parameter(
+            "video_url",
+            openapi.IN_QUERY,
+            description="URL of the video to fetch",
+            type=openapi.TYPE_STRING,
+            required=False,
+        ),
+    ],
+    responses={
+        200: "Return the video details payload",
+        400: "Invalid input or missing parameters",
+        404: "Video not found",
+    },
+)
+
+@api_view(["GET"])
+def get_video_details(request):
+    """
+    API Endpoint to fetch all listings of a video by URL or ID.
+    Endpoint: /video-listings/
+    Method: GET
+    Query Params:
+      - video_url (optional)
+      - video_uuid (optional)
+    
+    If the video exists in multiple projects, it returns all instances.
+    """
+    video_uuid = request.GET.get("video_uuid")
+    video_url = request.GET.get("video_url")
+    
+    response_data, http_status = fetch_video_details(video_uuid=video_uuid, video_url=video_url)
+    
+    return Response(response_data, status=http_status)
+
 
 
 @swagger_auto_schema(
@@ -1094,7 +1146,11 @@ def upload_csv_org(request):
             {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
         )
 
-    if not org.organization_owners.filter(id=request.user.id).exists():
+    is_owner = org.organization_owners.filter(id=request.user.id).exists()
+
+    is_manager = request.user.role == "PROJECT_MANAGER" and request.user.organization.id == org_id
+
+    if not (is_owner or is_manager ):
         return Response(
             {"message": "You are not allowed to upload CSV."},
             status=status.HTTP_403_FORBIDDEN,

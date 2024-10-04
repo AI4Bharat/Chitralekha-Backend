@@ -8,6 +8,7 @@ from yt_dlp.extractor import get_info_extractor
 from django.http import HttpRequest, QueryDict
 from transcript.views import export_transcript
 from translation.views import export_translation
+from django.shortcuts import get_object_or_404,get_list_or_404
 import logging
 from django.conf import settings
 from django.core.mail import send_mail, EmailMultiAlternatives
@@ -245,6 +246,59 @@ def iso8601_duration_to_seconds(iso_duration):
 
     total_seconds = hours * 3600 + minutes * 60 + seconds
     return total_seconds
+
+def fetch_video_details(video_uuid=None, video_url=None):
+    if video_url:
+        # Fetch all videos matching the URL
+        videos = get_list_or_404(Video, url=video_url)
+        video_list = []
+        for video in videos:
+            video_list.append({
+                "id": video.id,
+                "video_uuid": str(video.video_uuid),
+                "name": video.name,
+                "url": video.url,
+                "language": video.language,
+                "description": video.description,
+                "duration": str(video.duration),
+                "subtitles": video.subtitles,
+                "audio_only": video.audio_only,
+                "project_id": video.project_id.id,  
+                "language_label": video.get_language_label,
+                "gender_label": video.get_gender_label,
+                "speaker_info": video.speaker_info,
+                "multiple_speaker": video.multiple_speaker
+            })
+        response_data = {
+            "videos": video_list,
+            
+        }
+        return response_data, 200
+
+    elif video_uuid:
+        # Fetch a single video matching the UUID
+        video = get_object_or_404(Video, video_uuid=video_uuid)
+        response_data = {
+            "video": {
+                "id": video.id,
+                "video_uuid": str(video.video_uuid),
+                "name": video.name,
+                "url": video.url,
+                "language": video.language,
+                "description": video.description,
+                "duration": str(video.duration),
+                "subtitles": video.subtitles,
+                "audio_only": video.audio_only,
+                "project_id": video.project_id.id,  
+                "language_label": video.get_language_label,
+                "gender_label": video.get_gender_label,
+                "speaker_info": video.speaker_info,
+                "multiple_speaker": video.multiple_speaker
+            },
+            
+        }
+        return response_data, 200  
+
 
 
 def get_video_func(request):
