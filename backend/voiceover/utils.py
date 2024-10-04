@@ -1157,6 +1157,14 @@ def check_audio_completion(voice_over_obj):
                         "message": "There is no audio present in this card.",
                     }
                 )
+            if (get_original_duration(voice_over_obj.payload["payload"][str(index)]["start_time"], voice_over_obj.payload["payload"][str(index)]["end_time"]) < 0.1):
+                missing_cards.append(
+                    {
+                        "card_number": index + 1,
+                        "message": "Duration is 0 for this card.",
+                    }
+                )
+            
     return missing_cards
 
 
