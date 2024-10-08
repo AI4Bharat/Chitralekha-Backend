@@ -1137,6 +1137,13 @@ def check_audio_completion(voice_over_obj):
 
     for index, payload in enumerate(voice_over_obj.translation.payload["payload"]):
         if str(index) in voice_over_obj.payload["payload"].keys():
+            if (get_original_duration(voice_over_obj.payload["payload"][str(index)]["start_time"], voice_over_obj.payload["payload"][str(index)]["end_time"]) < 0.1):
+                missing_cards.append(
+                    {
+                        "card_number": index + 1,
+                        "message": "Duration is 0 for this card.",
+                    }
+                )
             if (
                 "audio" in voice_over_obj.payload["payload"][str(index)].keys()
                 and type(voice_over_obj.payload["payload"][str(index)]["audio"]) == dict
@@ -1155,13 +1162,6 @@ def check_audio_completion(voice_over_obj):
                     {
                         "card_number": index + 1,
                         "message": "There is no audio present in this card.",
-                    }
-                )
-            if (get_original_duration(voice_over_obj.payload["payload"][str(index)]["start_time"], voice_over_obj.payload["payload"][str(index)]["end_time"]) < 0.1):
-                missing_cards.append(
-                    {
-                        "card_number": index + 1,
-                        "message": "Duration is 0 for this card.",
                     }
                 )
             
