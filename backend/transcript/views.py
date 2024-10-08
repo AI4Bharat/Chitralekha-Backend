@@ -77,7 +77,7 @@ import os
 from .utils.timestamp import *
 import openai
 from utils.llm_api import get_model_output
-
+from voiceover.models import VoiceOver
 
 @api_view(["GET"])
 def get_transcript_export_types(request):
@@ -161,10 +161,35 @@ def export_transcript(request):
 
     transcript = get_transcript_id(task)
     if transcript is None:
-        return Response(
-            {"message": "Transcript not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        try:
+            if task.task_type == "TRANSLATION_VOICEOVER_EDIT" and task.status != "COMPLETE":
+                voice_over_obj = VoiceOver.objects.filter(task=task).first()
+                transcript = voice_over_obj.translation.transcript
+            updated_payload = []
+            index = 0
+            for segment in voice_over_obj.payload["payload"].values():
+                start_time = datetime.datetime.strptime(
+                    segment["start_time"], "%H:%M:%S.%f"
+                )
+                end_time = datetime.datetime.strptime(segment["end_time"], "%H:%M:%S.%f")
+                unix_start_time = datetime.datetime.timestamp(start_time)
+                unix_end_time = datetime.datetime.timestamp(end_time)
+
+                updated_segment = {
+                    "start_time": segment["start_time"],
+                    "end_time": segment["end_time"],
+                    "text": segment["transcription_text"],
+                    "speaker_id": "",
+                    "unix_start_time": unix_start_time,
+                    "unix_end_time": unix_end_time,
+                }
+                updated_payload.append(updated_segment)
+            transcript.payload["payload"] = updated_payload
+        except:
+            return Response(
+                {"message": "Transcript not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
     if with_speaker_info:
         speaker_info = transcript.video.multiple_speaker

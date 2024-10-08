@@ -163,8 +163,6 @@ def export_translation(request):
             end_time = datetime.datetime.strptime(segment["end_time"], "%H:%M:%S.%f")
             unix_start_time = datetime.datetime.timestamp(start_time)
             unix_end_time = datetime.datetime.timestamp(end_time)
-            target_text = segment["text"]
-            target_text = segment["transcription_text"]
 
             updated_segment = {
                 "start_time": segment["start_time"],

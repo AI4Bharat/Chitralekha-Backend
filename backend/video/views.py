@@ -1024,6 +1024,27 @@ def upload_csv_data(request):
         else:
             valid_row["assignee"] = User.objects.get(email=row["Assignee"].strip()).id
 
+        format = "%d-%m-%Y"
+        input_eta = datetime.datetime.strptime(row["ETA"], format)
+        curr_date = datetime.datetime.now().date()
+        if bool(input_eta) == False:
+            errors.append(
+                {
+                    "row_no": f"Row {row_num}",
+                    "message": f"Invalid ETA Format, expected format is dd-mm-yyyy: received{row['ETA']}",
+                }
+            )
+        elif input_eta.date() < curr_date:
+            errors.append(
+                {
+                    "row_no": f"Row {row_num}",
+                    "message": f"ETA can't be less than current Date: received{row['ETA']}",
+                }
+            )
+
+        else:
+            valid_row["ETA"] = input_eta.strftime("%Y-%m-%dT18:29:00.000Z")
+
         valid_row["video_description"] = row["Video Description"]
         valid_row["task_description"] = row["Task Description"]
         video = Video.objects.filter(url=row["Youtube URL"].strip()).first()
