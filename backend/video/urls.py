@@ -6,7 +6,7 @@ from . import views
 urlpatterns = [
     path("", views.get_video, name="get_video"),
     path(
-        "api/generic/transliteration/<str:target_language>/<str:data>/",
+        "xlit-api/generic/transliteration/<str:target_language>/<str:data>",
         TransliterationAPIView.as_view(),
         name="transliteration-api",
     ),
