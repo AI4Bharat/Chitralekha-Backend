@@ -102,7 +102,7 @@ class TransliterationAPIView(APIView):
     def get(self, request, target_language, data, *args, **kwargs):
         response_transliteration = requests.get(
             os.getenv("TRANSLITERATION_URL") + target_language + "/" + data,
-            # headers={"Authorization": "Bearer " + os.getenv("TRANSLITERATION_KEY")},
+            headers={"Authorization": "Bearer " + os.getenv("TRANSLITERATION_KEY")},
         )
 
         print(response_transliteration)
