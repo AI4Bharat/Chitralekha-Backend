@@ -37,6 +37,7 @@ from config import *
 from collections import Counter
 from rest_framework.views import APIView
 import config
+from rest_framework.permissions import IsAuthenticated
 
 accepted_languages = [
     "as",
@@ -96,24 +97,15 @@ required_fields_org = [
 
 
 class TransliterationAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    
     def get(self, request, target_language, data, *args, **kwargs):
-        json_data = {
-            "input": [{"source": data}],
-            "config": {
-                "language": {
-                    "sourceLanguage": "en",
-                    "targetLanguage": target_language,
-                },
-                "isSentence": False,
-                "numSuggestions": 5,
-            },
-        }
-        logging.info("Calling Transliteration API")
-        response_transliteration = requests.post(
-            config.transliteration_url,
-            headers={"authorization": config.dhruva_key},
-            json=json_data,
+        response_transliteration = requests.get(
+            os.getenv("TRANSLITERATION_URL") + target_language + "/" + data,
+            # headers={"Authorization": "Bearer " + os.getenv("TRANSLITERATION_KEY")},
         )
+
+        print(response_transliteration)
 
         transliteration_output = response_transliteration.json()
         return Response(transliteration_output, status=status.HTTP_200_OK)
