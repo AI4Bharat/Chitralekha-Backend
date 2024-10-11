@@ -8,6 +8,7 @@ from config import (
     indic_asr_url,
     dhruva_key,
     service_id_hindi,
+    service_id_nepali,
     service_id_indo_aryan,
     service_id_dravidian,
 )
@@ -51,6 +52,8 @@ def make_asr_api_call(url, lang, vad_level=3, chunk_size=10):
             service_id = service_id_indo_aryan
         elif lang in ["kn", "ml", "ta", "te"]:
             service_id = service_id_dravidian
+        elif lang in ["ne"]:
+            service_id = service_id_nepali
         else:
             return None
 
