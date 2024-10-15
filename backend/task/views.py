@@ -3193,6 +3193,8 @@ class TaskViewSet(ModelViewSet):
                         )
                     elif elem["name"] == "task.tasks.celery_nmt_call":
                         task_obj["task_id"] = eval(elem["kwargs"])["task_id"]
+                    elif elem["name"] == "task.tasks.celery_nmt_tts_call":
+                        task_obj["task_id"] = eval(elem["kwargs"])["task_id"]
                     else:
                         task_obj["task_id"] = ""
 
@@ -3230,11 +3232,13 @@ class TaskViewSet(ModelViewSet):
                 )
         else:
             if queue == "nmt":
-                queue_type = "celery@nmt_worker"
+                queue_type = "task.tasks.celery_nmt_call"
             elif queue == "tts":
-                queue_type = "celery@asr_tts_worker"
+                queue_type = "task.tasks.celery_tts_call"
+            elif queue == "nmt_tts":
+                queue_type = "task.tasks.celery_nmt_tts_call"
             else:
-                queue_type = "celery@asr_tts_worker"
+                queue_type = "task.tasks.celery_asr_call"
 
             try:
                 task_list = []
@@ -3242,7 +3246,7 @@ class TaskViewSet(ModelViewSet):
                 params = {
                     "state": "STARTED",
                     "sort_by": "received",
-                    "workername": queue_type,
+                    "name": queue_type,
                 }
                 if flower_username and flower_password:
                     res = requests.get(
