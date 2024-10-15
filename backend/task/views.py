@@ -3194,7 +3194,7 @@ class TaskViewSet(ModelViewSet):
                     elif elem["name"] == "task.tasks.celery_nmt_call":
                         task_obj["task_id"] = eval(elem["kwargs"])["task_id"]
                     elif elem["name"] == "task.tasks.celery_nmt_tts_call":
-                        task_obj["task_id"] = eval(elem["kwargs"])["task_id"]
+                        task_obj["task_id"] = eval(elem["kwargs"])["task_id"] or eval(elem["args"])[0]
                     else:
                         task_obj["task_id"] = ""
 
