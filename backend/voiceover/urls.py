@@ -63,4 +63,9 @@ urlpatterns = [
         views.get_voiceover_report,
         name="get_voiceover_report",
     ),
+    path(
+        "csv_bulk_regenerate",
+        views.csv_bulk_regenerate,
+        name="csv_bulk_regenerate",
+    ),
 ]

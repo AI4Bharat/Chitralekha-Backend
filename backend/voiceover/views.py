@@ -1,3 +1,5 @@
+import csv
+import io
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
@@ -7,6 +9,9 @@ from rest_framework.decorators import (
     authentication_classes,
 )
 from rest_framework.response import Response
+from task.tasks import celery_nmt_tts_call
+from transcript.models import Transcript
+from transcript.views import get_transcript_id
 from task.models import Task, TRANSLATION_VOICEOVER_EDIT
 from translation.utils import get_batch_translations_using_indictrans_nmt_api
 from translation.models import (
@@ -45,6 +50,8 @@ import uuid
 import regex
 from glossary.tmx.tmxservice import TMXService
 from organization.decorators import is_admin
+from organization.models import Organization
+from video.models import Video
 
 @api_view(["GET"])
 def get_voice_over_export_types(request):
@@ -2202,4 +2209,107 @@ def reopen_translation_voiceover_task(request):
         return Response(
             {"message": "Can not reopen this task."},
             status=status.HTTP_400_BAD_REQUEST,
+        )
+
+@api_view(["POST"])
+def csv_bulk_regenerate(request):
+    """
+    API Endpoint to upload a csv file to regenerate failed VOTR tasks
+    Endpoint: /voiceover/csv_bulk_regenerate/
+    Method: POST
+    """
+
+    org_id = request.data.get("org_id")
+    csv_content = request.data.get("csv")
+
+    try:
+        org = Organization.objects.get(pk=org_id)
+    except Organization.DoesNotExist:
+        return Response(
+            {"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    if not org.organization_owners.filter(id=request.user.id).exists():
+        return Response(
+            {"message": "You are not allowed to upload CSV."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    decrypted = base64.b64decode(csv_content).decode("utf-8")
+    task_ids = []
+    with io.StringIO(decrypted) as fp:
+        reader = csv.reader(fp, delimiter=",", quotechar='"')
+        for row in reader:
+            if row:
+                task_ids.append(int(row[0]))
+
+    if len(task_ids) > 30:
+        return Response(
+            {"message": "Number of task id's is greater than 30."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    errors = []
+
+    for task_id in task_ids:
+        try:
+            task_obj = Task.objects.get(pk=task_id)
+            if task_obj.video.project_id.organization_id.id != org_id:
+                errors.append(
+                    {
+                        "row_no": f"Task {task_id}",
+                        "message": f"Task Id does not belong to your organization",
+                    }
+                )
+                continue
+            # add flower queue check
+        except Task.DoesNotExist:
+            errors.append(
+                {
+                    "row_no": f"Task {task_id}",
+                    "message": f"Task Id does not exists",
+                }
+            )
+            continue
+
+        voiceover_obj = get_voice_over_id(task_obj)
+
+        if voiceover_obj is None:
+            errors.append(
+                {
+                    "row_no": f"Task {task_id}",
+                    "message": f"Voiceover object does not exists",
+                }
+            )
+            continue
+
+        voice_over = VoiceOver.objects.get(pk=voiceover_obj.id)
+
+        if voice_over.translation.transcript == None:
+            transcription_task = Task.objects.filter(video=task_obj.video, task_type="TRANSCRIPTION_EDIT", status="COMPLETE").first()
+            if transcription_task is None:
+                errors.append(
+                    {
+                        "row_no": f"Task {task_id}",
+                        "message": f"Transcription not completed yet for this VOTR task",
+                    }
+                )
+                continue
+
+            transcript = get_transcript_id(transcription_task)
+            transcript_obj = Transcript.objects.get(pk=transcript.id)
+            translation = Translation.objects.filter(task=task_obj).first()
+            translation.transcript = transcript_obj
+            translation.save()
+
+    if len(errors) > 0:
+        return Response(
+            {"message": "Invalid CSV", "response": errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    else:
+        for task_id in task_ids:
+            celery_nmt_tts_call.delay(task_id)
+        return Response(
+            {"message": "CSV uploaded successfully"}, status=status.HTTP_200_OK
         )

@@ -2337,8 +2337,7 @@ def get_translation_report(request):
 
 def regenerate_translation_voiceover(task_id):
     task_obj = Task.objects.get(pk=task_id)
-    video = Video.objects.filter(id=task_obj.video_id).first()
-    transcription_task = Task.objects.filter(video=video, task_type="TRANSCRIPTION_EDIT", status="COMPLETE").first()
+    transcription_task = Task.objects.filter(video=task_obj.video, task_type="TRANSCRIPTION_EDIT", status="COMPLETE").first()
     if transcription_task is None:
         return False
     transcript = get_transcript_id(transcription_task)
