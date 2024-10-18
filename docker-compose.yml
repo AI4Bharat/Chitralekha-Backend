@@ -53,7 +53,7 @@ services:
         condition: service_started
       backend:
         condition: service_started
-    command: python3 -m celery -A backend worker -Q asr_tts -n asr_tts_worker --concurrency=4 -l DEBUG
+    command: python3 -m celery -A backend worker -Q asr_tts -n asr_tts_worker --concurrency=1 -l DEBUG
     restart: unless-stopped
 
   celery_nmt:
