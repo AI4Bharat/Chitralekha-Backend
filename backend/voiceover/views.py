@@ -378,6 +378,7 @@ def get_payload(request):
         )
     if voice_over.voice_over_type == "MACHINE_GENERATED":
         input_sentences = []
+        fast_audio_threshold = 20 if task.target_language != "sa" else 16
         for text, index in translation_payload:
             audio_index = str(start_offset + index)
             if audio_index in voice_over.payload["payload"].keys():
@@ -419,6 +420,7 @@ def get_payload(request):
                             "audio"
                         ],
                         "audio_speed": 1,
+                        "fast_audio": True if len(transcription_text)/t_d < fast_audio_threshold else False,
                     }
                 )
         payload = {"payload": sentences_list}
