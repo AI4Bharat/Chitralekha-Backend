@@ -1033,7 +1033,7 @@ def save_voice_over(request):
                 print("Saved IP Translation with inprogress")
                 translation = inprogress_translation
         # Check if the transcript has a user
-        if task.user == request.user:
+        if task.user != request.user:
             return Response(
                 {"message": "You are not allowed to update this voice_over."},
                 status=status.HTTP_400_BAD_REQUEST,
