@@ -411,7 +411,7 @@ def get_payload(request):
                 )
                 try:
                     text_length_per_second = len(transcription_text)/t_d
-                except ZeroDivisionError:
+                except:
                     text_length_per_second = 0
                 sentences_list.append(
                     {
@@ -1499,7 +1499,7 @@ def save_voice_over(request):
                             else:
                                 try:
                                     text_length_per_second = len(transcription_text)/t_d
-                                except ZeroDivisionError:
+                                except:
                                     text_length_per_second = 0
                                 voice_over_obj.payload["payload"][
                                     str(start_offset + i)
