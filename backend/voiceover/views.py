@@ -1405,6 +1405,8 @@ def save_voice_over(request):
                     if voice_over_obj is not None and int(
                         payload["payload"][0]["id"]
                     ) == int(offset):
+                        fast_audio_threshold = 20 if task.target_language != "sa" else 16
+                        moderate_audio_threshold = 16 if task.target_language != "sa" else 12
                         for i in range(len(payload["payload"])):
                             start_time = payload["payload"][i]["start_time"]
                             end_time = payload["payload"][i]["end_time"]
@@ -1492,6 +1494,7 @@ def save_voice_over(request):
                                     }
                                 )
                             else:
+                                text_length_per_second = len(transcription_text)/t_d
                                 voice_over_obj.payload["payload"][
                                     str(start_offset + i)
                                 ] = {
@@ -1531,6 +1534,7 @@ def save_voice_over(request):
                                         "transcription_text": payload["payload"][i][
                                             "transcription_text"
                                         ],
+                                        "fast_audio": 0 if text_length_per_second < moderate_audio_threshold else 1 if text_length_per_second < fast_audio_threshold else 2,
                                     }
                                 )
                         voice_over_obj.save()
