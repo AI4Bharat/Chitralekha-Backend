@@ -412,7 +412,7 @@ def get_payload(request):
                 try:
                     text_length_per_second = len(transcription_text)/t_d
                 except:
-                    text_length_per_second = 0
+                    text_length_per_second = 100
                 sentences_list.append(
                     {
                         "id": str(int(audio_index) + 1),
@@ -1500,7 +1500,7 @@ def save_voice_over(request):
                                 try:
                                     text_length_per_second = len(transcription_text)/t_d
                                 except:
-                                    text_length_per_second = 0
+                                    text_length_per_second = 100
                                 voice_over_obj.payload["payload"][
                                     str(start_offset + i)
                                 ] = {
