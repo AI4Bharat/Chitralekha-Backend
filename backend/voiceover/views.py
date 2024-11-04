@@ -409,7 +409,10 @@ def get_payload(request):
                     + float(time_difference.split(":")[1]) * 60
                     + float(time_difference.split(":")[2])
                 )
-                text_length_per_second = len(transcription_text)/t_d
+                try:
+                    text_length_per_second = len(transcription_text)/t_d
+                except ZeroDivisionError:
+                    text_length_per_second = 0
                 sentences_list.append(
                     {
                         "id": str(int(audio_index) + 1),
@@ -1494,7 +1497,10 @@ def save_voice_over(request):
                                     }
                                 )
                             else:
-                                text_length_per_second = len(transcription_text)/t_d
+                                try:
+                                    text_length_per_second = len(transcription_text)/t_d
+                                except ZeroDivisionError:
+                                    text_length_per_second = 0
                                 voice_over_obj.payload["payload"][
                                     str(start_offset + i)
                                 ] = {
