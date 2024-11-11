@@ -1227,6 +1227,8 @@ def adjust_audio(audio_file, original_time, audio_speed):
     elif audio_time_difference == 0:
         logging.info("No time difference")
     elif audio_time_difference < -0.001:
+        if original_time == 0:
+            raise ZeroDivisionError
         logging.info("Speed up the audio by %s", str(seconds / original_time))
         speedup_factor = seconds / original_time
         if speedup_factor > 1.009:
