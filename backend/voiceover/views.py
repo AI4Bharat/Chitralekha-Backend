@@ -1185,9 +1185,15 @@ def save_voice_over(request):
                 if voice_over.voice_over_type == "MANUALLY_CREATED":
                     voiceover_adjusted = adjust_voiceover(translation_payload)
                 else:
-                    voiceover_machine_generated = generate_voiceover_payload(
-                        translation_payload, task.target_language, task
-                    )
+                    try:
+                        voiceover_machine_generated = generate_voiceover_payload(
+                            translation_payload, task.target_language, task
+                        )
+                    except ZeroDivisionError:
+                        return Response(
+                            {"message": "Cannot generate voiceover due to 0 duration for a segment"},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
                 if request.data.get("final"):
                     if (
                         VoiceOver.objects.filter(status=VOICEOVER_EDIT_COMPLETE)
