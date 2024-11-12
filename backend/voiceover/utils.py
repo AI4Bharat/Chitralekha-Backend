@@ -1360,6 +1360,23 @@ def integrate_all_audios(file_name, payload, video_duration):
                     final_audio.export(
                         file_name + "_" + str(previous_index) + ".ogg", format="ogg"
                     )
+            if "time_difference" not in payload["payload"][str(index)]:
+                start_time = payload["payload"][str(index)]["start_time"]
+                end_time = payload["payload"][str(index)]["end_time"]
+                time_difference = (
+                    datetime.strptime(end_time, "%H:%M:%S.%f")
+                    - timedelta(
+                        hours=float(start_time.split(":")[0]),
+                        minutes=float(start_time.split(":")[1]),
+                        seconds=float(start_time.split(":")[-1]),
+                    )
+                ).strftime("%H:%M:%S.%f")
+                t_d = (
+                    int(time_difference.split(":")[0]) * 3600
+                    + int(time_difference.split(":")[1]) * 60
+                    + float(time_difference.split(":")[2])
+                )
+                payload["payload"][str(index)]["time_difference"] = t_d
             if index == length_payload - 1:
                 original_time = payload["payload"][str(index)]["time_difference"]
                 end_time = payload["payload"][str(index)]["end_time"]
