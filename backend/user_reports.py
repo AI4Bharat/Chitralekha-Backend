@@ -129,6 +129,67 @@ def get_completed_tasks():
             else:
                 html_table_df_tasks = ""
 
+def get_active_tasks():
+    users = User.objects.filter(id=64)
+    for member in list(users):
+        tasks_managed = []
+        tasks = (
+            Task.objects
+            .filter(status__in=["INPROGRESS", "SELECTED_SOURCE"])
+            .filter(is_active=True)
+            .filter(user=member)
+        )
+        for task in tasks:
+            tasks_managed.append(
+                {
+                    "Project Name": task.video.project_id.title,
+                    "Project Id": task.video.project_id.id,
+                    "Task ID": task.id,
+                    "Task Type": task.get_task_type_label,
+                }
+            )
+        if len(tasks_managed) > 0:
+            df = pd.DataFrame.from_records(tasks_managed)
+            blankIndex = [""] * len(df)
+            df.index = blankIndex
+            html_table_df_tasks = build_table(
+                df,
+                "orange_light",
+                font_size="medium",
+                text_align="left",
+                width="auto",
+                index=False,
+            )
+            message = (
+                "Hope you are doing great  "
+                + str(member.first_name + " " + member.last_name)
+                + ",\n Following tasks are active now."
+            )
+
+            email_to_send = (
+                "<p>"
+                + message
+                + "</p><br><h1><b>Active Tasks Reports</b></h1>"
+                + html_table_df_tasks
+            )
+            logging.info("Sending Mail to %s", member.email)
+
+            compiled_msg = send_email_template_with_attachment(
+                subject=f"{app_name} - Active Tasks Report",
+                username=[member.email],
+                message=email_to_send,
+            )
+            msg = EmailMultiAlternatives(
+                f"{app_name} - Active Tasks Report",
+                compiled_msg,
+                settings.DEFAULT_FROM_EMAIL,
+                [member.email],
+            )
+            email_content = compiled_msg + html_table_df_tasks
+            msg.attach_alternative(email_content, "text/html")
+            msg.send()
+        else:
+            html_table_df_tasks = ""
 
 def get_new_tasks():
     logging.info("Calculate Reports...")
