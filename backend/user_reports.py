@@ -148,6 +148,7 @@ def get_active_tasks():
                     "Task Type": task.get_task_type_label,
                 }
             )
+        logging.info(tasks_managed)
         if len(tasks_managed) > 0:
             df = pd.DataFrame.from_records(tasks_managed)
             blankIndex = [""] * len(df)
