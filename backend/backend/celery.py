@@ -32,6 +32,10 @@ celery_app.conf.beat_schedule = {
         "task": "send_completed_tasks_mail",
         "schedule": crontab(minute=0, hour="*/6"),  # execute 4 times in a day
     },
+    "Send_mail_to_users_active": {
+        "task": "send_active_tasks_mail",
+        "schedule": crontab(minute=0, hour="11"),
+    },
     "Send_mail_to_managers_new": {
         "task": "send_new_tasks_mail",
         "schedule": crontab(minute=0, hour=1),  # execute everyday at 1 am
