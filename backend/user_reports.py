@@ -125,12 +125,14 @@ def get_active_tasks():
             .filter(user=member)
         )
         for task in tasks:
+            type = "voiceover" if task.task_type.find("VOICEOVER") else "translate" if task.task_type.find("TRANSLATION") else "transcript"
             tasks_managed.append(
                 {
                     "Project Name": task.video.project_id.title,
                     "Project Id": task.video.project_id.id,
                     "Task ID": task.id,
                     "Task Type": task.get_task_type_label,
+                    "Task Link": "https://chitralekha.ai4bharat.org/#/task/"+str(task.id)+"/"+type
                 }
             )
         if len(tasks_managed) > 0:
