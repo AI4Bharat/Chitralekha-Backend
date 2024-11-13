@@ -114,7 +114,7 @@ def get_completed_tasks():
                 html_table_df_tasks = ""
 
 def get_active_tasks():
-    users = User.objects.all()
+    users = User.objects.filter(id=64)
 
     for member in list(users):
         tasks_managed = []
