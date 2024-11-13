@@ -172,7 +172,7 @@ def get_active_tasks():
                 settings.DEFAULT_FROM_EMAIL,
                 [member.email],
             )
-            email_content = compiled_msg + html_table_df_tasks
+            email_content = compiled_msg
             msg.attach_alternative(email_content, "text/html")
             msg.send()
         else:
