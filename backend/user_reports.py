@@ -125,14 +125,20 @@ def get_active_tasks():
             .filter(user=member)
         )
         for task in tasks:
-            type = "voiceover" if task.task_type.find("VOICEOVER") else "translate" if task.task_type.find("TRANSLATION") else "transcript"
+            if task.get_task_type_label.count("VoiceOver"):
+                type = "voiceover"
+            elif task.get_task_type_label.count("Translation"):
+                type = "translate"
+            else:
+                type = "transcript"
+            task_link = f"https://chitralekha.ai4bharat.org/#/task/{task.id}/{type}"
             tasks_managed.append(
                 {
                     "Project Name": task.video.project_id.title,
                     "Project Id": task.video.project_id.id,
                     "Task ID": task.id,
                     "Task Type": task.get_task_type_label,
-                    "Task Link": "https://chitralekha.ai4bharat.org/#/task/"+str(task.id)+"/"+type
+                    "Task Link": f'<a href="{task_link}" target="_blank">Open Task</a>'
                 }
             )
         if len(tasks_managed) > 0:
@@ -146,6 +152,7 @@ def get_active_tasks():
                 text_align="left",
                 width="auto",
                 index=False,
+                escape=False,
             )
             message = (
                 "Hope you are doing great  "
