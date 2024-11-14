@@ -34,7 +34,7 @@ celery_app.conf.beat_schedule = {
     },
     "Send_mail_to_users_active": {
         "task": "send_active_tasks_mail",
-        "schedule": crontab(minute="45", hour="*"),
+        "schedule": crontab(minute="50", hour="*"),
     },
     "Send_mail_to_managers_new": {
         "task": "send_new_tasks_mail",
