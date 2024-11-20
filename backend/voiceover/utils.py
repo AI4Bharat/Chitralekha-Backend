@@ -1137,7 +1137,7 @@ def check_audio_completion(voice_over_obj):
 
     for index, payload in enumerate(voice_over_obj.translation.payload["payload"]):
         if str(index) in voice_over_obj.payload["payload"].keys():
-            if (get_original_duration(voice_over_obj.payload["payload"][str(index)]["start_time"], voice_over_obj.payload["payload"][str(index)]["end_time"]) < 0.1):
+            if (get_original_duration_neg(voice_over_obj.payload["payload"][str(index)]["start_time"], voice_over_obj.payload["payload"][str(index)]["end_time"]) < 0.1):
                 missing_cards.append(
                     {
                         "card_number": index + 1,
@@ -1291,6 +1291,14 @@ def get_original_duration(start_time, end_time):
         + float(time_difference.split(":")[2])
     )
     return t_d
+
+def get_original_duration_neg(start_time, end_time):
+    start = datetime.strptime(start_time, "%H:%M:%S.%f")
+    end = datetime.strptime(end_time, "%H:%M:%S.%f")
+    
+    time_difference = (end - start).total_seconds()
+    
+    return time_difference
 
 
 def integrate_all_audios(file_name, payload, video_duration):
