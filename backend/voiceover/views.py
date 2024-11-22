@@ -91,6 +91,12 @@ def get_voice_over_id(task):
                 .filter(status="VOICEOVER_EDIT_INPROGRESS")
                 .first()
             )
+        if task.status == "FAILED":
+            voice_over_id = (
+                voice_over.filter(video=task.video)
+                .filter(status="VOICEOVER_SELECT_SOURCE")
+                .first()
+            )
     else:
         if task.status == "NEW":
             voice_over_id = (
@@ -2260,7 +2266,7 @@ def csv_bulk_regenerate(request):
     with io.StringIO(decrypted) as fp:
         reader = csv.reader(fp, delimiter=",", quotechar='"')
         for row in reader:
-            if row:
+            if row and row[0].strip():
                 task_ids.append(int(row[0]))
 
     if len(task_ids) > 30:
