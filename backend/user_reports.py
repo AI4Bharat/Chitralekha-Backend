@@ -113,8 +113,8 @@ def get_completed_tasks():
             else:
                 html_table_df_tasks = ""
 
-def get_active_tasks():
-    users = User.objects.filter(id__in=[2248, 2252, 2253, 2254, 2255, 2256, 2257, 2259, 2263, 2264, 2266, 2268, 2273, 2278, 2281, 2282, 2283, 2286, 2289, 2291, 2293, 2296, 2299, 2300, 2320, 2322, 2326, 2328, 2329, 2336, 2337, 2338, 2339, 2340, 2343, 2344, 2345, 2351, 2353, 2360, 2361, 2365, 2374, 2376, 2379, 2390, 2395, 2402, 2405, 2459, 2461, 2471, 2472, 2480, 2485, 2486, 2487, 2550, 2559, 64])
+def get_active_tasks(ids_array):
+    users = User.objects.filter(id__in=ids_array)
     for member in list(users):
         tasks_managed = []
         tasks = (

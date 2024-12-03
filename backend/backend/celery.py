@@ -28,6 +28,26 @@ celery_app.conf.task_routes = {
 celery_app.conf.task_routes = {"transcript.tasks.*": {"queue": "ytt"}}
 
 celery_app.conf.beat_schedule = {
+    "Send_mail_to_users_active_1": {
+         "task": "send_active_tasks_mail_1",
+         "schedule": crontab(minute="0", hour="*"),
+     },
+     "Send_mail_to_users_active_2": {
+         "task": "send_active_tasks_mail_2",
+         "schedule": crontab(minute="12", hour="*"),
+     },
+     "Send_mail_to_users_active_3": {
+         "task": "send_active_tasks_mail_3",
+         "schedule": crontab(minute="24", hour="*"),
+     },
+     "Send_mail_to_users_active_4": {
+         "task": "send_active_tasks_mail_4",
+         "schedule": crontab(minute="36", hour="*"),
+     },
+     "Send_mail_to_users_active_5": {
+         "task": "send_active_tasks_mail_5",
+         "schedule": crontab(minute="48", hour="*"),
+     },
     "Send_mail_to_managers_completed": {
         "task": "send_completed_tasks_mail",
         "schedule": crontab(minute=0, hour="*/6"),  # execute 4 times in a day
