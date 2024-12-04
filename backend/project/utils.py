@@ -298,12 +298,12 @@ def get_reports_for_languages(pk):
             },
             "translation_duration": {
                 "value": round(elem["translation_duration"].total_seconds() / 3600, 3),
-                "label": "Duration (Hours)",
+                "label": "Translation Duration (Hours)",
                 "viewColumns": False,
             },
             "transcripts_translated": {
                 "value": elem["transcripts_translated"],
-                "label": "Tasks Count",
+                "label": "Translation Tasks Count",
             },
             "word_count": {
                 "value": elem["word_count"],
@@ -327,12 +327,12 @@ def get_reports_for_languages(pk):
             },
             "voiceover_duration": {
                 "value": round(elem["voiceover_duration"].total_seconds() / 3600, 3),
-                "label": "Duration (Hours)",
+                "label": "Voiceover Duration (Hours)",
                 "viewColumns": False,
             },
             "voiceovers_completed": {
                 "value": elem["voiceovers_completed"],
-                "label": "Tasks Count",
+                "label": "Voiceover Tasks Count",
             },
         }
         voiceover_data.append(voiceover_dict)
