@@ -222,8 +222,8 @@ def upload_zip_to_azure(zip_file_path):
     return blob_client_zip.url
 
 
-def get_tts_output(tts_input, target_language, multiple_speaker, gender):
-    logging.info("Calling TTS API")
+def get_tts_output(tts_input, target_language, multiple_speaker, gender, id):
+    logging.info("Calling TTS API for %s task in %s language", str(id), str(target_language))
     tts_url = get_tts_url(target_language)
     if tts_url is None:
         return {
@@ -285,6 +285,7 @@ def generate_tts_output(
                 target_language,
                 translation_obj.video.multiple_speaker,
                 gender.lower(),
+                translation_obj.id,
             )
             logging.info("output generated")
         else:
@@ -306,6 +307,7 @@ def generate_tts_output(
                     target_language,
                     translation_obj.video.multiple_speaker,
                     speaker_info[speaker_id],
+                    translation_obj.id,
                 )
                 if (
                     type(speaker_tts_output) != dict
@@ -1035,7 +1037,7 @@ def generate_voiceover_payload(translation_payload, target_language, task):
         else:
             gender = task.video.gender
         voiceover_machine_generated = get_tts_output(
-            tts_input, target_language, task.video.multiple_speaker, gender.lower()
+            tts_input, target_language, task.video.multiple_speaker, gender.lower(), task.id
         )
         if (
             type(voiceover_machine_generated) == dict
