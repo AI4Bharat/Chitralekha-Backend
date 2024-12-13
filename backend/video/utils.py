@@ -27,6 +27,8 @@ from utils.email_template import send_email_template
 from config import youtube_api_key
 from googleapiclient.discovery import build
 import re
+from moviepy.editor import VideoFileClip
+from math import floor
 
 ydl = YoutubeDL({"format": "best"})
 
@@ -521,10 +523,17 @@ def get_video_func(request):
             duration_iso8601 = video["contentDetails"]["duration"]
             duration = timedelta(seconds=iso8601_duration_to_seconds(duration_iso8601))
         except:
-            return Response(
-                {"message": "This is an invalid video URL."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            if "blob.core.windows.net" in url:
+                info = ydl.extract_info(url, download=False)
+                title = info["title"]
+                video = VideoFileClip(url)
+                duration = timedelta(seconds=floor(video.duration))
+                direct_video_url = url
+            else:
+                return Response(
+                    {"message": "This is an invalid video URL."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
     # if title[-4:] == ".mp4" and "youtube.com" not in normalized_url:
     #     return Response(
