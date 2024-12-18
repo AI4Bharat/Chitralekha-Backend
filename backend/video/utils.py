@@ -531,7 +531,8 @@ def get_video_func(request):
             title = video["snippet"]["title"]
             duration_iso8601 = video["contentDetails"]["duration"]
             duration = timedelta(seconds=iso8601_duration_to_seconds(duration_iso8601))
-        except:
+        except Exception as e:
+            logging.error(e)
             return Response(
                 {"message": "This is an invalid video URL."},
                 status=status.HTTP_400_BAD_REQUEST,
