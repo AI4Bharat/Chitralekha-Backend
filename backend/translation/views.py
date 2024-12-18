@@ -302,11 +302,11 @@ def export_translation(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    content_type = "application/json"
+    content_type = translation.video.description or "description"
     if len(content) == 0:
         content = " "
     if return_file_content:
-        response = HttpResponse(json.dumps(content), content_type="application/json")
+        response = HttpResponse(json.dumps(content), content_type=content_type)
         return response
 
     response = HttpResponse(content, content_type=content_type)
