@@ -494,9 +494,8 @@ def get_video_func(request):
 
     try:
         if "blob.core.windows.net" in url:
-            # info = ydl.extract_info(url, download=False)
-            # title = info["title"]
-            title = "azure blob video"
+            info = ydl.extract_info(url, download=False)
+            title = info["title"]
             video = VideoFileClip(url)
             duration = timedelta(seconds=floor(video.duration))
             direct_video_url = url
