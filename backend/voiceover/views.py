@@ -2309,24 +2309,21 @@ def csv_bulk_regenerate(request):
             )
             continue
 
-        voice_over = VoiceOver.objects.get(pk=voiceover_obj.id)
+        transcription_task = Task.objects.filter(video=task_obj.video, task_type="TRANSCRIPTION_EDIT", status="COMPLETE").first()
+        if transcription_task is None:
+            errors.append(
+                {
+                    "row_no": f"Task {task_id}",
+                    "message": f"Transcription not completed yet for this VOTR task",
+                }
+            )
+            continue
 
-        if voice_over.translation.transcript == None:
-            transcription_task = Task.objects.filter(video=task_obj.video, task_type="TRANSCRIPTION_EDIT", status="COMPLETE").first()
-            if transcription_task is None:
-                errors.append(
-                    {
-                        "row_no": f"Task {task_id}",
-                        "message": f"Transcription not completed yet for this VOTR task",
-                    }
-                )
-                continue
-
-            transcript = get_transcript_id(transcription_task)
-            transcript_obj = Transcript.objects.get(pk=transcript.id)
-            translation = Translation.objects.filter(task=task_obj).first()
-            translation.transcript = transcript_obj
-            translation.save()
+        transcript = get_transcript_id(transcription_task)
+        transcript_obj = Transcript.objects.get(pk=transcript.id)
+        translation = Translation.objects.filter(task=task_obj).first()
+        translation.transcript = transcript_obj
+        translation.save()
 
     if len(errors) > 0:
         return Response(
