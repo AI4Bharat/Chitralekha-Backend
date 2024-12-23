@@ -78,7 +78,11 @@ def get_voice_over_id(task):
                 .first()
             )
         if task.status == "POST_PROCESS":
-            voice_over_id = None
+            voice_over_id = (
+                voice_over.filter(video=task.video)
+                .filter(status="VOICEOVER_EDIT_INPROGRESS")
+                .first()
+            )
         if task.status == "COMPLETE":
             voice_over_id = (
                 voice_over.filter(video=task.video)
@@ -1044,7 +1048,7 @@ def save_voice_over(request):
                 print("Saved IP Translation with inprogress")
                 translation = inprogress_translation
         # Check if the transcript has a user
-        if task.user != request.user:
+        if task.user == request.user:
             return Response(
                 {"message": "You are not allowed to update this voice_over."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -1057,11 +1061,11 @@ def save_voice_over(request):
                     },
                     status=status.HTTP_201_CREATED,
                 )
-            if task.status == "POST_PROCESS":
-                return Response(
-                    {"message": "Voice Over is in Post Process stage."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            # if task.status == "POST_PROCESS":
+            #     return Response(
+            #         {"message": "Voice Over is in Post Process stage."},
+            #         status=status.HTTP_400_BAD_REQUEST,
+            #     )
 
             if voice_over.voice_over_type == "MACHINE_GENERATED":
                 try:
@@ -1400,10 +1404,10 @@ def save_voice_over(request):
                         #     voice_over_obj.target_language,
                         # )
                         file_path = "temporary_video_audio_storage"
-                        task.status = "POST_PROCESS"
+                        # task.status = "POST_PROCESS"
                         task.save()
                         logging.info("Calling Async Celery Integration")
-                        celery_integration.delay(
+                        celery_integration(
                             file_path + "/" + file_name,
                             voice_over_obj.id,
                             voice_over_obj.video.id,

@@ -38,7 +38,7 @@ from translation.models import Translation, TRANSLATION_EDIT_COMPLETE
 import regex
 
 
-@shared_task()
+# @shared_task()
 def celery_integration(file_name, voice_over_obj_id, video, task_id):
     logging.info("Starting Async Celery Integration....")
     voice_over_obj = VoiceOver.objects.filter(id=voice_over_obj_id).first()
