@@ -2308,6 +2308,14 @@ def csv_bulk_regenerate(request):
                 }
             )
             continue
+        
+        if voiceover_obj.status != "VOICEOVER_SELECT_SOURCE":
+            voiceover_obj.status = "VOICEOVER_SELECT_SOURCE"
+            voiceover_obj.save()
+        if task_obj.status != "SELECTED_SOURCE":
+            task_obj.status = "SELECTED_SOURCE"
+            task_obj.is_active = False
+            task_obj.save()
 
         transcription_task = Task.objects.filter(video=task_obj.video, task_type="TRANSCRIPTION_EDIT", status="COMPLETE").first()
         if transcription_task is None:
