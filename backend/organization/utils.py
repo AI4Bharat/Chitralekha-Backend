@@ -434,7 +434,7 @@ def get_org_report_tasks(
                 pass
         elif "VoiceOver" in task.get_task_type_label:
             word_count = "-"
-
+        is_active = task.is_active
         tasks_list.append(
             {
                 "task_id": {
@@ -450,6 +450,11 @@ def get_org_report_tasks(
                 "video_name": {
                     "value": task.video.name,
                     "label": "Video Name",
+                    "viewColumns": False,
+                },
+                "is_active": {
+                    "value": str(is_active),
+                    "label": "Is Active",
                     "viewColumns": False,
                 },
                 "video_url": {
