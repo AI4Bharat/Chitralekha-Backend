@@ -101,7 +101,9 @@ DJOSER = {
     "USERNAME_RESET_CONFIRM_URL": "users/auth/users/username/reset/confirm/{uid}/{token}",
     "ACTIVATION_URL": "users/auth/users/activation/{uid}/{token}",
     "SEND_ACTIVATION_EMAIL": True,
-    "SERIALIZERS": {},
+    "SERIALIZERS": {
+        "token_create": "users.serializers.CustomTokenCreateSerializer",
+    },
 }
 
 SIMPLE_JWT = {
@@ -131,7 +133,7 @@ if ENABLE_CORS:
     if CUSTOM_CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.extend(CUSTOM_CSRF_TRUSTED_ORIGINS.split(","))
 
-AUTHENTICATION_BACKENDS = ("django.contrib.auth.backends.ModelBackend",)
+AUTHENTICATION_BACKENDS = ('users.backends.EmailBackend',"django.contrib.auth.backends.ModelBackend",)
 
 ROOT_URLCONF = "backend.urls"
 

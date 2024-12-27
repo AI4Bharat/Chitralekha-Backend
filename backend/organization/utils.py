@@ -195,6 +195,7 @@ def get_org_report_languages(org_id, user):
         "transcript_stats": [],
         "translation_stats": [],
         "voiceover_stats": [],
+        "translation_voiceover_stats": [],
     }
     for project_report in all_project_report:
         if type(project_report) == dict:
@@ -235,6 +236,26 @@ def get_org_report_languages(org_id, user):
                 aggregated_project_report["voiceover_stats"].extend(
                     project_report["voiceover_stats"]
                 )
+            translation_stats = project_report.get("translation_stats", [])
+            voiceover_stats = project_report.get("voiceover_stats", [])
+            for translation in translation_stats:
+                for voiceover in voiceover_stats:
+                    if (
+                        translation["src_language"]["value"] == voiceover["src_language"]["value"]
+                        and translation["tgt_language"]["value"] == voiceover["tgt_language"]["value"]
+                    ):
+                        merged_stat = {
+                            "project": translation["project"],
+                            "src_language": translation["src_language"],
+                            "tgt_language": translation["tgt_language"],
+                            "translation_duration": translation["translation_duration"],  
+                            "translation_tasks_count": translation["transcripts_translated"],  
+                            "word_count": translation["word_count"],  # Taken from translation
+                            "voiceover_duration": voiceover["voiceover_duration"],
+                            "voiceover_tasks_count": voiceover["voiceovers_completed"],
+                        }
+                        aggregated_project_report["translation_voiceover_stats"].append(merged_stat)
+    
     return aggregated_project_report
 
 
@@ -413,7 +434,7 @@ def get_org_report_tasks(
                 pass
         elif "VoiceOver" in task.get_task_type_label:
             word_count = "-"
-
+        is_active = task.is_active
         tasks_list.append(
             {
                 "task_id": {
@@ -429,6 +450,11 @@ def get_org_report_tasks(
                 "video_name": {
                     "value": task.video.name,
                     "label": "Video Name",
+                    "viewColumns": False,
+                },
+                "is_active": {
+                    "value": str(is_active),
+                    "label": "Is Active",
                     "viewColumns": False,
                 },
                 "video_url": {

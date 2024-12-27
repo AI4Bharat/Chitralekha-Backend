@@ -10,6 +10,8 @@ from rest_framework.decorators import (
     permission_classes,
     authentication_classes,
 )
+from django.utils import timezone
+from datetime import timedelta
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from transcript.utils.TTML import generate_ttml
@@ -2286,13 +2288,28 @@ def get_translation_types(request):
 @authentication_classes([])
 @permission_classes([])
 def get_translation_report(request):
-    translations = Translation.objects.filter(
-        status="TRANSLATION_EDIT_COMPLETE"
-    ).values(
+    start_date_str = request.query_params.get("start_date")
+    end_date_str = request.query_params.get("end_date")
+
+    translations = Translation.objects.filter(status="TRANSLATION_EDIT_COMPLETE")
+
+    def parse_date(date_str):
+        year, month, day = map(int, date_str.split("-"))
+        return timezone.make_aware(datetime.datetime(year, month, day, 0, 0, 0))
+
+    if start_date_str and end_date_str:
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str) + timedelta(days=1)
+        translations = translations.filter(
+            updated_at__date__range=(start_date.date(), end_date.date())
+        )
+
+    translations = translations.values(
         "video__project_id__organization_id__title",
         src_language=F("video__language"),
         tgt_language=F("target_language"),
     )
+
     translation_statistics = (
         translations.annotate(transcripts_translated=Count("id"))
         .annotate(translation_duration=Sum(F("video__duration")))
@@ -2332,7 +2349,7 @@ def get_translation_report(request):
             lang_data.append(i)
         temp_data = {"org": org, "data": lang_data}
         res.append(temp_data)
-
+        
     return Response(res, status=status.HTTP_200_OK)
 
 def regenerate_translation_voiceover(task_id):

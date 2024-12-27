@@ -69,12 +69,28 @@ def get_completed_tasks():
                 df.index = blankIndex
                 html_table_df_tasks = build_table(
                     df,
-                    "orange_light",
+                    "blue_dark",
                     font_size="medium",
                     text_align="left",
                     width="auto",
+                    padding="5px 5px 5px 5px",
                     index=False,
                 )
+                centered_html_table = f"""
+                    <style>
+                  @media only screen and (max-width: 600px) {{
+                 .responsive-table-container {{
+                  width: 100%;
+                overflow-x: scroll;
+                 }}
+                }}
+                </style>
+                     <div class="responsive-table-container" style="overflow-x: auto; width: 100%; ">
+                            <div style="display: inline-block; min-width: 800px;">
+                                     {html_table_df_tasks}
+                            </div>
+                      </div>
+                """
                 message = (
                     "Hope you are doing great  "
                     + str(manager.first_name + " " + manager.last_name)
@@ -82,16 +98,16 @@ def get_completed_tasks():
                 )
 
                 email_to_send = (
-                    "<p>"
+                    '<p style="font-size:14px;">'
                     + message
-                    + "</p><br><h1><b>Tasks Reports</b></h1>"
-                    + html_table_df_tasks
+                    + "</p><br><h3><b>Tasks Reports</b></h3>"
+                    + centered_html_table
                 )
                 logging.info("Sending Mail to %s", manager.email)
 
                 compiled_msg = send_email_template_with_attachment(
                     subject=f"{app_name} - Completed Tasks Report",
-                    username=[manager.email],
+                    username=manager["email"].split("@")[0],
                     message=email_to_send,
                 )
                 msg = EmailMultiAlternatives(
@@ -100,7 +116,7 @@ def get_completed_tasks():
                     settings.DEFAULT_FROM_EMAIL,
                     [manager.email],
                 )
-                email_content = compiled_msg + html_table_df_tasks
+                email_content = compiled_msg
                 msg.attach_alternative(email_content, "text/html")
                 msg.send()
                 # send_mail(
@@ -225,12 +241,29 @@ def get_new_tasks():
                 df.index = blankIndex
                 html_table_df_tasks = build_table(
                     df,
-                    "orange_light",
+                    "blue_dark",
                     font_size="medium",
                     text_align="left",
                     width="auto",
+                    padding="5px 5px 5px 5px",
                     index=False,
                 )
+                centered_html_table = f"""
+<style>
+  @media only screen and (max-width: 600px) {{
+      .responsive-table-container {{
+          width: 100%;
+          overflow-x: scroll;
+      }}
+  }}
+</style>
+<div class="responsive-table-container" style="overflow-x: auto; width: 100%; ">
+    <div style="display: inline-block; min-width: 800px;">
+        {html_table_df_tasks}
+    </div>
+</div>
+"""
+
                 message = (
                     "Hope you were doing great  "
                     + str(manager.first_name + " " + manager.last_name)
@@ -238,16 +271,16 @@ def get_new_tasks():
                 )
 
                 email_to_send = (
-                    "<p>"
+                    '<p style="font-size:14px;">'
                     + message
-                    + "</p><br><h1><b>Tasks Reports</b></h1>"
-                    + html_table_df_tasks
+                    + "</p><br><h3><b>Tasks Reports</b></h3>"
+                    + centered_html_table
                 )
                 logging.info("Sending Mail to %s", manager.email)
 
                 compiled_msg = send_email_template_with_attachment(
                     subject=f"{app_name} - Tasks Assignment Status Report",
-                    username=[manager.email],
+                    username=manager["email"].split("@")[0],
                     message=email_to_send,
                 )
                 msg = EmailMultiAlternatives(
@@ -256,7 +289,7 @@ def get_new_tasks():
                     settings.DEFAULT_FROM_EMAIL,
                     [manager.email],
                 )
-                email_content = compiled_msg + html_table_df_tasks
+                email_content = compiled_msg
                 msg.attach_alternative(email_content, "text/html")
                 msg.send()
 
@@ -300,12 +333,28 @@ def get_eta_reminders():
             df.index = blankIndex
             html_table_df_tasks = build_table(
                 df,
-                "orange_light",
+                "blue_dark",
                 font_size="medium",
                 text_align="left",
                 width="auto",
+                padding="5px 5px 5px 5px",
                 index=False,
             )
+            centered_html_table = f"""
+<style>
+  @media only screen and (max-width: 600px) {{
+      .responsive-table-container {{
+          width: 100%;
+          overflow-x: scroll;
+      }}
+  }}
+</style>
+<div class="responsive-table-container" style="overflow-x: auto; width: 100%; ">
+    <div style="display: inline-block; min-width: 800px;">
+        {html_table_df_tasks}
+    </div>
+</div>
+"""
             message = (
                 "Hope you are doing great  "
                 + str(user.first_name + " " + user.last_name)
@@ -313,16 +362,16 @@ def get_eta_reminders():
             )
 
             email_to_send = (
-                "<p>"
+                '<p style="font-size:14px;">'
                 + message
-                + "</p><br><h1><b>Due Tasks For Today</b></h1>"
-                + html_table_df_tasks
+                + "</p><br><h3><b>Due Tasks For Today</b></h3>"
+                + centered_html_table
             )
             logging.info("Sending Mail to %s", user.email)
 
             compiled_msg = send_email_template_with_attachment(
                 subject=f"{app_name} - Tasks Assignment Status Report",
-                username=[user.email],
+                username=user["email"].split("@")[0],
                 message=email_to_send,
             )
             msg = EmailMultiAlternatives(
@@ -377,27 +426,43 @@ def get_new_users():
             df.index = blankIndex
             html_table_df_tasks = build_table(
                 df,
-                "orange_light",
+                "blue_dark",
                 font_size="medium",
                 text_align="left",
                 width="auto",
+                padding="5px 5px 5px 5px",
                 index=False,
             )
+            centered_html_table = f"""
+<style>
+  @media only screen and (max-width: 600px) {{
+      .responsive-table-container {{
+          width: 100%;
+          overflow-x: scroll;
+      }}
+  }}
+</style>
+<div class="responsive-table-container" style="overflow-x: auto; width: 100%; ">
+    <div style="display: inline-block; min-width: 800px;">
+        {html_table_df_tasks}
+    </div>
+</div>
+"""
             message = (
                 "Dear "
                 + str(org_owner.first_name + " " + org_owner.last_name)
                 + ",\n Following users have signed up."
             )
             email_to_send = (
-                "<p>"
+                '<p style="font-size:14px;">'
                 + message
-                + "</p><br><h1><b>New Users</b></h1>"
-                + html_table_df_tasks
+                + "</p><br><h3><b>New Users</b></h3>"
+                + centered_html_table
             )
             logging.info("Sending Mail to %s", org_owner.email)
             compiled_msg = send_email_template_with_attachment(
                 subject=f"{app_name} - New Users",
-                username=[user.email],
+                username=user["email"].split("@")[0],
                 message=email_to_send,
             )
             msg = EmailMultiAlternatives(

@@ -12,7 +12,7 @@ def send_email_template_with_attachment(subject, username, message):
             }
             .container {
             background-color: #fff;
-            border: solid 1px #e1e1e1;
+            # border: solid 1px #e1e1e1;
             border-radius: 2px;
             padding: 1.4rem;
             max-width: 380px;
@@ -56,7 +56,7 @@ def send_email_template_with_attachment(subject, username, message):
                 {style_string}
                 </style>
                 </head>
-                <body>
+                <body style="background-color:#E4F9FE;padding:1rem">
                 <div class="container">
                 <header class="header">
                 <h3>{subject}</h3>
@@ -65,16 +65,17 @@ def send_email_template_with_attachment(subject, username, message):
                 <div style="margin: 1rem auto; width: fit-content">
                 </div>
                 <div>
-                <p>
+                <p style="font-size:14px">
                     Dear {username},
                 </p>
-                <p>                
-                {message}
-                <p style="font-style: italic">
+                <p >                
+                  {message}
+                </p>
+                <p style="font-style: italic;padding-top:1rem">
                     Thanks for contributing on Chitralekha! Kindly check the attachment below
                 </p>
                 <p style="font-size: 10px; color:grey">
-                This email was intended for {username} If you received it by mistake, please delete it and notify the sender immediately. 
+                This email was intended for <span style="color:blue">{username}</span> If you received it by mistake, please delete it and notify the sender immediately. 
                 </p>
                 </div>
                 </main>

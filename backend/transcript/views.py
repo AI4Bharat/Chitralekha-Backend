@@ -7,6 +7,8 @@ from rest_framework.decorators import (
     authentication_classes,
     permission_classes,
 )
+from django.utils import timezone
+from datetime import timedelta
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from video.models import Video
@@ -504,9 +506,9 @@ def retrieve_all_transcriptions(request):
             "id": transcript.id,
             "status": transcript.status,
             "transcript_type": transcript.transcript_type,
-            "video": transcript.video.video_uuid,
+            "video": transcript.video.pk,
             "language": transcript.language,
-            "task": transcript.task.task_uuid,
+            "task": transcript.task.pk,
             "user": (
                 transcript.user.username if transcript.user else "No user associated"
             ),
@@ -2479,9 +2481,25 @@ def get_transcript_types(request):
 @authentication_classes([])
 @permission_classes([])
 def get_transcription_report(request):
-    transcripts = Transcript.objects.filter(
-        status="TRANSCRIPTION_EDIT_COMPLETE"
-    ).values("language", "video__project_id__organization_id__title")
+    start_date_str = request.query_params.get("start_date")
+    end_date_str = request.query_params.get("end_date")
+
+    transcripts = Transcript.objects.filter(status="TRANSCRIPTION_EDIT_COMPLETE")
+
+    def parse_date(date_str):
+        year, month, day = map(int, date_str.split("-"))
+        return timezone.make_aware(datetime.datetime(year, month, day, 0, 0, 0))
+
+    if start_date_str and end_date_str:
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str) + timedelta(days=1)
+        transcripts = transcripts.filter(
+            updated_at__date__range=(start_date.date(), end_date.date())
+        )
+
+    transcripts = transcripts.values(
+        "language", "video__project_id__organization_id__title"
+    )
     transcription_statistics = transcripts.annotate(
         total_duration=Sum(F("video__duration"))
     ).order_by("-total_duration")
