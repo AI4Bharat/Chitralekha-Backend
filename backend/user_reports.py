@@ -129,6 +129,77 @@ def get_completed_tasks():
             else:
                 html_table_df_tasks = ""
 
+def get_active_tasks():
+    users = User.objects.filter(id__in=[2248, 2252, 2253, 2254, 2255, 2256, 2257, 2259, 2263, 2264, 2266, 2268, 2273, 2278, 2281, 2282, 2283, 2286, 2289, 2291, 2293, 2296, 2299, 2300, 2320, 2322, 2326, 2328, 2329, 2336, 2337, 2338, 2339, 2340, 2343, 2344, 2345, 2351, 2353, 2360, 2361, 2365, 2374, 2376, 2379, 2390, 2395, 2402, 2405, 2459, 2461, 2471, 2472, 2480, 2485, 2486, 2487, 2550, 2559, 64])
+    for member in list(users):
+        tasks_managed = []
+        tasks = (
+            Task.objects
+            .filter(status__in=["INPROGRESS", "SELECTED_SOURCE"])
+            .filter(is_active=True)
+            .filter(user=member)
+        )
+        for task in tasks:
+            if task.get_task_type_label.count("VoiceOver"):
+                type = "voiceover"
+            elif task.get_task_type_label.count("Translation"):
+                type = "translate"
+            else:
+                type = "transcript"
+            task_link = f"https://chitralekha.ai4bharat.org/#/task/{task.id}/{type}"
+            tasks_managed.append(
+                {
+                    "Project Name": task.video.project_id.title,
+                    "Project Id": task.video.project_id.id,
+                    "Task ID": task.id,
+                    "Task Type": task.get_task_type_label,
+                    "Task Link": f'<a href="{task_link}" target="_blank">Open Task</a>'
+                }
+            )
+        if len(tasks_managed) > 0:
+            df = pd.DataFrame.from_records(tasks_managed)
+            blankIndex = [""] * len(df)
+            df.index = blankIndex
+            html_table_df_tasks = build_table(
+                df,
+                "orange_light",
+                font_size="medium",
+                text_align="left",
+                width="auto",
+                index=False,
+                escape=False,
+            )
+            message = (
+                "Hope you are doing great  "
+                + str(member.first_name + " " + member.last_name)
+                + ",\n Following tasks are active now."
+            )
+
+            email_to_send = (
+                "<p>"
+                + message
+                + "</p><br><h1><b>Active Tasks Reports</b></h1>"
+                + html_table_df_tasks
+            )
+            logging.info("Sending Mail to %s", member.email)
+
+            compiled_msg = send_email_template_with_attachment(
+                subject=f"{app_name} - Active Tasks Report",
+                username=[member.email],
+                message=email_to_send,
+            )
+            msg = EmailMultiAlternatives(
+                f"{app_name} - Active Tasks Report",
+                compiled_msg,
+                settings.DEFAULT_FROM_EMAIL,
+                [member.email],
+            )
+            email_content = compiled_msg
+            msg.attach_alternative(email_content, "text/html")
+            msg.send()
+        else:
+            html_table_df_tasks = ""
+
 
 def get_new_tasks():
     logging.info("Calculate Reports...")

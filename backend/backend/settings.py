@@ -94,7 +94,7 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 
 DOMAIN = os.getenv("DOMAIN")
 SITE_NAME = os.getenv("DOMAIN")
-PROTOCOL = "https"
+DEFAULT_HTTP_PROTOCOL = 'https'
 
 DJOSER = {
     "PASSWORD_RESET_CONFIRM_URL": "forget-password/confirm/{uid}/{token}",
@@ -127,6 +127,7 @@ if ENABLE_CORS:
 
     CSRF_TRUSTED_ORIGINS = [
         "http://localhost:*",  # for localhost (Developlemt)
+        "https://*.ai4bharat.org",
     ]
     CUSTOM_CSRF_TRUSTED_ORIGINS = os.getenv("CORS_TRUSTED_ORIGINS", "")
     if CUSTOM_CSRF_TRUSTED_ORIGINS:

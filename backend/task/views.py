@@ -87,7 +87,7 @@ from translation.views import export_translation, get_translation_id
 from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 import regex
-
+from translation.views import regenerate_translation_voiceover
 
 def get_export_translation(request, task_id, export_type):
     new_request = HttpRequest()
@@ -3193,6 +3193,15 @@ class TaskViewSet(ModelViewSet):
                         )
                     elif elem["name"] == "task.tasks.celery_nmt_call":
                         task_obj["task_id"] = eval(elem["kwargs"])["task_id"]
+                    elif elem["name"] == "task.tasks.celery_nmt_tts_call":
+                        try:
+                            task_obj["task_id"] = eval(elem["kwargs"])["task_id"]
+                        except:
+                            task_obj["task_id"] = eval(elem["args"].split(",")[0].split("(")[1])
+                    elif elem["name"] == "voiceover.tasks.celery_integration":
+                        task_obj["task_id"] = eval(elem["args"].split(",")[2])
+                    elif elem["name"] == "voiceover.tasks.export_voiceover_async":
+                        task_obj["task_id"] = eval(elem["args"].split(",")[0].split("(")[1])
                     else:
                         task_obj["task_id"] = ""
 
@@ -3229,19 +3238,17 @@ class TaskViewSet(ModelViewSet):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
         else:
-            if queue == "nmt":
+            if queue == "nmt" or queue == "nmt_tts":
                 queue_type = "celery@nmt_worker"
-            elif queue == "tts":
-                queue_type = "celery@asr_tts_worker"
             else:
                 queue_type = "celery@asr_tts_worker"
 
             try:
                 task_list = []
+                status_list = []
                 url = f"{flower_url}/api/tasks"
                 params = {
-                    "state": "STARTED",
-                    "sort_by": "received",
+                    "sort_by": "-received",
                     "workername": queue_type,
                 }
                 if flower_username and flower_password:
@@ -3255,42 +3262,27 @@ class TaskViewSet(ModelViewSet):
                 for elem in task_data:
                     if queue == "asr" and elem["name"] == "task.tasks.celery_asr_call":
                         task_list.append(eval(elem["kwargs"])["task_id"])
+                        status_list.append(elem["state"])
                     elif (
                         queue == "tts" and elem["name"] == "task.tasks.celery_tts_call"
                     ):
                         # task_list.append(eval(elem["kwargs"])["task_id"])
                         task_list.append(eval(elem["args"].split(",")[0].split("(")[1]))
+                        status_list.append(elem["state"])
                     elif (
                         queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call"
                     ):
                         task_list.append(eval(elem["kwargs"])["task_id"])
-                    else:
-                        pass
-                params = {
-                    "state": "RECEIVED",
-                    "sort_by": "received",
-                    "workername": queue_type,
-                }
-                if flower_username and flower_password:
-                    res = requests.get(
-                        url, params=params, auth=(flower_username, flower_password)
-                    )
-                else:
-                    res = requests.get(url, params=params)
-                data = res.json()
-                task_data = list(data.values())
-                for elem in task_data:
-                    if queue == "asr" and elem["name"] == "task.tasks.celery_asr_call":
-                        task_list.append(eval(elem["kwargs"])["task_id"])
+                        status_list.append(elem["state"])
                     elif (
-                        queue == "tts" and elem["name"] == "task.tasks.celery_tts_call"
+                        queue == "nmt_tts" and elem["name"] == "task.tasks.celery_nmt_tts_call"
                     ):
-                        # task_list.append(eval(elem["kwargs"])["task_id"])
-                        task_list.append(eval(elem["args"].split(",")[0].split("(")[1]))
-                    elif (
-                        queue == "nmt" and elem["name"] == "task.tasks.celery_nmt_call"
-                    ):
-                        task_list.append(eval(elem["kwargs"])["task_id"])
+                        try:
+                            task_list.append(eval(elem["kwargs"])["task_id"])
+                            status_list.append(elem["state"])
+                        except:
+                            task_list.append(eval(elem["args"].split(",")[0].split("(")[1]))
+                            status_list.append(elem["state"])
                     else:
                         pass
                 if task_list:
@@ -3314,8 +3306,12 @@ class TaskViewSet(ModelViewSet):
                             "video_duration": str(elem["video__duration"]),
                         }
                         i = task_list.index(elem["id"])
+                        task_dict["status"] = status_list[i]
                         task_list[i] = task_dict
-
+                for i in task_list:
+                    if type(i) == int:
+                        j = task_list.index(i)
+                        task_list[j] = {"task_id": i, "status": "Not Found"}
                 return Response(
                     {"message": "successful", "data": task_list},
                     status=status.HTTP_200_OK,
@@ -3392,6 +3388,12 @@ class TaskViewSet(ModelViewSet):
         elif task.task_type == "VOICEOVER_EDIT":
             celery_tts_call.delay(task_id=task.id)
             api = "TTS"
+        elif task.task_type == "TRANSLATION_VOICEOVER_EDIT":
+            if regenerate_translation_voiceover(task.id) is False:
+                return Response(
+                    {"message": "Transcription task is not complete yet"}, status=status.HTTP_400_BAD_REQUEST
+                )
+            api = "NMT-TTS"
         else:
             return Response(
                 {"message": "Invalid task"}, status=status.HTTP_400_BAD_REQUEST

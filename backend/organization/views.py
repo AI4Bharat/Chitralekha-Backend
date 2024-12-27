@@ -496,6 +496,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                             task["updated_at"]
                         ).replace(tzinfo=None):
                             buttons["Reopen"] = False
+                if "TRANSLATION_VOICEOVER" in task["task_type"]:
+                    if task["status"] in ["SELECTED_SOURCE", "FAILED"] and task["is_active"] is False:
+                        buttons["Regenerate"] = True
                 if task["status"] == "POST_PROCESS":
                     buttons["Update"] = True
                 if task["status"] == "FAILED":

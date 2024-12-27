@@ -186,6 +186,7 @@ class OnboardingAPIView(APIView):
         *args,
         **kwargs,
     ):
+        email_id = email_id.lower()
         interested_in = ", ".join(str(interested_in).title().split(" "))
         onboarding_table_1 = onboarding_table.format(
             org_name=org_name,
@@ -276,6 +277,7 @@ class InviteViewSet(viewsets.ViewSet):
 
         for email in emails:
             # Checking if the email is in valid format.
+            email = email.lower()
             if re.fullmatch(regex, email):
                 try:
                     user = User(
@@ -415,7 +417,7 @@ class InviteViewSet(viewsets.ViewSet):
         """
         Users to sign up for the first time.
         """
-        email = request.data.get("email")
+        email = request.data.get("email").lower()
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
@@ -489,6 +491,7 @@ class InviteViewSet(viewsets.ViewSet):
             already_accepted_invite,
         ) = ([], [], [], [])
         for user_email in distinct_emails:
+            user_email = user_email.lower()
             if user_email in existing_emails_set:
                 user = User.objects.get(email=user_email)
                 if user.has_accepted_invite:
@@ -744,7 +747,7 @@ class UserViewSet(viewsets.ViewSet):
         """
         try:
             user = request.user
-            unverified_email = request.data.get("email")
+            unverified_email = request.data.get("email").lower()
 
             old_email_update_code = generate_random_string(10)
             new_email_verification_code = generate_random_string(10)

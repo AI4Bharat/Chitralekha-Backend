@@ -6,7 +6,7 @@ import torchaudio
 from dataclasses import dataclass
 from rich.console import Console
 from rich.traceback import install
-
+import os
 install()
 console = Console()
 
@@ -35,8 +35,13 @@ class Segment:
 
 class Wav2vec2:
     def __init__(self, model_path, language_code, mode, device):
-        self.asr_path = glob(model_path + "/" + language_code + "/*.pt")[0]
-        self.dict_path = glob(model_path + "/" + language_code + "/*.txt")[0]
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        two_levels_up = os.path.abspath(os.path.join(current_dir, "../../"))
+        model_loc = os.path.join(two_levels_up, os.path.join(model_path, language_code))
+        
+        self.asr_path = glob(os.path.join( model_loc ,"*.pt"))[0] 
+        self.dict_path = glob(os.path.join(model_loc, "*.txt"))[0]
+
         self.device = device
         self.encoder = self.load_model_encoder()
         self.labels = self.get_labels()

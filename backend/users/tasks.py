@@ -12,6 +12,9 @@ from .models import User
 def send_completed_tasks_mail():
     get_completed_tasks()
 
+@shared_task(name="send_active_tasks_mail")
+def send_active_tasks_mail():
+    get_active_tasks()
 
 @shared_task(name="send_new_tasks_mail")
 def send_new_tasks_mail():

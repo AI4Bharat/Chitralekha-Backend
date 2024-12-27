@@ -861,6 +861,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                                     data["updated_at"]
                                 ).replace(tzinfo=None):
                                     buttons["Reopen"] = False
+                    if "TRANSLATION_VOICEOVER" in data["task_type"]:
+                        if data["status"] in ["SELECTED_SOURCE", "FAILED"] and data["is_active"] is False:
+                            buttons["Regenerate"] = True
                     if data["status"] == "POST_PROCESS":
                         buttons["Update"] = True
                     if data["status"] == "FAILED":
