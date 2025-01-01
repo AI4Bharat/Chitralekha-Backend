@@ -10,6 +10,8 @@ urlpatterns = [
     ),
     path("get_translated_text/", views.get_translated_text, name="get_translated_text"),
     path("save/", views.save_voice_over, name="save_voice_over"),
+    path("get_voiceover_status/", views.fetch_voice_over_status, name="get_voice_over_staus"),
+    path("set_voiceover_status/", views.update_voice_over_status, name="set_voice_over_staus"),
     path(
         "get_voiceover_supported_languages",
         views.get_voiceover_supported_languages,
@@ -60,5 +62,10 @@ urlpatterns = [
         "get_report_voiceover/",
         views.get_voiceover_report,
         name="get_voiceover_report",
+    ),
+    path(
+        "csv_bulk_regenerate",
+        views.csv_bulk_regenerate,
+        name="csv_bulk_regenerate",
     ),
 ]

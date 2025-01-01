@@ -74,7 +74,7 @@ urlpatterns = [
     path("voiceover/", include("voiceover.urls")),
     path("youtube/", include("youtube.urls")),
     path(
-        "api/generic/transliteration/<str:target_language>/<str:data>/",
+        "xlit-api/generic/transliteration/<str:target_language>/<str:data>",
         TransliterationAPIView.as_view(),
         name="transliteration-api",
     ),

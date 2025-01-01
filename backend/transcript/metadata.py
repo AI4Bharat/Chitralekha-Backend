@@ -13,6 +13,7 @@ TRANSCRIPTION_LANGUAGE_CHOICES = [
     ("te", "Telugu"),
     ("sa", "Sanskrit"),
     ("ur", "Urdu"),
+    ("ne", "Nepali"),
 ]
 
 TRANSCRIPTION_SUPPORTED_LANGUAGES = {
@@ -29,4 +30,5 @@ TRANSCRIPTION_SUPPORTED_LANGUAGES = {
     "Tamil": "ta",
     "Telugu": "te",
     "Urdu": "ur",
+    "Nepali": "ne",
 }

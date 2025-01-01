@@ -38,6 +38,7 @@ from config import *
 from collections import Counter
 from rest_framework.views import APIView
 import config
+from rest_framework.permissions import IsAuthenticated
 
 accepted_languages = [
     "as",
@@ -97,24 +98,15 @@ required_fields_org = [
 
 
 class TransliterationAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    
     def get(self, request, target_language, data, *args, **kwargs):
-        json_data = {
-            "input": [{"source": data}],
-            "config": {
-                "language": {
-                    "sourceLanguage": "en",
-                    "targetLanguage": target_language,
-                },
-                "isSentence": False,
-                "numSuggestions": 5,
-            },
-        }
-        logging.info("Calling Transliteration API")
-        response_transliteration = requests.post(
-            config.transliteration_url,
-            headers={"authorization": config.dhruva_key},
-            json=json_data,
+        response_transliteration = requests.get(
+            os.getenv("TRANSLITERATION_URL") + target_language + "/" + data,
+            headers={"Authorization": "Bearer " + os.getenv("TRANSLITERATION_KEY")},
         )
+
+        print(response_transliteration)
 
         transliteration_output = response_transliteration.json()
         return Response(transliteration_output, status=status.HTTP_200_OK)
@@ -1075,6 +1067,27 @@ def upload_csv_data(request):
                 )
         else:
             valid_row["assignee"] = User.objects.get(email=row["Assignee"].strip()).id
+
+        format = "%d-%m-%Y"
+        input_eta = datetime.datetime.strptime(row["ETA"], format)
+        curr_date = datetime.datetime.now().date()
+        if bool(input_eta) == False:
+            errors.append(
+                {
+                    "row_no": f"Row {row_num}",
+                    "message": f"Invalid ETA Format, expected format is dd-mm-yyyy: received{row['ETA']}",
+                }
+            )
+        elif input_eta.date() < curr_date:
+            errors.append(
+                {
+                    "row_no": f"Row {row_num}",
+                    "message": f"ETA can't be less than current Date: received{row['ETA']}",
+                }
+            )
+
+        else:
+            valid_row["ETA"] = input_eta.strftime("%Y-%m-%dT18:29:00.000Z")
 
         valid_row["video_description"] = row["Video Description"]
         valid_row["task_description"] = row["Task Description"]
