@@ -34,3 +34,4 @@ html2text
 regex
 sentence-transformers
 openai==0.28
+yt-dlp==2024.8.6
