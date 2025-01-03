@@ -2,7 +2,6 @@ import requests
 from uuid import UUID
 import json
 import webvtt
-import yt_dlp
 from rest_framework.response import Response
 from rest_framework import status
 import logging
@@ -21,13 +20,6 @@ from transcript.utils.timestamp import *
 from yt_dlp import YoutubeDL
 import pandas as pd
 from glossary.tmx.tmxservice import TMXService
-from youtube_thubmnail_extractor.extractor import YouTubeThumbnailExtractor
-from PIL import Image
-from io import BytesIO
-from docx.shared import Cm
-from docx import Document
-from django.http import StreamingHttpResponse
-import math
 
 
 def convert_to_scc(subtitles):
@@ -153,133 +145,27 @@ def convert_to_paragraph(lines, video_name):
 
     return content
 
-import subprocess
-def get_format_code(video_url, resolutions=["480p", "360p", "144p", "720p", "1080p"]):
-    """
-    Get the format code for the first available resolution from the video URL using yt-dlp.
-    """
-    # Run yt-dlp with the -F option to list all formats
-    result = subprocess.run(["yt-dlp", "-F", video_url], capture_output=True, text=True)
-    lines = result.stdout.splitlines()
-
-    # Search through the available resolutions in order of preference
-    for resolution in resolutions:
-        for line in lines:
-            if resolution in line:
-                # The format code is typically the first value in the line
-                format_code = line.split()[0]
-                print(f"Resolution {resolution} found with format code {format_code}.")
-                return format_code
-    print("No preferred resolution found.")
-    return None
-
-
-def extract_frames(video_url, timestamps, output_prefix="frame"):
-    """
-    Extract frames from a video at specific timestamps using ffmpeg.
-    """
-    # Get the format code
-    format_code = get_format_code(video_url)
-    if format_code is None:
-        print("No valid resolution found for the video.")
-        return
-
-    # Fetch the direct URL of the video
-    result = subprocess.run(
-        ["yt-dlp", "-f", format_code, "--get-url", video_url],
-        capture_output=True, text=True
-    )
-    direct_url = result.stdout.strip()
-    if not direct_url:
-        print("Failed to fetch the direct URL of the video.")
-        return
-
-    # Extract frames for each timestamp
-    for i, ts in enumerate(timestamps):
-        output_filename = f"{output_prefix}_{i+1}.jpg"
-        cmd = [
-            "ffmpeg",
-            "-ss", str(ts),  # Seek to the exact timestamp
-            "-i", direct_url,  # Input video
-            "-frames:v", "1",  # Extract one frame
-            "-q:v", "2",  # Quality of the output frame
-            output_filename
-        ]
-        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        print(f"Frame at {ts}s saved as {output_filename}")
-
-
-
 
 def convert_to_paragraph_monolingual(payload, video_name):
-    """
-    Convert payload into paragraphs with extracted video frames embedded.
-    """
-    def valid_xml_char_ordinal(c):
-        codepoint = ord(c)
-        return (0x20 <= codepoint <= 0xD7FF) or (0xE000 <= codepoint <= 0xFFFD) or (0x10000 <= codepoint <= 0x10FFFF)
-
+    lines = []
     content = ""
-    translated_content = f"{video_name}\n\n"
+    translated_content = video_name + "\n" + "\n"
     sentences_count = 0
     number_of_paragraphs = math.ceil(len(payload) / 5)
     count_paragraphs = 0
-    document = Document()
-
-    video_url = payload[0].get("video_url", "")
-    timestamps = [segment.get("start_time", 0) for segment in payload if "start_time" in segment]
-
-    if not video_url:
-        return "Error: Video URL is missing."
-
-    extract_frames(video_url, timestamps)
-
     for index, segment in enumerate(payload):
-        if "target_text" in segment.keys():
-            text = segment["target_text"]
-            translated_content += " " + text
+        if "text" in segment.keys():
+            lines.append(segment["target_text"])
+            translated_content = translated_content + " " + segment["target_text"]
             sentences_count += 1
-
-            document.add_paragraph(text)
-
-            frame_file = f"frame_{index+1}.jpg"
-            if os.path.exists(frame_file):
-                with Image.open(frame_file) as img:
-                    image_stream = BytesIO()
-                    img.save(image_stream, format="JPEG")
-                    image_stream.seek(0)
-                    document.add_picture(image_stream, width=Cm(11), height=Cm(6.18))
-
             if sentences_count % 5 == 0:
                 count_paragraphs += 1
-                content += translated_content + "\n\n"
+                content = content + translated_content + "\n" + "\n"
                 translated_content = ""
 
     if count_paragraphs < number_of_paragraphs:
-        content += translated_content + "\n\n"
-
-    content = "".join(c for c in content if valid_xml_char_ordinal(c))
-    document.add_paragraph(content)
-
-    buffer = BytesIO()
-    document.save(buffer)
-    length = buffer.tell()
-    buffer.seek(0)
-
-    response = StreamingHttpResponse(
-        streaming_content=buffer,
-        content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
-    response["Content-Disposition"] = "attachment; filename=new_file_download.docx"
-    response["Content-Encoding"] = "UTF-8"
-    response["Content-Length"] = length
-
-    for index in range(len(timestamps)):
-        frame_file = f"frame_{index+1}.jpg"
-        if os.path.exists(frame_file):
-            os.remove(frame_file)
-
-    return response
+        content = content + translated_content + "\n" + "\n"
+    return content
 
 
 def convert_to_paragraph_bilingual(payload, video_name):
