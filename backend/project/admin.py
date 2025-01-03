@@ -9,6 +9,7 @@ class ProjectAdmin(admin.ModelAdmin):
 
     list_display = (
         "id",
+        "title",
         "organization_id",
         "default_task_types",
         "default_target_languages",

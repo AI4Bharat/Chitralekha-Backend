@@ -11,6 +11,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import permission_classes
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import CustomTokenCreateSerializer
+
 from .serializers import (
     ChangePasswordSerializer,
     UserProfileSerializer,
@@ -20,6 +23,8 @@ from .serializers import (
     LanguageSerializer,
     UpdateUserPasswordSerializer,
 )
+from djoser.views import TokenCreateView
+from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from organization.models import Invite, Organization
 from organization.serializers import InviteGenerationSerializer
@@ -150,6 +155,19 @@ onboarding_table = """
         </html>
 """
 
+class CustomTokenCreateView(APIView):
+    
+    serializer_class = CustomTokenCreateSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        
+        if serializer.is_valid(raise_exception=True):
+            token_data = serializer.validated_data  # This now contains the tokens
+            return Response(token_data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST) 
+
 
 class OnboardingAPIView(APIView):
     def get(
@@ -168,6 +186,7 @@ class OnboardingAPIView(APIView):
         *args,
         **kwargs,
     ):
+        email_id = email_id.lower()
         interested_in = ", ".join(str(interested_in).title().split(" "))
         onboarding_table_1 = onboarding_table.format(
             org_name=org_name,
@@ -258,6 +277,7 @@ class InviteViewSet(viewsets.ViewSet):
 
         for email in emails:
             # Checking if the email is in valid format.
+            email = email.lower()
             if re.fullmatch(regex, email):
                 try:
                     user = User(
@@ -397,7 +417,7 @@ class InviteViewSet(viewsets.ViewSet):
         """
         Users to sign up for the first time.
         """
-        email = request.data.get("email")
+        email = request.data.get("email").lower()
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
@@ -471,6 +491,7 @@ class InviteViewSet(viewsets.ViewSet):
             already_accepted_invite,
         ) = ([], [], [], [])
         for user_email in distinct_emails:
+            user_email = user_email.lower()
             if user_email in existing_emails_set:
                 user = User.objects.get(email=user_email)
                 if user.has_accepted_invite:
@@ -726,7 +747,7 @@ class UserViewSet(viewsets.ViewSet):
         """
         try:
             user = request.user
-            unverified_email = request.data.get("email")
+            unverified_email = request.data.get("email").lower()
 
             old_email_update_code = generate_random_string(10)
             new_email_verification_code = generate_random_string(10)

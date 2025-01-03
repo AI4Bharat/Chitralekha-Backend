@@ -79,7 +79,7 @@ import os
 from .utils.timestamp import *
 import openai
 from utils.llm_api import get_model_output
-
+from voiceover.models import VoiceOver
 
 @api_view(["GET"])
 def get_transcript_export_types(request):
@@ -163,10 +163,35 @@ def export_transcript(request):
 
     transcript = get_transcript_id(task)
     if transcript is None:
-        return Response(
-            {"message": "Transcript not found."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+        try:
+            if task.task_type == "TRANSLATION_VOICEOVER_EDIT" and task.status != "COMPLETE":
+                voice_over_obj = VoiceOver.objects.filter(task=task).first()
+                transcript = voice_over_obj.translation.transcript
+            updated_payload = []
+            index = 0
+            for segment in voice_over_obj.payload["payload"].values():
+                start_time = datetime.datetime.strptime(
+                    segment["start_time"], "%H:%M:%S.%f"
+                )
+                end_time = datetime.datetime.strptime(segment["end_time"], "%H:%M:%S.%f")
+                unix_start_time = datetime.datetime.timestamp(start_time)
+                unix_end_time = datetime.datetime.timestamp(end_time)
+
+                updated_segment = {
+                    "start_time": segment["start_time"],
+                    "end_time": segment["end_time"],
+                    "text": segment["transcription_text"],
+                    "speaker_id": "",
+                    "unix_start_time": unix_start_time,
+                    "unix_end_time": unix_end_time,
+                }
+                updated_payload.append(updated_segment)
+            transcript.payload["payload"] = updated_payload
+        except:
+            return Response(
+                {"message": "Transcript not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
     if with_speaker_info:
         speaker_info = transcript.video.multiple_speaker
@@ -701,6 +726,208 @@ def get_transcript_id(task):
             )
     return transcript_id
 
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+    openapi.Parameter(
+        "task_id",
+        openapi.IN_QUERY,
+        description=("An integer to pass the task id"),
+        type=openapi.TYPE_INTEGER,
+        required=True,
+    ),
+    ],
+    responses={
+        200: "Status has been changed successfully",
+        400: "Bad request",
+        404: "No transcript found for given task",
+    },
+)
+@api_view(["GET"])
+def reopen_completed_transcription_task(request):
+    if not request.user.is_authenticated:
+        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+    try:
+        task_id = request.query_params.get("task_id")
+    except KeyError:
+        return Response(
+            {
+                "message": "Missing required parameter - task_id"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    transcript = get_transcript_id(task)
+    if transcript is not None:
+        transcript_id = transcript.id
+    try:
+        transcript = Transcript.objects.get(pk=transcript_id)
+        transcript.delete()
+        task.status = "INPROGRESS"
+        task.save()
+        return Response(
+            {
+                "message": "Status has been changed successfully"
+            },
+            status=status.HTTP_200_OK,
+        )
+    except:
+        return Response(
+            {"message": "Transcript doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@swagger_auto_schema(
+    method="get",
+    manual_parameters=[
+    openapi.Parameter(
+        "task_id",
+        openapi.IN_QUERY,
+        description=("An integer to pass the task id"),
+        type=openapi.TYPE_INTEGER,
+        required=True,
+    ),
+    ],
+    responses={
+        200: "Status has been fetched successfully",
+        400: "Bad request",
+        404: "No transcript found for given task",
+    },
+)
+@api_view(["GET"])
+def fetch_transcript_status(request):
+    if not request.user.is_authenticated:
+        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+    try:
+        task_id = request.query_params.get("task_id")
+    except KeyError:
+        return Response(
+            {
+                "message": "Missing required parameter - task_id"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not active yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    transcript = get_transcript_id(task)
+    if transcript is not None:
+        transcript_id = transcript.id
+    try:
+        transcript = Transcript.objects.get(pk=transcript_id)
+        return Response(
+            {
+                "message": "Status has been fetched successfully",
+                "task_id": task.id,
+                "transcript_id": transcript_id,
+                "status": transcript.status,
+            },
+            status=status.HTTP_200_OK,
+        )
+    except:
+        return Response(
+            {"message": "Transcript doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+@swagger_auto_schema(
+    method="post",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["task_id", "trs_status"],
+        properties={
+            "task_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="An integer identifying the transcript instance",
+            ),
+            "trs_status": openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="Transcript task status to be set",
+            )
+        },
+        description="Post request body",
+    ),
+    responses={
+        200: "Status has been updated successfully",
+        400: "Bad request",
+        404: "No transcript found for given task",
+    },
+)
+@api_view(["POST"])
+def update_transcript_status(request):
+    if not request.user.is_authenticated:
+        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+    try:
+        # Get the required data from the POST body
+        task_id = request.data["task_id"]
+        trs_status = request.data["trs_status"]
+    except KeyError:
+        return Response(
+            {
+                "message": "Missing required parameters - task_id or trs_status"
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    try:
+        task = Task.objects.get(pk=task_id)
+    except Task.DoesNotExist:
+        return Response(
+            {"message": "Task doesn't exist."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not task.is_active:
+        return Response(
+            {"message": "This task is not active yet."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    transcript = get_transcript_id(task)
+    if transcript is not None:
+        transcript_id = transcript.id
+    try:
+        transcript = Transcript.objects.get(pk=transcript_id)
+        if trs_status in ["TRANSCRIPTION_SELECT_SOURCE", "TRANSCRIPTION_EDITOR_ASSIGNED", "TRANSCRIPTION_EDIT_INPROGRESS", "TRANSCRIPTION_EDIT_COMPLETE", "TRANSCRIPTION_REVIEWER_ASSIGNED", "TRANSCRIPTION_REVIEW_INPROGRESS", "TRANSCRIPTION_REVIEW_COMPLETE"]:
+            transcript.status = trs_status
+            transcript.save()
+            return Response(
+                {
+                    "message": "Status has been updated successfully",
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {"message": "Invalid Status"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    except:
+        return Response(
+            {"message": "Transcript doesn't exist."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 @swagger_auto_schema(
     method="get",
@@ -1221,8 +1448,6 @@ def change_active_status_of_next_tasks(task, transcript_obj):
                 translation.save()
                 if source_type == None or source_type == "MACHINE_GENERATED":
                     source_type = "MACHINE_GENERATED"
-                    translation.transcript = transcript_obj
-                    translation.save()
                     celery_nmt_tts_call.delay(task_id=translation.task.id)
                 else:
                     payloads = generate_translation_payload(
@@ -1269,7 +1494,10 @@ def change_active_status_of_next_tasks(task, transcript_obj):
 # Helper function to call the paraphrasing API
 def paraphrase_text(text):
     # Set API configuration
-    text = get_model_output(user_prompt=text)
+    try:
+        text = get_model_output(user_prompt=text)
+    except:
+        True
     return text
 
 
@@ -1464,9 +1692,9 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                         ),  # Generate paraphrased text if paraphrase=true
                     },
                 )
-        last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
-            "end_time"
-        ]
+        # last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
+        #     "end_time"
+        # ]
         offset_to_check = start_offset + len(payload["payload"])
         last_valid_start_time = transcript.payload["payload"][offset_to_check - 1][
             "start_time"
@@ -1800,9 +2028,7 @@ def save_transcription(request):
         transcript_id = transcript.id
     bookmarked_segment = request.data.get("bookmark", None)
     user = request.user
-    print(bookmarked_segment)
-    if bookmarked_segment:
-        print("Saving History")
+    if bookmarked_segment is not None:
         user.user_history = {
             "task_id": task_id,
             "offset": offset,
@@ -1912,6 +2138,12 @@ def save_transcription(request):
                             if task.status == "INPROGRESS":
                                 task.status = "COMPLETE"
                                 task.save()
+                            if task.status == "SELECTED_SOURCE":
+                                task.status = "COMPLETE"
+                                task.save()
+                            if task.status == "PARAPHRASE":
+                                task.status = "COMPLETE"
+                                task.save()
                             return Response(
                                 {
                                     "message": "Final Edited Transcript already submitted."
@@ -1939,8 +2171,8 @@ def save_transcription(request):
                             transcript_obj,
                         )
                         for item in transcript_obj.payload["payload"]:
-                            item['verbatim_text'] = item.pop('text')
-                            item['text'] = item['paraphrased_text']
+                            item['verbatim_text'] = item['text']
+                            item['text'] = item['paraphrased_text'] if 'paraphrased_text' in item and item['paraphrased_text'] is not None else item['verbatim_text']
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
@@ -2053,7 +2285,7 @@ def save_transcription(request):
                             transcript_obj,
                         )
                         for item in transcript_obj.payload["payload"]:
-                            item['verbatim_text'] = item.pop('text')
+                            item['verbatim_text'] = item['text']
                             item['text'] = item['paraphrased_text']
                         transcript_obj.save()
                         task.status = "COMPLETE"

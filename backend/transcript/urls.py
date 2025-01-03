@@ -12,6 +12,9 @@ urlpatterns = [
         name="generate_original_transcript",
     ),
     path("save/", views.save_transcription, name="save_transcript"),
+    path("reopen_completed_transcription_task/", views.reopen_completed_transcription_task, name="reopen_completed_transcription_task"),
+    path("get_transcription_status/", views.fetch_transcript_status, name="get_transcription_status"),
+    path("set_transcription_status/", views.update_transcript_status, name="set_transcription_status"),
     path(
         "save_full_transcript/",
         views.save_full_transcription,

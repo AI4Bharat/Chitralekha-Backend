@@ -94,14 +94,16 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 
 DOMAIN = os.getenv("DOMAIN")
 SITE_NAME = os.getenv("DOMAIN")
-PROTOCOL = "https"
+DEFAULT_HTTP_PROTOCOL = 'https'
 
 DJOSER = {
     "PASSWORD_RESET_CONFIRM_URL": "forget-password/confirm/{uid}/{token}",
     "USERNAME_RESET_CONFIRM_URL": "users/auth/users/username/reset/confirm/{uid}/{token}",
     "ACTIVATION_URL": "users/auth/users/activation/{uid}/{token}",
     "SEND_ACTIVATION_EMAIL": True,
-    "SERIALIZERS": {},
+    "SERIALIZERS": {
+        "token_create": "users.serializers.CustomTokenCreateSerializer",
+    },
 }
 
 SIMPLE_JWT = {
@@ -125,12 +127,13 @@ if ENABLE_CORS:
 
     CSRF_TRUSTED_ORIGINS = [
         "http://localhost:*",  # for localhost (Developlemt)
+        "https://*.ai4bharat.org",
     ]
     CUSTOM_CSRF_TRUSTED_ORIGINS = os.getenv("CORS_TRUSTED_ORIGINS", "")
     if CUSTOM_CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.extend(CUSTOM_CSRF_TRUSTED_ORIGINS.split(","))
 
-AUTHENTICATION_BACKENDS = ("django.contrib.auth.backends.ModelBackend",)
+AUTHENTICATION_BACKENDS = ('users.backends.EmailBackend',"django.contrib.auth.backends.ModelBackend",)
 
 ROOT_URLCONF = "backend.urls"
 

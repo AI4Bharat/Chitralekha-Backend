@@ -222,8 +222,8 @@ def upload_zip_to_azure(zip_file_path):
     return blob_client_zip.url
 
 
-def get_tts_output(tts_input, target_language, multiple_speaker, gender):
-    logging.info("Calling TTS API")
+def get_tts_output(tts_input, target_language, multiple_speaker, gender, id):
+    logging.info("Calling TTS API for %s task in %s language", str(id), str(target_language))
     tts_url = get_tts_url(target_language)
     if tts_url is None:
         return {
@@ -285,6 +285,7 @@ def generate_tts_output(
                 target_language,
                 translation_obj.video.multiple_speaker,
                 gender.lower(),
+                translation_obj.id,
             )
             logging.info("output generated")
         else:
@@ -306,6 +307,7 @@ def generate_tts_output(
                     target_language,
                     translation_obj.video.multiple_speaker,
                     speaker_info[speaker_id],
+                    translation_obj.id,
                 )
                 if (
                     type(speaker_tts_output) != dict
@@ -1035,7 +1037,7 @@ def generate_voiceover_payload(translation_payload, target_language, task):
         else:
             gender = task.video.gender
         voiceover_machine_generated = get_tts_output(
-            tts_input, target_language, task.video.multiple_speaker, gender.lower()
+            tts_input, target_language, task.video.multiple_speaker, gender.lower(), task.id
         )
         if (
             type(voiceover_machine_generated) == dict
@@ -1137,6 +1139,13 @@ def check_audio_completion(voice_over_obj):
 
     for index, payload in enumerate(voice_over_obj.translation.payload["payload"]):
         if str(index) in voice_over_obj.payload["payload"].keys():
+            if (get_original_duration_neg(voice_over_obj.payload["payload"][str(index)]["start_time"], voice_over_obj.payload["payload"][str(index)]["end_time"]) < 0.1):
+                missing_cards.append(
+                    {
+                        "card_number": index + 1,
+                        "message": "Duration is 0 for this card.",
+                    }
+                )
             if (
                 "audio" in voice_over_obj.payload["payload"][str(index)].keys()
                 and type(voice_over_obj.payload["payload"][str(index)]["audio"]) == dict
@@ -1157,6 +1166,7 @@ def check_audio_completion(voice_over_obj):
                         "message": "There is no audio present in this card.",
                     }
                 )
+            
     return missing_cards
 
 
@@ -1219,6 +1229,8 @@ def adjust_audio(audio_file, original_time, audio_speed):
     elif audio_time_difference == 0:
         logging.info("No time difference")
     elif audio_time_difference < -0.001:
+        if original_time == 0:
+            raise ZeroDivisionError
         logging.info("Speed up the audio by %s", str(seconds / original_time))
         speedup_factor = seconds / original_time
         if speedup_factor > 1.009:
@@ -1281,6 +1293,14 @@ def get_original_duration(start_time, end_time):
         + float(time_difference.split(":")[2])
     )
     return t_d
+
+def get_original_duration_neg(start_time, end_time):
+    start = datetime.strptime(start_time, "%H:%M:%S.%f")
+    end = datetime.strptime(end_time, "%H:%M:%S.%f")
+    
+    time_difference = (end - start).total_seconds()
+    
+    return time_difference
 
 
 def integrate_all_audios(file_name, payload, video_duration):
@@ -1350,6 +1370,23 @@ def integrate_all_audios(file_name, payload, video_duration):
                     final_audio.export(
                         file_name + "_" + str(previous_index) + ".ogg", format="ogg"
                     )
+            if "time_difference" not in payload["payload"][str(index)]:
+                start_time = payload["payload"][str(index)]["start_time"]
+                end_time = payload["payload"][str(index)]["end_time"]
+                time_difference = (
+                    datetime.strptime(end_time, "%H:%M:%S.%f")
+                    - timedelta(
+                        hours=float(start_time.split(":")[0]),
+                        minutes=float(start_time.split(":")[1]),
+                        seconds=float(start_time.split(":")[-1]),
+                    )
+                ).strftime("%H:%M:%S.%f")
+                t_d = (
+                    int(time_difference.split(":")[0]) * 3600
+                    + int(time_difference.split(":")[1]) * 60
+                    + float(time_difference.split(":")[2])
+                )
+                payload["payload"][str(index)]["time_difference"] = t_d
             if index == length_payload - 1:
                 original_time = payload["payload"][str(index)]["time_difference"]
                 end_time = payload["payload"][str(index)]["end_time"]
