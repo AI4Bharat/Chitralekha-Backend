@@ -21,14 +21,13 @@ from transcript.utils.timestamp import *
 from yt_dlp import YoutubeDL
 import pandas as pd
 from glossary.tmx.tmxservice import TMXService
-from youtube_thubmnail_extractor.extractor import YouTubeThumbnailExtractor
 from PIL import Image
 from io import BytesIO
 from docx.shared import Cm
 from docx import Document
 from django.http import StreamingHttpResponse
 import math
-
+import subprocess
 
 def convert_to_scc(subtitles):
     scc_lines = ["Scenarist_SCC V1.0"]
@@ -153,7 +152,7 @@ def convert_to_paragraph(lines, video_name):
 
     return content
 
-import subprocess
+
 def get_format_code(video_url, resolutions=["480p", "360p", "144p", "720p", "1080p"]):
     """
     Get the format code for the first available resolution from the video URL using yt-dlp.
