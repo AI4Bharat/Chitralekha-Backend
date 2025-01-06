@@ -207,28 +207,75 @@ def extract_frames(video_url, timestamps, output_prefix="frame"):
         print(f"Frame at {ts}s saved as {output_filename}")
 
 
-
-
 def convert_to_paragraph_monolingual(payload, video_name):
-    lines = []
+    """
+    Convert payload into paragraphs with extracted video frames embedded.
+    """
+    def valid_xml_char_ordinal(c):
+        codepoint = ord(c)
+        return (0x20 <= codepoint <= 0xD7FF) or (0xE000 <= codepoint <= 0xFFFD) or (0x10000 <= codepoint <= 0x10FFFF)
+
     content = ""
-    translated_content = video_name + "\n" + "\n"
+    translated_content = f"{video_name}\n\n"
     sentences_count = 0
     number_of_paragraphs = math.ceil(len(payload) / 5)
     count_paragraphs = 0
+    document = Document()
+
+    video_url = payload[0].get("video_url", "")
+    timestamps = [segment.get("start_time", 0) for segment in payload if "start_time" in segment]
+
+    if not video_url:
+        return "Error: Video URL is missing."
+
+    extract_frames(video_url, timestamps)
+
     for index, segment in enumerate(payload):
-        if "text" in segment.keys():
-            lines.append(segment["target_text"])
-            translated_content = translated_content + " " + segment["target_text"]
+        if "target_text" in segment.keys():
+            text = segment["target_text"]
+            translated_content += " " + text
             sentences_count += 1
+
+            document.add_paragraph(text)
+
+            frame_file = f"frame_{index+1}.jpg"
+            if os.path.exists(frame_file):
+                with Image.open(frame_file) as img:
+                    image_stream = BytesIO()
+                    img.save(image_stream, format="JPEG")
+                    image_stream.seek(0)
+                    document.add_picture(image_stream, width=Cm(11), height=Cm(6.18))
+
             if sentences_count % 5 == 0:
                 count_paragraphs += 1
-                content = content + translated_content + "\n" + "\n"
+                content += translated_content + "\n\n"
                 translated_content = ""
 
     if count_paragraphs < number_of_paragraphs:
-        content = content + translated_content + "\n" + "\n"
-    return content
+        content += translated_content + "\n\n"
+
+    content = "".join(c for c in content if valid_xml_char_ordinal(c))
+    document.add_paragraph(content)
+
+    buffer = BytesIO()
+    document.save(buffer)
+    length = buffer.tell()
+    buffer.seek(0)
+
+    response = StreamingHttpResponse(
+        streaming_content=buffer,
+        content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+    response["Content-Disposition"] = "attachment; filename=new_file_download.docx"
+    response["Content-Encoding"] = "UTF-8"
+    response["Content-Length"] = length
+
+    for index in range(len(timestamps)):
+        frame_file = f"frame_{index+1}.jpg"
+        if os.path.exists(frame_file):
+            os.remove(frame_file)
+
+    return response
 
 
 def convert_to_paragraph_bilingual(payload, video_name):
