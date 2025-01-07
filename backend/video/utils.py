@@ -610,13 +610,21 @@ def get_video_func(request):
             url=normalized_url,
         )
     else:
-        video = Video.objects.get(
-            name=title,
-            project_id=project,
-            audio_only=is_audio_only,
-            language=lang,
-            url=normalized_url,
-        )
+        try:
+            video = Video.objects.get(
+                name=title,
+                project_id=project,
+                audio_only=is_audio_only,
+                language=lang,
+                url=normalized_url,
+            )
+        except:
+            video = Video.objects.get(
+                project_id=project,
+                audio_only=is_audio_only,
+                language=lang,
+                url=normalized_url,
+            )
 
     if create:
         if speaker_info is not None:
