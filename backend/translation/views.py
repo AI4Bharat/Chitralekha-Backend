@@ -146,7 +146,7 @@ def export_translation(request):
             {"message": "Task not found."},
             status=status.HTTP_404_NOT_FOUND,
         )
-
+    video_url = task.video.url
     translation = get_translation_id(task)
     if translation is None:
         return Response(
@@ -180,6 +180,8 @@ def export_translation(request):
         translation.save()
 
     payload = translation.payload["payload"]
+    for segment in payload:
+        segment["video_url"] = video_url  # Add video_url to each segment in the payload
     if with_speaker_info:
         speaker_info = translation.payload.get("speaker_info", None)
         if speaker_info == None:
@@ -253,11 +255,13 @@ def export_translation(request):
     elif export_type == "docx":
         filename = "translation.docx"
         content = convert_to_paragraph_monolingual(payload, task.video.name)
-        return convert_to_docx(content)
+        # return convert_to_docx(content)
+        return content
     elif export_type == "docx-bilingual":
         filename = "translation.docx"
         content = convert_to_paragraph_bilingual(payload, task.video.name)
-        return convert_to_docx(content)
+        # return convert_to_docx(content)
+        return content
 
     elif export_type == "sbv":
         for index, segment in enumerate(payload):
