@@ -57,7 +57,7 @@ from video.models import Video
 @api_view(["GET"])
 def get_voice_over_export_types(request):
     return Response(
-        {"export_types": ["mp4", "mp3", "flac", "wav"]}, status=status.HTTP_200_OK
+        {"export_types": ["mp3", "flac", "wav"]}, status=status.HTTP_200_OK
     )
 
 
