@@ -37,6 +37,10 @@ def get_language_label(target_language):
             return language[0]
     return "-"
 
+def count_word_differences(text1, text2):
+    words1 = set(text1.split())
+    words2 = set(text2.split())
+    return len(words1.symmetric_difference(words2))
 
 def get_reports_for_users(pk, start, end):
     subquery = (
@@ -112,6 +116,29 @@ def get_reports_for_users(pk, start, end):
             )
         )
 
+        user_transcription_complete_payloads = User.objects.filter(
+            transcript__video__project_id__id=pk,
+            transcript__status="TRANSCRIPTION_EDIT_COMPLETE",
+            transcript__task__user__email=elem["mail"],
+        ).values_list("transcript__video", "transcript__payload")
+        transcription_complete_payloads = {video_id: payload["payload"] for video_id, payload in user_transcription_complete_payloads}
+        user_transcription_selectsource_payloads = User.objects.filter(
+            transcript__video__project_id__id=pk,
+            transcript__status="TRANSCRIPTION_SELECT_SOURCE",
+            transcript__task__user__email=elem["mail"],
+        ).values_list("transcript__video", "transcript__payload")
+        transcription_selectsource_payloads = {video_id: payload["payload"] for video_id, payload in user_transcription_selectsource_payloads}
+
+        transcript_word_diff = 0
+        for video_id, payload1 in transcription_complete_payloads.items():
+            try:
+                payload2 = transcription_selectsource_payloads[video_id]
+                payload_len = len(payload2) if len(payload2) > len(payload1) else len(payload1)
+                for seg_no in range(0, payload_len):
+                    transcript_word_diff += count_word_differences(payload1[seg_no]['text'], payload2[seg_no]['text'])
+            except:
+                continue
+
         transcript_result = (
             transcript_word_count["transcript_word_count"]
             if transcript_word_count["transcript_word_count"] is not None
@@ -128,6 +155,29 @@ def get_reports_for_users(pk, start, end):
             )
         )
 
+        user_translation_complete_payloads = User.objects.filter(
+            translation__video__project_id__id=pk,
+            translation__status="TRANSLATION_EDIT_COMPLETE",
+            translation__task__user__email=elem["mail"],
+        ).values_list("translation__video", "translation__payload")
+        translation_complete_payloads = {video_id: payload["payload"] for video_id, payload in user_translation_complete_payloads}
+        user_translation_selectsource_payloads = User.objects.filter(
+            translation__video__project_id__id=pk,
+            translation__status="TRANSLATION_SELECT_SOURCE",
+            translation__task__user__email=elem["mail"],
+        ).values_list("translation__video", "translation__payload")
+        translation_selectsource_payloads = {video_id: payload["payload"] for video_id, payload in user_translation_selectsource_payloads}
+
+        translation_word_diff = 0
+        for video_id, payload1 in translation_complete_payloads.items():
+            try:
+                payload2 = translation_selectsource_payloads[video_id]
+                payload_len = len(payload2) if len(payload2) > len(payload1) else len(payload1)
+                for seg_no in range(0, payload_len):
+                    translation_word_diff += count_word_differences(payload1[seg_no]['target_text'], payload2[seg_no]['target_text'])
+            except:
+                continue
+
         translation_result = (
             translation_word_count["translation_word_count"]
             if translation_word_count["translation_word_count"] is not None
@@ -135,6 +185,10 @@ def get_reports_for_users(pk, start, end):
         )
         elem["word_count_translation"] = int(translation_result)
         elem["word_count_transcript"] = int(transcript_result)
+        try:
+            elem["word_diff_percent"] = round(((int(translation_word_diff) + int(transcript_word_diff)) / (int(transcript_result) + int(translation_result))) * 100, 2)
+        except:
+            elem["word_diff_percent"] = 0
         avg_time = (
             0
             if elem["average_completion_time"] is None
@@ -162,6 +216,10 @@ def get_reports_for_users(pk, start, end):
             "word_count": {
                 "value": elem["word_count_translation"] + elem["word_count_transcript"],
                 "label": "Word count",
+            },
+            "changes": {
+                "value": elem["word_diff_percent"],
+                "label": "% Changes",
             },
         }
         user_data.append(user_dict)
