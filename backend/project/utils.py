@@ -121,13 +121,13 @@ def get_reports_for_users(pk, start, end):
             transcript__status="TRANSCRIPTION_EDIT_COMPLETE",
             transcript__task__user__email=elem["mail"],
         ).values_list("transcript__video", "transcript__payload")
-        transcription_complete_payloads = {video_id: payload["payload"] for video_id, payload in user_transcription_complete_payloads}
+        transcription_complete_payloads = {video_id: payload["payload"] for video_id, payload in user_transcription_complete_payloads if "payload" in payload}
         user_transcription_selectsource_payloads = User.objects.filter(
             transcript__video__project_id__id=pk,
             transcript__status="TRANSCRIPTION_SELECT_SOURCE",
             transcript__task__user__email=elem["mail"],
         ).values_list("transcript__video", "transcript__payload")
-        transcription_selectsource_payloads = {video_id: payload["payload"] for video_id, payload in user_transcription_selectsource_payloads}
+        transcription_selectsource_payloads = {video_id: payload["payload"] for video_id, payload in user_transcription_selectsource_payloads if "payload" in payload}
 
         transcript_word_diff = 0
         for video_id, payload1 in transcription_complete_payloads.items():
@@ -160,13 +160,13 @@ def get_reports_for_users(pk, start, end):
             translation__status="TRANSLATION_EDIT_COMPLETE",
             translation__task__user__email=elem["mail"],
         ).values_list("translation__video", "translation__payload")
-        translation_complete_payloads = {video_id: payload["payload"] for video_id, payload in user_translation_complete_payloads}
+        translation_complete_payloads = {video_id: payload["payload"] for video_id, payload in user_translation_complete_payloads if "payload" in payload}
         user_translation_selectsource_payloads = User.objects.filter(
             translation__video__project_id__id=pk,
             translation__status="TRANSLATION_SELECT_SOURCE",
             translation__task__user__email=elem["mail"],
         ).values_list("translation__video", "translation__payload")
-        translation_selectsource_payloads = {video_id: payload["payload"] for video_id, payload in user_translation_selectsource_payloads}
+        translation_selectsource_payloads = {video_id: payload["payload"] for video_id, payload in user_translation_selectsource_payloads if "payload" in payload}
 
         translation_word_diff = 0
         for video_id, payload1 in translation_complete_payloads.items():
