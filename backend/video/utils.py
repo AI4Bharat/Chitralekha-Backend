@@ -548,10 +548,16 @@ def get_video_func(request):
 
     try:
         if "blob.core.windows.net" in url:
-            info = ydl.extract_info(url, download=False)
-            title = info["title"]
-            video = VideoFileClip(url)
-            duration = timedelta(seconds=floor(video.duration))
+            try:
+                info = ydl.extract_info(url, download=False)
+                title = info["title"]
+            except:
+                title = url.replace(".mp4","").split('/')[-1]
+            try:
+                video = VideoFileClip(url)
+                duration = timedelta(seconds=floor(video.duration))
+            except:
+                duration = timedelta(seconds=0)
             direct_video_url = url
             normalized_url = url
         else:
