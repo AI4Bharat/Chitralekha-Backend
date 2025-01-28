@@ -547,7 +547,7 @@ def get_video_func(request):
             )
 
     try:
-        if "blob.core.windows.net" in url:
+        if "blob.core.windows.net" or "objectstore.e2enetworks.net" in url:
             try:
                 info = ydl.extract_info(url, download=False)
                 title = info["title"]
