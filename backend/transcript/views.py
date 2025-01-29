@@ -2497,7 +2497,9 @@ def get_transcription_report(request):
             updated_at__date__range=(start_date.date(), end_date.date())
         )
 
-    transcripts = transcripts.values(
+    transcripts = transcripts.exclude(
+        video__project_id__organization_id__title__isnull=True
+    ).values(
         "language", "video__project_id__organization_id__title"
     )
     transcription_statistics = transcripts.annotate(
