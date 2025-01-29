@@ -2099,7 +2099,9 @@ def get_voiceover_report(request):
             updated_at__date__range=(start_date.date(), end_date.date())
         )
 
-    voiceovers = voiceovers.values(        
+    voiceovers = voiceovers.exclude(
+    video__project_id__organization_id__title__isnull=True
+    ).values(        
         "video__project_id__organization_id__title",
         src_language=F("video__language"),
         tgt_language=F("target_language"),
