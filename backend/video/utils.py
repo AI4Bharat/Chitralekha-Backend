@@ -318,6 +318,7 @@ def get_video_func(request):
     upload_task_eta = request.GET.get("ETA")
     speaker_info = request.GET.get("speaker_info")
     multiple_speaker = request.GET.get("multiple_speaker", "false")
+    vid_duration = request.GET.get("duration", "00:00:00")
     url = url.strip()
 
     create = create.lower() == "true"
@@ -557,7 +558,7 @@ def get_video_func(request):
                 video = VideoFileClip(url)
                 duration = timedelta(seconds=floor(video.duration))
             except:
-                duration = timedelta(seconds=0)
+                duration = vid_duration
             direct_video_url = url
             normalized_url = url
         else:
