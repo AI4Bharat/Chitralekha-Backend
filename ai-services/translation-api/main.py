@@ -42,7 +42,7 @@ indic_language_dict = {
     "Tamil": "ta",
     "Bengali": "bn",
     "Kannada": "kn",
-    "Oriya": "or",
+    "Odia": "or",
     "Telugu": "te",
     "Gujarati": "gu",
     "Malayalam": "ml",
