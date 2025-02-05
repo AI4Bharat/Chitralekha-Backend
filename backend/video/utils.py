@@ -304,7 +304,7 @@ def fetch_video_details(video_uuid=None, video_url=None):
 def convert_to_timedelta_format(time_str):
     time_obj = datetime.strptime(time_str, "%H:%M:%S").time()
     delta = timedelta(hours=time_obj.hour, minutes=time_obj.minute, seconds=time_obj.second)
-    return str(delta)
+    return delta
 
 def get_video_func(request):
     url = request.GET.get("multimedia_url")
