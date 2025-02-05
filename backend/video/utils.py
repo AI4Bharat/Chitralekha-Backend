@@ -558,7 +558,7 @@ def get_video_func(request):
                 video = VideoFileClip(url)
                 duration = timedelta(seconds=floor(video.duration))
             except:
-                duration = vid_duration
+                duration = lambda vid_duration: str(timedelta(*map(int, vid_duration.split(":"))))
             direct_video_url = url
             normalized_url = url
         else:
