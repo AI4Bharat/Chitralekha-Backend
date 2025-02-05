@@ -301,7 +301,10 @@ def fetch_video_details(video_uuid=None, video_url=None):
         }
         return response_data, 200  
 
-
+def convert_to_timedelta_format(time_str):
+    time_obj = datetime.strptime(time_str, "%H:%M:%S").time()
+    delta = timedelta(hours=time_obj.hour, minutes=time_obj.minute, seconds=time_obj.second)
+    return str(delta)
 
 def get_video_func(request):
     url = request.GET.get("multimedia_url")
@@ -558,7 +561,7 @@ def get_video_func(request):
                 video = VideoFileClip(url)
                 duration = timedelta(seconds=floor(video.duration))
             except:
-                duration = lambda vid_duration: str(timedelta(*map(int, vid_duration.split(":"))))
+                duration = convert_to_timedelta_format(vid_duration)
             direct_video_url = url
             normalized_url = url
         else:
