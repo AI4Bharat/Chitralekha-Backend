@@ -1139,7 +1139,7 @@ def check_audio_completion(voice_over_obj):
 
     for index, payload in enumerate(voice_over_obj.translation.payload["payload"]):
         if str(index) in voice_over_obj.payload["payload"].keys():
-            if (get_original_duration_neg(voice_over_obj.payload["payload"][str(index)]["start_time"], voice_over_obj.payload["payload"][str(index)]["end_time"]) < 0.1):
+            if (get_original_duration_neg(voice_over_obj.payload["payload"][str(index)]["start_time"], voice_over_obj.payload["payload"][str(index)]["end_time"]) < 0):
                 missing_cards.append(
                     {
                         "card_number": index + 1,
