@@ -306,6 +306,36 @@ def get_payload(request):
     try:
         task_id = request.query_params["task_id"]
         offset = int(request.query_params["offset"])
+        videos = Video.objects.filter(
+            tasks__task_type="TRANSCRIPTION_EDIT",
+            tasks__status="COMPLETE"
+        ).filter(
+            tasks__task_type="TRANSLATION_VOICEOVER_EDIT",
+            tasks__status="SELECTED_SOURCE",
+            tasks__is_active=False
+        ).values_list('id', 'name', 'tasks__id', 'tasks__task_uuid', 'tasks__task_type', 'tasks__target_language', 'tasks__status',
+                    'tasks__user', 'tasks__eta', 'tasks__created_at', 'tasks__updated_at')
+        # Open the CSV file and write the data
+        with open('case2.csv', 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(
+                ['video_id', 'video_name', 'tasks_id', 'tasks_task_uuid', 'tasks_task_type', 'tasks_target_language', 'tasks_status',
+                'tasks_user', 'tasks_eta', 'tasks_created_at', 'tasks_updated_at'])  # header row
+            for video in videos:
+                writer.writerow(video)
+        videos = Video.objects.filter(
+            tasks__task_type="TRANSCRIPTION_EDIT",
+            tasks__status="COMPLETE"
+        ).filter(
+            tasks__task_type="TRANSLATION_VOICEOVER_EDIT",
+            tasks__status="FAILED"
+        ).values_list('id', 'name', 'tasks__id', 'tasks__task_uuid', 'tasks__task_type', 'tasks__target_language', 'tasks__status', 'tasks__user', 'tasks__eta', 'tasks__created_at', 'tasks__updated_at')
+        # Open the CSV file and write the data
+        with open('case1.csv', 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['video_id', 'video_name', 'tasks_id', 'tasks_task_uuid', 'tasks_task_type', 'tasks_target_language', 'tasks_status', 'tasks_user', 'tasks_eta', 'tasks_created_at', 'tasks_updated_at'])  # header row
+            for video in videos:
+                writer.writerow(video)
     except KeyError:
         return Response(
             {"message": "Missing required parameters - task_id or offset"},
@@ -515,11 +545,25 @@ def get_payload(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if voice_over.voice_over_type == "MANUALLY_CREATED":
+    try:
+        if voice_over.voice_over_type == "MANUALLY_CREATED":
+            return Response(
+                {
+                    "completed_count": voice_over.payload["payload"]["completed_count"],
+                    "sentences_count": len(voice_over.translation.payload["payload"]),
+                    "count": count_cards + 1,
+                    "next": next,
+                    "current": offset,
+                    "previous": previous,
+                    "payload": payload,
+                    "source_type": voice_over.voice_over_type,
+                },
+                status=status.HTTP_200_OK,
+            )
+    except:
         return Response(
             {
-                "completed_count": voice_over.payload["payload"]["completed_count"],
-                "sentences_count": len(voice_over.translation.payload["payload"]),
+                "completed_count": count_cards + 1,
                 "count": count_cards + 1,
                 "next": next,
                 "current": offset,
@@ -529,19 +573,6 @@ def get_payload(request):
             },
             status=status.HTTP_200_OK,
         )
-
-    return Response(
-        {
-            "completed_count": count_cards + 1,
-            "count": count_cards + 1,
-            "next": next,
-            "current": offset,
-            "previous": previous,
-            "payload": payload,
-            "source_type": voice_over.voice_over_type,
-        },
-        status=status.HTTP_200_OK,
-    )
 
 
 import re
