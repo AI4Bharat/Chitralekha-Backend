@@ -309,6 +309,48 @@ def get_payload(request):
     try:
         task_id = request.query_params["task_id"]
         offset = int(request.query_params["offset"])
+        # videos = Video.objects.filter(
+        #     tasks__task_type="TRANSCRIPTION_EDIT",
+        #     tasks__status="COMPLETE"
+        # ).filter(
+        #     tasks__task_type="TRANSLATION_VOICEOVER_EDIT",
+        #     tasks__status="FAILED"
+        # ).values_list('id', 'name', 'tasks__id', 'tasks__task_uuid', 'tasks__task_type', 'tasks__target_language', 'tasks__status',
+        #             'tasks__user', 'tasks__eta', 'tasks__created_at', 'tasks__updated_at')
+        
+                # for vid in videos[1070:]:
+                #     print(vid[0])
+                #     transcription_task = Transcript.objects.filter(video=vid[0], status="TRANSCRIPTION_EDIT_COMPLETE").first()
+                #     print(transcription_task)
+                #     translation_task = Translation.objects.filter(video=vid[0], target_language=vid[5]).first()
+                #     print(translation_task)
+                #     voiceover_task = VoiceOver.objects.filter(video=vid[0], target_language=vid[5]).first()
+                #     voiceover_task.translation = translation_task
+                #     voiceover_task.save()
+                #     translation_task.transcript = transcription_task
+                #     translation_task.save()
+                #     print("ok")
+        # Open the CSV file and write the data
+        # with open('case2.csv', 'w', newline='') as csvfile:
+        #     writer = csv.writer(csvfile)
+        #     writer.writerow(
+        #         ['video_id', 'video_name', 'tasks_id', 'tasks_task_uuid', 'tasks_task_type', 'tasks_target_language', 'tasks_status',
+        #         'tasks_user', 'tasks_eta', 'tasks_created_at', 'tasks_updated_at'])  # header row
+        #     for video in videos:
+        #         writer.writerow(video)
+        # videos = Video.objects.filter(
+        #     tasks__task_type="TRANSCRIPTION_EDIT",
+        #     tasks__status="COMPLETE"
+        # ).filter(
+        #     tasks__task_type="TRANSLATION_VOICEOVER_EDIT",
+        #     tasks__status="FAILED"
+        # ).values_list('id', 'name', 'tasks__id', 'tasks__task_uuid', 'tasks__task_type', 'tasks__target_language', 'tasks__status', 'tasks__user', 'tasks__eta', 'tasks__created_at', 'tasks__updated_at')
+        # # Open the CSV file and write the data
+        # with open('case1.csv', 'w', newline='') as csvfile:
+        #     writer = csv.writer(csvfile)
+        #     writer.writerow(['video_id', 'video_name', 'tasks_id', 'tasks_task_uuid', 'tasks_task_type', 'tasks_target_language', 'tasks_status', 'tasks_user', 'tasks_eta', 'tasks_created_at', 'tasks_updated_at'])  # header row
+        #     for video in videos:
+        #         writer.writerow(video)
     except KeyError:
         return Response(
             {"message": "Missing required parameters - task_id or offset"},
