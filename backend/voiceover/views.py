@@ -345,6 +345,18 @@ def get_payload(request):
         #     tasks__task_type="TRANSLATION_VOICEOVER_EDIT",
         #     tasks__status="FAILED"
         # ).values_list('id', 'name', 'tasks__id', 'tasks__task_uuid', 'tasks__task_type', 'tasks__target_language', 'tasks__status', 'tasks__user', 'tasks__eta', 'tasks__created_at', 'tasks__updated_at')
+        # for vid in videos:
+        #     print(vid[0])
+        #     transcription_task = Transcript.objects.filter(video=vid[0], status="TRANSCRIPTION_EDIT_COMPLETE").first()
+        #     print(transcription_task)
+        #     translation_task = Translation.objects.filter(video=vid[0], target_language=vid[5]).first()
+        #     print(translation_task)
+        #     voiceover_task = VoiceOver.objects.filter(video=vid[0], target_language=vid[5]).first()
+        #     voiceover_task.translation = translation_task
+        #     voiceover_task.save()
+        #     translation_task.transcript = transcription_task
+        #     translation_task.save()
+        #     print("ok")
         # # Open the CSV file and write the data
         # with open('case1.csv', 'w', newline='') as csvfile:
         #     writer = csv.writer(csvfile)
