@@ -17,6 +17,7 @@ from config import (
     app_name,
 )
 from pydub import AudioSegment
+import io
 from datetime import datetime, date, timedelta
 import os
 import wave
@@ -1131,6 +1132,14 @@ def integrate_audio_with_video(file_name, voice_over_obj, video):
         os.remove(video_file)
         os.rename(os.path.join(file_name + "final.mp4"), file_name + ".mp4")
 
+def is_empty_audio(base64_string):
+    try:
+        decoded_data = base64.b64decode(base64_string, validate=True) 
+        audio_buffer = io.BytesIO(decoded_data)
+        AudioSegment.from_file(audio_buffer) 
+        return False
+    except Exception:
+        return True 
 
 def check_audio_completion(voice_over_obj):
     length_translation_payload = len(voice_over_obj.translation.payload["payload"])
@@ -1139,7 +1148,7 @@ def check_audio_completion(voice_over_obj):
 
     for index, payload in enumerate(voice_over_obj.translation.payload["payload"]):
         if str(index) in voice_over_obj.payload["payload"].keys():
-            if (get_original_duration_neg(voice_over_obj.payload["payload"][str(index)]["start_time"], voice_over_obj.payload["payload"][str(index)]["end_time"]) < 0):
+            if (get_original_duration_neg(voice_over_obj.payload["payload"][str(index)]["start_time"], voice_over_obj.payload["payload"][str(index)]["end_time"]) < 0.1):
                 missing_cards.append(
                     {
                         "card_number": index + 1,
@@ -1156,7 +1165,7 @@ def check_audio_completion(voice_over_obj):
                         "audioContent"
                     ]
                 )
-                > 0
+                > 0 and not is_empty_audio(voice_over_obj.payload["payload"][str(index)]["audio"]["audioContent"])
             ):
                 continue
             else:
