@@ -321,6 +321,7 @@ def get_video_func(request):
     speaker_info = request.GET.get("speaker_info")
     multiple_speaker = request.GET.get("multiple_speaker", "false")
     vid_duration = request.GET.get("duration", "00:00:00")
+    ytLink = request.GET.get("ytlink", "").strip()
     url = url.strip()
 
     create = create.lower() == "true"
@@ -617,6 +618,7 @@ def get_video_func(request):
             gender=gender,
             multiple_speaker=multiple_speaker,
             url=normalized_url,
+            yt_url=ytLink
         )
     else:
         try:
