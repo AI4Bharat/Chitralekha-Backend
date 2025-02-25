@@ -34,7 +34,7 @@ class Video(models.Model):
     )
     name = models.CharField(max_length=255, verbose_name="Video Name")
     url = models.URLField(verbose_name="Video URL", db_index=True)
-    yt_url = models.URLField(verbose_name="Youtube URL", null=True, blank=True, help_text=("YouTube Url for Google Drive Link"))
+    yt_url = models.URLField(verbose_name="Youtube URL", null=True, blank=True, help_text=("YouTube Url for Video Download Link"))
     project_id = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
