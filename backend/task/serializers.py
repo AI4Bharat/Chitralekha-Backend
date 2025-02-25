@@ -31,6 +31,7 @@ class TaskSerializer(serializers.ModelSerializer):
     user = UserFetchSerializer(read_only=True)
     created_by = UserFetchSerializer(read_only=True)
     time_spent = serializers.CharField(source="format_time_spent", read_only=True)
+    video_yt_url = serializers.CharField(source="video.yt_url", read_only=True)
 
     class Meta:
         model = Task
@@ -60,4 +61,5 @@ class TaskSerializer(serializers.ModelSerializer):
             "created_by",
             "is_active",
             "time_spent",
+            "video_yt_url",
         )
