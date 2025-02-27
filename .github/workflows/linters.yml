@@ -13,7 +13,7 @@ jobs:
         run: echo "Current Git branch is ${GITHUB_REF##*/}" 
       - name: Install Black
         run: pip install black
-      - name: Run black --check . to check for code formatting.
-        run: black --check .
       - name: Run black . to format code.
         run: black .
+      - name: Run black --check . to check for code formatting.
+        run: black --check .
