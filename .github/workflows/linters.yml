@@ -15,3 +15,5 @@ jobs:
         run: pip install black
       - name: Run black --check . to check for code formatting.
         run: black --check .
+      - name: Run black . to format code.
+        run: black .
