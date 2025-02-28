@@ -566,17 +566,22 @@ def get_video_func(request):
             normalized_url = url
         else:
         # Get the video info from the YouTube API
-            (
-                direct_video_url,
-                normalized_url,
-                title,
-                duration,
-                direct_audio_url,
-            ) = get_data_from_google_video(url)
+            try:
+                (
+                    direct_video_url,
+                    normalized_url,
+                    title,
+                    duration,
+                    direct_audio_url,
+                ) = get_data_from_google_video(url)
+            except:
+                if ytLink.find("youtube") != -1:
+                    d_url = url
+                    url = ytLink
+                    raise
     except:
         direct_video_url = ""
         direct_audio_url = ""
-        normalized_url = url
         try:
             API_KEY = youtube_api_key
             youtube = build("youtube", "v3", developerKey=API_KEY)
@@ -600,6 +605,9 @@ def get_video_func(request):
                 {"message": "This is an invalid video URL."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if d_url.find("drive.google.com") != -1:
+            url = d_url
+        normalized_url = url
 
     # if title[-4:] == ".mp4" and "youtube.com" not in normalized_url:
     #     return Response(
