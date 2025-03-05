@@ -120,11 +120,7 @@ def convert_to_docx(content):
     response["Content-Disposition"] = "attachment; filename=" + "new_file_download"
     response["Content-Encoding"] = "UTF-8"
     response["Content-Length"] = length
-    try:
-        os.remove("temp_f.txt")
-    except:
-        True
-    return response
+    os.remove("temp_f.txt")
 
 
 def convert_to_paragraph(lines, video_name):
