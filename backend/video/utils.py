@@ -844,6 +844,7 @@ def create_video(
     target_language=None,
     assignee=None,
     lang="en",
+    ytlink="",
 ):
     new_request = HttpRequest()
     new_request.method = "GET"
@@ -860,6 +861,7 @@ def create_video(
     new_request.GET["assignee"] = assignee
     new_request.GET["task_type"] = task_type
     new_request.GET["target_language"] = target_language
+    new_request.GET["ytlink"] = ytlink
     return get_video_func(new_request)
 
 

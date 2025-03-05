@@ -94,6 +94,7 @@ required_fields_org = [
     "Task Description",
     "Video Description",
     "ETA",
+    "Drive URL"
 ]
 
 
@@ -1253,7 +1254,7 @@ def upload_csv_org(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     errors = []
-    print(csv_reader.fieldnames)
+    # print(csv_reader.fieldnames)
     row_num = 0
 
     valid_rows = []
@@ -1411,6 +1412,7 @@ def upload_csv_org(request):
 
         valid_row["task_description"] = row["Task Description"]
         valid_row["video_description"] = row["Video Description"]
+        valid_row["drive_url"] = row["Drive URL"]
         video = Video.objects.filter(url=row["Youtube URL"].strip()).first()
         if len(errors) == 0:
             if video is not None:
