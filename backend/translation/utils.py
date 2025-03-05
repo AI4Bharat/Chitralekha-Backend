@@ -121,6 +121,7 @@ def convert_to_docx(content):
     response["Content-Encoding"] = "UTF-8"
     response["Content-Length"] = length
     os.remove("temp_f.txt")
+    return response
 
 
 def convert_to_paragraph(lines, video_name):
