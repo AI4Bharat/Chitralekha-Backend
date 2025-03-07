@@ -74,6 +74,7 @@ from django.conf import settings
 from transcript.views import get_transcript_id
 from task.tasks import celery_nmt_tts_call
 
+
 @api_view(["GET"])
 def get_translation_export_types(request):
     return Response(
@@ -563,17 +564,18 @@ def get_translation_id(task):
                 .first()
             )
     return translation_id
-  
+
+
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
-    openapi.Parameter(
-        "task_id",
-        openapi.IN_QUERY,
-        description=("An integer to pass the task id"),
-        type=openapi.TYPE_INTEGER,
-        required=True,
-    ),
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the task id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
     ],
     responses={
         200: "Status has been fetched successfully",
@@ -584,17 +586,18 @@ def get_translation_id(task):
 @api_view(["GET"])
 def fetch_translation_status(request):
     if not request.user.is_authenticated:
-        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+        return Response(
+            {"message": "You do not have enough permissions to access this view!"},
+            status=401,
+        )
     try:
         task_id = request.query_params.get("task_id")
     except KeyError:
         return Response(
-            {
-                "message": "Missing required parameter - task_id"
-            },
+            {"message": "Missing required parameter - task_id"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     try:
         task = Task.objects.get(pk=task_id)
     except Task.DoesNotExist:
@@ -628,7 +631,8 @@ def fetch_translation_status(request):
             {"message": "Translation doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
+
 @swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
@@ -642,7 +646,7 @@ def fetch_translation_status(request):
             "trl_status": openapi.Schema(
                 type=openapi.TYPE_STRING,
                 description="Translation task status to be set",
-            )
+            ),
         },
         description="Post request body",
     ),
@@ -655,19 +659,20 @@ def fetch_translation_status(request):
 @api_view(["POST"])
 def update_translation_status(request):
     if not request.user.is_authenticated:
-        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+        return Response(
+            {"message": "You do not have enough permissions to access this view!"},
+            status=401,
+        )
     try:
         # Get the required data from the POST body
         task_id = request.data["task_id"]
         trl_status = request.data["trl_status"]
     except KeyError:
         return Response(
-            {
-                "message": "Missing required parameters - task_id or trl_status"
-            },
+            {"message": "Missing required parameters - task_id or trl_status"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     try:
         task = Task.objects.get(pk=task_id)
     except Task.DoesNotExist:
@@ -687,7 +692,15 @@ def update_translation_status(request):
         translation_id = translation.id
     try:
         translation = Translation.objects.get(pk=translation_id)
-        if trl_status in ["TRANSLATION_SELECT_SOURCE", "TRANSLATION_EDITOR_ASSIGNED", "TRANSLATION_EDIT_INPROGRESS", "TRANSLATION_EDIT_COMPLETE", "TRANSLATION_REVIEWER_ASSIGNED", "TRANSLATION_REVIEW_INPROGRESS", "TRANSLATION_REVIEW_COMPLETE"]:
+        if trl_status in [
+            "TRANSLATION_SELECT_SOURCE",
+            "TRANSLATION_EDITOR_ASSIGNED",
+            "TRANSLATION_EDIT_INPROGRESS",
+            "TRANSLATION_EDIT_COMPLETE",
+            "TRANSLATION_REVIEWER_ASSIGNED",
+            "TRANSLATION_REVIEW_INPROGRESS",
+            "TRANSLATION_REVIEW_COMPLETE",
+        ]:
             translation.status = trl_status
             translation.save()
             return Response(
@@ -706,6 +719,7 @@ def update_translation_status(request):
             {"message": "Translation doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
 
 @swagger_auto_schema(
     method="get",
@@ -2310,7 +2324,7 @@ def get_translation_report(request):
 
     translations = translations.values(
         "video__project_id__organization_id__title",
-        "video__project_id__organization_id__is_active",  
+        "video__project_id__organization_id__is_active",
         src_language=F("video__language"),
         tgt_language=F("target_language"),
     )
@@ -2324,20 +2338,24 @@ def get_translation_report(request):
     translation_data_with_org = []
     for elem in translation_statistics:
         org_name = elem.get("video__project_id__organization_id__title")
-        is_active = elem.get("video__project_id__organization_id__is_active", False)  
+        is_active = elem.get("video__project_id__organization_id__is_active", False)
         if not org_name:
-            continue 
+            continue
 
         translation_dict = {
             "org_name": org_name,
             "is_active": is_active,
             "src_language": {
-                "value": dict(TRANSLATION_LANGUAGE_CHOICES).get(elem["src_language"], "Unknown"),
+                "value": dict(TRANSLATION_LANGUAGE_CHOICES).get(
+                    elem["src_language"], "Unknown"
+                ),
                 "label": "Source Language",
                 "viewColumns": False,
             },
             "tgt_language": {
-                "value": dict(TRANSLATION_LANGUAGE_CHOICES).get(elem["tgt_language"], "Unknown"),
+                "value": dict(TRANSLATION_LANGUAGE_CHOICES).get(
+                    elem["tgt_language"], "Unknown"
+                ),
                 "label": "Target Language",
                 "viewColumns": False,
             },
@@ -2366,19 +2384,21 @@ def get_translation_report(request):
             "org": {
                 "name": org,
                 "is_active": next(
-                    (i.get("is_active", False) for i in lang_data),
-                    False  
+                    (i.get("is_active", False) for i in lang_data), False
                 ),
             },
             "data": data_without_org,
         }
         res.append(temp_data)
-        
+
     return Response(res, status=status.HTTP_200_OK)
+
 
 def regenerate_translation_voiceover(task_id):
     task_obj = Task.objects.get(pk=task_id)
-    transcription_task = Task.objects.filter(video=task_obj.video, task_type="TRANSCRIPTION_EDIT", status="COMPLETE").first()
+    transcription_task = Task.objects.filter(
+        video=task_obj.video, task_type="TRANSCRIPTION_EDIT", status="COMPLETE"
+    ).first()
     if transcription_task is None:
         return False
     transcript = get_transcript_id(transcription_task)

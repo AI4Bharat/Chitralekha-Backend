@@ -81,6 +81,7 @@ import openai
 from utils.llm_api import get_model_output
 from voiceover.models import VoiceOver
 
+
 @api_view(["GET"])
 def get_transcript_export_types(request):
     return Response(
@@ -164,7 +165,10 @@ def export_transcript(request):
     transcript = get_transcript_id(task)
     if transcript is None:
         try:
-            if task.task_type == "TRANSLATION_VOICEOVER_EDIT" and task.status != "COMPLETE":
+            if (
+                task.task_type == "TRANSLATION_VOICEOVER_EDIT"
+                and task.status != "COMPLETE"
+            ):
                 voice_over_obj = VoiceOver.objects.filter(task=task).first()
                 transcript = voice_over_obj.translation.transcript
             updated_payload = []
@@ -173,7 +177,9 @@ def export_transcript(request):
                 start_time = datetime.datetime.strptime(
                     segment["start_time"], "%H:%M:%S.%f"
                 )
-                end_time = datetime.datetime.strptime(segment["end_time"], "%H:%M:%S.%f")
+                end_time = datetime.datetime.strptime(
+                    segment["end_time"], "%H:%M:%S.%f"
+                )
                 unix_start_time = datetime.datetime.timestamp(start_time)
                 unix_end_time = datetime.datetime.timestamp(end_time)
 
@@ -210,12 +216,19 @@ def export_transcript(request):
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
                 if "verbatim_text" in segment.keys():
                     if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                        lines.append(segment["speaker_id"] + ": " + segment["verbatim_text"] + "\n")
+                        lines.append(
+                            segment["speaker_id"]
+                            + ": "
+                            + segment["verbatim_text"]
+                            + "\n"
+                        )
                     else:
                         lines.append(segment["verbatim_text"] + "\n")
                 else:
                     if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                        lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                        lines.append(
+                            segment["speaker_id"] + ": " + segment["text"] + "\n"
+                        )
                     else:
                         lines.append(segment["text"] + "\n")
         filename = "transcript.srt"
@@ -228,12 +241,19 @@ def export_transcript(request):
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
                 if "verbatim_text" in segment.keys():
                     if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                        lines.append(segment["speaker_id"] + ": " + segment["verbatim_text"] + "\n")
+                        lines.append(
+                            segment["speaker_id"]
+                            + ": "
+                            + segment["verbatim_text"]
+                            + "\n"
+                        )
                     else:
                         lines.append(segment["verbatim_text"] + "\n")
                 else:
                     if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                        lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
+                        lines.append(
+                            segment["speaker_id"] + ": " + segment["text"] + "\n"
+                        )
                     else:
                         lines.append(segment["text"] + "\n")
         filename = "transcript.vtt"
@@ -459,6 +479,7 @@ def create_original_source_transcript(request):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
@@ -506,12 +527,12 @@ def retrieve_all_transcriptions(request):
         )
 
     transcript_list = []
-    
+
     for transcript in transcripts:
         transcript_data = {
             "id": transcript.id,
             "status": transcript.status,
-            "data": transcript.payload
+            "data": transcript.payload,
         }
         transcript_list.append(transcript_data)
 
@@ -519,6 +540,8 @@ def retrieve_all_transcriptions(request):
         {"transcripts": transcript_list},
         status=status.HTTP_200_OK,
     )
+
+
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
@@ -726,16 +749,17 @@ def get_transcript_id(task):
             )
     return transcript_id
 
+
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
-    openapi.Parameter(
-        "task_id",
-        openapi.IN_QUERY,
-        description=("An integer to pass the task id"),
-        type=openapi.TYPE_INTEGER,
-        required=True,
-    ),
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the task id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
     ],
     responses={
         200: "Status has been changed successfully",
@@ -746,17 +770,18 @@ def get_transcript_id(task):
 @api_view(["GET"])
 def reopen_completed_transcription_task(request):
     if not request.user.is_authenticated:
-        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+        return Response(
+            {"message": "You do not have enough permissions to access this view!"},
+            status=401,
+        )
     try:
         task_id = request.query_params.get("task_id")
     except KeyError:
         return Response(
-            {
-                "message": "Missing required parameter - task_id"
-            },
+            {"message": "Missing required parameter - task_id"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     try:
         task = Task.objects.get(pk=task_id)
     except Task.DoesNotExist:
@@ -774,9 +799,7 @@ def reopen_completed_transcription_task(request):
         task.status = "INPROGRESS"
         task.save()
         return Response(
-            {
-                "message": "Status has been changed successfully"
-            },
+            {"message": "Status has been changed successfully"},
             status=status.HTTP_200_OK,
         )
     except:
@@ -789,13 +812,13 @@ def reopen_completed_transcription_task(request):
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
-    openapi.Parameter(
-        "task_id",
-        openapi.IN_QUERY,
-        description=("An integer to pass the task id"),
-        type=openapi.TYPE_INTEGER,
-        required=True,
-    ),
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the task id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
     ],
     responses={
         200: "Status has been fetched successfully",
@@ -806,17 +829,18 @@ def reopen_completed_transcription_task(request):
 @api_view(["GET"])
 def fetch_transcript_status(request):
     if not request.user.is_authenticated:
-        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+        return Response(
+            {"message": "You do not have enough permissions to access this view!"},
+            status=401,
+        )
     try:
         task_id = request.query_params.get("task_id")
     except KeyError:
         return Response(
-            {
-                "message": "Missing required parameter - task_id"
-            },
+            {"message": "Missing required parameter - task_id"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     try:
         task = Task.objects.get(pk=task_id)
     except Task.DoesNotExist:
@@ -850,7 +874,8 @@ def fetch_transcript_status(request):
             {"message": "Transcript doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
+
 @swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
@@ -864,7 +889,7 @@ def fetch_transcript_status(request):
             "trs_status": openapi.Schema(
                 type=openapi.TYPE_STRING,
                 description="Transcript task status to be set",
-            )
+            ),
         },
         description="Post request body",
     ),
@@ -877,19 +902,20 @@ def fetch_transcript_status(request):
 @api_view(["POST"])
 def update_transcript_status(request):
     if not request.user.is_authenticated:
-        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+        return Response(
+            {"message": "You do not have enough permissions to access this view!"},
+            status=401,
+        )
     try:
         # Get the required data from the POST body
         task_id = request.data["task_id"]
         trs_status = request.data["trs_status"]
     except KeyError:
         return Response(
-            {
-                "message": "Missing required parameters - task_id or trs_status"
-            },
+            {"message": "Missing required parameters - task_id or trs_status"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     try:
         task = Task.objects.get(pk=task_id)
     except Task.DoesNotExist:
@@ -909,7 +935,15 @@ def update_transcript_status(request):
         transcript_id = transcript.id
     try:
         transcript = Transcript.objects.get(pk=transcript_id)
-        if trs_status in ["TRANSCRIPTION_SELECT_SOURCE", "TRANSCRIPTION_EDITOR_ASSIGNED", "TRANSCRIPTION_EDIT_INPROGRESS", "TRANSCRIPTION_EDIT_COMPLETE", "TRANSCRIPTION_REVIEWER_ASSIGNED", "TRANSCRIPTION_REVIEW_INPROGRESS", "TRANSCRIPTION_REVIEW_COMPLETE"]:
+        if trs_status in [
+            "TRANSCRIPTION_SELECT_SOURCE",
+            "TRANSCRIPTION_EDITOR_ASSIGNED",
+            "TRANSCRIPTION_EDIT_INPROGRESS",
+            "TRANSCRIPTION_EDIT_COMPLETE",
+            "TRANSCRIPTION_REVIEWER_ASSIGNED",
+            "TRANSCRIPTION_REVIEW_INPROGRESS",
+            "TRANSCRIPTION_REVIEW_COMPLETE",
+        ]:
             transcript.status = trs_status
             transcript.save()
             return Response(
@@ -928,6 +962,7 @@ def update_transcript_status(request):
             {"message": "Transcript doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
 
 @swagger_auto_schema(
     method="get",
@@ -1715,6 +1750,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
         for ind in delete_indices:
             transcript.payload["payload"].pop(ind)
 
+
 @swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
@@ -2072,7 +2108,9 @@ def save_transcription(request):
                         and transcript.paraphrase_stage != True
                     ):
                         transcript_obj = (
-                            Transcript.objects.filter(status=TRANSCRIPTION_EDIT_INPROGRESS)
+                            Transcript.objects.filter(
+                                status=TRANSCRIPTION_EDIT_INPROGRESS
+                            )
                             .filter(video=task.video)
                             .first()
                         )
@@ -2088,7 +2126,9 @@ def save_transcription(request):
                                 transcript_obj,
                             )
                             # transcript_obj.payload = payload
-                            transcript_obj.transcript_type = transcript_obj.transcript_type
+                            transcript_obj.transcript_type = (
+                                transcript_obj.transcript_type
+                            )
                             transcript_obj.save()
                         else:
                             transcript_obj = (
@@ -2171,8 +2211,13 @@ def save_transcription(request):
                             transcript_obj,
                         )
                         for item in transcript_obj.payload["payload"]:
-                            item['verbatim_text'] = item['text']
-                            item['text'] = item['paraphrased_text'] if 'paraphrased_text' in item and item['paraphrased_text'] is not None else item['verbatim_text']
+                            item["verbatim_text"] = item["text"]
+                            item["text"] = (
+                                item["paraphrased_text"]
+                                if "paraphrased_text" in item
+                                and item["paraphrased_text"] is not None
+                                else item["verbatim_text"]
+                            )
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
@@ -2285,8 +2330,8 @@ def save_transcription(request):
                             transcript_obj,
                         )
                         for item in transcript_obj.payload["payload"]:
-                            item['verbatim_text'] = item['text']
-                            item['text'] = item['paraphrased_text']
+                            item["verbatim_text"] = item["text"]
+                            item["text"] = item["paraphrased_text"]
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
@@ -2559,7 +2604,7 @@ def get_transcription_report(request):
     transcripts = transcripts.values(
         "language",
         "video__project_id__organization_id__title",
-        "video__project_id__organization_id__is_active", 
+        "video__project_id__organization_id__is_active",
     )
     transcription_statistics = transcripts.annotate(
         total_duration=Sum(F("video__duration"))
@@ -2594,16 +2639,18 @@ def get_transcription_report(request):
 
     transcript_data.sort(key=lambda x: x["org"]["name"])
 
-
     res = []
     for org, items in groupby(transcript_data, key=lambda x: x["org"]["name"]):
         lang_data = []
         is_active_status = None
         for i in items:
-            is_active_status = i["org"]["is_active"]  
+            is_active_status = i["org"]["is_active"]
             del i["org"]
             lang_data.append(i)
-        temp_data = {"org": {"name": org, "is_active": is_active_status}, "data": lang_data}
+        temp_data = {
+            "org": {"name": org, "is_active": is_active_status},
+            "data": lang_data,
+        }
         res.append(temp_data)
 
     return Response(res, status=status.HTTP_200_OK)

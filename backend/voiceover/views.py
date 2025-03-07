@@ -54,6 +54,7 @@ from organization.decorators import is_admin
 from organization.models import Organization
 from video.models import Video
 
+
 @api_view(["GET"])
 def get_voice_over_export_types(request):
     return Response(
@@ -417,7 +418,7 @@ def get_payload(request):
                     + float(time_difference.split(":")[2])
                 )
                 try:
-                    text_length_per_second = len(transcription_text)/t_d
+                    text_length_per_second = len(transcription_text) / t_d
                 except:
                     text_length_per_second = 100
                 sentences_list.append(
@@ -432,7 +433,11 @@ def get_payload(request):
                             "audio"
                         ],
                         "audio_speed": 1,
-                        "fast_audio": 0 if text_length_per_second < moderate_audio_threshold else 1 if text_length_per_second < fast_audio_threshold else 2,
+                        "fast_audio": 0
+                        if text_length_per_second < moderate_audio_threshold
+                        else 1
+                        if text_length_per_second < fast_audio_threshold
+                        else 2,
                     }
                 )
         payload = {"payload": sentences_list}
@@ -728,7 +733,10 @@ def get_translated_text(request):
                 tmx_level,
             )
 
-            (tgt, tmx_replacement,) = tmxservice.replace_nmt_tgt_with_user_tgt(
+            (
+                tgt,
+                tmx_replacement,
+            ) = tmxservice.replace_nmt_tgt_with_user_tgt(
                 tmx_phrases,
                 text,
                 translated_text[0],
@@ -748,17 +756,18 @@ def get_translated_text(request):
             {"message": "Translation failed"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-    
+
+
 @swagger_auto_schema(
     method="get",
     manual_parameters=[
-    openapi.Parameter(
-        "task_id",
-        openapi.IN_QUERY,
-        description=("An integer to pass the task id"),
-        type=openapi.TYPE_INTEGER,
-        required=True,
-    ),
+        openapi.Parameter(
+            "task_id",
+            openapi.IN_QUERY,
+            description=("An integer to pass the task id"),
+            type=openapi.TYPE_INTEGER,
+            required=True,
+        ),
     ],
     responses={
         200: "Status has been fetched successfully",
@@ -769,17 +778,18 @@ def get_translated_text(request):
 @api_view(["GET"])
 def fetch_voice_over_status(request):
     if not request.user.is_authenticated:
-        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+        return Response(
+            {"message": "You do not have enough permissions to access this view!"},
+            status=401,
+        )
     try:
         task_id = request.query_params.get("task_id")
     except KeyError:
         return Response(
-            {
-                "message": "Missing required parameter - task_id"
-            },
+            {"message": "Missing required parameter - task_id"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     try:
         task = Task.objects.get(pk=task_id)
     except Task.DoesNotExist:
@@ -813,7 +823,8 @@ def fetch_voice_over_status(request):
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
+
 @swagger_auto_schema(
     method="post",
     request_body=openapi.Schema(
@@ -827,7 +838,7 @@ def fetch_voice_over_status(request):
             "vo_status": openapi.Schema(
                 type=openapi.TYPE_STRING,
                 description="Voiceover task status to be set",
-            )
+            ),
         },
         description="Post request body",
     ),
@@ -840,19 +851,20 @@ def fetch_voice_over_status(request):
 @api_view(["POST"])
 def update_voice_over_status(request):
     if not request.user.is_authenticated:
-        return Response({"message":"You do not have enough permissions to access this view!"}, status=401)
+        return Response(
+            {"message": "You do not have enough permissions to access this view!"},
+            status=401,
+        )
     try:
         # Get the required data from the POST body
         task_id = request.data["task_id"]
         vo_status = request.data["vo_status"]
     except KeyError:
         return Response(
-            {
-                "message": "Missing required parameters - task_id or vo_status"
-            },
+            {"message": "Missing required parameters - task_id or vo_status"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
+
     try:
         task = Task.objects.get(pk=task_id)
     except Task.DoesNotExist:
@@ -872,7 +884,15 @@ def update_voice_over_status(request):
         voice_over_id = voice_over.id
     try:
         voice_over = VoiceOver.objects.get(pk=voice_over_id)
-        if vo_status in ["VOICEOVER_SELECT_SOURCE", "VOICEOVER_EDITOR_ASSIGNED", "VOICEOVER_EDIT_INPROGRESS", "VOICEOVER_EDIT_COMPLETE", "VOICEOVER_REVIEWER_ASSIGNED", "VOICEOVER_REVIEW_INPROGRESS", "VOICEOVER_REVIEW_COMPLETE"]:
+        if vo_status in [
+            "VOICEOVER_SELECT_SOURCE",
+            "VOICEOVER_EDITOR_ASSIGNED",
+            "VOICEOVER_EDIT_INPROGRESS",
+            "VOICEOVER_EDIT_COMPLETE",
+            "VOICEOVER_REVIEWER_ASSIGNED",
+            "VOICEOVER_REVIEW_INPROGRESS",
+            "VOICEOVER_REVIEW_COMPLETE",
+        ]:
             voice_over.status = vo_status
             voice_over.save()
             return Response(
@@ -891,6 +911,7 @@ def update_voice_over_status(request):
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
 
 @swagger_auto_schema(
     method="post",
@@ -1157,7 +1178,10 @@ def save_voice_over(request):
                     text = voice_over_payload["text"]
                     if text == "" or len(text) == 0:
                         return Response(
-                            {"message": "Text can't be empty for segment "+str(index+1)},
+                            {
+                                "message": "Text can't be empty for segment "
+                                + str(index + 1)
+                            },
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
@@ -1198,7 +1222,9 @@ def save_voice_over(request):
                         )
                     except ZeroDivisionError:
                         return Response(
-                            {"message": "Cannot generate voiceover due to 0 duration for a segment"},
+                            {
+                                "message": "Cannot generate voiceover due to 0 duration for a segment"
+                            },
                             status=status.HTTP_400_BAD_REQUEST,
                         )
                 if request.data.get("final"):
@@ -1421,8 +1447,12 @@ def save_voice_over(request):
                     if voice_over_obj is not None and int(
                         payload["payload"][0]["id"]
                     ) == int(offset):
-                        fast_audio_threshold = 20 if task.target_language != "sa" else 16
-                        moderate_audio_threshold = 16 if task.target_language != "sa" else 12
+                        fast_audio_threshold = (
+                            20 if task.target_language != "sa" else 16
+                        )
+                        moderate_audio_threshold = (
+                            16 if task.target_language != "sa" else 12
+                        )
                         for i in range(len(payload["payload"])):
                             start_time = payload["payload"][i]["start_time"]
                             end_time = payload["payload"][i]["end_time"]
@@ -1511,7 +1541,9 @@ def save_voice_over(request):
                                 )
                             else:
                                 try:
-                                    text_length_per_second = len(transcription_text)/t_d
+                                    text_length_per_second = (
+                                        len(transcription_text) / t_d
+                                    )
                                 except:
                                     text_length_per_second = 100
                                 voice_over_obj.payload["payload"][
@@ -1553,7 +1585,12 @@ def save_voice_over(request):
                                         "transcription_text": payload["payload"][i][
                                             "transcription_text"
                                         ],
-                                        "fast_audio": 0 if text_length_per_second < moderate_audio_threshold else 1 if text_length_per_second < fast_audio_threshold else 2,
+                                        "fast_audio": 0
+                                        if text_length_per_second
+                                        < moderate_audio_threshold
+                                        else 1
+                                        if text_length_per_second < fast_audio_threshold
+                                        else 2,
                                     }
                                 )
                         voice_over_obj.save()
@@ -2099,9 +2136,9 @@ def get_voiceover_report(request):
             updated_at__date__range=(start_date.date(), end_date.date())
         )
 
-    voiceovers = voiceovers.values(        
+    voiceovers = voiceovers.values(
         "video__project_id__organization_id__title",
-        "video__project_id__organization_id__is_active",  
+        "video__project_id__organization_id__is_active",
         src_language=F("video__language"),
         tgt_language=F("target_language"),
     )
@@ -2112,8 +2149,8 @@ def get_voiceover_report(request):
     )
     voiceover_data = []
     for elem in voiceover_statistics:
-        org_title = elem.get("video__project_id__organization_id__title")  
-        is_active = elem.get("video__project_id__organization_id__is_active", False) 
+        org_title = elem.get("video__project_id__organization_id__title")
+        is_active = elem.get("video__project_id__organization_id__is_active", False)
 
         voiceover_dict = {
             "org": {
@@ -2129,7 +2166,9 @@ def get_voiceover_report(request):
                 "label": "Target Language",
             },
             "voiceover_duration": {
-                "value": round(elem["voiceover_duration"].total_seconds() / 3600, 3) if elem["voiceover_duration"] else 0,
+                "value": round(elem["voiceover_duration"].total_seconds() / 3600, 3)
+                if elem["voiceover_duration"]
+                else 0,
                 "label": "VoiceOver Duration (Hours)",
             },
             "voiceovers_completed": {
@@ -2272,6 +2311,7 @@ def reopen_translation_voiceover_task(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+
 @api_view(["POST"])
 def csv_bulk_regenerate(request):
     """
@@ -2343,7 +2383,7 @@ def csv_bulk_regenerate(request):
                 }
             )
             continue
-        
+
         if voiceover_obj.status != "VOICEOVER_SELECT_SOURCE":
             voiceover_obj.status = "VOICEOVER_SELECT_SOURCE"
             voiceover_obj.save()
@@ -2352,7 +2392,9 @@ def csv_bulk_regenerate(request):
             task_obj.is_active = False
             task_obj.save()
 
-        transcription_task = Task.objects.filter(video=task_obj.video, task_type="TRANSCRIPTION_EDIT", status="COMPLETE").first()
+        transcription_task = Task.objects.filter(
+            video=task_obj.video, task_type="TRANSCRIPTION_EDIT", status="COMPLETE"
+        ).first()
         if transcription_task is None:
             errors.append(
                 {
