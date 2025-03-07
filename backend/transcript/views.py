@@ -2557,7 +2557,9 @@ def get_transcription_report(request):
         )
 
     transcripts = transcripts.values(
-        "language", "video__project_id__organization_id__title"
+        "language",
+        "video__project_id__organization_id__title",
+        "video__project_id__organization_id__is_active", 
     )
     transcription_statistics = transcripts.annotate(
         total_duration=Sum(F("video__duration"))
@@ -2565,7 +2567,10 @@ def get_transcription_report(request):
     transcript_data = []
     for elem in transcription_statistics:
         transcript_dict = {
-            "org": elem["video__project_id__organization_id__title"],
+            "org": {
+                "name": elem["video__project_id__organization_id__title"],
+                "is_active": elem["video__project_id__organization_id__is_active"],
+            },
             "language": {
                 "value": dict(TRANSCRIPTION_LANGUAGE_CHOICES)[elem["language"]],
                 "label": "Media Language",
@@ -2587,14 +2592,18 @@ def get_transcription_report(request):
         }
         transcript_data.append(transcript_dict)
 
-    transcript_data.sort(key=itemgetter("org"))
+    transcript_data.sort(key=lambda x: x["org"]["name"])
+
+
     res = []
-    for org, items in groupby(transcript_data, key=itemgetter("org")):
+    for org, items in groupby(transcript_data, key=lambda x: x["org"]["name"]):
         lang_data = []
+        is_active_status = None
         for i in items:
+            is_active_status = i["org"]["is_active"]  
             del i["org"]
             lang_data.append(i)
-        temp_data = {"org": org, "data": lang_data}
+        temp_data = {"org": {"name": org, "is_active": is_active_status}, "data": lang_data}
         res.append(temp_data)
 
     return Response(res, status=status.HTTP_200_OK)

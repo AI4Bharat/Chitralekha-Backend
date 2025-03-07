@@ -2101,6 +2101,7 @@ def get_voiceover_report(request):
 
     voiceovers = voiceovers.values(        
         "video__project_id__organization_id__title",
+        "video__project_id__organization_id__is_active",  
         src_language=F("video__language"),
         tgt_language=F("target_language"),
     )
@@ -2111,18 +2112,24 @@ def get_voiceover_report(request):
     )
     voiceover_data = []
     for elem in voiceover_statistics:
+        org_title = elem.get("video__project_id__organization_id__title")  
+        is_active = elem.get("video__project_id__organization_id__is_active", False) 
+
         voiceover_dict = {
-            "org": elem["video__project_id__organization_id__title"],
+            "org": {
+                "name": org_title,
+                "is_active": is_active,
+            },
             "src_language": {
-                "value": dict(VOICEOVER_LANGUAGE_CHOICES)[elem["src_language"]],
-                "label": "Source Langauge",
+                "value": dict(VOICEOVER_LANGUAGE_CHOICES).get(elem["src_language"]),
+                "label": "Source Language",
             },
             "tgt_language": {
-                "value": dict(VOICEOVER_LANGUAGE_CHOICES)[elem["tgt_language"]],
+                "value": dict(VOICEOVER_LANGUAGE_CHOICES).get(elem["tgt_language"]),
                 "label": "Target Language",
             },
             "voiceover_duration": {
-                "value": round(elem["voiceover_duration"].total_seconds() / 3600, 3),
+                "value": round(elem["voiceover_duration"].total_seconds() / 3600, 3) if elem["voiceover_duration"] else 0,
                 "label": "VoiceOver Duration (Hours)",
             },
             "voiceovers_completed": {
@@ -2131,14 +2138,25 @@ def get_voiceover_report(request):
             },
         }
         voiceover_data.append(voiceover_dict)
-    voiceover_data.sort(key=itemgetter("org"))
+
+    voiceover_data.sort(key=lambda x: x["org"]["name"])
+
     res = []
-    for org, items in groupby(voiceover_data, key=itemgetter("org")):
-        lang_data = []
-        for i in items:
+    for org_name, items in groupby(voiceover_data, key=lambda x: x["org"]["name"]):
+        lang_data = list(items)
+
+        is_active_value = lang_data[0]["org"]["is_active"] if lang_data else False
+
+        for i in lang_data:
             del i["org"]
-            lang_data.append(i)
-        temp_data = {"org": org, "data": lang_data}
+
+        temp_data = {
+            "org": {
+                "name": org_name,
+                "is_active": is_active_value,
+            },
+            "data": lang_data,
+        }
         res.append(temp_data)
 
     return Response(res, status=status.HTTP_200_OK)
