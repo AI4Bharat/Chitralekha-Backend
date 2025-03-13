@@ -59,6 +59,8 @@ class GlossaryViewSet(ModelViewSet):
         service = TMXService()
         # data = request.get_json()
         user_id = str(request.data.get("user_id", "")) or str(request.user.id)
+        task_id = str(request.data.get("task_id", ""))
+        print(task_id)
         user_obj = User.objects.get(pk=user_id)
         for sentence in request.data.get("sentences"):
             glossary_obj = Glossary.objects.filter(
@@ -76,12 +78,14 @@ class GlossaryViewSet(ModelViewSet):
 
             tmx_input = {
                 "userID": user_id,
+                "taskID": task_id,
                 "sentences": [
                     {
                         "src": sentence["src"],
                         "tgt": sentence["tgt"],
                         "locale": sentence["locale"],
                         "context": sentence["domain"],
+                        "meaning": sentence["meaning"],
                     }
                 ],
             }
