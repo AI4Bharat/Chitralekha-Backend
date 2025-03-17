@@ -7,6 +7,7 @@ from django.contrib.postgres.fields import ArrayField
 from translation.metadata import TRANSLATION_LANGUAGE_CHOICES
 from users.models import User
 from organization.models import Organization
+from task.models import Task
 from .metadata import DOMAIN
 
 DOMAIN_CHOICES = [(domain["code"], domain["label"]) for domain in DOMAIN["domains"]]
@@ -27,6 +28,7 @@ class Glossary(models.Model):
     )
     source_text = models.CharField(verbose_name="Source Text", max_length=512)
     target_text = models.CharField(verbose_name="Target Text", max_length=512)
+    text_meaning = models.CharField(verbose_name="Text Meaning", max_length=512, null=True, blank=True)
     user_id = models.ForeignKey(
         User,
         verbose_name="Created by",
@@ -37,6 +39,11 @@ class Glossary(models.Model):
         on_delete=models.CASCADE,
         null=True,
         verbose_name="Glossary at org level",
+    )
+    task_id = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        null=True,
     )
     context = models.CharField(
         choices=DOMAIN_CHOICES,

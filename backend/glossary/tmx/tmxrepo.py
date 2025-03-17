@@ -4,7 +4,7 @@ import redis
 from glossary.models import Glossary
 from users.models import User
 import logging
-
+from task.models import Task
 
 redis_server_host = "redis"
 redis_server_port = 6379
@@ -99,13 +99,20 @@ class TMXRepository:
 
     # Inserts the object into mongo collection
     def tmx_create(self, object_in):
+        task_id = object_in["taskID"]
+        if task_id != "":
+            task = Task.objects.get(pk=int(task_id))
+        else:
+            task = None
         glossary = Glossary(
             source_language=object_in["sentences"][0]["locale"].split("|")[0],
             target_language=object_in["sentences"][0]["locale"].split("|")[1],
             source_text=object_in["sentences"][0]["src"],
             target_text=object_in["sentences"][0]["tgt"],
             user_id=User.objects.get(pk=int(object_in["userID"])),
+            task_id=task,
             context=object_in["sentences"][0]["context"],
+            text_meaning=object_in["sentences"][0]["meaning"],
         )
         glossary.save()
 
