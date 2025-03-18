@@ -60,7 +60,6 @@ class GlossaryViewSet(ModelViewSet):
         # data = request.get_json()
         user_id = str(request.data.get("user_id", "")) or str(request.user.id)
         task_id = str(request.data.get("task_id", ""))
-        print(task_id)
         user_obj = User.objects.get(pk=user_id)
         for sentence in request.data.get("sentences"):
             glossary_obj = Glossary.objects.filter(

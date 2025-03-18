@@ -40,11 +40,7 @@ class Glossary(models.Model):
         null=True,
         verbose_name="Glossary at org level",
     )
-    task_id = models.ForeignKey(
-        Task,
-        on_delete=models.CASCADE,
-        null=True,
-    )
+    task_ids = models.ManyToManyField(Task)
     context = models.CharField(
         choices=DOMAIN_CHOICES,
         default="general",

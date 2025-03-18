@@ -110,11 +110,11 @@ class TMXRepository:
             source_text=object_in["sentences"][0]["src"],
             target_text=object_in["sentences"][0]["tgt"],
             user_id=User.objects.get(pk=int(object_in["userID"])),
-            task_id=task,
             context=object_in["sentences"][0]["context"],
             text_meaning=object_in["sentences"][0]["meaning"],
         )
         glossary.save()
+        glossary.task_ids.set([task]) 
 
     # Searches tmx entries from mongo collection
     def search_tmx_db(self, user_id, org_id, locale):
