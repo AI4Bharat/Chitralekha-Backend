@@ -100,10 +100,6 @@ class TMXRepository:
     # Inserts the object into mongo collection
     def tmx_create(self, object_in):
         task_id = object_in["taskID"]
-        if task_id != "":
-            task = Task.objects.get(pk=int(task_id))
-        else:
-            task = None
         glossary = Glossary(
             source_language=object_in["sentences"][0]["locale"].split("|")[0],
             target_language=object_in["sentences"][0]["locale"].split("|")[1],
@@ -114,7 +110,9 @@ class TMXRepository:
             text_meaning=object_in["sentences"][0]["meaning"],
         )
         glossary.save()
-        glossary.task_ids.set([task]) 
+        if task_id != "":
+            task = Task.objects.get(pk=int(task_id))
+            glossary.task_ids.set([task]) 
 
     # Searches tmx entries from mongo collection
     def search_tmx_db(self, user_id, org_id, locale):
