@@ -20,6 +20,7 @@ from transcript.utils.timestamp import *
 from yt_dlp import YoutubeDL
 import pandas as pd
 from glossary.tmx.tmxservice import TMXService
+from glossary.models import Glossary
 
 
 def convert_to_scc(subtitles):
@@ -149,7 +150,7 @@ def convert_to_paragraph(lines, video_name):
     return content
 
 
-def convert_to_paragraph_monolingual(payload, video_name):
+def convert_to_paragraph_monolingual(payload, video_name, task_id):
     lines = []
     content = ""
     translated_content = video_name + "\n" + "\n"
@@ -168,10 +169,16 @@ def convert_to_paragraph_monolingual(payload, video_name):
 
     if count_paragraphs < number_of_paragraphs:
         content = content + translated_content + "\n" + "\n"
+
+    glossary = Glossary.objects.filter(task_ids=task_id)
+    if glossary.exists():
+        content = content + "Glossary" + "\n"
+        for i in glossary:
+            content = content + i.source_language + "  " + i.target_language + "  " + i.source_text + "  " + i.target_text + "  " + i.text_meaning + "\n"
     return content
 
 
-def convert_to_paragraph_bilingual(payload, video_name):
+def convert_to_paragraph_bilingual(payload, video_name, task_id):
     lines = []
     transcripted_lines = []
     content = ""
@@ -213,6 +220,12 @@ def convert_to_paragraph_bilingual(payload, video_name):
             + "\n"
             + "\n"
         )
+    
+    glossary = Glossary.objects.filter(task_ids=task_id)
+    if glossary.exists():
+        content = content + "Glossary" + "\n"
+        for i in glossary:
+            content = content + i.source_language + "  " + i.target_language + "  " + i.source_text + "  " + i.target_text + "  " + i.text_meaning + "\n"
     return content
 
 
