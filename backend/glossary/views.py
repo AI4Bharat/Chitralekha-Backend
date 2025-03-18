@@ -20,6 +20,7 @@ from .models import DOMAIN_CHOICES
 from rest_framework.decorators import api_view
 import logging
 from organization.models import Organization
+from task.models import Task
 import base64
 import io
 import csv
@@ -70,6 +71,13 @@ class GlossaryViewSet(ModelViewSet):
                 target_language=sentence["locale"].split("|")[1],
             ).first()
             if glossary_obj is not None:
+                if task_id != "":
+                    task = Task.objects.get(pk=int(task_id))
+                    glossary_obj.task_ids.add(task)
+                    return Response(
+                        {"message": "Task ID added to existing glossary."},
+                        status=status.HTTP_200_OK,
+                    )
                 return Response(
                     {"message": "Glossary already exists."},
                     status=status.HTTP_400_BAD_REQUEST,
