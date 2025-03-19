@@ -174,7 +174,7 @@ def convert_to_paragraph_monolingual(payload, video_name, task_id):
     if glossary.exists():
         content = content + "Glossary" + "\n"
         for i in glossary:
-            content = content + i.source_language + "  " + i.target_language + "  " + i.source_text + "  " + i.target_text + "  " + i.text_meaning + "\n"
+            content = content + i.source_text + ": " + i.text_meaning + "\n"
     return content
 
 
@@ -225,7 +225,7 @@ def convert_to_paragraph_bilingual(payload, video_name, task_id):
     if glossary.exists():
         content = content + "Glossary" + "\n"
         for i in glossary:
-            content = content + i.source_language + "  " + i.target_language + "  " + i.source_text + "  " + i.target_text + "  " + i.text_meaning + "\n"
+            content = content + i.source_text + ": " + i.text_meaning + "\n"
     return content
 
 
