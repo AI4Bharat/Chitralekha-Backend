@@ -83,13 +83,14 @@ class TMXService:
         db_record = tmx_record
         db_record["timeStamp"] = eval(str(time.time()).replace(".", "")[0:13])
         repo.tmx_create(db_record)
-        db_record_reverse = tmx_record
-        reverse_locale_array = str(locale).split("|")
-        reverse_locale = (
-            str(reverse_locale_array[1]) + "|" + str(reverse_locale_array[0])
-        )
-        db_record_reverse["timeStamp"] = eval(str(time.time()).replace(".", "")[0:13])
-        repo.tmx_create(db_record_reverse)
+        # db_record_reverse = tmx_record
+        # reverse_locale_array = str(locale).split("|")
+        # reverse_locale = (
+        #     str(reverse_locale_array[1]) + "|" + str(reverse_locale_array[0])
+        # )
+        # db_record_reverse["locale"]
+        # db_record_reverse["timeStamp"] = eval(str(time.time()).replace(".", "")[0:13])
+        # repo.tmx_create(db_record_reverse)
 
     # Method to delete records from TMX store.
     def delete_from_tmx_store(self, tmx_input):
