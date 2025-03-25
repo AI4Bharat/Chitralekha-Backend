@@ -114,7 +114,7 @@ class TMXRepository:
         if task_id != "":
             task = Task.objects.get(pk=int(task_id))
             glossary.task_ids.set([task]) 
-        if task_ids != "":
+        elif task_ids != "":
             task_objects = Task.objects.filter(id__in=task_ids)
             glossary.task_ids.set(task_objects) 
 
