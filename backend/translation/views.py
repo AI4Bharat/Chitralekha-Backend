@@ -45,7 +45,6 @@ from .decorators import is_translation_editor
 from .serializers import TranslationSerializer
 from .utils import (
     get_batch_translations_using_indictrans_nmt_api,
-    convert_to_docx,
     convert_to_paragraph,
     convert_to_paragraph_monolingual,
     convert_to_paragraph_bilingual,
@@ -253,11 +252,11 @@ def export_translation(request):
     elif export_type == "docx":
         filename = "translation.docx"
         content = convert_to_paragraph_monolingual(payload, task.video.name, task_id)
-        return convert_to_docx(content)
+        return content
     elif export_type == "docx-bilingual":
         filename = "translation.docx"
         content = convert_to_paragraph_bilingual(payload, task.video.name, task_id)
-        return convert_to_docx(content)
+        return content
 
     elif export_type == "sbv":
         for index, segment in enumerate(payload):

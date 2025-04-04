@@ -21,7 +21,8 @@ from yt_dlp import YoutubeDL
 import pandas as pd
 from glossary.tmx.tmxservice import TMXService
 from glossary.models import Glossary
-
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.shared import Pt
 
 def convert_to_scc(subtitles):
     scc_lines = ["Scenarist_SCC V1.0"]
@@ -98,10 +99,30 @@ def valid_xml_char_ordinal(c):
     )
 
 
-def convert_to_docx(content):
+def convert_to_docx(content, glossary=""):
     document = Document()
     cleaned_string = "".join(c for c in content if valid_xml_char_ordinal(c))
     paragraph = document.add_paragraph(cleaned_string)
+
+    if glossary != "":
+        header = document.add_paragraph("Glossary")
+        header.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+        header_run = header.runs[0]
+        header_run.bold = True
+        header_run.font.size = Pt(16) 
+        table = document.add_table(rows=2, cols=3)
+        table.style = "Table Grid"
+
+        for row_idx, row in enumerate(glossary):
+            for col_idx, value in enumerate(row):
+                cell = table.cell(row_idx, col_idx)
+                cell.text = value
+                paragraph = cell.paragraphs[0]
+                run = paragraph.runs[0]
+                run.bold = row_idx == 0
+                run.font.size = Pt(14 if row_idx == 0 else 12)
+                paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER 
+
     run = paragraph.add_run()
     # Prepare document for download
     # -----------------------------
@@ -173,14 +194,12 @@ def convert_to_paragraph_monolingual(payload, video_name, task_id):
     glossary = Glossary.objects.filter(task_ids=task_id)
     if glossary.exists():
         content = content + "Glossary" + "\n"
+        glossary_data = []
+        glossary_data.append(["Source Text", "Target Text", "Meaning"])
         for i in glossary:
-            content = content + i.source_text + "-" + i.target_text + ": "
-            try:
-                content = content + i.text_meaning
-            except:
-                content = content + "meaning not defined"
-            content = content + "\n"
-    return content
+            glossary_data.append([i.source_text, i.target_text, i.text_meaning or " "])
+        return convert_to_docx(content, glossary_data)
+    return convert_to_docx(content)
 
 
 def convert_to_paragraph_bilingual(payload, video_name, task_id):
@@ -229,14 +248,12 @@ def convert_to_paragraph_bilingual(payload, video_name, task_id):
     glossary = Glossary.objects.filter(task_ids=task_id)
     if glossary.exists():
         content = content + "Glossary" + "\n"
+        glossary_data = []
+        glossary_data.append(["Source Text", "Target Text", "Meaning"])
         for i in glossary:
-            content = content + i.source_text + "-" + i.target_text + ": "
-            try:
-                content = content + i.text_meaning
-            except:
-                content = content + "meaning not defined"
-            content = content + "\n"
-    return content
+            glossary_data.append([i.source_text, i.target_text, i.text_meaning or " "])
+        return convert_to_docx(content, glossary_data)
+    return convert_to_docx(content)
 
 
 def get_batch_translations_using_indictrans_nmt_api(
