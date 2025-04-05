@@ -193,7 +193,6 @@ def convert_to_paragraph_monolingual(payload, video_name, task_id):
 
     glossary = Glossary.objects.filter(task_ids=task_id)
     if glossary.exists():
-        content = content + "Glossary" + "\n"
         glossary_data = []
         glossary_data.append(["Source Text", "Target Text", "Meaning"])
         for i in glossary:
@@ -247,7 +246,6 @@ def convert_to_paragraph_bilingual(payload, video_name, task_id):
     
     glossary = Glossary.objects.filter(task_ids=task_id)
     if glossary.exists():
-        content = content + "Glossary" + "\n"
         glossary_data = []
         glossary_data.append(["Source Text", "Target Text", "Meaning"])
         for i in glossary:
