@@ -325,8 +325,6 @@ def generate_translation_payload(
                 translation_machine_generated = translation_mg(
                     transcript, target_language, user_id
                 )
-                transcript.transcript_type = "MACHINE_GENERATED"
-                transcript.save()
         except:
             if transcript.language == "en":
                 transcript.transcript_type = "ORIGINAL_SOURCE"
@@ -334,8 +332,8 @@ def generate_translation_payload(
                 translation_machine_generated = translation_mg(
                     transcript, target_language, user_id
                 )
-                transcript.transcript_type = "MACHINE_GENERATED"
-                transcript.save()
+        transcript.transcript_type = "MACHINE_GENERATED"
+        transcript.save()
         payloads["MACHINE_GENERATED"] = translation_machine_generated
 
     if "MANUALLY_CREATED" in list_compare_sources:
