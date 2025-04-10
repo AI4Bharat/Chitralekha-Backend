@@ -110,7 +110,7 @@ def convert_to_docx(content, glossary=""):
         header_run = header.runs[0]
         header_run.bold = True
         header_run.font.size = Pt(16) 
-        table = document.add_table(rows=2, cols=3)
+        table = document.add_table(rows=len(glossary), cols=len(glossary[0]))
         table.style = "Table Grid"
 
         for row_idx, row in enumerate(glossary):
