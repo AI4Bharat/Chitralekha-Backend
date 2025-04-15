@@ -53,6 +53,7 @@ from glossary.tmx.tmxservice import TMXService
 from organization.decorators import is_admin
 from organization.models import Organization
 from video.models import Video
+from django.db import transaction
 
 @api_view(["GET"])
 def get_voice_over_export_types(request):
@@ -1682,11 +1683,12 @@ def save_voice_over(request):
                                         ],
                                     }
                                 )
-
-                        voice_over_obj.status = VOICEOVER_EDIT_INPROGRESS
-                        voice_over_obj.save()
-                        task.status = "INPROGRESS"
-                        task.save()
+                        
+                        with transaction.atomic():
+                            voice_over_obj.status = VOICEOVER_EDIT_INPROGRESS
+                            voice_over_obj.save()
+                            task.status = "INPROGRESS"
+                            task.save()
             else:
                 if request.data.get("final"):
                     if (
