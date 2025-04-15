@@ -632,6 +632,9 @@ def get_video_func(request):
                 url=normalized_url,
             )
         except:
+            if "drive.google.com" in normalized_url:
+                if "/view?usp=drive_link" not in normalized_url:
+                    normalized_url += "/view?usp=drive_link"
             video = Video.objects.get(
                 project_id=project,
                 audio_only=is_audio_only,
