@@ -541,7 +541,7 @@ def download_all(request):
         if transcript_task is not None:
             transcript = get_export_transcript(request, transcript_task.id, export_type)
             zf.writestr(
-                f"{config.app_name}_{time_now}_all/{transcript_task.video.name}_{time_now}.{export_type}",
+                f"{config.app_name}_{time_now}_all/{transcript_task.video.description}_{time_now}.{export_type}",
                 transcript.content,
             )
 
@@ -551,7 +551,7 @@ def download_all(request):
                     request, translation_task.id, export_type
                 )
                 zf.writestr(
-                    f"{config.app_name}_{time_now}_all/{transcript_task.video.name}_{time_now}_{translation_task.target_language}.{export_type}",
+                    f"{config.app_name}_{time_now}_all/{transcript_task.video.description}_{time_now}_{translation_task.target_language}.{export_type}",
                     translation.content,
                 )
     zip_file.seek(0)
