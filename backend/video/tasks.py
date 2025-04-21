@@ -86,7 +86,7 @@ def create_videos_async(user_id, valid_rows, existing_videos, project_id):
     for row in valid_rows:
         if "project_id" in row.keys():
             project_id = row["project_id"]
-        if str(row["drive_url"]).find("drive.google.com") != -1:
+        if str(row["drive_url"]).find("drive.google.com") or str(row["drive_url"]).find("objectstore.e2enetworks.net") != -1:
             creation = create_video(
                 user_id,
                 row["drive_url"],

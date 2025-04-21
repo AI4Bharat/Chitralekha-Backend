@@ -564,6 +564,8 @@ def get_video_func(request):
                 duration = timedelta(seconds=total_seconds(vid_duration))
             direct_video_url = url
             normalized_url = url
+            if ytLink.find("youtube") != -1:
+                raise
         else:
         # Get the video info from the YouTube API
             (
