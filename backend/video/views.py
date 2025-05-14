@@ -927,7 +927,7 @@ def upload_csv_data(request):
         if len(data) > 29:
             return Response(
                 {
-                    "message": "There are {} Transcription calls in the queue already. Please wait, till these are completed.".format(
+                    "message": "There are {} tasks in the queue already. Please wait, till these are completed.".format(
                         len(data)
                     )
                 },
@@ -1191,7 +1191,7 @@ def upload_csv_org(request):
         if len(data) > 29:
             return Response(
                 {
-                    "message": "There are {} Transcription calls in the queue already. Please wait, till these are completed.".format(
+                    "message": "There are {} tasks in the queue already. Please wait, till these are completed.".format(
                         len(data)
                     )
                 },
