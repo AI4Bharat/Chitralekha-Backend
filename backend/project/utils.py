@@ -188,7 +188,7 @@ def get_reports_for_users(pk, start, end):
         try:
             elem["word_diff_percent"] = round(((int(translation_word_diff) + int(transcript_word_diff)) / (int(transcript_result) + int(translation_result))) * 100, 2)
         except:
-            elem["word_diff_percent"] = 0
+            elem["word_diff_percent"] = "-"
         avg_time = (
             0
             if elem["average_completion_time"] is None
