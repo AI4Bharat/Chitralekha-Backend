@@ -424,26 +424,24 @@ def get_org_report_tasks(
         word_diff_percent = "-"
         if "Translation" in task.get_task_type_label:
             try:
-                translation_obj = Translation.objects.filter(task=task).first()
-                word_count = translation_obj.payload["word_count"]
                 trans_cp = Translation.objects.filter(task=task,status="TRANSLATION_EDIT_COMPLETE").first()
+                word_count = trans_cp.payload["word_count"]
                 payload1 = trans_cp.payload
                 trans_ss = Translation.objects.filter(task=task,status="TRANSLATION_SELECT_SOURCE").first()
                 payload2 = trans_ss.payload
-                payload_len = len(payload2) if len(payload2) > len(payload1) else len(payload1)
+                payload_len = len(payload2['payload']) if len(payload2['payload']) > len(payload1['payload']) else len(payload1['payload'])
                 for seg_no in range(0, payload_len):
                     word_diff += count_word_differences(payload1['payload'][seg_no]['target_text'], payload2['payload'][seg_no]['target_text'])
             except:
                 pass
         elif "Transcription" in task.get_task_type_label:
             try:
-                transcript_obj = Transcript.objects.filter(task=task).first()
-                word_count = transcript_obj.payload["word_count"]
                 trans_cp = Transcript.objects.filter(task=task,status="TRANSCRIPTION_EDIT_COMPLETE").first()
+                word_count = trans_cp.payload["word_count"]
                 payload1 = trans_cp.payload
                 trans_ss = Transcript.objects.filter(task=task,status="TRANSCRIPTION_SELECT_SOURCE").first()
                 payload2 = trans_ss.payload
-                payload_len = len(payload2) if len(payload2) > len(payload1) else len(payload1)
+                payload_len = len(payload2['payload']) if len(payload2['payload']) > len(payload1['payload']) else len(payload1['payload'])
                 for seg_no in range(1, payload_len):
                     word_diff += count_word_differences(payload1['payload'][seg_no]['text'], payload2['payload'][seg_no]['text'])
             except:
