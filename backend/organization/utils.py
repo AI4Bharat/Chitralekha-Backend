@@ -422,7 +422,9 @@ def get_org_report_tasks(
         word_count = 0
         word_diff = 0
         word_diff_percent = "-"
-        if "Translation" in task.get_task_type_label:
+        if "VoiceOver" in task.get_task_type_label:
+            word_count = "-"
+        elif "Translation" in task.get_task_type_label:
             try:
                 trans_cp = Translation.objects.filter(task=task,status="TRANSLATION_EDIT_COMPLETE").first()
                 word_count = trans_cp.payload["word_count"]
@@ -446,8 +448,6 @@ def get_org_report_tasks(
                     word_diff += count_word_differences(payload1['payload'][seg_no]['text'], payload2['payload'][seg_no]['text'])
             except:
                 pass
-        elif "VoiceOver" in task.get_task_type_label:
-            word_count = "-"
         try:
             word_diff_percent = round(((word_diff / word_count)*100),2)
         except:
