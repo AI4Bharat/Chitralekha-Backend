@@ -35,7 +35,7 @@ def is_particular_project_owner(f):
         if (
             request.user.role == User.PROJECT_MANAGER
             or request.user.role == User.ORG_OWNER
-            or User.ADMIN
+            or request.user.role == User.ADMIN
             or request.user.is_superuser
         ):
             project = Project.objects.filter(pk=pk).first()
