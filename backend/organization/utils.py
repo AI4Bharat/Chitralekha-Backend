@@ -373,7 +373,6 @@ def get_org_report_tasks(
         video__in=org_videos, created_at__date__range=(taskStartDate, taskEndDate)
     ).order_by("-created_at")
     total_count = len(task_orgs)
-
     if "task_type" in filter_dict and len(filter_dict["task_type"]):
         task_orgs = task_orgs.filter(task_type__in=filter_dict["task_type"])
     if "target_language" in filter_dict and len(filter_dict["target_language"]):
@@ -494,6 +493,11 @@ def get_org_report_tasks(
                 "completion_time": {
                     "value": completion_time,
                     "label": "Completion Time",
+                },
+                "paraphrasing": {
+                    "value": "Enabled" if task.video.project_id.paraphrasing_enabled else "Not Enabled",
+                    "label": "Paraphrasing",
+                    "viewColumns": False, 
                 },
                 "word_count": {
                     "value": word_count,
