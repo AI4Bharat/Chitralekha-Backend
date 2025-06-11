@@ -1557,9 +1557,58 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response(
                 {"message": "Project not found"}, status=status.HTTP_404_NOT_FOUND
             )
+        
         language_data = get_reports_for_languages(pk)
+        print("Language Data:", language_data)
+        
+        # Special handling for translation_voiceover_stats - merge data from translation and voiceover
+        if task_type == "translation_voiceover_stats" and "translation_stats" in language_data and "voiceover_stats" in language_data:
+            merged_data = []
+            translation_data = language_data["translation_stats"]
+            voiceover_data = language_data["voiceover_stats"]
+            
+            # Create a lookup dictionary for easier matching
+            voiceover_lookup = {}
+            for vo in voiceover_data:
+                key = (vo["src_language"]["value"], vo["tgt_language"]["value"])
+                voiceover_lookup[key] = vo
+            
+            # Merge translation data with voiceover data
+            for trans in translation_data:
+                key = (trans["src_language"]["value"], trans["tgt_language"]["value"])
+                if key in voiceover_lookup:
+                    vo = voiceover_lookup[key]
+                    merged_item = trans.copy()
+                    merged_item["voiceover_duration"] = vo.get("voiceover_duration", {"value": 0, "label": "Voiceover Duration (Hours)"})
+                    merged_item["voiceovers_completed"] = vo.get("voiceovers_completed", {"value": 0, "label": "Voiceover Tasks Count"})
+                    merged_data.append(merged_item)
+            
+            # Handle pagination
+            start_offset = (int(offset) - 1) * int(limit)
+            end_offset = start_offset + int(limit)
+            
+            return Response(
+                {
+                    "reports": merged_data[start_offset:end_offset] if merged_data else [],
+                    "total_count": len(merged_data),
+                },
+                status=status.HTTP_200_OK,
+            )
+        
+        # Regular processing for other task types
+        if task_type not in language_data:
+            return Response(
+                {
+                    "reports": [],
+                    "total_count": 0,
+                    "message": f"No data available for task type: {task_type}"
+                },
+                status=status.HTTP_200_OK,
+            )
+        
         start_offset = (int(offset) - 1) * int(limit)
         end_offset = start_offset + int(limit)
+        
         return Response(
             {
                 "reports": language_data[task_type][start_offset:end_offset],
