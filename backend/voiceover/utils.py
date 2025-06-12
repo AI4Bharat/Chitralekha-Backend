@@ -1572,3 +1572,44 @@ def send_mail_to_user(task):
             logging.error("Error in sending Email: %s", str(e))
     else:
         logging.info("Email is not enabled %s", task.user.email)
+
+def send_task_status_notification(task, old_status, new_status):
+    """
+    Send email notification to user when a task status changes
+    
+    Parameters:
+    task (Task): The task object whose status has changed
+    old_status (str): The previous status of the task
+    new_status (str): The new status of the task
+    """
+    if task.user.enable_mail:
+        logging.info("Sending status change notification email to user %s", task.user.email)
+        
+        subject = f"Status Update for Task #{task.id}: {old_status} → {new_status}"
+        
+        message = f"""Your translation-voiceover task has been updated:
+        
+        Video: {task.video.name}
+        Task ID: {task.id}
+        Previous status: {old_status}
+        New status: {new_status}
+        
+        You can view the task details in your Chitralekha dashboard.
+        """
+        
+        compiled_code = send_email_template(subject, message)
+        msg = EmailMultiAlternatives(
+            subject,
+            compiled_code,
+            settings.DEFAULT_FROM_EMAIL,
+            [task.user.email],
+        )
+        msg.attach_alternative(compiled_code, "text/html")
+        
+        try:
+            msg.send()
+            logging.info("Status change notification email sent successfully to %s", task.user.email)
+        except Exception as e:
+            logging.error("Error sending status change notification email: %s", str(e))
+    else:
+        logging.info("Email notifications not enabled for user %s", task.user.email)
