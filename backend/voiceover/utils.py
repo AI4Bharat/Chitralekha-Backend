@@ -1581,3 +1581,48 @@ def send_mail_to_user(task):
             logging.error("Error in sending Email: %s", str(e))
     else:
         logging.info("Email is not enabled %s", task.user.email)
+
+
+def send_task_status_notification(task, voice_over_obj, new_status):
+    """
+    Send email notification to user when a task status changes to COMPLETE
+    
+    Parameters:
+    task (Task): The task object whose status has changed
+    voice_over_obj (VoiceOver): The voice over object with the generated audio
+    new_status (str): The new status of the task
+    """
+    if task.user.enable_mail:
+        logging.info("Sending task completion notification email to user %s", task.user.email)
+        
+        subject = f"Task #{task.id} is now {new_status}"
+        
+        message = f"""Your translation-voiceover task has been completed:
+        
+        Video: {task.video.name}
+        Task ID: {task.id}
+        Project: {task.video.project_id.title} (ID: {task.video.project_id.id})
+        Status: {new_status}
+        
+        You can access the generated audio by clicking on the following link:
+        {voice_over_obj.azure_url_audio}
+        
+        You can also view the task details in your Chitralekha dashboard.
+        """
+        
+        compiled_code = send_email_template(subject, message)
+        msg = EmailMultiAlternatives(
+            subject,
+            compiled_code,
+            settings.DEFAULT_FROM_EMAIL,
+            [task.user.email],
+        )
+        msg.attach_alternative(compiled_code, "text/html")
+        
+        try:
+            msg.send()
+            logging.info("Task completion notification email sent successfully to %s", task.user.email)
+        except Exception as e:
+            logging.error("Error sending task completion notification email: %s", str(e))
+    else:
+        logging.info("Email notifications not enabled for user %s", task.user.email)
