@@ -98,8 +98,7 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
     voice_over_obj.payload = {"payload": ""}
     voice_over_obj.azure_url = azure_url_video
     voice_over_obj.azure_url_audio = azure_url_audio
-    # Store original status before updating
-    original_status = task.status
+  
     
     # Update task status
     task.status = "COMPLETE"
@@ -112,7 +111,7 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
         # send_audio_mail_to_user(task, voice_over_obj.azure_url_audio, task.user)
         
         # Send status change notification
-        send_task_status_notification(task, original_status, "COMPLETE")
+        send_task_status_notification(task, voice_over_obj, "COMPLETE")
         
         logging.info("Completion emails sent to user %s for task %s", task.user.email, task.id)
     except Exception as e:
