@@ -2,7 +2,7 @@ import datetime
 import io
 from celery import shared_task
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 from celery.schedules import crontab
 from rest_framework.response import Response
 from rest_framework import status
@@ -37,6 +37,8 @@ import requests
 import zipfile
 from translation.models import Translation, TRANSLATION_EDIT_COMPLETE
 import regex
+from datetime import datetime, timedelta
+from django.utils import timezone
 
 
 @shared_task()
@@ -65,12 +67,10 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
             final_tl.payload["word_count"] = num_words
         updated_payload = []
         for segment in voice_over_obj.payload["payload"].values():
-            start_time = datetime.datetime.strptime(
-                segment["start_time"], "%H:%M:%S.%f"
-            )
-            end_time = datetime.datetime.strptime(segment["end_time"], "%H:%M:%S.%f")
-            unix_start_time = datetime.datetime.timestamp(start_time)
-            unix_end_time = datetime.datetime.timestamp(end_time)
+            start_time = datetime.strptime(segment["start_time"], "%H:%M:%S.%f")
+            end_time = datetime.strptime(segment["end_time"], "%H:%M:%S.%f")
+            unix_start_time = datetime.timestamp(start_time)
+            unix_end_time = datetime.timestamp(end_time)
             target_text = segment["text"]
             target_text = segment["transcription_text"]
 
@@ -212,3 +212,81 @@ def bulk_export_voiceover_async(task_ids, user_id):
         logging.info("Error in removing files")
 
     send_audio_zip_mail_to_user(task, azure_zip_url, user)
+
+
+@shared_task
+def check_stalled_post_process_tasks():
+    """
+    Check for tasks that have been in POST_PROCESS status for more than 24 hours
+    and send notification emails to administrators.
+    """
+    # Find tasks that have been in POST_PROCESS for more than 24 hours
+    time_threshold = timezone.now() - timedelta(hours=24)
+    stalled_tasks = Task.objects.filter(
+        status="POST_PROCESS", 
+        updated_at__lt=time_threshold
+    )
+    
+    if not stalled_tasks.exists():
+        logging.info("No stalled tasks found in POST_PROCESS status")
+        return
+    
+    # Prepare email content
+    task_count = stalled_tasks.count()
+    subject = f"ALERT: {task_count} tasks stalled in POST_PROCESS status for >24 hours"
+    
+    # Create HTML table of stalled tasks
+    html_table = "<table border='1' style='border-collapse: collapse; width: 100%;'>"
+    html_table += "<tr><th>Task ID</th><th>Video</th><th>Project</th><th>User</th><th>Time in Status</th></tr>"
+    
+    plain_text = f"ALERT: {task_count} tasks have been stalled in POST_PROCESS status for more than 24 hours.\n\n"
+    plain_text += "Task Details:\n"
+    
+    for task in stalled_tasks:
+        time_in_status = timezone.now() - task.updated_at
+        hours = int(time_in_status.total_seconds() / 3600)
+        
+        html_table += f"<tr><td>{task.id}</td><td>{task.video.name}</td>"
+        html_table += f"<td>{task.video.project_id.title}</td><td>{task.user.email}</td>"
+        html_table += f"<td>{hours} hours</td></tr>"
+        
+        plain_text += f"- Task #{task.id}: Video '{task.video.name}' in project '{task.video.project_id.title}' "
+        plain_text += f"by user {task.user.email}, stalled for {hours} hours\n"
+    
+    html_table += "</table>"
+    
+    html_message = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333;">
+        <h2>Stalled Tasks Notification</h2>
+        <p>The following {task_count} tasks have been in POST_PROCESS status for more than 24 hours:</p>
+        
+        {html_table}
+        
+        <p style="margin-top: 20px;">
+            Please check these tasks in the Chitralekha dashboard and take appropriate action.
+        </p>
+    </body>
+    </html>
+    """
+    
+    # Send email to administrators
+    recipients = [
+        'aparna@ai4bharat.org', 
+        'kartikvirendrarajput@gmail.com', 
+        'aswathyvinod@ai4bharat.org'
+    ]
+    
+    msg = EmailMultiAlternatives(
+        subject,
+        plain_text,
+        settings.DEFAULT_FROM_EMAIL,
+        recipients
+    )
+    msg.attach_alternative(html_message, "text/html")
+    
+    try:
+        msg.send()
+        logging.info(f"Stalled tasks notification email sent to administrators. Found {task_count} stalled tasks.")
+    except Exception as e:
+        logging.error(f"Error sending stalled tasks notification email: {str(e)}")
