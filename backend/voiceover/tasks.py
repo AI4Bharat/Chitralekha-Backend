@@ -217,29 +217,30 @@ def bulk_export_voiceover_async(task_ids, user_id):
 @shared_task
 def check_stalled_post_process_tasks():
     """
-    Check for tasks that have been in POST_PROCESS status for more than 24 hours
-    and send notification emails to administrators.
+    Check for TRANSLATION_VOICEOVER_EDIT tasks that have been in POST_PROCESS status 
+    for more than 24 hours and send notification emails to administrators.
     """
-    # Find tasks that have been in POST_PROCESS for more than 24 hours
+    # Find translation-voiceover tasks that have been in POST_PROCESS for more than 24 hours
     time_threshold = timezone.now() - timedelta(hours=24)
     stalled_tasks = Task.objects.filter(
         status="POST_PROCESS", 
+        task_type="TRANSLATION_VOICEOVER_EDIT",
         updated_at__lt=time_threshold
     )
     
     if not stalled_tasks.exists():
-        logging.info("No stalled tasks found in POST_PROCESS status")
+        logging.info("No stalled translation-voiceover tasks found in POST_PROCESS status")
         return
     
     # Prepare email content
     task_count = stalled_tasks.count()
-    subject = f"ALERT: {task_count} tasks stalled in POST_PROCESS status for >24 hours"
+    subject = f"ALERT: {task_count} translation-voiceover tasks stalled in POST_PROCESS status for >24 hours"
     
     # Create HTML table of stalled tasks
     html_table = "<table border='1' style='border-collapse: collapse; width: 100%;'>"
     html_table += "<tr><th>Task ID</th><th>Video</th><th>Project</th><th>User</th><th>Time in Status</th></tr>"
     
-    plain_text = f"ALERT: {task_count} tasks have been stalled in POST_PROCESS status for more than 24 hours.\n\n"
+    plain_text = f"ALERT: {task_count} translation-voiceover tasks have been stalled in POST_PROCESS status for more than 24 hours.\n\n"
     plain_text += "Task Details:\n"
     
     for task in stalled_tasks:
@@ -258,8 +259,8 @@ def check_stalled_post_process_tasks():
     html_message = f"""
     <html>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333;">
-        <h2>Stalled Tasks Notification</h2>
-        <p>The following {task_count} tasks have been in POST_PROCESS status for more than 24 hours:</p>
+        <h2>Stalled Translation-Voiceover Tasks Notification</h2>
+        <p>The following {task_count} translation-voiceover tasks have been in POST_PROCESS status for more than 24 hours:</p>
         
         {html_table}
         
@@ -287,6 +288,6 @@ def check_stalled_post_process_tasks():
     
     try:
         msg.send()
-        logging.info(f"Stalled tasks notification email sent to administrators. Found {task_count} stalled tasks.")
+        logging.info(f"Stalled translation-voiceover tasks notification email sent to administrators. Found {task_count} stalled tasks.")
     except Exception as e:
         logging.error(f"Error sending stalled tasks notification email: {str(e)}")
