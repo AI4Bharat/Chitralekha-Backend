@@ -1597,28 +1597,48 @@ def send_task_status_notification(task, voice_over_obj, new_status):
         
         subject = f"Task #{task.id} is now {new_status}"
         
-        message = f"""Your translation-voiceover task has been completed:
-        
-        Video: {task.video.name}
-        Task ID: {task.id}
-        Project: {task.video.project_id.title} (ID: {task.video.project_id.id})
-        Status: {new_status}
-        
-        You can access the generated audio by clicking on the following link:
-        {voice_over_obj.azure_url_audio}
-        
-        You can also view the task details in your Chitralekha dashboard.
+        # Plain text version
+        message = f"""Your translation-voiceover task has been completed.
+
+Video: {task.video.name}
+Task ID: {task.id}
+Project: {task.video.project_id.title} (ID: {task.video.project_id.id})
+Status: {new_status}
+
+You can access the generated audio by clicking on the following link:
+{voice_over_obj.azure_url_audio}
+
+You can also view the task details in your Chitralekha dashboard.
+"""
+
+        # HTML version
+        html_message = f"""
+        <html>
+            <body>
+                <p>Your translation-voiceover task has been completed.</p>
+                <p>
+                    <strong>Video:</strong> {task.video.name}<br>
+                    <strong>Task ID:</strong> {task.id}<br>
+                    <strong>Project:</strong> {task.video.project_id.title} (ID: {task.video.project_id.id})<br>
+                    <strong>Status:</strong> {new_status}
+                </p>
+                <p>
+                    You can access the generated audio by clicking on the following link:<br>
+                    <a href="{voice_over_obj.azure_url_audio}">{voice_over_obj.azure_url_audio}</a>
+                </p>
+                <p>You can also view the task details in your Chitralekha dashboard.</p>
+            </body>
+        </html>
         """
-        
-        compiled_code = send_email_template(subject, message)
+
         msg = EmailMultiAlternatives(
             subject,
-            compiled_code,
+            message,
             settings.DEFAULT_FROM_EMAIL,
             [task.user.email],
         )
-        msg.attach_alternative(compiled_code, "text/html")
-        
+        msg.attach_alternative(html_message, "text/html")
+
         try:
             msg.send()
             logging.info("Task completion notification email sent successfully to %s", task.user.email)
