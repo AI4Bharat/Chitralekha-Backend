@@ -122,7 +122,7 @@ class TranscribeAPIView(APIView):
 
         chunk_data = {
             "config": {
-                "serviceId": os.getenv("DHRUVA_SERVICE_ID"),
+                "serviceId": os.getenv("DHRUVA_SERVICE_ID") if lang != "en" else os.getenv("DHRUVA_SERVICE_ID_EN"),
                 "language": {"sourceLanguage": lang},
                 "transcriptionFormat": {"value": "transcript"}
                 },
