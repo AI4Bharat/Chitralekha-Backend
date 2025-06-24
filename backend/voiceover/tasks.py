@@ -238,21 +238,21 @@ def check_stalled_post_process_tasks():
     
     # Create HTML table of stalled tasks
     html_table = "<table border='1' style='border-collapse: collapse; width: 100%;'>"
-    html_table += "<tr><th>Task ID</th><th>Video</th><th>Project</th><th>User</th><th>Time in Status</th></tr>"
+    html_table += "<tr><th>Task ID</th><th>Video</th><th>Project</th><th>User</th><th>Time in Status (days)</th></tr>"
     
     plain_text = f"ALERT: {task_count} translation-voiceover tasks have been stalled in POST_PROCESS status for more than 24 hours.\n\n"
     plain_text += "Task Details:\n"
     
     for task in stalled_tasks:
         time_in_status = timezone.now() - task.updated_at
-        hours = int(time_in_status.total_seconds() / 3600)
+        days = round(time_in_status.total_seconds() / (3600 * 24), 1)  # Convert to days with one decimal place
         
         html_table += f"<tr><td>{task.id}</td><td>{task.video.name}</td>"
         html_table += f"<td>{task.video.project_id.title}</td><td>{task.user.email}</td>"
-        html_table += f"<td>{hours} hours</td></tr>"
+        html_table += f"<td>{days} days</td></tr>"
         
         plain_text += f"- Task #{task.id}: Video '{task.video.name}' in project '{task.video.project_id.title}' "
-        plain_text += f"by user {task.user.email}, stalled for {hours} hours\n"
+        plain_text += f"by user {task.user.email}, stalled for {days} days\n"
     
     html_table += "</table>"
     
