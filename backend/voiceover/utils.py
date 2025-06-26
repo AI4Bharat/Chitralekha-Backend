@@ -1586,7 +1586,7 @@ def send_mail_to_user(task):
 def send_task_status_notification(task, voice_over_obj, new_status):
     """
     Send email notification to user when a task status changes to COMPLETE
-    
+
     Parameters:
     task (Task): The task object whose status has changed
     voice_over_obj (VoiceOver): The voice over object with the generated audio
@@ -1594,9 +1594,9 @@ def send_task_status_notification(task, voice_over_obj, new_status):
     """
     if task.user.enable_mail:
         logging.info("Sending task completion notification email to user %s", task.user.email)
-        
+
         subject = f"Task #{task.id} is now {new_status}"
-        
+
         # Plain text version
         message = f"""Your translation-voiceover task has been completed.
 
@@ -1611,23 +1611,37 @@ You can access the generated audio by clicking on the following link:
 You can also view the task details in your Chitralekha dashboard.
 """
 
-        # HTML version
+        # HTML version with table
         html_message = f"""
         <html>
-            <body>
-                <p>Your translation-voiceover task has been completed.</p>
-                <p>
-                    <strong>Video:</strong> {task.video.name}<br>
-                    <strong>Task ID:</strong> {task.id}<br>
-                    <strong>Project:</strong> {task.video.project_id.title} (ID: {task.video.project_id.id})<br>
-                    <strong>Status:</strong> {new_status}
-                </p>
-                <p>
-                    You can access the generated audio by clicking on the following link:<br>
-                    <a href="{voice_over_obj.azure_url_audio}">{voice_over_obj.azure_url_audio}</a>
-                </p>
-                <p>You can also view the task details in your Chitralekha dashboard.</p>
-            </body>
+        <head>
+            <style>
+                table {{
+                    border: 1px solid black;
+                    border-collapse: collapse;
+                    width: 600px;
+                    table-layout: fixed;
+                }}
+                th, td {{
+                    border: 1px solid black;
+                    word-wrap: break-word;
+                    padding: 8px;
+                    vertical-align: top;
+                    max-width: 200px;
+                }}
+            </style>
+        </head>
+        <body>
+            <p>Your translation-voiceover task has been completed.</p>
+            <table>
+                <tr><th>Video</th><td>{task.video.name}</td></tr>
+                <tr><th>Task ID</th><td>{task.id}</td></tr>
+                <tr><th>Project</th><td>{task.video.project_id.title} (ID: {task.video.project_id.id})</td></tr>
+                <tr><th>Status</th><td>{new_status}</td></tr>
+                <tr><th>Audio Link</th><td><a href="{voice_over_obj.azure_url_audio}">{voice_over_obj.azure_url_audio}</a></td></tr>
+            </table>
+            <p>You can also view the task details in your Chitralekha dashboard.</p>
+        </body>
         </html>
         """
 

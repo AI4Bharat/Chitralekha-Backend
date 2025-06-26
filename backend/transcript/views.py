@@ -1285,8 +1285,35 @@ def send_mail_to_user(task):
             else:
                 task_eta = "-"
             logging.info("Send email to user %s", task.user.email)
-            table_to_send = "<p>Dear User, Following task is active.</p><p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
-            data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr><tr><th>ETA</th><td>{eta}</td></tr><tr><th>Description</th><td>{description}</td></tr></table></body></p>".format(
+
+            # Improved table HTML with width control and text wrapping
+            table_to_send = """<p>
+            <head>
+            <style>
+            table { 
+                border: 1px solid black; 
+                border-collapse: collapse; 
+                width: 600px; 
+                table-layout: fixed;
+            }
+            th, td { 
+                border: 1px solid black; 
+                word-wrap: break-word; 
+                padding: 8px; 
+                vertical-align: top;
+                max-width: 200px;
+            }
+            </style>
+            </head>
+            <body>
+            <table>"""
+
+            data = """<tr><th>Video Name</th><td>{name}</td></tr>
+                <tr><th>Video URL</th><td>{url}</td></tr>
+                <tr><th>Project Name</th><td>{project_name}</td></tr>
+                <tr><th>ETA</th><td>{eta}</td></tr>
+                <tr><th>Description</th><td>{description}</td></tr>
+                </table></body></p>""".format(
                 name=task.video.name,
                 url=task.video.url,
                 project_name=task.video.project_id.title,
@@ -1295,11 +1322,12 @@ def send_mail_to_user(task):
             )
             final_table = table_to_send + data
             email = EmailMultiAlternatives(
-                subject=f"{task.get_task_type_label} is active",
-                body="Dear User, Following task is active.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[task.user.email],
-            )
+            subject=f"Task ID {task.id} - {task.get_task_type_label} is active",
+            body=f"Dear User,\n\nFollowing task is active.\nTask ID: {task.id}\n\nPlease see the details below.",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[task.user.email],
+        )
+
             email.attach_alternative(final_table, "text/html")
             email.send()
         else:

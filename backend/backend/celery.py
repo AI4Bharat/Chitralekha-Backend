@@ -50,7 +50,7 @@ celery_app.conf.beat_schedule = {
     },
     "check-stalled-post-process-tasks": {
         "task": "voiceover.tasks.check_stalled_post_process_tasks",
-        "schedule": crontab(hour=9, minute=0),  # Run daily at 9:00 AM
+        "schedule": crontab(hour=4, minute=0),  # Run daily at 4:00 AM UTC = 9:30 AM IST
     },
 }
 
