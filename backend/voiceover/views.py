@@ -2105,6 +2105,7 @@ def get_voiceover_report(request):
     video__project_id__organization_id__title__isnull=True
     ).values(        
         "video__project_id__organization_id__title",
+        "video__project_id__organization_id__is_active",  
         src_language=F("video__language"),
         tgt_language=F("target_language"),
     )
@@ -2115,8 +2116,14 @@ def get_voiceover_report(request):
     )
     voiceover_data = []
     for elem in voiceover_statistics:
+        org_title = elem.get("video__project_id__organization_id__title")  
+        is_active = elem.get("video__project_id__organization_id__is_active", False) 
+
         voiceover_dict = {
-            "org": elem["video__project_id__organization_id__title"],
+            "org": {
+                "name": org_title,
+                "is_active": is_active,
+            },
             "src_language": {
                 "value": dict(VOICEOVER_LANGUAGE_CHOICES)[elem["src_language"]],
                 "label": "Source Langauge",
@@ -2135,14 +2142,17 @@ def get_voiceover_report(request):
             },
         }
         voiceover_data.append(voiceover_dict)
-    voiceover_data.sort(key=itemgetter("org"))
+
+    voiceover_data.sort(key=lambda x: x["org"]["name"])
     res = []
-    for org, items in groupby(voiceover_data, key=itemgetter("org")):
+    for org_name, items in groupby(voiceover_data, key=lambda x: x["org"]["name"]):
         lang_data = []
+        is_active_status = None
         for i in items:
+            is_active_status = i["org"]["is_active"]  
             del i["org"]
             lang_data.append(i)
-        temp_data = {"org": org, "data": lang_data}
+        temp_data = {"org": {"name": org_name, "is_active": is_active_status}, "data": lang_data}
         res.append(temp_data)
 
     return Response(res, status=status.HTTP_200_OK)

@@ -33,6 +33,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "email_domain_name",
+            "is_active",
             "created_by",
             "created_at",
             "organization_owners",
