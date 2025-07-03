@@ -39,7 +39,7 @@ from translation.models import Translation, TRANSLATION_EDIT_COMPLETE
 import regex
 from datetime import datetime, timedelta
 from django.utils import timezone
-
+from django.utils.timezone import now
 
 @shared_task()
 def celery_integration(file_name, voice_over_obj_id, video, task_id):
@@ -98,7 +98,16 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
     voice_over_obj.payload = {"payload": ""}
     voice_over_obj.azure_url = azure_url_video
     voice_over_obj.azure_url_audio = azure_url_audio
-  
+    
+    # Update task completion information
+    if not task.completed:
+        task.completed = {}
+    
+    task.completed.update({
+        'completed_by': task.user.id,
+        "timestamp": now().isoformat(),
+        'audio_url': azure_url_audio
+    })
     
     # Update task status
     task.status = "COMPLETE"
@@ -107,9 +116,6 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
     
     # Send email notification about task completion
     try:
-        # # Send audio file link email
-        # send_audio_mail_to_user(task, voice_over_obj.azure_url_audio, task.user)
-        
         # Send status change notification
         send_task_status_notification(task, voice_over_obj, "COMPLETE")
         

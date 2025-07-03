@@ -54,6 +54,7 @@ from organization.decorators import is_admin
 from organization.models import Organization
 from video.models import Video
 from django.db import transaction
+from django.utils.timezone import now
 
 @api_view(["GET"])
 def get_voice_over_export_types(request):
@@ -1403,6 +1404,10 @@ def save_voice_over(request):
                         # )
                         file_path = "temporary_video_audio_storage"
                         task.status = "POST_PROCESS"
+                        task.completed = {
+                            "completed_by": request.user.id,
+                            "timestamp": now().isoformat(),
+                            }
                         task.save()
                         logging.info("Calling Async Celery Integration")
                         celery_integration.delay(

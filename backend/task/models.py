@@ -7,6 +7,7 @@ import datetime
 from django.utils import timezone
 from users.models import User
 from organization.models import TRANSCRIPT_TYPE, TRANSLATION_TYPE_CHOICES
+from django.db.models import JSONField
 
 TRANSCRIPTION_EDIT = "TRANSCRIPTION_EDIT"
 TRANSCRIPTION_REVIEW = "TRANSCRIPTION_REVIEW"
@@ -119,6 +120,7 @@ class Task(models.Model):
     time_spent = models.IntegerField(
         default=0, null=True, blank=True, verbose_name="Time Spent"
     )
+    completed = JSONField(default=dict, blank=True, null=True)
 
     @property
     def get_src_language_label(self):
