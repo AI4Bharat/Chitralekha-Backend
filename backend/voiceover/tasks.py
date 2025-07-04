@@ -71,8 +71,6 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
             end_time = datetime.strptime(segment["end_time"], "%H:%M:%S.%f")
             unix_start_time = datetime.timestamp(start_time)
             unix_end_time = datetime.timestamp(end_time)
-            target_text = segment["text"]
-            target_text = segment["transcription_text"]
 
             updated_segment = {
                 "start_time": segment["start_time"],
@@ -82,6 +80,7 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
                 "unix_start_time": unix_start_time,
                 "unix_end_time": unix_end_time,
                 "text": segment["transcription_text"],
+                "image_url": segment.get("image_url") or None,
             }
             updated_payload.append(updated_segment)
         final_tl.payload["payload"] = updated_payload
