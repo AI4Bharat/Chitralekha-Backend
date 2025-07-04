@@ -436,6 +436,10 @@ def get_payload(request):
                         "fast_audio": 0 if text_length_per_second < moderate_audio_threshold else 1 if text_length_per_second < fast_audio_threshold else 2,
                     }
                 )
+                if "image_url" in voice_over.payload["payload"][str(audio_index)]:
+                    sentences_list[index]["image_url"] = voice_over.payload["payload"][str(audio_index)]["image_url"]
+                else:
+                    sentences_list[index]["image_url"] = None
         payload = {"payload": sentences_list}
     elif voice_over.voice_over_type == "MANUALLY_CREATED":
         if end_offset > count_cards:
@@ -477,6 +481,10 @@ def get_payload(request):
                             "audio_speed": 1,
                         }
                     )
+                    if "image_url" in voice_over.payload["payload"][str(audio_index)]:
+                        sentences_list[i-start_offset]["image_url"] = voice_over.payload["payload"][str(audio_index)]["image_url"]
+                    else:
+                        sentences_list[i-start_offset]["image_url"] = None
                 else:
                     start_time = voice_over.translation.payload["payload"][i][
                         "start_time"
@@ -508,6 +516,10 @@ def get_payload(request):
                             "audio_speed": 1,
                         }
                     )
+                    if "image_url" in voice_over.payload["payload"][str(audio_index)]:
+                        sentences_list[i-start_offset] = voice_over.payload["payload"][str(audio_index)]["image_url"]
+                    else:
+                        sentences_list[i-start_offset] = None
                     count += 1
         payload = {"payload": sentences_list}
     else:
@@ -1237,6 +1249,7 @@ def save_voice_over(request):
                             for i in range(len(payload["payload"])):
                                 start_time = payload["payload"][i]["start_time"]
                                 end_time = payload["payload"][i]["end_time"]
+                                image_url = payload["payload"][i]["image_url"] or None
                                 transcription_text = payload["payload"][i][
                                     "transcription_text"
                                 ]
@@ -1319,6 +1332,7 @@ def save_voice_over(request):
                                             "text": payload["payload"][i]["text"],
                                             "audio": voiceover_adjusted[i][1],
                                             "audio_speed": 1,
+                                            "image_url": image_url,
                                         }
                                         sentences_list.append(
                                             {
@@ -1334,6 +1348,7 @@ def save_voice_over(request):
                                                 "audio": voiceover_adjusted[i][1],
                                                 "audio_speed": 1,
                                                 "transcription_text": transcription_text,
+                                                "image_url": image_url,
                                             }
                                         )
                                 else:
@@ -1351,6 +1366,7 @@ def save_voice_over(request):
                                         "transcription_text": payload["payload"][i][
                                             "transcription_text"
                                         ],
+                                        "image_url": payload["payload"][i]["image_url"] or None,
                                     }
                                     sentences_list.append(
                                         {
@@ -1368,6 +1384,7 @@ def save_voice_over(request):
                                             "transcription_text": payload["payload"][i][
                                                 "transcription_text"
                                             ],
+                                            "image_url": payload["payload"][i]["image_url"] or None,
                                         }
                                     )
                                 voice_over_obj.save()
@@ -1427,6 +1444,7 @@ def save_voice_over(request):
                         for i in range(len(payload["payload"])):
                             start_time = payload["payload"][i]["start_time"]
                             end_time = payload["payload"][i]["end_time"]
+                            image_url = payload["payload"][i]["image_url"] or None
                             transcription_text = payload["payload"][i][
                                 "transcription_text"
                             ]
@@ -1495,6 +1513,7 @@ def save_voice_over(request):
                                     "text": payload["payload"][i]["text"],
                                     "audio": voiceover_adjusted[i][1],
                                     "audio_speed": 1,
+                                    "image_url": payload["payload"][i]["image_url"] or None,
                                 }
                                 sentences_list.append(
                                     {
@@ -1508,6 +1527,7 @@ def save_voice_over(request):
                                         "audio": voiceover_adjusted[i][1],
                                         "audio_speed": 1,
                                         "transcription_text": transcription_text,
+                                        "image_url": payload["payload"][i]["image_url"] or None,
                                     }
                                 )
                             else:
@@ -1533,6 +1553,7 @@ def save_voice_over(request):
                                     "transcription_text": payload["payload"][i][
                                         "transcription_text"
                                     ],
+                                    "image_url": payload["payload"][i]["image_url"] or None 
                                 }
                                 sentences_list.append(
                                     {
@@ -1554,6 +1575,7 @@ def save_voice_over(request):
                                         "transcription_text": payload["payload"][i][
                                             "transcription_text"
                                         ],
+                                        "image_url": payload["payload"][i]["image_url"] or None,
                                         "fast_audio": 0 if text_length_per_second < moderate_audio_threshold else 1 if text_length_per_second < fast_audio_threshold else 2,
                                     }
                                 )
@@ -1574,6 +1596,7 @@ def save_voice_over(request):
                         for i in range(len(payload["payload"])):
                             start_time = payload["payload"][i]["start_time"]
                             end_time = payload["payload"][i]["end_time"]
+                            image_url = payload["payload"][i]["image_url"] or None
                             time_difference = (
                                 datetime.strptime(end_time, "%H:%M:%S.%f")
                                 - timedelta(
@@ -1651,6 +1674,7 @@ def save_voice_over(request):
                                         "text": payload["payload"][i]["text"],
                                         "audio": voiceover_adjusted[i][1],
                                         "audio_speed": 1,
+                                        "image_url": payload["payload"][i]["image_url"] or None,
                                     }
                                 )
                             else:
@@ -1666,6 +1690,7 @@ def save_voice_over(request):
                                     "transcription_text": payload["payload"][i][
                                         "transcription_text"
                                     ],
+                                    "image_url": payload["payload"][i]["image_url"] or None,
                                 }
                                 sentences_list.append(
                                     {
@@ -1681,6 +1706,7 @@ def save_voice_over(request):
                                         "transcription_text": payload["payload"][i][
                                             "transcription_text"
                                         ],
+                                        "image_url": payload["payload"][i]["image_url"] or None,
                                     }
                                 )
                         

@@ -170,89 +170,146 @@ def convert_to_paragraph(lines, video_name):
 
     return content
 
+def get_image_from_url(url):
+    if not url:
+        return None
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status() 
+        image_stream = BytesIO(response.content)
+        return image_stream
+    except requests.exceptions.RequestException as e:
+        print(f"Warning: Could not download image from {url}. Error: {e}")
+        return None
 
 def convert_to_paragraph_monolingual(payload, video_name, task_id):
-    lines = []
-    content = ""
-    translated_content = video_name + "\n" + "\n"
-    sentences_count = 0
-    number_of_paragraphs = math.ceil(len(payload) / 5)
-    count_paragraphs = 0
-    for index, segment in enumerate(payload):
-        if "text" in segment.keys():
-            lines.append(segment["target_text"])
-            translated_content = translated_content + " " + segment["target_text"]
-            sentences_count += 1
-            if sentences_count % 5 == 0:
-                count_paragraphs += 1
-                content = content + translated_content + "\n" + "\n"
-                translated_content = ""
+    document = Document()
+    document.add_paragraph(video_name)
 
-    if count_paragraphs < number_of_paragraphs:
-        content = content + translated_content + "\n" + "\n"
+    for segment in payload:
+        if segment.get("target_text"):
+            document.add_paragraph(segment.get("target_text"))
 
-    glossary = Glossary.objects.filter(task_ids=task_id)
-    if glossary.exists():
-        glossary_data = []
-        glossary_data.append(["Source Text", "Target Text", "Meaning"])
-        for i in glossary:
-            glossary_data.append([i.source_text, i.target_text, i.text_meaning or " "])
-        return convert_to_docx(content, glossary_data)
-    return convert_to_docx(content)
+        if segment.get("image_url"):
+            image_stream = get_image_from_url(segment['image_url'])
+            if image_stream:
+                try:
+                    p = document.add_paragraph()
+                    p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                    run = p.add_run()
+                    run.add_picture(image_stream, width=Inches(5.0))
+                    document.add_paragraph()
+                except Exception as e:
+                    print(f"Warning: Could not add image from {segment['image_url']} to document. Error: {e}")
 
+    buffer = BytesIO()
+    document.save(buffer)
+    length = buffer.tell()
+    buffer.seek(0)
+
+    response = StreamingHttpResponse(
+        streaming_content=buffer,
+        content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+    response["Content-Disposition"] = 'attachment; filename="document_with_images.docx"'
+    response["Content-Encoding"] = "UTF-8"
+    response["Content-Length"] = length
+    
+    return response
 
 def convert_to_paragraph_bilingual(payload, video_name, task_id):
-    lines = []
-    transcripted_lines = []
-    content = ""
-    transcripted_content = video_name + "\n" + "\n"
-    translated_content = ""
-    sentences_count = 0
-    number_of_paragraphs = math.ceil(len(payload) / 5)
-    count_paragraphs = 0
-    for index, segment in enumerate(payload):
-        if "text" in segment.keys():
-            lines.append(segment["target_text"])
-            transcripted_lines.append(segment["text"])
-            transcripted_content = (
-                transcripted_content + " " + segment["text"].replace("\n", " ")
-            )
-            translated_content = translated_content + " " + segment["target_text"]
-            sentences_count += 1
-            if sentences_count % 5 == 0:
-                count_paragraphs += 1
-                content = (
-                    content
-                    + transcripted_content
-                    + "\n"
-                    + "\n"
-                    + translated_content
-                    + "\n"
-                    + "\n"
-                )
-                transcripted_content = ""
-                translated_content = ""
-
-    if count_paragraphs < number_of_paragraphs:
-        content = (
-            content
-            + transcripted_content
-            + "\n"
-            + "\n"
-            + translated_content
-            + "\n"
-            + "\n"
-        )
+    document = Document()
+    document.add_paragraph(video_name)
     
+    transcripted_content = ""
+    translated_content = ""
+    images_in_group = []
+    sentences_count = 0
+    
+    for segment in payload:
+        if "text" in segment:
+            transcripted_content += " " + segment["text"].replace("\n", " ")
+        if "target_text" in segment:
+            translated_content += " " + segment["target_text"]
+        
+        if segment.get("image_url"):
+            image_stream = get_image_from_url(segment['image_url'])
+            if image_stream:
+                images_in_group.append(image_stream)
+
+        sentences_count += 1
+        
+        if sentences_count % 5 == 0:
+            if transcripted_content.strip():
+                document.add_paragraph(transcripted_content.strip())
+            if translated_content.strip():
+                document.add_paragraph(translated_content.strip())
+            
+            for img_stream in images_in_group:
+                p = document.add_paragraph()
+                p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                run = p.add_run()
+                run.add_picture(img_stream, width=Inches(5.0))
+                img_stream.close()
+
+            transcripted_content = ""
+            translated_content = ""
+            images_in_group = []
+
+    if transcripted_content.strip() or translated_content.strip() or images_in_group:
+        if transcripted_content.strip():
+            document.add_paragraph(transcripted_content.strip())
+        if translated_content.strip():
+            document.add_paragraph(translated_content.strip())
+        
+        for img_stream in images_in_group:
+            p = document.add_paragraph()
+            p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+            run = p.add_run()
+            run.add_picture(img_stream, width=Inches(5.0))
+            img_stream.close()
+
     glossary = Glossary.objects.filter(task_ids=task_id)
-    if glossary.exists():
+    if glossary:
         glossary_data = []
         glossary_data.append(["Source Text", "Target Text", "Meaning"])
         for i in glossary:
             glossary_data.append([i.source_text, i.target_text, i.text_meaning or " "])
-        return convert_to_docx(content, glossary_data)
-    return convert_to_docx(content)
 
+        document.add_page_break()
+        header = document.add_paragraph("Glossary")
+        header.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+        header_run = header.runs[0]
+        header_run.bold = True
+        header_run.font.size = Pt(16)
+        
+        table = document.add_table(rows=len(glossary_data), cols=len(glossary_data[0]))
+        table.style = "Table Grid"
+
+        for row_idx, row in enumerate(glossary_data):
+            for col_idx, value in enumerate(row):
+                cell = table.cell(row_idx, col_idx)
+                cell.text = str(value)
+                paragraph = cell.paragraphs[0]
+                run = paragraph.runs[0]
+                run.bold = row_idx == 0
+                run.font.size = Pt(14 if row_idx == 0 else 12)
+                paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER 
+
+    buffer = BytesIO()
+    document.save(buffer)
+    length = buffer.tell()
+    buffer.seek(0)
+    
+    response = StreamingHttpResponse(
+        streaming_content=buffer,
+        content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+    response["Content-Disposition"] = 'attachment; filename="bilingual_document_with_images.docx"'
+    response["Content-Encoding"] = "UTF-8"
+    response["Content-Length"] = length
+    
+    return response
 
 def get_batch_translations_using_indictrans_nmt_api(
     sentence_list,
