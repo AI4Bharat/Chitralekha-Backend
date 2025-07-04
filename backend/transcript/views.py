@@ -80,6 +80,7 @@ from .utils.timestamp import *
 import openai
 from utils.llm_api import get_model_output
 from voiceover.models import VoiceOver
+from django.utils.timezone import now
 
 @api_view(["GET"])
 def get_transcript_export_types(request):
@@ -2256,6 +2257,11 @@ def save_transcription(request):
                         for item in transcript_obj.payload["payload"]:
                             item['verbatim_text'] = item['text']
                             item['text'] = item['paraphrased_text'] if 'paraphrased_text' in item and item['paraphrased_text'] not in [None, ""] else item['verbatim_text']
+                        task.completed = {
+                            "user_id": request.user.id,
+                            "timestamp": now().isoformat(),
+                           
+                        }
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
