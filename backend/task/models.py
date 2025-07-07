@@ -120,7 +120,7 @@ class Task(models.Model):
     time_spent = models.IntegerField(
         default=0, null=True, blank=True, verbose_name="Time Spent"
     )
-    completed = JSONField(default=dict, blank=True, null=True)
+    completed = JSONField(default=dict, blank=True, null=True, help_text="field to store task completion details")
 
     @property
     def get_src_language_label(self):
