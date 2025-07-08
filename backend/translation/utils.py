@@ -744,6 +744,7 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
                     "unix_start_time": unix_start_time,
                     "unix_end_time": unix_end_time,
                     "target_text": target if source["text"].strip() else source["text"],
+                    "image_url": source.get("image_url"),
                 }
             )
         else:
@@ -772,6 +773,7 @@ def translation_mg(transcript, target_language, user_id, batch_size=25):
                     "unix_start_time": unix_start_time,
                     "unix_end_time": unix_end_time,
                     "target_text": target if source["text"].strip() else source["text"],
+                    "image_url": source.get("image_url"),
                 }
             )
     return json.loads(json.dumps({"payload": payload}))

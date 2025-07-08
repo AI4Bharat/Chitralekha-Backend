@@ -425,6 +425,7 @@ def generate_tts_output(
                         "audio_generated": True,
                         "index": tts_output["audio"][count].get("index", 0),
                         "transcription_text": text["text"],
+                        "image_url": text.get("image_url"),
                     }
                     count += 1
                 else:
@@ -446,6 +447,7 @@ def generate_tts_output(
                         "audio_generated": False,
                         "index": tts_output["audio"][count].get("index", 0),
                         "transcription_text": text["text"],
+                        "image_url": text.get("image_url"),
                     }
                     count += 1
             else:
@@ -459,6 +461,7 @@ def generate_tts_output(
                     "audio_generated": False,
                     "index": ind,
                     "transcription_text": text["text"],
+                    "image_url": text.get("image_url"),
                 }
                 count += 1
         else:
