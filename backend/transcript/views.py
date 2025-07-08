@@ -967,6 +967,10 @@ def get_payload(request):
             transcript.payload["payload"][i]["speaker_id"] = ""
         transcript.save()
 
+    for segment in transcript.payload["payload"]:
+        if "image_url" not in segment:
+                segment["image_url"] = None
+
     count_empty = 0
     records = []
     for record_object in page_records:
@@ -1495,6 +1499,7 @@ def update_transcript(i, start_offset, payload, transcript):
         "text": payload["payload"][i]["text"],
         "speaker_id": payload["payload"][i]["speaker_id"],
         "paraphrased_text": paraphrased_text,
+        "image_url": payload["payload"][i].get("image_url")
     }
 
 
@@ -1541,6 +1546,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                                     "paraphrased_text"
                                 )
                             ),  # Generate paraphrased text if paraphrase=true
+                            "image_url": payload["payload"][i].get("image_url"),
                         },
                     )
                 else:
@@ -1606,6 +1612,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                                         "paraphrased_text"
                                     )
                                 ),  # Generate paraphrased text if paraphrase=true
+                                "image_url": payload["payload"][i].get("image_url"),
                             },
                         )
                     else:
@@ -1659,6 +1666,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                             if payload["payload"][i].get("paraphrase")
                             else payload["payload"][length + i].get("paraphrased_text")
                         ),  # Generate paraphrased text if paraphrase=true
+                        "image_url": payload["payload"][i].get("image_url"),
                     },
                 )
         # last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
@@ -2140,8 +2148,11 @@ def save_transcription(request):
                             transcript_obj,
                         )
                         for item in transcript_obj.payload["payload"]:
-                            item['verbatim_text'] = item['text']
-                            item['text'] = item['paraphrased_text'] if 'paraphrased_text' in item and item['paraphrased_text'] not in [None, ""] else item['verbatim_text']
+                            try:
+                                item['verbatim_text'] = item['text']
+                                item['text'] = item['paraphrased_text'] if 'paraphrased_text' in item and item['paraphrased_text'] not in [None, ""] else item['verbatim_text']
+                            except:
+                                True
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
