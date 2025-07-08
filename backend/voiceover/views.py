@@ -434,12 +434,9 @@ def get_payload(request):
                         ],
                         "audio_speed": 1,
                         "fast_audio": 0 if text_length_per_second < moderate_audio_threshold else 1 if text_length_per_second < fast_audio_threshold else 2,
+                        "image_url": voice_over.payload["payload"][str(audio_index)].get("image_url")
                     }
                 )
-                if "image_url" in voice_over.payload["payload"][str(audio_index)]:
-                    sentences_list[index]["image_url"] = voice_over.payload["payload"][str(audio_index)]["image_url"]
-                else:
-                    sentences_list[index]["image_url"] = None
         payload = {"payload": sentences_list}
     elif voice_over.voice_over_type == "MANUALLY_CREATED":
         if end_offset > count_cards:
@@ -479,12 +476,9 @@ def get_payload(request):
                             "time_difference": t_d,
                             "id": i + 1,
                             "audio_speed": 1,
+                            "image_url": voice_over.payload["payload"][str(i)].get("image_url")
                         }
                     )
-                    if "image_url" in voice_over.payload["payload"][str(audio_index)]:
-                        sentences_list[i-start_offset]["image_url"] = voice_over.payload["payload"][str(audio_index)]["image_url"]
-                    else:
-                        sentences_list[i-start_offset]["image_url"] = None
                 else:
                     start_time = voice_over.translation.payload["payload"][i][
                         "start_time"
@@ -514,12 +508,9 @@ def get_payload(request):
                             "audio": "",
                             "id": i + 1,
                             "audio_speed": 1,
+                            "image_url": voice_over.payload["payload"][i].get("image_url")
                         }
                     )
-                    if "image_url" in voice_over.payload["payload"][str(audio_index)]:
-                        sentences_list[i-start_offset] = voice_over.payload["payload"][str(audio_index)]["image_url"]
-                    else:
-                        sentences_list[i-start_offset] = None
                     count += 1
         payload = {"payload": sentences_list}
     else:
