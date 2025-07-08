@@ -2148,8 +2148,11 @@ def save_transcription(request):
                             transcript_obj,
                         )
                         for item in transcript_obj.payload["payload"]:
-                            item['verbatim_text'] = item['text']
-                            item['text'] = item['paraphrased_text'] if 'paraphrased_text' in item and item['paraphrased_text'] not in [None, ""] else item['verbatim_text']
+                            try:
+                                item['verbatim_text'] = item['text']
+                                item['text'] = item['paraphrased_text'] if 'paraphrased_text' in item and item['paraphrased_text'] not in [None, ""] else item['verbatim_text']
+                            except:
+                                True
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
