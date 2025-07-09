@@ -72,6 +72,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from transcript.views import get_transcript_id
 from task.tasks import celery_nmt_tts_call
+from django.utils.timezone import now
 
 @api_view(["GET"])
 def get_translation_export_types(request):
@@ -1721,6 +1722,10 @@ def save_translation(request):
                     ):
                         if task.status == "INPROGRESS":
                             task.status = "COMPLETE"
+                            task.completed = {
+                            "completed_by": request.user.id,
+                            "timestamp": now().isoformat(),
+                            }
                             task.save()
                         return Response(
                             {"message": "Edit Translation already exists."},
