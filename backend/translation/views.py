@@ -174,6 +174,7 @@ def export_translation(request):
                 "unix_start_time": unix_start_time,
                 "unix_end_time": unix_end_time,
                 "text": segment["transcription_text"],
+                "image_url": segment.get("image_url"),
             }
             updated_payload.append(updated_segment)
         translation.payload["payload"] = updated_payload
