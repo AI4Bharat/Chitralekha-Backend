@@ -27,6 +27,7 @@ pip install -r deploy/requirements-dev.txt
 
 To set up the environment variables needed for the project, run the following lines:
 ```bash
+cd ..
 cp .env.example ./backend/.env
 ```
 
