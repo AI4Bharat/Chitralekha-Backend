@@ -21,7 +21,7 @@ from rest_framework import routers, permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from drf_yasg.generators import OpenAPISchemaGenerator
-from video.views import TransliterationAPIView
+from video.views import TransliterationAPIView, TranscribeAPIView
 from users.views import OnboardingAPIView
 from config import app_name
 
@@ -77,6 +77,11 @@ urlpatterns = [
         "xlit-api/generic/transliteration/<str:target_language>/<str:data>",
         TransliterationAPIView.as_view(),
         name="transliteration-api",
+    ),
+    path(
+        "asr-api/generic/transcribe",
+        TranscribeAPIView.as_view(),
+        name="transcription-api",
     ),
     path(
         "onboarding/<str:org_name>/<str:org_portal>/<str:email_id>/<str:phone>/<str:org_type>/<str:purpose>/<str:source>/<str:interested_in>/<str:src_language>/<str:tgt_language>/",
