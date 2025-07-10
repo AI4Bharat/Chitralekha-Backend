@@ -183,7 +183,7 @@ def send_mail_to_user(task):
         else:
             task_eta = "-"
         logging.info("Send email to user %s", task.user.email)
-        table_to_send = "<p>Dear User, Following task is active.</p><p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+        table_to_send = "<p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
         data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr><tr><th>ETA</th><td>{eta}</td></tr><tr><th>Description</th><td>{description}</td></tr></table></body></p>".format(
             name=task.video.name,
             url=task.video.url,
@@ -304,7 +304,9 @@ def fetch_video_details(video_uuid=None, video_url=None):
         }
         return response_data, 200  
 
-
+def total_seconds(time_str):
+    hours, minutes, seconds = map(int, time_str.split(":"))
+    return hours * 3600 + minutes * 60 + seconds
 
 def get_video_func(request):
     url = request.GET.get("multimedia_url")
@@ -321,6 +323,8 @@ def get_video_func(request):
     upload_task_eta = request.GET.get("ETA")
     speaker_info = request.GET.get("speaker_info")
     multiple_speaker = request.GET.get("multiple_speaker", "false")
+    vid_duration = request.GET.get("duration", "00:00:00")
+    ytLink = request.GET.get("ytlink", "").strip()
     url = url.strip()
 
     create = create.lower() == "true"
@@ -550,13 +554,21 @@ def get_video_func(request):
             )
 
     try:
-        if "blob.core.windows.net" in url:
-            info = ydl.extract_info(url, download=False)
-            title = info["title"]
-            video = VideoFileClip(url)
-            duration = timedelta(seconds=floor(video.duration))
+        if "blob.core.windows.net" in url or "objectstore.e2enetworks.net" in url:
+            try:
+                info = ydl.extract_info(url, download=False)
+                title = info["title"]
+            except:
+                title = url.replace(".mp4","").split('/')[-1]
+            try:
+                video = VideoFileClip(url)
+                duration = timedelta(seconds=floor(video.duration))
+            except:
+                duration = timedelta(seconds=total_seconds(vid_duration))
             direct_video_url = url
             normalized_url = url
+            if ytLink.find("youtube") != -1:
+                raise
         else:
         # Get the video info from the YouTube API
             (
@@ -570,6 +582,8 @@ def get_video_func(request):
         direct_video_url = ""
         direct_audio_url = ""
         normalized_url = url
+        if ytLink.find("youtube") != -1:
+            url = ytLink
         try:
             API_KEY = youtube_api_key
             youtube = build("youtube", "v3", developerKey=API_KEY)
@@ -611,15 +625,27 @@ def get_video_func(request):
             gender=gender,
             multiple_speaker=multiple_speaker,
             url=normalized_url,
+            yt_url=ytLink
         )
     else:
-        video = Video.objects.get(
-            name=title,
-            project_id=project,
-            audio_only=is_audio_only,
-            language=lang,
-            url=normalized_url,
-        )
+        try:
+            video = Video.objects.get(
+                name=title,
+                project_id=project,
+                audio_only=is_audio_only,
+                language=lang,
+                url=normalized_url,
+            )
+        except:
+            if "drive.google.com" in normalized_url:
+                if "/view?usp=drive_link" not in normalized_url:
+                    normalized_url += "/view?usp=drive_link"
+            video = Video.objects.get(
+                project_id=project,
+                audio_only=is_audio_only,
+                language=lang,
+                url=normalized_url,
+            )
 
     if create:
         if speaker_info is not None:
@@ -826,6 +852,7 @@ def create_video(
     target_language=None,
     assignee=None,
     lang="en",
+    ytlink="",
 ):
     new_request = HttpRequest()
     new_request.method = "GET"
@@ -842,6 +869,7 @@ def create_video(
     new_request.GET["assignee"] = assignee
     new_request.GET["task_type"] = task_type
     new_request.GET["target_language"] = target_language
+    new_request.GET["ytlink"] = ytlink
     return get_video_func(new_request)
 
 

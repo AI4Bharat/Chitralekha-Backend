@@ -34,6 +34,9 @@ TASK_TYPE = (
     ("TRANSLATION_EDIT", "Translation Edit"),
     ("TRANSLATION_REVIEW", "Translation Review"),
     ("VOICEOVER_EDIT", "VoiceOver Edit"),
+    ("VOICEOVER_REVIEW", "VoiceOver Review"),
+    ("TRANSLATION_VOICEOVER_REVIEW", "Translation VoiceOver Review"),
+    ("TRANSLATION_VOICEOVER_REVIEW", "Translation VoiceOver Review"),
 )
 
 

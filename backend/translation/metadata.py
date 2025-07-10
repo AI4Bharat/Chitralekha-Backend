@@ -15,7 +15,7 @@ TRANSLATION_LANGUAGE_CHOICES = [
     ("mr", "Marathi"),
     ("mni", "Manipuri"),
     ("ne", "Nepali"),
-    ("or", "Oriya"),
+    ("or", "Odia"),
     ("pa", "Punjabi"),
     ("sa", "Sanskrit"),
     ("sat", "Santali"),

@@ -317,6 +317,8 @@ def celery_nmt_tts_call(task_id):
     if type(tts_payload) == dict and "message" in tts_payload.keys():
         message = tts_payload["message"]
         logging.info("Error from TTS API")
+        logging.info(message)
+        raise ValueError(message)
         voice_over_task.status = "FAILED"
         voice_over_task.save()
         # set_fail_for_translation_task(task)

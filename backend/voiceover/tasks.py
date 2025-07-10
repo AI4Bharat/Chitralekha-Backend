@@ -2,7 +2,7 @@ import datetime
 import io
 from celery import shared_task
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 from celery.schedules import crontab
 from rest_framework.response import Response
 from rest_framework import status
@@ -14,6 +14,7 @@ from .utils import (
     send_audio_mail_to_user,
     upload_zip_to_azure,
     send_audio_zip_mail_to_user,
+    send_task_status_notification,
 )
 from voiceover.models import VoiceOver
 from task.models import Task, TRANSLATION_VOICEOVER_EDIT
@@ -36,7 +37,9 @@ import requests
 import zipfile
 from translation.models import Translation, TRANSLATION_EDIT_COMPLETE
 import regex
-
+from datetime import datetime, timedelta
+from django.utils import timezone
+from django.utils.timezone import now
 
 @shared_task()
 def celery_integration(file_name, voice_over_obj_id, video, task_id):
@@ -64,14 +67,10 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
             final_tl.payload["word_count"] = num_words
         updated_payload = []
         for segment in voice_over_obj.payload["payload"].values():
-            start_time = datetime.datetime.strptime(
-                segment["start_time"], "%H:%M:%S.%f"
-            )
-            end_time = datetime.datetime.strptime(segment["end_time"], "%H:%M:%S.%f")
-            unix_start_time = datetime.datetime.timestamp(start_time)
-            unix_end_time = datetime.datetime.timestamp(end_time)
-            target_text = segment["text"]
-            target_text = segment["transcription_text"]
+            start_time = datetime.strptime(segment["start_time"], "%H:%M:%S.%f")
+            end_time = datetime.strptime(segment["end_time"], "%H:%M:%S.%f")
+            unix_start_time = datetime.timestamp(start_time)
+            unix_end_time = datetime.timestamp(end_time)
 
             updated_segment = {
                 "start_time": segment["start_time"],
@@ -81,6 +80,7 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
                 "unix_start_time": unix_start_time,
                 "unix_end_time": unix_end_time,
                 "text": segment["transcription_text"],
+                "image_url": segment.get("image_url") or None,
             }
             updated_payload.append(updated_segment)
         final_tl.payload["payload"] = updated_payload
@@ -97,9 +97,30 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
     voice_over_obj.payload = {"payload": ""}
     voice_over_obj.azure_url = azure_url_video
     voice_over_obj.azure_url_audio = azure_url_audio
+    
+    # Update task completion information
+    if not task.completed:
+        task.completed = {}
+    
+    task.completed.update({
+        'completed_by': task.user.id,
+        "timestamp": now().isoformat(),
+        'audio_url': azure_url_audio
+    })
+    
+    # Update task status
     task.status = "COMPLETE"
     voice_over_obj.save()
     task.save()
+    
+    # Send email notification about task completion
+    try:
+        # Send status change notification
+        send_task_status_notification(task, voice_over_obj, "COMPLETE")
+        
+        logging.info("Completion emails sent to user %s for task %s", task.user.email, task.id)
+    except Exception as e:
+        logging.error("Error sending completion emails: %s", str(e))
 
 
 @shared_task()
@@ -196,3 +217,82 @@ def bulk_export_voiceover_async(task_ids, user_id):
         logging.info("Error in removing files")
 
     send_audio_zip_mail_to_user(task, azure_zip_url, user)
+
+
+@shared_task
+def check_stalled_post_process_tasks():
+    """
+    Check for TRANSLATION_VOICEOVER_EDIT tasks that have been in POST_PROCESS status 
+    for more than 24 hours and send notification emails to administrators.
+    """
+    # Find translation-voiceover tasks that have been in POST_PROCESS for more than 24 hours
+    time_threshold = timezone.now() - timedelta(hours=24)
+    stalled_tasks = Task.objects.filter(
+        status="POST_PROCESS", 
+        task_type="TRANSLATION_VOICEOVER_EDIT",
+        updated_at__lt=time_threshold
+    )
+    
+    if not stalled_tasks.exists():
+        logging.info("No stalled translation-voiceover tasks found in POST_PROCESS status")
+        return
+    
+    # Prepare email content
+    task_count = stalled_tasks.count()
+    subject = f"ALERT: {task_count} translation-voiceover tasks stalled in POST_PROCESS status for >24 hours"
+    
+    # Create HTML table of stalled tasks
+    html_table = "<table border='1' style='border-collapse: collapse; width: 100%;'>"
+    html_table += "<tr><th>Task ID</th><th>Video</th><th>Project</th><th>User</th><th>Time in Status (days)</th></tr>"
+    
+    plain_text = f"ALERT: {task_count} translation-voiceover tasks have been stalled in POST_PROCESS status for more than 24 hours.\n\n"
+    plain_text += "Task Details:\n"
+    
+    for task in stalled_tasks:
+        time_in_status = timezone.now() - task.updated_at
+        days = round(time_in_status.total_seconds() / (3600 * 24), 1)  # Convert to days with one decimal place
+        
+        html_table += f"<tr><td>{task.id}</td><td>{task.video.name}</td>"
+        html_table += f"<td>{task.video.project_id.title}</td><td>{task.user.email}</td>"
+        html_table += f"<td>{days} days</td></tr>"
+        
+        plain_text += f"- Task #{task.id}: Video '{task.video.name}' in project '{task.video.project_id.title}' "
+        plain_text += f"by user {task.user.email}, stalled for {days} days\n"
+    
+    html_table += "</table>"
+    
+    html_message = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333;">
+        <h2>Stalled Translation-Voiceover Tasks Notification</h2>
+        <p>The following {task_count} translation-voiceover tasks have been in POST_PROCESS status for more than 24 hours:</p>
+        
+        {html_table}
+        
+        <p style="margin-top: 20px;">
+            Please check these tasks in the Chitralekha dashboard and take appropriate action.
+        </p>
+    </body>
+    </html>
+    """
+    
+    # Send email to administrators
+    recipients = [
+        'aparna@ai4bharat.org', 
+        'kartikvirendrarajput@gmail.com', 
+        'aswathyvinod@ai4bharat.org'
+    ]
+    
+    msg = EmailMultiAlternatives(
+        subject,
+        plain_text,
+        settings.DEFAULT_FROM_EMAIL,
+        recipients
+    )
+    msg.attach_alternative(html_message, "text/html")
+    
+    try:
+        msg.send()
+        logging.info(f"Stalled translation-voiceover tasks notification email sent to administrators. Found {task_count} stalled tasks.")
+    except Exception as e:
+        logging.error(f"Error sending stalled tasks notification email: {str(e)}")

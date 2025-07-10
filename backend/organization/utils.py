@@ -419,20 +419,38 @@ def get_org_report_tasks(
             completion_time = None
 
         word_count = 0
+        word_diff = 0
+        word_diff_percent = "-"
         if "Translation" in task.get_task_type_label:
             try:
-                translation_obj = Translation.objects.filter(task=task).first()
-                word_count = translation_obj.payload["word_count"]
+                trans_cp = Translation.objects.filter(task=task,status="TRANSLATION_EDIT_COMPLETE").first()
+                word_count = trans_cp.payload["word_count"]
+                payload1 = trans_cp.payload
+                trans_ss = Translation.objects.filter(task=task,status="TRANSLATION_SELECT_SOURCE").first()
+                payload2 = trans_ss.payload
+                payload_len = len(payload2['payload']) if len(payload2['payload']) > len(payload1['payload']) else len(payload1['payload'])
+                for seg_no in range(0, payload_len):
+                    word_diff += count_word_differences(payload1['payload'][seg_no]['target_text'], payload2['payload'][seg_no]['target_text'])
             except:
                 pass
         elif "Transcription" in task.get_task_type_label:
             try:
-                transcript_obj = Transcript.objects.filter(task=task).first()
-                word_count = transcript_obj.payload["word_count"]
+                trans_cp = Transcript.objects.filter(task=task,status="TRANSCRIPTION_EDIT_COMPLETE").first()
+                word_count = trans_cp.payload["word_count"]
+                payload1 = trans_cp.payload
+                trans_ss = Transcript.objects.filter(task=task,status="TRANSCRIPTION_SELECT_SOURCE").first()
+                payload2 = trans_ss.payload
+                payload_len = len(payload2['payload']) if len(payload2['payload']) > len(payload1['payload']) else len(payload1['payload'])
+                for seg_no in range(1, payload_len):
+                    word_diff += count_word_differences(payload1['payload'][seg_no]['text'], payload2['payload'][seg_no]['text'])
             except:
                 pass
         elif "VoiceOver" in task.get_task_type_label:
             word_count = "-"
+        try:
+            word_diff_percent = round(((word_diff / word_count)*100),2)
+        except:
+            word_diff_percent = 0
         is_active = task.is_active
         tasks_list.append(
             {
@@ -502,6 +520,10 @@ def get_org_report_tasks(
                 "word_count": {
                     "value": word_count,
                     "label": "Word Count",
+                },
+                "changes": {
+                    "value": word_diff_percent,
+                    "label": "% Changes",
                 },
                 "created_at": {
                     "value": task.created_at,

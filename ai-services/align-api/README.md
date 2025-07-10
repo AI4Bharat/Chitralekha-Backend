@@ -34,7 +34,7 @@ Gujarati - gu
 Kannada - kn
 Malayalam - ml
 Marathi - mr
-Oriya - or
+Odia - or
 Punjabi - pa
 Sanskrit - sa
 Tamil - ta

@@ -48,6 +48,10 @@ celery_app.conf.beat_schedule = {
         "task": "delete_reports",
         "schedule": crontab(minute=3, hour=1),  # execute everyday at 1 am
     },
+    "check-stalled-post-process-tasks": {
+        "task": "voiceover.tasks.check_stalled_post_process_tasks",
+        "schedule": crontab(hour=4, minute=0),  # Run daily at 4:00 AM UTC = 9:30 AM IST
+    },
 }
 
 celery_app.autodiscover_tasks()

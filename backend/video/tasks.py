@@ -86,19 +86,35 @@ def create_videos_async(user_id, valid_rows, existing_videos, project_id):
     for row in valid_rows:
         if "project_id" in row.keys():
             project_id = row["project_id"]
-        creation = create_video(
-            user_id,
-            row["url"],
-            project_id,
-            row["task_description"],
-            row["video_description"],
-            row["ETA"],
-            row["gender"],
-            row["task_type"],
-            row["target_language"],
-            row["assignee"],
-            row["lang"],
-        )
+        if str(row["drive_url"]).find("drive.google.com") or str(row["drive_url"]).find("objectstore.e2enetworks.net") != -1:
+            creation = create_video(
+                user_id,
+                row["drive_url"],
+                project_id,
+                row["task_description"],
+                row["video_description"],
+                row["ETA"],
+                row["gender"],
+                row["task_type"],
+                row["target_language"],
+                row["assignee"],
+                row["lang"],
+                row["url"],
+            )
+        else:
+            creation = create_video(
+                user_id,
+                row["url"],
+                project_id,
+                row["task_description"],
+                row["video_description"],
+                row["ETA"],
+                row["gender"],
+                row["task_type"],
+                row["target_language"],
+                row["assignee"],
+                row["lang"],
+            )
         if "detailed_report" in creation.data.keys():
             if len(creation.data["detailed_report"]) > 0:
                 email_data.append(creation.data["detailed_report"][0])

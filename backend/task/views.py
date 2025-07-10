@@ -3199,7 +3199,7 @@ class TaskViewSet(ModelViewSet):
                         except:
                             task_obj["task_id"] = eval(elem["args"].split(",")[0].split("(")[1])
                     elif elem["name"] == "voiceover.tasks.celery_integration":
-                        task_obj["task_id"] = eval(elem["args"].split(",")[2])
+                        task_obj["task_id"] = eval(elem["args"].replace(")","").split(",")[3])
                     elif elem["name"] == "voiceover.tasks.export_voiceover_async":
                         task_obj["task_id"] = eval(elem["args"].split(",")[0].split("(")[1])
                     else:

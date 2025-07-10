@@ -20,6 +20,7 @@ from .models import DOMAIN_CHOICES
 from rest_framework.decorators import api_view
 import logging
 from organization.models import Organization
+from task.models import Task
 import base64
 import io
 import csv
@@ -59,6 +60,7 @@ class GlossaryViewSet(ModelViewSet):
         service = TMXService()
         # data = request.get_json()
         user_id = str(request.data.get("user_id", "")) or str(request.user.id)
+        task_id = str(request.data.get("task_id", ""))
         user_obj = User.objects.get(pk=user_id)
         for sentence in request.data.get("sentences"):
             glossary_obj = Glossary.objects.filter(
@@ -69,19 +71,35 @@ class GlossaryViewSet(ModelViewSet):
                 target_language=sentence["locale"].split("|")[1],
             ).first()
             if glossary_obj is not None:
+                if task_id != "":
+                    task = Task.objects.get(pk=int(task_id))
+                    glossary_obj.task_ids.add(task)
+                    return Response(
+                        {"message": "Task ID added to existing glossary."},
+                        status=status.HTTP_200_OK,
+                    )
+                glossary_obj.text_meaning = sentence["meaning"]
+                glossary_obj.context = sentence["domain"]
+                glossary_obj.save(update_fields=["text_meaning", "context"])
+                if sentence["task_ids"] != "":
+                    task_objects = Task.objects.filter(id__in=sentence["task_ids"])
+                    glossary_obj.task_ids.set(task_objects)
                 return Response(
-                    {"message": "Glossary already exists."},
-                    status=status.HTTP_400_BAD_REQUEST,
+                    {"message": "Glossary Object Edited."},
+                    status=status.HTTP_200_OK,
                 )
 
             tmx_input = {
                 "userID": user_id,
+                "taskID": task_id,
+                "taskIDs": sentence["task_ids"],
                 "sentences": [
                     {
                         "src": sentence["src"],
                         "tgt": sentence["tgt"],
                         "locale": sentence["locale"],
                         "context": sentence["domain"],
+                        "meaning": sentence["meaning"],
                     }
                 ],
             }
@@ -100,26 +118,20 @@ class GlossaryViewSet(ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="get_all")
     def get_all(self, request, pk=None, *args, **kwargs):
-        service = TMXService()
-        data = {"userID": str(request.user.id), "allUserKeys": False}
-        try:
-            tmx_data = service.get_tmx_data(data)
-        except:
-            return Response(
-                {"message": "Error in returning Glossary."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
+        glossary = Glossary.objects.filter(user_id=request.user.id).all()
         tmx_response = []
         count = 0
-        for data in tmx_data:
+        for data in glossary:
             tmx_dict = {}
             count += 1
             tmx_dict["id"] = count
-            tmx_dict["source_text"] = data["src"]
-            tmx_dict["target_text"] = data["user_tgt"]
-            tmx_dict["source_language"] = data["locale"].split("|")[0]
-            tmx_dict["target_language"] = data["locale"].split("|")[1]
+            tmx_dict["source_text"] = data.source_text
+            tmx_dict["target_text"] = data.target_text
+            tmx_dict["source_language"] = data.source_language
+            tmx_dict["target_language"] = data.target_language
+            tmx_dict["meaning"] = data.text_meaning
+            tmx_dict["task_ids"] = ",".join(map(str, data.task_ids.values_list("id", flat=True)))
+            tmx_dict["context"] = data.context
             tmx_response.append(tmx_dict)
         return Response(
             {"tmx_keys": tmx_response},

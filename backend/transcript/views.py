@@ -80,6 +80,7 @@ from .utils.timestamp import *
 import openai
 from utils.llm_api import get_model_output
 from voiceover.models import VoiceOver
+from django.utils.timezone import now
 
 @api_view(["GET"])
 def get_transcript_export_types(request):
@@ -1026,6 +1027,10 @@ def get_payload(request):
             transcript.payload["payload"][i]["speaker_id"] = ""
         transcript.save()
 
+    for segment in transcript.payload["payload"]:
+        if "image_url" not in segment:
+                segment["image_url"] = None
+
     count_empty = 0
     records = []
     for record_object in page_records:
@@ -1344,8 +1349,35 @@ def send_mail_to_user(task):
             else:
                 task_eta = "-"
             logging.info("Send email to user %s", task.user.email)
-            table_to_send = "<p>Dear User, Following task is active.</p><p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
-            data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr><tr><th>ETA</th><td>{eta}</td></tr><tr><th>Description</th><td>{description}</td></tr></table></body></p>".format(
+
+            # Improved table HTML with width control and text wrapping
+            table_to_send = """<p>
+            <head>
+            <style>
+            table { 
+                border: 1px solid black; 
+                border-collapse: collapse; 
+                width: 600px; 
+                table-layout: fixed;
+            }
+            th, td { 
+                border: 1px solid black; 
+                word-wrap: break-word; 
+                padding: 8px; 
+                vertical-align: top;
+                max-width: 200px;
+            }
+            </style>
+            </head>
+            <body>
+            <table>"""
+
+            data = """<tr><th>Video Name</th><td>{name}</td></tr>
+                <tr><th>Video URL</th><td>{url}</td></tr>
+                <tr><th>Project Name</th><td>{project_name}</td></tr>
+                <tr><th>ETA</th><td>{eta}</td></tr>
+                <tr><th>Description</th><td>{description}</td></tr>
+                </table></body></p>""".format(
                 name=task.video.name,
                 url=task.video.url,
                 project_name=task.video.project_id.title,
@@ -1354,11 +1386,12 @@ def send_mail_to_user(task):
             )
             final_table = table_to_send + data
             email = EmailMultiAlternatives(
-                subject=f"{task.get_task_type_label} is active",
-                body="Dear User, Following task is active.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[task.user.email],
-            )
+            subject=f"Task ID {task.id} - {task.get_task_type_label} is active",
+            body=f"Dear User,\n\nFollowing task is active.\nTask ID: {task.id}\n\nPlease see the details below.",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[task.user.email],
+        )
+
             email.attach_alternative(final_table, "text/html")
             email.send()
         else:
@@ -1526,6 +1559,7 @@ def update_transcript(i, start_offset, payload, transcript):
         "text": payload["payload"][i]["text"],
         "speaker_id": payload["payload"][i]["speaker_id"],
         "paraphrased_text": paraphrased_text,
+        "image_url": payload["payload"][i].get("image_url")
     }
 
 
@@ -1572,6 +1606,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                                     "paraphrased_text"
                                 )
                             ),  # Generate paraphrased text if paraphrase=true
+                            "image_url": payload["payload"][i].get("image_url"),
                         },
                     )
                 else:
@@ -1637,6 +1672,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                                         "paraphrased_text"
                                     )
                                 ),  # Generate paraphrased text if paraphrase=true
+                                "image_url": payload["payload"][i].get("image_url"),
                             },
                         )
                     else:
@@ -1690,6 +1726,7 @@ def modify_payload(offset, limit, payload, start_offset, end_offset, transcript)
                             if payload["payload"][i].get("paraphrase")
                             else payload["payload"][length + i].get("paraphrased_text")
                         ),  # Generate paraphrased text if paraphrase=true
+                        "image_url": payload["payload"][i].get("image_url"),
                     },
                 )
         # last_valid_end_time = transcript.payload["payload"][len(payload["payload"])][
@@ -2171,8 +2208,11 @@ def save_transcription(request):
                             transcript_obj,
                         )
                         for item in transcript_obj.payload["payload"]:
-                            item['verbatim_text'] = item['text']
-                            item['text'] = item['paraphrased_text'] if 'paraphrased_text' in item and item['paraphrased_text'] is not None else item['verbatim_text']
+                            try:
+                                item['verbatim_text'] = item['text']
+                                item['text'] = item['paraphrased_text'] if 'paraphrased_text' in item and item['paraphrased_text'] not in [None, ""] else item['verbatim_text']
+                            except:
+                                True
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
@@ -2286,7 +2326,12 @@ def save_transcription(request):
                         )
                         for item in transcript_obj.payload["payload"]:
                             item['verbatim_text'] = item['text']
-                            item['text'] = item['paraphrased_text']
+                            item['text'] = item['paraphrased_text'] if 'paraphrased_text' in item and item['paraphrased_text'] not in [None, ""] else item['verbatim_text']
+                        task.completed = {
+                            "user_id": request.user.id,
+                            "timestamp": now().isoformat(),
+                           
+                        }
                         transcript_obj.save()
                         task.status = "COMPLETE"
                         task.save()
@@ -2556,7 +2601,9 @@ def get_transcription_report(request):
             updated_at__date__range=(start_date.date(), end_date.date())
         )
 
-    transcripts = transcripts.values(
+    transcripts = transcripts.exclude(
+        video__project_id__organization_id__title__isnull=True
+    ).values(
         "language",
         "video__project_id__organization_id__title",
         "video__project_id__organization_id__is_active", 

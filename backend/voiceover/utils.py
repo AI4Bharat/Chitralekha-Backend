@@ -17,6 +17,7 @@ from config import (
     app_name,
 )
 from pydub import AudioSegment
+import io
 from datetime import datetime, date, timedelta
 import os
 import wave
@@ -424,6 +425,7 @@ def generate_tts_output(
                         "audio_generated": True,
                         "index": tts_output["audio"][count].get("index", 0),
                         "transcription_text": text["text"],
+                        "image_url": text.get("image_url"),
                     }
                     count += 1
                 else:
@@ -445,6 +447,7 @@ def generate_tts_output(
                         "audio_generated": False,
                         "index": tts_output["audio"][count].get("index", 0),
                         "transcription_text": text["text"],
+                        "image_url": text.get("image_url"),
                     }
                     count += 1
             else:
@@ -458,6 +461,7 @@ def generate_tts_output(
                     "audio_generated": False,
                     "index": ind,
                     "transcription_text": text["text"],
+                    "image_url": text.get("image_url"),
                 }
                 count += 1
         else:
@@ -1131,6 +1135,14 @@ def integrate_audio_with_video(file_name, voice_over_obj, video):
         os.remove(video_file)
         os.rename(os.path.join(file_name + "final.mp4"), file_name + ".mp4")
 
+def is_empty_audio(base64_string):
+    try:
+        decoded_data = base64.b64decode(base64_string, validate=True) 
+        audio_buffer = io.BytesIO(decoded_data)
+        AudioSegment.from_file(audio_buffer) 
+        return False
+    except Exception:
+        return True 
 
 def check_audio_completion(voice_over_obj):
     length_translation_payload = len(voice_over_obj.translation.payload["payload"])
@@ -1156,7 +1168,7 @@ def check_audio_completion(voice_over_obj):
                         "audioContent"
                     ]
                 )
-                > 0
+                > 0 and not is_empty_audio(voice_over_obj.payload["payload"][str(index)]["audio"]["audioContent"])
             ):
                 continue
             else:
@@ -1547,7 +1559,7 @@ def send_mail_to_user(task):
         else:
             task_eta = "-"
         logging.info("Send email to user %s", task.user.email)
-        table_to_send = "<p>Dear User, Following task is active.</p><p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+        table_to_send = "<p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
         data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr><tr><th>ETA</th><td>{eta}</td></tr></tr><tr><th>Description</th><td>{description}</td></tr></table></body></p>".format(
             name=task.video.name,
             url=task.video.url,
@@ -1572,3 +1584,68 @@ def send_mail_to_user(task):
             logging.error("Error in sending Email: %s", str(e))
     else:
         logging.info("Email is not enabled %s", task.user.email)
+
+
+def send_task_status_notification(task, voice_over_obj, new_status):
+    """
+    Send email notification to user when a task status changes to COMPLETE
+    
+    Parameters:
+    task (Task): The task object whose status has changed
+    voice_over_obj (VoiceOver): The voice over object with the generated audio
+    new_status (str): The new status of the task
+    """
+    if task.user.enable_mail:
+        logging.info("Sending task completion notification email to user %s", task.user.email)
+        
+        subject = f"Task #{task.id} is now {new_status}"
+        
+        # Plain text version
+        message = f"""Your translation-voiceover task has been completed.
+
+Video: {task.video.name}
+Task ID: {task.id}
+Project: {task.video.project_id.title} (ID: {task.video.project_id.id})
+Status: {new_status}
+
+You can access the generated audio by clicking on the following link:
+{voice_over_obj.azure_url_audio}
+
+You can also view the task details in your Chitralekha dashboard.
+"""
+
+        # HTML version
+        html_message = f"""
+        <html>
+            <body>
+                <p>Your translation-voiceover task has been completed.</p>
+                <p>
+                    <strong>Video:</strong> {task.video.name}<br>
+                    <strong>Task ID:</strong> {task.id}<br>
+                    <strong>Project:</strong> {task.video.project_id.title} (ID: {task.video.project_id.id})<br>
+                    <strong>Status:</strong> {new_status}
+                </p>
+                <p>
+                    You can access the generated audio by clicking on the following link:<br>
+                    <a href="{voice_over_obj.azure_url_audio}">{voice_over_obj.azure_url_audio}</a>
+                </p>
+                <p>You can also view the task details in your Chitralekha dashboard.</p>
+            </body>
+        </html>
+        """
+
+        msg = EmailMultiAlternatives(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [task.user.email],
+        )
+        msg.attach_alternative(html_message, "text/html")
+
+        try:
+            msg.send()
+            logging.info("Task completion notification email sent successfully to %s", task.user.email)
+        except Exception as e:
+            logging.error("Error sending task completion notification email: %s", str(e))
+    else:
+        logging.info("Email notifications not enabled for user %s", task.user.email)

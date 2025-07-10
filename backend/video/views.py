@@ -94,6 +94,7 @@ required_fields_org = [
     "Task Description",
     "Video Description",
     "ETA",
+    "Drive URL"
 ]
 
 
@@ -572,7 +573,7 @@ def download_all(request):
         if transcript_task is not None:
             transcript = get_export_transcript(request, transcript_task.id, export_type)
             zf.writestr(
-                f"{transcript_task.video.name}_{time_now}.{export_type}",
+                f"{config.app_name}_{time_now}_all/{transcript_task.video.description}_{time_now}.{export_type}",
                 transcript.content,
             )
 
@@ -582,7 +583,7 @@ def download_all(request):
                     request, translation_task.id, export_type
                 )
                 zf.writestr(
-                    f"{transcript_task.video.name}_{time_now}_{translation_task.target_language}.{export_type}",
+                    f"{config.app_name}_{time_now}_all/{transcript_task.video.description}_{time_now}_{translation_task.target_language}.{export_type}",
                     translation.content,
                 )
     zip_file.seek(0)
@@ -958,7 +959,7 @@ def upload_csv_data(request):
         if len(data) > 29:
             return Response(
                 {
-                    "message": "There are {} Transcription calls in the queue already. Please wait, till these are completed.".format(
+                    "message": "There are {} tasks in the queue already. Please wait, till these are completed.".format(
                         len(data)
                     )
                 },
@@ -1222,7 +1223,7 @@ def upload_csv_org(request):
         if len(data) > 29:
             return Response(
                 {
-                    "message": "There are {} Transcription calls in the queue already. Please wait, till these are completed.".format(
+                    "message": "There are {} tasks in the queue already. Please wait, till these are completed.".format(
                         len(data)
                     )
                 },
@@ -1285,7 +1286,7 @@ def upload_csv_org(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     errors = []
-    print(csv_reader.fieldnames)
+    # print(csv_reader.fieldnames)
     row_num = 0
 
     valid_rows = []
@@ -1443,6 +1444,7 @@ def upload_csv_org(request):
 
         valid_row["task_description"] = row["Task Description"]
         valid_row["video_description"] = row["Video Description"]
+        valid_row["drive_url"] = row["Drive URL"]
         video = Video.objects.filter(url=row["Youtube URL"].strip()).first()
         if len(errors) == 0:
             if video is not None:

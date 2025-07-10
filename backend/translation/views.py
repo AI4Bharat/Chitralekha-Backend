@@ -45,7 +45,6 @@ from .decorators import is_translation_editor
 from .serializers import TranslationSerializer
 from .utils import (
     get_batch_translations_using_indictrans_nmt_api,
-    convert_to_docx,
     convert_to_paragraph,
     convert_to_paragraph_monolingual,
     convert_to_paragraph_bilingual,
@@ -73,6 +72,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 from transcript.views import get_transcript_id
 from task.tasks import celery_nmt_tts_call
+from django.utils.timezone import now
 
 @api_view(["GET"])
 def get_translation_export_types(request):
@@ -174,6 +174,7 @@ def export_translation(request):
                 "unix_start_time": unix_start_time,
                 "unix_end_time": unix_end_time,
                 "text": segment["transcription_text"],
+                "image_url": segment.get("image_url"),
             }
             updated_payload.append(updated_segment)
         translation.payload["payload"] = updated_payload
@@ -252,12 +253,11 @@ def export_translation(request):
         content = convert_to_paragraph(lines, task.video.name)
     elif export_type == "docx":
         filename = "translation.docx"
-        content = convert_to_paragraph_monolingual(payload, task.video.name)
-        return convert_to_docx(content)
+        content = convert_to_paragraph_monolingual(payload, task.video.name, task_id)
+        return content
     elif export_type == "docx-bilingual":
         filename = "translation.docx"
-        content = convert_to_paragraph_bilingual(payload, task.video.name)
-        # return convert_to_docx(content)
+        content = convert_to_paragraph_bilingual(payload, task.video.name, task_id)
         return content
 
     elif export_type == "sbv":
@@ -1123,7 +1123,7 @@ def send_mail_to_user(task):
         else:
             task_eta = "-"
         logging.info("Send email to user %s", task.user.email)
-        table_to_send = "<p>Dear User, Following task is active.</p><p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
+        table_to_send = "<p><head><style>table, th, td {border: 1px solid black;border-collapse: collapse;}</style></head><body><table>"
         data = "<tr><th>Video Name</th><td>{name}</td></tr><tr><th>Video URL</th><td>{url}</td></tr><tr><th>Project Name</th><td>{project_name}</td></tr><tr><th>ETA</th><td>{eta}</td></tr><tr><th>Description</th><td>{description}</td></tr></table></body></p>".format(
             name=task.video.name,
             url=task.video.url,
@@ -1723,6 +1723,10 @@ def save_translation(request):
                     ):
                         if task.status == "INPROGRESS":
                             task.status = "COMPLETE"
+                            task.completed = {
+                            "completed_by": request.user.id,
+                            "timestamp": now().isoformat(),
+                            }
                             task.save()
                         return Response(
                             {"message": "Edit Translation already exists."},
@@ -2305,7 +2309,9 @@ def get_translation_report(request):
             updated_at__date__range=(start_date.date(), end_date.date())
         )
 
-    translations = translations.values(
+    translations = translations.exclude(
+        video__project_id__organization_id__title__isnull=True
+    ).values(
         "video__project_id__organization_id__title",
         "video__project_id__organization_id__is_active",
         src_language=F("video__language"),

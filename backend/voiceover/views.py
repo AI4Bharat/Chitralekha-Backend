@@ -53,11 +53,13 @@ from glossary.tmx.tmxservice import TMXService
 from organization.decorators import is_admin
 from organization.models import Organization
 from video.models import Video
+from django.db import transaction
+from django.utils.timezone import now
 
 @api_view(["GET"])
 def get_voice_over_export_types(request):
     return Response(
-        {"export_types": ["mp4", "mp3", "flac", "wav"]}, status=status.HTTP_200_OK
+        {"export_types": ["mp3", "flac", "wav"]}, status=status.HTTP_200_OK
     )
 
 
@@ -433,6 +435,7 @@ def get_payload(request):
                         ],
                         "audio_speed": 1,
                         "fast_audio": 0 if text_length_per_second < moderate_audio_threshold else 1 if text_length_per_second < fast_audio_threshold else 2,
+                        "image_url": voice_over.payload["payload"][str(audio_index)].get("image_url")
                     }
                 )
         payload = {"payload": sentences_list}
@@ -474,6 +477,7 @@ def get_payload(request):
                             "time_difference": t_d,
                             "id": i + 1,
                             "audio_speed": 1,
+                            "image_url": voice_over.payload["payload"][str(i)].get("image_url")
                         }
                     )
                 else:
@@ -505,6 +509,7 @@ def get_payload(request):
                             "audio": "",
                             "id": i + 1,
                             "audio_speed": 1,
+                            "image_url": voice_over.payload["payload"][i].get("image_url")
                         }
                     )
                     count += 1
@@ -1236,6 +1241,7 @@ def save_voice_over(request):
                             for i in range(len(payload["payload"])):
                                 start_time = payload["payload"][i]["start_time"]
                                 end_time = payload["payload"][i]["end_time"]
+                                image_url = payload["payload"][i]["image_url"] or None
                                 transcription_text = payload["payload"][i][
                                     "transcription_text"
                                 ]
@@ -1318,6 +1324,7 @@ def save_voice_over(request):
                                             "text": payload["payload"][i]["text"],
                                             "audio": voiceover_adjusted[i][1],
                                             "audio_speed": 1,
+                                            "image_url": image_url,
                                         }
                                         sentences_list.append(
                                             {
@@ -1333,6 +1340,7 @@ def save_voice_over(request):
                                                 "audio": voiceover_adjusted[i][1],
                                                 "audio_speed": 1,
                                                 "transcription_text": transcription_text,
+                                                "image_url": image_url,
                                             }
                                         )
                                 else:
@@ -1350,6 +1358,7 @@ def save_voice_over(request):
                                         "transcription_text": payload["payload"][i][
                                             "transcription_text"
                                         ],
+                                        "image_url": payload["payload"][i]["image_url"] or None,
                                     }
                                     sentences_list.append(
                                         {
@@ -1367,6 +1376,7 @@ def save_voice_over(request):
                                             "transcription_text": payload["payload"][i][
                                                 "transcription_text"
                                             ],
+                                            "image_url": payload["payload"][i]["image_url"] or None,
                                         }
                                     )
                                 voice_over_obj.save()
@@ -1402,6 +1412,10 @@ def save_voice_over(request):
                         # )
                         file_path = "temporary_video_audio_storage"
                         task.status = "POST_PROCESS"
+                        task.completed = {
+                            "completed_by": request.user.id,
+                            "timestamp": now().isoformat(),
+                            }
                         task.save()
                         logging.info("Calling Async Celery Integration")
                         celery_integration.delay(
@@ -1426,6 +1440,7 @@ def save_voice_over(request):
                         for i in range(len(payload["payload"])):
                             start_time = payload["payload"][i]["start_time"]
                             end_time = payload["payload"][i]["end_time"]
+                            image_url = payload["payload"][i]["image_url"] or None
                             transcription_text = payload["payload"][i][
                                 "transcription_text"
                             ]
@@ -1494,6 +1509,7 @@ def save_voice_over(request):
                                     "text": payload["payload"][i]["text"],
                                     "audio": voiceover_adjusted[i][1],
                                     "audio_speed": 1,
+                                    "image_url": payload["payload"][i]["image_url"] or None,
                                 }
                                 sentences_list.append(
                                     {
@@ -1507,6 +1523,7 @@ def save_voice_over(request):
                                         "audio": voiceover_adjusted[i][1],
                                         "audio_speed": 1,
                                         "transcription_text": transcription_text,
+                                        "image_url": payload["payload"][i]["image_url"] or None,
                                     }
                                 )
                             else:
@@ -1532,6 +1549,7 @@ def save_voice_over(request):
                                     "transcription_text": payload["payload"][i][
                                         "transcription_text"
                                     ],
+                                    "image_url": payload["payload"][i]["image_url"] or None 
                                 }
                                 sentences_list.append(
                                     {
@@ -1553,6 +1571,7 @@ def save_voice_over(request):
                                         "transcription_text": payload["payload"][i][
                                             "transcription_text"
                                         ],
+                                        "image_url": payload["payload"][i]["image_url"] or None,
                                         "fast_audio": 0 if text_length_per_second < moderate_audio_threshold else 1 if text_length_per_second < fast_audio_threshold else 2,
                                     }
                                 )
@@ -1573,6 +1592,7 @@ def save_voice_over(request):
                         for i in range(len(payload["payload"])):
                             start_time = payload["payload"][i]["start_time"]
                             end_time = payload["payload"][i]["end_time"]
+                            image_url = payload["payload"][i]["image_url"] or None
                             time_difference = (
                                 datetime.strptime(end_time, "%H:%M:%S.%f")
                                 - timedelta(
@@ -1650,6 +1670,7 @@ def save_voice_over(request):
                                         "text": payload["payload"][i]["text"],
                                         "audio": voiceover_adjusted[i][1],
                                         "audio_speed": 1,
+                                        "image_url": payload["payload"][i]["image_url"] or None,
                                     }
                                 )
                             else:
@@ -1665,6 +1686,7 @@ def save_voice_over(request):
                                     "transcription_text": payload["payload"][i][
                                         "transcription_text"
                                     ],
+                                    "image_url": payload["payload"][i]["image_url"] or None,
                                 }
                                 sentences_list.append(
                                     {
@@ -1680,13 +1702,15 @@ def save_voice_over(request):
                                         "transcription_text": payload["payload"][i][
                                             "transcription_text"
                                         ],
+                                        "image_url": payload["payload"][i]["image_url"] or None,
                                     }
                                 )
-
-                        voice_over_obj.status = VOICEOVER_EDIT_INPROGRESS
-                        voice_over_obj.save()
-                        task.status = "INPROGRESS"
-                        task.save()
+                        
+                        with transaction.atomic():
+                            voice_over_obj.status = VOICEOVER_EDIT_INPROGRESS
+                            voice_over_obj.save()
+                            task.status = "INPROGRESS"
+                            task.save()
             else:
                 if request.data.get("final"):
                     if (
@@ -2099,7 +2123,9 @@ def get_voiceover_report(request):
             updated_at__date__range=(start_date.date(), end_date.date())
         )
 
-    voiceovers = voiceovers.values(        
+    voiceovers = voiceovers.exclude(
+    video__project_id__organization_id__title__isnull=True
+    ).values(        
         "video__project_id__organization_id__title",
         "video__project_id__organization_id__is_active",  
         src_language=F("video__language"),
