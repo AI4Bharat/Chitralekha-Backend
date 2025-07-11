@@ -264,7 +264,7 @@ def export_transcript(request):
         content = convert_to_paragraph(lines, task.video.name)
         return convert_to_docx(content)
     elif export_type == "mail-screenshot-docx":
-        convert_to_paragraph_with_images.delay(payload, task.video.name, user, task_id, task.video.description)
+        convert_to_paragraph_with_images.delay(payload, task.video.name, user.email, task_id, task.video.description)
         return Response(
             {"message": "Document will be emailed."},
             status=status.HTTP_400_BAD_REQUEST,

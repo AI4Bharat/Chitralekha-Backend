@@ -34,7 +34,7 @@ def send_report_as_attachment(subject, body, user, attachment_content, filename,
             subject=subject,
             body=body,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[user.email],
+            to=[user],
         )
         
         msg.attach_alternative(body, "text/html")
@@ -42,11 +42,11 @@ def send_report_as_attachment(subject, body, user, attachment_content, filename,
         msg.attach(filename, attachment_content, mime_type)
         
         msg.send()
-        logging.info(f"Document email with attachment '{filename}' sent successfully to {user.email}")
+        logging.info(f"Document email with attachment '{filename}' sent successfully to {user}")
         return True
 
     except Exception as e:
-        logging.error(f"Failed to send email with attachment to {user.email}. Error: {e}")
+        logging.error(f"Failed to send email with attachment to {user}. Error: {e}")
         return False
 
 def convert_to_scc(subtitles):
