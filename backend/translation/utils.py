@@ -23,6 +23,31 @@ from glossary.tmx.tmxservice import TMXService
 from glossary.models import Glossary
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.shared import Pt
+from celery import shared_task
+import logging
+from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
+
+def send_report_as_attachment(subject, body, user, attachment_content, filename, mime_type):
+    try:
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email],
+        )
+        
+        msg.attach_alternative(body, "text/html")
+
+        msg.attach(filename, attachment_content, mime_type)
+        
+        msg.send()
+        logging.info(f"Document email with attachment '{filename}' sent successfully to {user.email}")
+        return True
+
+    except Exception as e:
+        logging.error(f"Failed to send email with attachment to {user.email}. Error: {e}")
+        return False
 
 def convert_to_scc(subtitles):
     scc_lines = ["Scenarist_SCC V1.0"]
@@ -148,14 +173,98 @@ def convert_to_docx(content, glossary=""):
         True
     return response
 
+def get_image_from_url(url):
+    if not url:
+        return None
+    try:
+        response = requests.get(url, timeout=0.5)
+        response.raise_for_status() 
+        image_stream = BytesIO(response.content)
+        return image_stream
+    except requests.exceptions.RequestException as e:
+        print(f"Warning: Could not download image from {url}. Error: {e}")
+        return None
 
+@shared_task()
+def convert_to_paragraph_with_images(payload, video_name, user, task_id, video_d):
+    document = Document()
+    document.add_paragraph(video_name)
+    
+    current_text_group = ""
+    images_in_group = []
+    sentences_in_group = 0
+    
+    for segment in payload:
+        segment_text = ""
+        if "verbatim_text" in segment:
+            segment_text = segment.get("verbatim_text", "")
+        elif "text" in segment:
+            segment_text = segment.get("text", "")
+        
+        if segment_text:
+            cleaned_text = segment_text.replace("\n", " ")
+            current_text_group += " " + cleaned_text
+            sentences_in_group += cleaned_text.count('.')
+
+        if segment.get("image_url"):
+            image_stream = get_image_from_url(segment['image_url'])
+            if image_stream:
+                images_in_group.append(image_stream)
+        
+        if sentences_in_group >= 5:
+            if current_text_group.strip():
+                document.add_paragraph(current_text_group.strip())
+            
+            for img_stream in images_in_group:
+                p = document.add_paragraph()
+                p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                run = p.add_run()
+                run.add_picture(img_stream, width=Inches(5.0))
+                img_stream.close()
+
+            document.add_paragraph()
+            
+            current_text_group = ""
+            images_in_group = []
+            sentences_in_group = 0
+
+    if current_text_group.strip() or images_in_group:
+        if current_text_group.strip():
+            document.add_paragraph(current_text_group.strip())
+        
+        for img_stream in images_in_group:
+            p = document.add_paragraph()
+            p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+            run = p.add_run()
+            run.add_picture(img_stream, width=Inches(5.0))
+            img_stream.close()
+
+    buffer = BytesIO()
+    document.save(buffer)
+    attachment_bytes = buffer.getvalue()
+    buffer.close()
+
+    subject = f"Transcription document for task {task_id}"
+    email_body = "<p>Your requested report is attached to this email.</p>"
+    
+    attachment_filename = f"{video_d}.docx"
+    docx_mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+    send_report_as_attachment(
+        subject=subject,
+        body=email_body,
+        user=user,
+        attachment_content=attachment_bytes,
+        filename=attachment_filename,
+        mime_type=docx_mime_type
+    )
+    
 def convert_to_paragraph(lines, video_name):
     count = 0
     content = ""
     for line in lines:
         content = content + " " + line
 
-    new_content = ""
     count = 0
     sentences_count = 0
     content = content.replace("\n", " ")
@@ -169,18 +278,6 @@ def convert_to_paragraph(lines, video_name):
             sentences_count += 1
 
     return content
-
-def get_image_from_url(url):
-    if not url:
-        return None
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status() 
-        image_stream = BytesIO(response.content)
-        return image_stream
-    except requests.exceptions.RequestException as e:
-        print(f"Warning: Could not download image from {url}. Error: {e}")
-        return None
 
 def convert_to_paragraph_monolingual(payload, video_name, task_id):
     document = Document()
