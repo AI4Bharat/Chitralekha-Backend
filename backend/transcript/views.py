@@ -140,7 +140,8 @@ def export_transcript(request):
     return_file_content = request.query_params.get("return_file_content")
     with_speaker_info = request.query_params.get("with_speaker_info", "false")
     with_speaker_info = with_speaker_info.lower() == "true"
-    user = request.user
+    user_id = request.user.id
+    user = User.objects.get(pk=user_id)
 
     if task_id is None or export_type is None:
         return Response(
@@ -263,7 +264,7 @@ def export_transcript(request):
         content = convert_to_paragraph(lines, task.video.name)
         return convert_to_docx(content)
     elif export_type == "mail-screenshot-docx":
-        convert_to_paragraph_with_images.delay(payload, task.video.name, user, task_id, task.video.description)
+        convert_to_paragraph_with_images.delay(payload, task.video.name, user.email, task_id, task.video.description)
         return Response(
             {"message": "Document will be emailed."},
             status=status.HTTP_400_BAD_REQUEST,
