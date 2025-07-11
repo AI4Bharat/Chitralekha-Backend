@@ -248,8 +248,7 @@ def convert_to_paragraph_with_images(payload, video_name, user, task_id, video_d
     subject = f"Transcription document for task {task_id}"
     email_body = "<p>Your requested report is attached to this email.</p>"
     
-    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    attachment_filename = f"Report_{timestamp}.docx"
+    attachment_filename = f"{video_d}.docx"
     docx_mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
     send_report_as_attachment(
