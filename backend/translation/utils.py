@@ -179,7 +179,6 @@ def get_image_from_url(url):
     try:
         response = requests.get(url, timeout=0.5)
         response.raise_for_status() 
-        print(response)
         image_stream = BytesIO(response.content)
         return image_stream
     except requests.exceptions.RequestException as e:
