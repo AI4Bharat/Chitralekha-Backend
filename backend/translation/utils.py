@@ -185,7 +185,7 @@ def get_image_from_url(url):
         print(f"Warning: Could not download image from {url}. Error: {e}")
         return None
 
-@shared_task()
+# @shared_task()
 def convert_to_paragraph_with_images(payload, video_name, user, task_id, video_d):
     document = Document()
     document.add_paragraph(video_name)
@@ -244,6 +244,9 @@ def convert_to_paragraph_with_images(payload, video_name, user, task_id, video_d
     attachment_bytes = buffer.getvalue()
     buffer.close()
 
+    file_size_mb = len(attachment_bytes) / (1024 * 1024)
+    print(f"Generated DOCX file size: {file_size_mb:.2f} MB")
+
     subject = f"Transcription document for task {task_id}"
     email_body = "<p>Your requested report is attached to this email.</p>"
     
@@ -251,12 +254,12 @@ def convert_to_paragraph_with_images(payload, video_name, user, task_id, video_d
     docx_mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
     send_report_as_attachment(
-        subject=subject,
-        body=email_body,
+        subject="Attachment Test",
+        body="<p>This is a test with a simple text file.</p>",
         user=user,
-        attachment_content=attachment_bytes,
-        filename=attachment_filename,
-        mime_type=docx_mime_type
+        attachment_content=b"Hello, this is a test.", # Simple bytes content
+        filename="test.txt",
+        mime_type="text/plain" 
     )
     
 def convert_to_paragraph(lines, video_name):
