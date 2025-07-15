@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='task',
             name='completed',
-            field=models.JSONField(blank=True, default=dict, null=True),
+            field=models.JSONField(blank=True, default=dict, help_text='field to store task completion details', null=True),
         ),
     ]
