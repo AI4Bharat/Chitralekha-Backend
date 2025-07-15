@@ -246,7 +246,6 @@ def convert_to_paragraph_with_images(payload, video_name, user, task_id, video_d
     buffer.close()
 
     zip_buffer = BytesIO()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     if len(video_d) < 1:
         video_d = video_name
     docx_filename_in_zip = f"{video_d.replace(' ', '_')}.docx"
@@ -373,7 +372,6 @@ def convert_to_paragraph_with_images_monolingual(payload, video_name, task_id, u
     buffer.close()
 
     zip_buffer = BytesIO()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     if len(video_d) < 1:
         video_d = video_name
     docx_filename_in_zip = f"{video_d.replace(' ', '_')}.docx"
@@ -535,7 +533,6 @@ def convert_to_paragraph_with_images_bilingual(payload, video_name, task_id, use
     buffer.close()
 
     zip_buffer = BytesIO()
-    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     if len(video_d) < 1:
         video_d = video_name
     docx_filename_in_zip = f"{video_d.replace(' ', '_')}.docx"
