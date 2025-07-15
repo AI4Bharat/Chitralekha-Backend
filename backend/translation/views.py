@@ -52,6 +52,8 @@ from .utils import (
     convert_scc_format,
     generate_translation_payload,
     set_fail_for_translation_task,
+    convert_to_paragraph_with_images_monolingual,
+    convert_to_paragraph_with_images_bilingual
 )
 from django.db.models import Q, Count, Avg, F, FloatField, BigIntegerField, Sum
 from django.db.models.functions import Cast
@@ -73,6 +75,7 @@ from django.conf import settings
 from transcript.views import get_transcript_id
 from task.tasks import celery_nmt_tts_call
 from django.utils.timezone import now
+from users.models import User
 
 @api_view(["GET"])
 def get_translation_export_types(request):
@@ -83,7 +86,9 @@ def get_translation_export_types(request):
                 "vtt",
                 "txt",
                 "docx",
+                "mail-screenshot-docx",
                 "docx-bilingual",
+                "mail-screenshot-docx-bilingual",
                 "sbv",
                 "TTML",
                 "scc",
@@ -131,6 +136,8 @@ def export_translation(request):
     export_type = request.query_params.get("export_type")
     return_file_content = request.query_params.get("return_file_content")
     with_speaker_info = request.query_params.get("with_speaker_info", "false")
+    user_id = request.user.id
+    user = User.objects.get(pk=user_id)
 
     with_speaker_info = with_speaker_info.lower() == "true"
     if task_id is None or export_type is None:
@@ -197,7 +204,9 @@ def export_translation(request):
         "vtt",
         "txt",
         "docx",
+        "mail-screenshot-docx",
         "docx-bilingual",
+        "mail-screenshot-docx-bilingual",
         "scc",
         "sbv",
         "TTML",
@@ -255,11 +264,22 @@ def export_translation(request):
         filename = "translation.docx"
         content = convert_to_paragraph_monolingual(payload, task.video.name, task_id)
         return content
+    elif export_type == "mail-screenshot-docx":
+        convert_to_paragraph_with_images_monolingual.delay(payload, task.video.name, task_id, user.email, task.video.description)
+        return Response(
+            {"message": "Document will be emailed."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     elif export_type == "docx-bilingual":
         filename = "translation.docx"
         content = convert_to_paragraph_bilingual(payload, task.video.name, task_id)
         return content
-
+    elif export_type == "mail-screenshot-docx-bilingual":
+        convert_to_paragraph_with_images_bilingual.delay(payload, task.video.name, task_id, user.email, task.video.description)
+        return Response(
+            {"message": "Document will be emailed."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     elif export_type == "sbv":
         for index, segment in enumerate(payload):
             lines.append(

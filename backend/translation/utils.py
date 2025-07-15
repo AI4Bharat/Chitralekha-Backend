@@ -27,6 +27,7 @@ from celery import shared_task
 import logging
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
+import zipfile 
 
 def send_report_as_attachment(subject, body, user, attachment_content, filename, mime_type):
     try:
@@ -177,7 +178,7 @@ def get_image_from_url(url):
     if not url:
         return None
     try:
-        response = requests.get(url, timeout=0.5)
+        response = requests.get(url, timeout=0.7)
         response.raise_for_status() 
         image_stream = BytesIO(response.content)
         return image_stream
@@ -244,19 +245,29 @@ def convert_to_paragraph_with_images(payload, video_name, user, task_id, video_d
     attachment_bytes = buffer.getvalue()
     buffer.close()
 
-    subject = f"Transcription document for task {task_id}"
-    email_body = "<p>Your requested report is attached to this email.</p>"
+    zip_buffer = BytesIO()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    if len(video_d) < 1:
+        video_d = video_name
+    docx_filename_in_zip = f"{video_d.replace(' ', '_')}.docx"
+    zip_filename_for_email = f"Document_{timestamp}.zip"
     
-    attachment_filename = f"{video_d}.docx"
-    docx_mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(docx_filename_in_zip, attachment_bytes)
+    
+    zip_bytes = zip_buffer.getvalue()
+    zip_buffer.close()
+    
+    subject = f"Transcription document for task {task_id}"
+    email_body = "<p>Your requested document is attached to this email.</p>"
+    
     send_report_as_attachment(
         subject=subject,
         body=email_body,
         user=user,
-        attachment_content=attachment_bytes,
-        filename=attachment_filename,
-        mime_type=docx_mime_type
+        attachment_content=zip_bytes,
+        filename=zip_filename_for_email,
+        mime_type="application/zip"
     )
     
 def convert_to_paragraph(lines, video_name):
@@ -280,6 +291,36 @@ def convert_to_paragraph(lines, video_name):
     return content
 
 def convert_to_paragraph_monolingual(payload, video_name, task_id):
+    lines = []
+    content = ""
+    translated_content = video_name + "\n" + "\n"
+    sentences_count = 0
+    number_of_paragraphs = math.ceil(len(payload) / 5)
+    count_paragraphs = 0
+    for index, segment in enumerate(payload):
+        if "text" in segment.keys():
+            lines.append(segment["target_text"])
+            translated_content = translated_content + " " + segment["target_text"]
+            sentences_count += 1
+            if sentences_count % 5 == 0:
+                count_paragraphs += 1
+                content = content + translated_content + "\n" + "\n"
+                translated_content = ""
+
+    if count_paragraphs < number_of_paragraphs:
+        content = content + translated_content + "\n" + "\n"
+
+    glossary = Glossary.objects.filter(task_ids=task_id)
+    if glossary.exists():
+        glossary_data = []
+        glossary_data.append(["Source Text", "Target Text", "Meaning"])
+        for i in glossary:
+            glossary_data.append([i.source_text, i.target_text, i.text_meaning or " "])
+        return convert_to_docx(content, glossary_data)
+    return convert_to_docx(content)
+
+@shared_task()
+def convert_to_paragraph_with_images_monolingual(payload, video_name, task_id, user, video_d):
     document = Document()
     document.add_paragraph(video_name)
 
@@ -299,22 +340,117 @@ def convert_to_paragraph_monolingual(payload, video_name, task_id):
                 except Exception as e:
                     print(f"Warning: Could not add image from {segment['image_url']} to document. Error: {e}")
 
+    glossary = Glossary.objects.filter(task_ids=task_id)
+    if glossary:
+        glossary_data = []
+        glossary_data.append(["Source Text", "Target Text", "Meaning"])
+        for i in glossary:
+            glossary_data.append([i.source_text, i.target_text, i.text_meaning or " "])
+
+        document.add_page_break()
+        header = document.add_paragraph("Glossary")
+        header.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+        header_run = header.runs[0]
+        header_run.bold = True
+        header_run.font.size = Pt(16)
+        
+        table = document.add_table(rows=len(glossary_data), cols=len(glossary_data[0]))
+        table.style = "Table Grid"
+
+        for row_idx, row in enumerate(glossary_data):
+            for col_idx, value in enumerate(row):
+                cell = table.cell(row_idx, col_idx)
+                cell.text = str(value)
+                paragraph = cell.paragraphs[0]
+                run = paragraph.runs[0]
+                run.bold = row_idx == 0
+                run.font.size = Pt(14 if row_idx == 0 else 12)
+                paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER 
+
     buffer = BytesIO()
     document.save(buffer)
-    length = buffer.tell()
-    buffer.seek(0)
+    attachment_bytes = buffer.getvalue()
+    buffer.close()
 
-    response = StreamingHttpResponse(
-        streaming_content=buffer,
-        content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
-    response["Content-Disposition"] = 'attachment; filename="document_with_images.docx"'
-    response["Content-Encoding"] = "UTF-8"
-    response["Content-Length"] = length
+    zip_buffer = BytesIO()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    if len(video_d) < 1:
+        video_d = video_name
+    docx_filename_in_zip = f"{video_d.replace(' ', '_')}.docx"
+    zip_filename_for_email = f"Document_{timestamp}.zip"
     
-    return response
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(docx_filename_in_zip, attachment_bytes)
+    
+    zip_bytes = zip_buffer.getvalue()
+    zip_buffer.close()
+    
+    subject = f"Monolingual translation document for task {task_id}"
+    email_body = "<p>Your requested document is attached to this email.</p>"
+    
+    send_report_as_attachment(
+        subject=subject,
+        body=email_body,
+        user=user,
+        attachment_content=zip_bytes,
+        filename=zip_filename_for_email,
+        mime_type="application/zip"
+    )
 
 def convert_to_paragraph_bilingual(payload, video_name, task_id):
+    lines = []
+    transcripted_lines = []
+    content = ""
+    transcripted_content = video_name + "\n" + "\n"
+    translated_content = ""
+    sentences_count = 0
+    number_of_paragraphs = math.ceil(len(payload) / 5)
+    count_paragraphs = 0
+    for index, segment in enumerate(payload):
+        if "text" in segment.keys():
+            lines.append(segment["target_text"])
+            transcripted_lines.append(segment["text"])
+            transcripted_content = (
+                transcripted_content + " " + segment["text"].replace("\n", " ")
+            )
+            translated_content = translated_content + " " + segment["target_text"]
+            sentences_count += 1
+            if sentences_count % 5 == 0:
+                count_paragraphs += 1
+                content = (
+                    content
+                    + transcripted_content
+                    + "\n"
+                    + "\n"
+                    + translated_content
+                    + "\n"
+                    + "\n"
+                )
+                transcripted_content = ""
+                translated_content = ""
+
+    if count_paragraphs < number_of_paragraphs:
+        content = (
+            content
+            + transcripted_content
+            + "\n"
+            + "\n"
+            + translated_content
+            + "\n"
+            + "\n"
+        )
+    
+    glossary = Glossary.objects.filter(task_ids=task_id)
+    if glossary.exists():
+        glossary_data = []
+        glossary_data.append(["Source Text", "Target Text", "Meaning"])
+        for i in glossary:
+            glossary_data.append([i.source_text, i.target_text, i.text_meaning or " "])
+        return convert_to_docx(content, glossary_data)
+    return convert_to_docx(content)
+
+@shared_task()
+def convert_to_paragraph_with_images_bilingual(payload, video_name, task_id, user, video_d):
     document = Document()
     document.add_paragraph(video_name)
     
@@ -395,18 +531,33 @@ def convert_to_paragraph_bilingual(payload, video_name, task_id):
 
     buffer = BytesIO()
     document.save(buffer)
-    length = buffer.tell()
-    buffer.seek(0)
+    attachment_bytes = buffer.getvalue()
+    buffer.close()
+
+    zip_buffer = BytesIO()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    if len(video_d) < 1:
+        video_d = video_name
+    docx_filename_in_zip = f"{video_d.replace(' ', '_')}.docx"
+    zip_filename_for_email = f"Document_{timestamp}.zip"
     
-    response = StreamingHttpResponse(
-        streaming_content=buffer,
-        content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(docx_filename_in_zip, attachment_bytes)
+    
+    zip_bytes = zip_buffer.getvalue()
+    zip_buffer.close()
+    
+    subject = f"Bilingual translation document for task {task_id}"
+    email_body = "<p>Your requested document is attached to this email.</p>"
+    
+    send_report_as_attachment(
+        subject=subject,
+        body=email_body,
+        user=user,
+        attachment_content=zip_bytes,
+        filename=zip_filename_for_email,
+        mime_type="application/zip"
     )
-    response["Content-Disposition"] = 'attachment; filename="bilingual_document_with_images.docx"'
-    response["Content-Encoding"] = "UTF-8"
-    response["Content-Length"] = length
-    
-    return response
 
 def get_batch_translations_using_indictrans_nmt_api(
     sentence_list,
