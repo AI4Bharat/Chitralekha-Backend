@@ -250,7 +250,7 @@ def convert_to_paragraph_with_images(payload, video_name, user, task_id, video_d
     if len(video_d) < 1:
         video_d = video_name
     docx_filename_in_zip = f"{video_d.replace(' ', '_')}.docx"
-    zip_filename_for_email = f"Document_{timestamp}.zip"
+    zip_filename_for_email = f"{video_d.replace(' ', '_')}.zip"
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(docx_filename_in_zip, attachment_bytes)
@@ -377,7 +377,7 @@ def convert_to_paragraph_with_images_monolingual(payload, video_name, task_id, u
     if len(video_d) < 1:
         video_d = video_name
     docx_filename_in_zip = f"{video_d.replace(' ', '_')}.docx"
-    zip_filename_for_email = f"Document_{timestamp}.zip"
+    zip_filename_for_email = f"{video_d.replace(' ', '_')}.zip"
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(docx_filename_in_zip, attachment_bytes)
@@ -539,7 +539,7 @@ def convert_to_paragraph_with_images_bilingual(payload, video_name, task_id, use
     if len(video_d) < 1:
         video_d = video_name
     docx_filename_in_zip = f"{video_d.replace(' ', '_')}.docx"
-    zip_filename_for_email = f"Document_{timestamp}.zip"
+    zip_filename_for_email = f"{video_d.replace(' ', '_')}.zip"
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(docx_filename_in_zip, attachment_bytes)
