@@ -1800,6 +1800,20 @@ def save_full_transcription(request):
                         task=task,
                         status=tc_status,
                     )
+                    user_email = request.user.email
+                    current_timestamp = now().isoformat()
+
+                    completion_record = {
+                        "completed_by": user_email,
+                        "timestamp": current_timestamp
+                    }
+
+                    # Ensure completed is a list
+                    if not isinstance(task.completed, list):
+                        task.completed = []
+
+                    # Append new record (no overwrite; keeps history)
+                    task.completed.append(completion_record)
                     task.status = "COMPLETE"
                     task.save()
                     change_active_status_of_next_tasks(task, transcript_obj)
@@ -1863,7 +1877,6 @@ def save_full_transcription(request):
                             task=task,
                             status=tc_status,
                         )
-                        task.status = "COMPLETE"
                         task.save()
                         change_active_status_of_next_tasks(task, transcript_obj)
                 else:
@@ -2144,6 +2157,20 @@ def save_transcription(request):
                             item['verbatim_text'] = item['text']
                             item['text'] = item['paraphrased_text'] if 'paraphrased_text' in item and item['paraphrased_text'] not in [None, ""] else item['verbatim_text']
                         transcript_obj.save()
+                        user_email = request.user.email
+                        current_timestamp = now().isoformat()
+
+                        completion_record = {
+                            "completed_by": user_email,
+                            "timestamp": current_timestamp
+                        }
+
+                        # Ensure completed is a list
+                        if not isinstance(task.completed, list):
+                            task.completed = []
+
+                        # Append new record (no overwrite; keeps history)
+                        task.completed.append(completion_record)
                         task.status = "COMPLETE"
                         task.save()
                         response = check_if_transcription_correct(transcript_obj, task)
@@ -2257,12 +2284,22 @@ def save_transcription(request):
                         for item in transcript_obj.payload["payload"]:
                             item['verbatim_text'] = item['text']
                             item['text'] = item['paraphrased_text'] if 'paraphrased_text' in item and item['paraphrased_text'] not in [None, ""] else item['verbatim_text']
-                        task.completed = {
-                            "user_id": request.user.id,
-                            "timestamp": now().isoformat(),
-                           
-                        }
                         transcript_obj.save()
+                        user_email = request.user.email
+                        current_timestamp = now().isoformat()
+
+                        completion_record = {
+                            "completed_by": user_email,
+                            "timestamp": current_timestamp
+                        }
+
+                        # Ensure completed is a list
+                        if not isinstance(task.completed, list):
+                            task.completed = []
+
+                        # Append new record (no overwrite; keeps history)
+                        task.completed.append(completion_record)
+                        
                         task.status = "COMPLETE"
                         task.save()
                         response = check_if_transcription_correct(transcript_obj, task)

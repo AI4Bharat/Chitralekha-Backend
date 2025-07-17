@@ -1404,10 +1404,20 @@ def save_voice_over(request):
                         # )
                         file_path = "temporary_video_audio_storage"
                         task.status = "POST_PROCESS"
-                        task.completed = {
-                            "completed_by": request.user.id,
-                            "timestamp": now().isoformat(),
-                            }
+                        user_email = request.user.email
+                        current_timestamp = now().isoformat()
+
+                        completion_record = {
+                            "completed_by": user_email,
+                            "timestamp": current_timestamp
+                        }
+
+                        # Ensure completed is a list
+                        if not isinstance(task.completed, list):
+                            task.completed = []
+
+                        # Append new record (no overwrite; keeps history)
+                        task.completed.append(completion_record)
                         task.save()
                         logging.info("Calling Async Celery Integration")
                         celery_integration.delay(
