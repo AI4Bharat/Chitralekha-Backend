@@ -99,14 +99,29 @@ def celery_integration(file_name, voice_over_obj_id, video, task_id):
     voice_over_obj.azure_url_audio = azure_url_audio
     
     # Update task completion information
-    if not task.completed:
-        task.completed = {}
-    
-    task.completed.update({
-        'completed_by': task.user.id,
-        "timestamp": now().isoformat(),
-        'audio_url': azure_url_audio
-    })
+    user_email = task.user.email
+    current_time = now().isoformat()
+
+    # Ensure task.completed is a list
+    if not isinstance(task.completed, list):
+        task.completed = []
+
+    # Find latest entry for this user
+    user_entries = [entry for entry in task.completed if entry.get("completed_by") == user_email]
+
+    if user_entries:
+        # Find the one with the latest timestamp
+        latest_entry = max(user_entries, key=lambda x: x.get("timestamp", ""))
+
+        # Update audio URL
+        latest_entry["audio_url"] = azure_url_audio
+    else:
+        # If no entry exists for the user, add a new one
+        task.completed.append({
+            "completed_by": user_email,
+            "timestamp": current_time,
+            "audio_url": azure_url_audio,
+        })
     
     # Update task status
     task.status = "COMPLETE"
