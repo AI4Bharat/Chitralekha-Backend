@@ -311,3 +311,149 @@ def check_stalled_post_process_tasks():
         logging.info(f"Stalled translation-voiceover tasks notification email sent to administrators. Found {task_count} stalled tasks.")
     except Exception as e:
         logging.error(f"Error sending stalled tasks notification email: {str(e)}")
+
+
+@shared_task
+def check_empty_payload():
+    """
+    Check for inactive TRANSLATION_VOICEOVER_EDIT tasks with completed transcriptions
+    that haven't been processed for more than 2 days.
+    
+    Sends notification email to administrators with task details.
+    """
+
+    # Find inactive translation-voiceover tasks
+    inactive_tasks = Task.objects.filter(
+        task_type="TRANSLATION_VOICEOVER_EDIT",
+        is_active=False
+    )
+    
+    if not inactive_tasks.exists():
+        logging.info("No inactive TRANSLATION_VOICEOVER_EDIT tasks found")
+        return
+    
+    # Set time threshold for 2 days ago
+    time_threshold = timezone.now() - timedelta(days=2)
+    
+    # Find matching translations with completed status older than 2 days
+    stale_items = []
+    
+    for task in inactive_tasks:
+        # Find completed translations for this task's video
+        completed_translations = Translation.objects.filter(
+            video=task.video,
+            status="TRANSCRIPTION_EDIT_COMPLETE",
+            updated_at__lt=time_threshold
+        )
+        
+        # Add to our results if found
+        for translation in completed_translations:
+            days_idle = (timezone.now() - translation.updated_at).days
+            
+            stale_items.append({
+                "task_id": task.id,
+                "video_id": task.video.id,
+                "video_name": task.video.name,
+                "project_id": task.video.project_id.id,
+                "project_name": task.video.project_id.title,
+                "translation_id": translation.id,
+                "updated_at": translation.updated_at,
+                "days_idle": days_idle
+            })
+    
+    # If no stale items found, exit
+    if not stale_items:
+        logging.info("No stale translation items found")
+        return
+    
+    # Prepare email content
+    task_count = len(stale_items)
+    subject = f"ALERT: {task_count} inactive translation-voiceover tasks with completed transcriptions"
+    
+    # Create HTML table
+    html_table = """
+    <table style="border-collapse: collapse; max-width: 600px; width: 100%; font-size: 13px; margin: 10px 0;">
+        <tr style="background-color: #f2f2f2;">
+            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Task ID</th>
+            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Video Name</th>
+            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Project</th>
+            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Updated At</th>
+            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Days Idle</th>
+        </tr>
+    """
+    
+    plain_text = f"ALERT: Found {task_count} inactive translation-voiceover tasks with completed transcriptions that haven't been processed for over 2 days.\n\n"
+    plain_text += "Task Details:\n"
+    
+    # Limit to 15 items for email size
+    display_count = min(task_count, 15)
+    
+    for i, item in enumerate(stale_items[:15]):
+        # Alternate row colors for better readability
+        row_style = 'background-color: #f9f9f9;' if i % 2 == 0 else ''
+        
+        updated_at_formatted = item["updated_at"].strftime("%Y-%m-%d %H:%M")
+        
+        html_table += f"""
+        <tr style="{row_style}">
+            <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["task_id"]}</td>
+            <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["video_name"][:30]}{'...' if len(item["video_name"]) > 30 else ''}</td>
+            <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["project_name"][:30]}{'...' if len(item["project_name"]) > 30 else ''}</td>
+            <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{updated_at_formatted}</td>
+            <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["days_idle"]}</td>
+        </tr>
+        """
+        
+        plain_text += f"- Task #{item['task_id']}: Video '{item['video_name'][:30]}{'...' if len(item['video_name']) > 30 else ''}', Project '{item['project_name'][:30]}{'...' if len(item['project_name']) > 30 else ''}', Idle for {item['days_idle']} days (Last updated: {updated_at_formatted})\n"
+    
+    # Add note if some items were omitted
+    if task_count > 15:
+        html_table += f"""
+        <tr>
+            <td colspan="5" style="padding: 6px; text-align: center; border: 1px solid #ddd; font-style: italic;">
+                And {task_count - 15} more tasks...
+            </td>
+        </tr>
+        """
+        plain_text += f"\nAnd {task_count - 15} more tasks...\n"
+        
+    html_table += "</table>"
+    
+    html_message = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; line-height: 1.5; color: #333333; max-width: 650px;">
+        <h2 style="color: #d9534f;">Inactive Translation-Voiceover Tasks Alert</h2>
+        <p>Found {task_count} inactive translation-voiceover tasks with completed transcriptions that haven't been processed for over 2 days:</p>
+        
+        {html_table}
+        
+        <p style="margin-top: 15px;">
+            These tasks have completed transcriptions but are inactive in the system.
+            Please check if they need to be activated or removed.
+        </p>
+    </body>
+    </html>
+    """
+    
+    # Send email to administrators
+    recipients = [
+        'aparna@ai4bharat.org', 
+        'kartikvirendrarajput@gmail.com', 
+        'aswathyvinod@ai4bharat.org'
+    ]
+    
+    msg = EmailMultiAlternatives(
+        subject,
+        plain_text,
+        settings.DEFAULT_FROM_EMAIL,
+        recipients
+    )
+    msg.attach_alternative(html_message, "text/html")
+    
+    try:
+        msg.send()
+        logging.info(f"Email alert sent for {task_count} inactive tasks with completed transcriptions")
+    except Exception as e:
+        logging.error(f"Error sending email alert for inactive tasks: {str(e)}")
+
+    return task_count
