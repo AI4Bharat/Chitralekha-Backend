@@ -36,6 +36,8 @@ import json
 import requests
 import zipfile
 from translation.models import Translation, TRANSLATION_EDIT_COMPLETE
+from transcript.models import Transcript
+    
 import regex
 from datetime import datetime, timedelta
 from django.utils import timezone
@@ -322,7 +324,6 @@ def check_empty_payload():
     
     Sends notification email to administrators with task details.
     """
-
     # Find inactive translation-voiceover tasks
     inactive_tasks = Task.objects.filter(
         task_type="TRANSLATION_VOICEOVER_EDIT",
@@ -336,20 +337,20 @@ def check_empty_payload():
     # Set time threshold for 2 days ago
     time_threshold = timezone.now() - timedelta(days=2)
     
-    # Find matching translations with completed status older than 2 days
+    # Find matching transcriptions with completed status older than 2 days
     stale_items = []
     
     for task in inactive_tasks:
-        # Find completed translations for this task's video
-        completed_translations = Translation.objects.filter(
+        # Find completed transcriptions for this task's video
+        completed_transcriptions = Transcript.objects.filter( 
             video=task.video,
             status="TRANSCRIPTION_EDIT_COMPLETE",
             updated_at__lt=time_threshold
         )
         
         # Add to our results if found
-        for translation in completed_translations:
-            days_idle = (timezone.now() - translation.updated_at).days
+        for transcription in completed_transcriptions:  
+            days_idle = (timezone.now() - transcription.updated_at).days
             
             stale_items.append({
                 "task_id": task.id,
@@ -357,14 +358,14 @@ def check_empty_payload():
                 "video_name": task.video.name,
                 "project_id": task.video.project_id.id,
                 "project_name": task.video.project_id.title,
-                "translation_id": translation.id,
-                "updated_at": translation.updated_at,
+                "transcription_id": transcription.id, 
+                "updated_at": transcription.updated_at,
                 "days_idle": days_idle
             })
     
     # If no stale items found, exit
     if not stale_items:
-        logging.info("No stale translation items found")
+        logging.info("No stale transcription items found")
         return
     
     # Prepare email content
