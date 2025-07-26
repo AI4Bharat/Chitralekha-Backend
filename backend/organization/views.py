@@ -202,6 +202,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         )
 
     @is_particular_organization_owner
+    def update(self, request, pk=None, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    @is_particular_organization_owner
     def partial_update(self, request, pk=None, *args, **kwargs):
         title = request.data.get("title")
         email_domain_name = request.data.get("email_domain_name")
