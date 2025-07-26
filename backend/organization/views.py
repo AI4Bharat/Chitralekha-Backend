@@ -202,10 +202,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         )
 
     @is_particular_organization_owner
-    def update(self, request, pk=None, *args, **kwargs):
-        return super().update(request, *args, **kwargs)
-
-    @is_particular_organization_owner
     def partial_update(self, request, pk=None, *args, **kwargs):
         title = request.data.get("title")
         email_domain_name = request.data.get("email_domain_name")
@@ -244,19 +240,20 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             organization.default_task_types = None
             organization.default_task_types = default_task_types
 
+        if default_target_languages is not None:
+            organization.default_target_languages = default_target_languages
+
         if organization.default_task_types is not None and (
             "TRANSLATION_EDIT" in organization.default_task_types
             or "TRANSLATION_REVIEW" in organization.default_task_types
         ):
-            default_target_languages = request.data.get("default_target_languages")
-            if default_target_languages is None or len(default_target_languages) == 0:
+            if organization.default_target_languages is None or len(organization.default_target_languages) == 0:
                 return Response(
                     {
                         "message": "missing param : Target Language can't be None if Translation task is selected."
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            organization.default_target_languages = default_target_languages
 
         if default_transcript_type is not None:
             organization.default_transcript_type = default_transcript_type
