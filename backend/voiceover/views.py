@@ -2351,6 +2351,14 @@ def csv_bulk_regenerate(request):
                     }
                 )
                 continue
+            if task_obj.status == "COMPLETE":
+                errors.append(
+                    {
+                        "row_no": f"Task {task_id}",
+                        "message": f"Completed task cannot be regenerated",
+                    }
+                )
+                continue
             # add flower queue check
         except Task.DoesNotExist:
             errors.append(
