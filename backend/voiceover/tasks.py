@@ -383,10 +383,7 @@ def check_empty_payload():
     plain_text = f"ALERT: Found {task_count} inactive translation-voiceover tasks with completed transcriptions that haven't been processed for over 2 days.\n\n"
     plain_text += "Task Details:\n"
     
-    # Limit to 15 items for email size
-    display_count = min(task_count, 15)
-    
-    for i, item in enumerate(stale_items[:15]):
+    for i, item in enumerate(stale_items):
         # Alternate row colors for better readability
         row_style = 'background-color: #f9f9f9;' if i % 2 == 0 else ''
         
@@ -402,17 +399,6 @@ def check_empty_payload():
         
         plain_text += f"- Task #{item['task_id']}: Video '{item['video_name'][:30]}{'...' if len(item['video_name']) > 30 else ''}', Project '{item['project_name'][:30]}{'...' if len(item['project_name']) > 30 else ''}', Idle for {item['days_idle']} days (Status: {item['status']})\n"
     
-    # Add note if some items were omitted
-    if task_count > 15:
-        html_table += f"""
-        <tr>
-            <td colspan="5" style="padding: 6px; text-align: center; border: 1px solid #ddd; font-style: italic;">
-                And {task_count - 15} more tasks...
-            </td>
-        </tr>
-        """
-        plain_text += f"\nAnd {task_count - 15} more tasks...\n"
-        
     html_table += "</table>"
     
     html_message = f"""
