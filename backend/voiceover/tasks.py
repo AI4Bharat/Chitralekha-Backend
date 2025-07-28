@@ -353,13 +353,10 @@ def check_empty_payload():
             
             stale_items.append({
                 "task_id": task.id,
-                "video_id": task.video.id,
                 "video_name": task.video.name,
-                "project_id": task.video.project_id.id,
                 "project_name": task.video.project_id.title,
-                "transcription_id": transcription.id, 
-                "updated_at": transcription.updated_at,
-                "days_idle": days_idle
+                "days_idle": days_idle,
+                "status": task.status,
             })
     
     # If no stale items found, exit
@@ -378,7 +375,7 @@ def check_empty_payload():
             <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Task ID</th>
             <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Video Name</th>
             <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Project</th>
-            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Updated At</th>
+            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Status</th>
             <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Days Idle</th>
         </tr>
     """
@@ -393,19 +390,17 @@ def check_empty_payload():
         # Alternate row colors for better readability
         row_style = 'background-color: #f9f9f9;' if i % 2 == 0 else ''
         
-        updated_at_formatted = item["updated_at"].strftime("%Y-%m-%d %H:%M")
-        
         html_table += f"""
         <tr style="{row_style}">
             <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["task_id"]}</td>
             <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["video_name"][:30]}{'...' if len(item["video_name"]) > 30 else ''}</td>
             <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["project_name"][:30]}{'...' if len(item["project_name"]) > 30 else ''}</td>
-            <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{updated_at_formatted}</td>
+            <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["status"]}</td>
             <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["days_idle"]}</td>
         </tr>
         """
         
-        plain_text += f"- Task #{item['task_id']}: Video '{item['video_name'][:30]}{'...' if len(item['video_name']) > 30 else ''}', Project '{item['project_name'][:30]}{'...' if len(item['project_name']) > 30 else ''}', Idle for {item['days_idle']} days (Last updated: {updated_at_formatted})\n"
+        plain_text += f"- Task #{item['task_id']}: Video '{item['video_name'][:30]}{'...' if len(item['video_name']) > 30 else ''}', Project '{item['project_name'][:30]}{'...' if len(item['project_name']) > 30 else ''}', Idle for {item['days_idle']} days (Status: {item['status']})\n"
     
     # Add note if some items were omitted
     if task_count > 15:
