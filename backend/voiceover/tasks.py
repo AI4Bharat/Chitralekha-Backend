@@ -353,6 +353,7 @@ def check_empty_payload():
             
             stale_items.append({
                 "task_id": task.id,
+                "org_id": task.video.project_id.organization_id,
                 "video_name": task.video.name,
                 "project_name": task.video.project_id.title,
                 "days_idle": days_idle,
@@ -364,19 +365,23 @@ def check_empty_payload():
         logging.info("No stale transcription items found")
         return
     
+    stale_items.sort(key=lambda x: x["task_id"])
+
     # Prepare email content
     task_count = len(stale_items)
     subject = f"ALERT: {task_count} inactive translation-voiceover tasks with completed transcriptions"
     
     # Create HTML table
     html_table = """
-    <table style="border-collapse: collapse; max-width: 600px; width: 100%; font-size: 13px; margin: 10px 0;">
+    <table style="border-collapse: collapse; max-width: 1000px; width: 100%; font-size: 13px; margin: 10px 0;">
         <tr style="background-color: #f2f2f2;">
-            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Task ID</th>
-            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Video Name</th>
-            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Project</th>
-            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Status</th>
-            <th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Days Idle</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">No.</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Task ID</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Org ID</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Video Name</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Project</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Status</th>
+            <th style="padding: 8px; text-align: center; border: 1px solid #ddd;">Days Idle</th>
         </tr>
     """
     
@@ -389,7 +394,9 @@ def check_empty_payload():
         
         html_table += f"""
         <tr style="{row_style}">
+            <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{i+1}</td>
             <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["task_id"]}</td>
+            <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["org_id"]}</td>
             <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["video_name"][:30]}{'...' if len(item["video_name"]) > 30 else ''}</td>
             <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["project_name"][:30]}{'...' if len(item["project_name"]) > 30 else ''}</td>
             <td style="padding: 6px; text-align: left; border: 1px solid #ddd;">{item["status"]}</td>
@@ -403,7 +410,7 @@ def check_empty_payload():
     
     html_message = f"""
     <html>
-    <body style="font-family: Arial, sans-serif; line-height: 1.5; color: #333333; max-width: 650px;">
+    <body style="font-family: Arial, sans-serif; line-height: 1.5; color: #333333; max-width: 1200px;">
         <h2 style="color: #d9534f;">Inactive Translation-Voiceover Tasks Alert</h2>
         <p>Found {task_count} inactive translation-voiceover tasks with completed transcriptions that haven't been processed for over 2 days:</p>
         
