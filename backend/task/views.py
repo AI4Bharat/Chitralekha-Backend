@@ -88,6 +88,7 @@ from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 import regex
 from translation.views import regenerate_translation_voiceover
+from .time_tracking import update_time_spent as track_time
 
 def get_export_translation(request, task_id, export_type):
     new_request = HttpRequest()
@@ -3322,19 +3323,22 @@ class TaskViewSet(ModelViewSet):
                     {"message": "Unable to query celery", "data": []},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
-
     @swagger_auto_schema(
         method="patch",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=["time_spent"],
+            required=["session_start"],
             properties={
-                "time_spent": openapi.Schema(
-                    type=openapi.TYPE_INTEGER,
-                    description="time spent",
+                "session_start": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="ISO format timestamp when session started",
+                ),
+                "session_end": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="ISO format timestamp when session ended (optional)",
                 ),
             },
-            description="Post request body for updating time spent.",
+            description="Request body for tracking time spent on task",
         ),
         responses={
             200: "Updated time spent on task.",
@@ -3347,29 +3351,9 @@ class TaskViewSet(ModelViewSet):
         url_name="update_time_spent",
     )
     def update_time_spent(self, request, pk=None):
-        try:
-            task = Task.objects.get(pk=pk)
-        except Task.DoesNotExist:
-            return Response(
-                {"message": "Task does not exist"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        if request.user != task.user:
-            return Response(
-                {"message": "You not allowed to update time spent for this task"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        time_spent = request.data.get("time_spent", 0)
-        if task.time_spent == None:
-            task.time_spent = time_spent
-        else:
-            task.time_spent += time_spent
-        task.save()
-        return Response(
-            {"message": "Time spent on task updated successfully."},
-            status=status.HTTP_200_OK,
-        )
-
+        # Call the standalone function
+        return track_time(request, pk)
+    
     @action(detail=True, methods=["get"], url_path="regenerate_response")
     def regenerate_response(self, request, pk, *args, **kwargs):
         try:
