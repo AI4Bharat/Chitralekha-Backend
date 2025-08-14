@@ -186,7 +186,7 @@ def export_transcript(request):
                     "start_time": segment["start_time"],
                     "end_time": segment["end_time"],
                     "text": segment["transcription_text"],
-                    "speaker_id": "",
+                    "speaker_id": segment["speaker_id"],
                     "unix_start_time": unix_start_time,
                     "unix_end_time": unix_end_time,
                     "image_url": segment.get("image_url"),
