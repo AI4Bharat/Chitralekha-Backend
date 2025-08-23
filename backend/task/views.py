@@ -3323,36 +3323,36 @@ class TaskViewSet(ModelViewSet):
                     {"message": "Unable to query celery", "data": []},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
-    @swagger_auto_schema(
-        method="patch",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=["session_start"],
-            properties={
-                "session_start": openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="ISO format timestamp when session started",
-                ),
-                "session_end": openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="ISO format timestamp when session ended (optional)",
-                ),
-            },
-            description="Request body for tracking time spent on task",
-        ),
-        responses={
-            200: "Updated time spent on task.",
-        },
-    )
-    @action(
-        detail=True,
-        methods=["PATCH"],
-        name="Update Time Spent",
-        url_name="update_time_spent",
-    )
-    def update_time_spent(self, request, pk=None):
-        # Call the standalone function
-        return track_time(request, pk)
+    # @swagger_auto_schema(
+    #     method="patch",
+    #     request_body=openapi.Schema(
+    #         type=openapi.TYPE_OBJECT,
+    #         required=["session_start"],
+    #         properties={
+    #             "session_start": openapi.Schema(
+    #                 type=openapi.TYPE_STRING,
+    #                 description="ISO format timestamp when session started",
+    #             ),
+    #             "session_end": openapi.Schema(
+    #                 type=openapi.TYPE_STRING,
+    #                 description="ISO format timestamp when session ended (optional)",
+    #             ),
+    #         },
+    #         description="Request body for tracking time spent on task",
+    #     ),
+    #     responses={
+    #         200: "Updated time spent on task.",
+    #     },
+    # )
+    # @action(
+    #     detail=True,
+    #     methods=["PATCH"],
+    #     name="Update Time Spent",
+    #     url_name="update_time_spent",
+    # )
+    # def update_time_spent(self, request, pk=None):
+    #     # Call the standalone function
+    #     return track_time(request, pk)
     
     @action(detail=True, methods=["get"], url_path="regenerate_response")
     def regenerate_response(self, request, pk, *args, **kwargs):
