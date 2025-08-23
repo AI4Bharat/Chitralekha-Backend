@@ -120,13 +120,20 @@ class CustomTokenCreateSerializer(TokenCreateSerializer):
             else:
                 raise ValidationError({"detail": _("User does not exist.")})
 
+        # Check if user's organization is active
+        if user.organization and not user.organization.is_active:
+            raise ValidationError({"detail": _("Your organization has been deactivated. Please contact your administrator.")})
+        
+        # Check if user doesn't have an organization
+        if not user.organization:
+            raise ValidationError({"detail": _("User is not associated with any organization.")})
+
         # Return tokens after successful authentication
         refresh = RefreshToken.for_user(user)
-        
+        self.user = user
         return {
             'refresh': str(refresh),
             'access': str(refresh.access_token),
-            
         }
     
 

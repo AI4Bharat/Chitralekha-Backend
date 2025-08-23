@@ -1723,10 +1723,6 @@ def save_translation(request):
                     ):
                         if task.status == "INPROGRESS":
                             task.status = "COMPLETE"
-                            task.completed = {
-                            "completed_by": request.user.id,
-                            "timestamp": now().isoformat(),
-                            }
                             task.save()
                         return Response(
                             {"message": "Edit Translation already exists."},
@@ -1750,6 +1746,21 @@ def save_translation(request):
                             limit, payload, start_offset, end_offset, translation_obj
                         )
                         translation_obj.save()
+                        user_email = request.user.email
+                        current_timestamp = now().isoformat()
+
+                        completion_record = {
+                            "completed_by": user_email,
+                            "timestamp": current_timestamp
+                        }
+
+                        # Ensure completed is a list
+                        if not isinstance(task.completed, list):
+                            task.completed = []
+
+                        # Append new record (no overwrite; keeps history)
+                        task.completed.append(completion_record)
+                        
                         task.status = "COMPLETE"
                         task.save()
                         translation_obj.save()
@@ -1861,7 +1872,21 @@ def save_translation(request):
                         limit, payload, start_offset, end_offset, translation_obj
                     )
                     translation_obj.save()
-                    translation_obj.save()
+                    
+                    user_email = request.user.email
+                    current_timestamp = now().isoformat()
+
+                    completion_record = {
+                        "completed_by": user_email,
+                        "timestamp": current_timestamp
+                    }
+
+                    # Ensure completed is a list
+                    if not isinstance(task.completed, list):
+                        task.completed = []
+
+                    # Append new record (no overwrite; keeps history)
+                    task.completed.append(completion_record)
                     task.status = "COMPLETE"
                     task.save()
                     response = check_if_translation_correct(translation_obj, task)

@@ -52,6 +52,10 @@ celery_app.conf.beat_schedule = {
         "task": "voiceover.tasks.check_stalled_post_process_tasks",
         "schedule": crontab(hour=4, minute=0),  # Run daily at 4:00 AM UTC = 9:30 AM IST
     },
+    "check-empty-payload": {
+        "task": "voiceover.tasks.check_empty_payload",
+        "schedule": crontab(hour=3, minute=30),  # Run daily at 3,u30 AM UTC = 9:00 AM IST
+    },
 }
 
 celery_app.autodiscover_tasks()
