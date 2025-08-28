@@ -81,6 +81,7 @@ import openai
 from utils.llm_api import get_model_output
 from voiceover.models import VoiceOver
 from django.utils.timezone import now
+from task.time_tracking import update_time_spent as track_time
 
 @api_view(["GET"])
 def get_transcript_export_types(request):
@@ -1793,6 +1794,7 @@ def save_full_transcription(request):
         transcript_id = request.data.get("transcript_id", None)
         task_id = request.data["task_id"]
         payload = request.data["payload"]
+        session_start = request.data.get("session_start")
     except KeyError:
         return Response(
             {"message": "Missing required parameters - payload or task_id"},
@@ -1812,6 +1814,12 @@ def save_full_transcription(request):
             {"message": "This task is not ative yet."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    if session_start:
+        time_response = track_time(request, task_id)
+        if time_response.status_code != 200:
+            # Log the error but don't fail the save operation
+            logging.warning(f"Time tracking failed for task {task_id}: {time_response.data}")
+
 
     transcript = get_transcript_id(task)
 
@@ -1867,6 +1875,20 @@ def save_full_transcription(request):
                         task=task,
                         status=tc_status,
                     )
+                    user_email = request.user.email
+                    current_timestamp = now().isoformat()
+
+                    completion_record = {
+                        "completed_by": user_email,
+                        "timestamp": current_timestamp
+                    }
+
+                    # Ensure completed is a list
+                    if not isinstance(task.completed, list):
+                        task.completed = []
+
+                    # Append new record (no overwrite; keeps history)
+                    task.completed.append(completion_record)
                     task.status = "COMPLETE"
                     task.save()
                     change_active_status_of_next_tasks(task, transcript_obj)
@@ -1930,7 +1952,6 @@ def save_full_transcription(request):
                             task=task,
                             status=tc_status,
                         )
-                        task.status = "COMPLETE"
                         task.save()
                         change_active_status_of_next_tasks(task, transcript_obj)
                 else:
@@ -2032,6 +2053,7 @@ def save_transcription(request):
         payload = request.data["payload"]
         offset = request.data["offset"]
         limit = request.data["limit"]
+        session_start = request.data.get("session_start")
 
     except KeyError:
         return Response(
@@ -2054,6 +2076,11 @@ def save_transcription(request):
             {"message": "This task is not active yet."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    if session_start:
+        time_response = track_time(request, task_id)
+        if time_response.status_code != 200:
+            # Log the error but don't fail the save operation
+            logging.warning(f"Time tracking failed for task {task_id}: {time_response.data}")
 
     transcript = get_transcript_id(task)
     if transcript is None:
@@ -2214,6 +2241,20 @@ def save_transcription(request):
                             except:
                                 True
                         transcript_obj.save()
+                        user_email = request.user.email
+                        current_timestamp = now().isoformat()
+
+                        completion_record = {
+                            "completed_by": user_email,
+                            "timestamp": current_timestamp
+                        }
+
+                        # Ensure completed is a list
+                        if not isinstance(task.completed, list):
+                            task.completed = []
+
+                        # Append new record (no overwrite; keeps history)
+                        task.completed.append(completion_record)
                         task.status = "COMPLETE"
                         task.save()
                         response = check_if_transcription_correct(transcript_obj, task)
@@ -2327,12 +2368,22 @@ def save_transcription(request):
                         for item in transcript_obj.payload["payload"]:
                             item['verbatim_text'] = item['text']
                             item['text'] = item['paraphrased_text'] if 'paraphrased_text' in item and item['paraphrased_text'] not in [None, ""] else item['verbatim_text']
-                        task.completed = {
-                            "user_id": request.user.id,
-                            "timestamp": now().isoformat(),
-                           
-                        }
                         transcript_obj.save()
+                        user_email = request.user.email
+                        current_timestamp = now().isoformat()
+
+                        completion_record = {
+                            "completed_by": user_email,
+                            "timestamp": current_timestamp
+                        }
+
+                        # Ensure completed is a list
+                        if not isinstance(task.completed, list):
+                            task.completed = []
+
+                        # Append new record (no overwrite; keeps history)
+                        task.completed.append(completion_record)
+                        
                         task.status = "COMPLETE"
                         task.save()
                         response = check_if_transcription_correct(transcript_obj, task)
