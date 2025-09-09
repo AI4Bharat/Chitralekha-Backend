@@ -10,9 +10,8 @@ from .utils import (
     get_org_report_projects_email,
 )
 from users.models import User
-from azure.storage.blob import BlobServiceClient
-from datetime import datetime, timedelta
-from config import storage_account_key, connection_string, reports_container_name
+from utils.storage_factory import get_storage_provider
+from datetime import datetime, timedelta, timezone
 
 
 @shared_task()
@@ -41,28 +40,13 @@ def send_email_with_projects_report(org_id, user_id):
 
 @shared_task(name="delete_reports")
 def delete_reports():
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-    container_client = blob_service_client.get_container_client(reports_container_name)
+    storage = get_storage_provider(reports_container=True)
+    
+    one_week_ago_date = (datetime.now(timezone.utc) - timedelta(days=7)).date()
 
-    current_date = datetime.now()
+    objects = storage.list_objects()
 
-    # Calculate one week ago
-    one_week_ago = current_date - timedelta(days=7)
-
-    # Convert the specific date to UTC format
-    specific_date_utc = datetime.strptime(one_week_ago, "%Y-%m-%d").replace(
-        tzinfo=datetime.timezone.utc
-    )
-
-    # List all blobs in the container
-    blobs = container_client.list_blobs()
-
-    for blob in blobs:
-        properties = blob.get_blob_properties()
-        last_modified = properties["last_modified"].astimezone(datetime.timezone.utc)
-
-        # Check if the blob was created on the specific date
-        if last_modified.date() == specific_date_utc.date():
-            blob_client = container_client.get_blob_client(blob.name)
-            blob_client.delete_blob()
-            print(f"Deleted: {blob.name}")
+    for obj in objects:
+        if obj.last_modified.date() == one_week_ago_date:
+            storage.delete(obj.name)
+            print(f"Deleted: {obj.name}")

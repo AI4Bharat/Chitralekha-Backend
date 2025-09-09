@@ -5,7 +5,7 @@ import logging
 import subprocess
 import json
 from config import align_json_url
-from azure.storage.blob import BlobServiceClient
+from utils.storage_factory import get_storage_provider
 import logging
 from config import (
     storage_account_key,
@@ -54,27 +54,27 @@ def align_json_api(transcript_obj):
 
 
 def download_ytt_from_azure(file_name):
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-    blob_client = blob_service_client.get_blob_client(
-        container=container_name, blob=file_name
-    )
-    with open(file=file_name, mode="wb") as sample_blob:
-        download_stream = blob_client.download_blob()
-        sample_blob.write(download_stream.readall())
+    storage = get_storage_provider()
+
+    remote_object_name = file_name
+    local_destination_path = file_name
+
+    storage.download(remote_object_name, local_destination_path)
 
 
 def upload_ytt_to_azure(transcript_obj, file_name):
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-    blob_client_json = blob_service_client.get_blob_client(
-        container=container_name, blob=file_name
-    )
-    with open(file_name, "rb") as data:
-        if not blob_client_json.exists():
-            blob_client_json.upload_blob(data)
-            logging.info(blob_client_json.url)
-            transcript_obj.payload["ytt_azure_url"] = blob_client_json.url
-            transcript_obj.save()
-        else:
-            blob_client_json.delete_blob()
-            blob_client_json.upload_blob(data)
-            logging.info(blob_client_json.url)
+    storage = get_storage_provider()
+
+    local_file = file_name
+    remote_file = file_name
+    
+    file_exists = storage.exists(remote_file)
+    
+    url = storage.upload(local_file, remote_file)
+    
+    if not file_exists:
+        logging.info(url)
+        transcript_obj.payload["ytt_azure_url"] = url
+        transcript_obj.save()
+    else:
+        logging.info(url)
