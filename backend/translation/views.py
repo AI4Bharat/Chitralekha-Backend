@@ -73,6 +73,7 @@ from django.conf import settings
 from transcript.views import get_transcript_id
 from task.tasks import celery_nmt_tts_call
 from django.utils.timezone import now
+from task.time_tracking import update_time_spent as track_time
 
 @api_view(["GET"])
 def get_translation_export_types(request):
@@ -1640,6 +1641,7 @@ def save_translation(request):
         task_id = request.data["task_id"]
         offset = request.data["offset"]
         limit = request.data["limit"]
+        session_start = request.data.get("session_start")
     except KeyError:
         return Response(
             {
@@ -1656,6 +1658,11 @@ def save_translation(request):
             {"message": "Task doesn't exist."},
             status=status.HTTP_404_NOT_FOUND,
         )
+    if session_start:
+        time_response = track_time(request, task_id)
+        if time_response.status_code != 200:
+            # Log the error but don't fail the save operation
+            logging.warning(f"Time tracking failed for task {task_id}: {time_response.data}")
 
     if not task.is_active:
         return Response(
