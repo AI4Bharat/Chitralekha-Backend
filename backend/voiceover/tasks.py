@@ -405,7 +405,6 @@ def check_empty_payload():
         """
         
         plain_text += f"- Task #{item['task_id']}: Video '{item['video_name'][:30]}{'...' if len(item['video_name']) > 30 else ''}', Project '{item['project_name'][:30]}{'...' if len(item['project_name']) > 30 else ''}', Idle for {item['days_idle']} days (Status: {item['status']})\n"
-    
     html_table += "</table>"
     
     html_message = f"""

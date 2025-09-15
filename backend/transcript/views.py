@@ -82,6 +82,7 @@ import openai
 from utils.llm_api import get_model_output
 from voiceover.models import VoiceOver
 from django.utils.timezone import now
+from task.time_tracking import update_time_spent as track_time
 
 @api_view(["GET"])
 def get_transcript_export_types(request):
@@ -1763,6 +1764,7 @@ def save_full_transcription(request):
         transcript_id = request.data.get("transcript_id", None)
         task_id = request.data["task_id"]
         payload = request.data["payload"]
+        session_start = request.data.get("session_start")
     except KeyError:
         return Response(
             {"message": "Missing required parameters - payload or task_id"},
@@ -1782,6 +1784,12 @@ def save_full_transcription(request):
             {"message": "This task is not ative yet."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    if session_start:
+        time_response = track_time(request, task_id)
+        if time_response.status_code != 200:
+            # Log the error but don't fail the save operation
+            logging.warning(f"Time tracking failed for task {task_id}: {time_response.data}")
+
 
     transcript = get_transcript_id(task)
 
@@ -2015,6 +2023,7 @@ def save_transcription(request):
         payload = request.data["payload"]
         offset = request.data["offset"]
         limit = request.data["limit"]
+        session_start = request.data.get("session_start")
 
     except KeyError:
         return Response(
@@ -2037,6 +2046,11 @@ def save_transcription(request):
             {"message": "This task is not active yet."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    if session_start:
+        time_response = track_time(request, task_id)
+        if time_response.status_code != 200:
+            # Log the error but don't fail the save operation
+            logging.warning(f"Time tracking failed for task {task_id}: {time_response.data}")
 
     transcript = get_transcript_id(task)
     if transcript is None:
