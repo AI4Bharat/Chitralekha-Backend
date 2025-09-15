@@ -176,6 +176,7 @@ def get_empty_audios(request):
             {"message": "VoiceOver doesn't exist."},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    
     empty_audios = []
     if voice_over.payload and "payload" in voice_over.payload:
         index = 0
@@ -183,17 +184,31 @@ def get_empty_audios(request):
             data_dict = {}
             data_dict["index"] = index
             data_dict["sentence"] = sentence.get("text", "")
-            data_dict["reason"] = "Audio not generated"
             data_dict["page_number"] = index / voice_over_payload_offset_size + 1
+            
+            # Check for duration issues
+            if "start_time" in sentence and "end_time" in sentence:
+                if (get_original_duration_neg(sentence["start_time"], sentence["end_time"]) < 0.1):
+                    data_dict["reason"] = "Duration is 0 for this card."
+                    empty_audios.append(data_dict)
+                    index = index + 1
+                    continue
+            
+            # Check for empty audio
             if sentence.get("audio", "") == "":
+                data_dict["reason"] = "Audio not generated"
                 empty_audios.append(data_dict)
+                index = index + 1
                 continue
+                
             if sentence["audio"]["audioContent"] == "":
                 print(
                     "Empty audio with dict found",
                     sentence.get("audio", {}).get("audioContent", {}),
                 )
+                data_dict["reason"] = "Audio not generated"
                 empty_audios.append(data_dict)
+            
             index = index + 1
 
     if empty_audios:
@@ -1152,9 +1167,7 @@ def save_voice_over(request):
 
                             if len(tmx_replacement) > 0:
                                 for i in range(len(tmx_replacement)):
-                                    voice_over_payload["text"] = voice_over_payload[
-                                        "text"
-                                    ].replace(
+                                    voice_over_payload["text"] = voice_over_payload["text"].replace(
                                         tmx_replacement[i]["tgt"],
                                         tmx_replacement[i]["tmx_tgt"],
                                     )
@@ -1673,6 +1686,7 @@ def save_voice_over(request):
                                         "text": payload["payload"][i]["text"],
                                         "audio": voiceover_adjusted[i][1],
                                         "audio_speed": 1,
+                                        "transcription_text": transcription_text,
                                     }
                                 )
                             else:
