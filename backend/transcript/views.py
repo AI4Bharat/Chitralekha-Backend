@@ -28,6 +28,7 @@ from translation.utils import (
     translation_mg,
     convert_to_docx,
     convert_to_paragraph,
+    convert_to_paragraph_with_images,
     convert_to_rt,
     convert_scc_format,
 )
@@ -92,6 +93,7 @@ def get_transcript_export_types(request):
                 "vtt",
                 "txt",
                 "docx",
+                "mail-screenshot-docx",
                 "ytt",
                 "sbv",
                 "TTML",
@@ -139,6 +141,8 @@ def export_transcript(request):
     return_file_content = request.query_params.get("return_file_content")
     with_speaker_info = request.query_params.get("with_speaker_info", "false")
     with_speaker_info = with_speaker_info.lower() == "true"
+    user_id = request.user.id
+    user = User.objects.get(pk=user_id)
 
     if task_id is None or export_type is None:
         return Response(
@@ -146,7 +150,7 @@ def export_transcript(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    supported_types = ["srt", "vtt", "txt", "docx", "ytt", "sbv", "TTML", "scc", "rt"]
+    supported_types = ["srt", "vtt", "txt", "docx", "mail-screenshot-docx", "ytt", "sbv", "TTML", "scc", "rt"]
     if export_type not in supported_types:
         return Response(
             {
@@ -183,9 +187,10 @@ def export_transcript(request):
                     "start_time": segment["start_time"],
                     "end_time": segment["end_time"],
                     "text": segment["transcription_text"],
-                    "speaker_id": "",
+                    "speaker_id": segment["speaker_id"],
                     "unix_start_time": unix_start_time,
                     "unix_end_time": unix_end_time,
+                    "image_url": segment.get("image_url"),
                 }
                 updated_payload.append(updated_segment)
             transcript.payload["payload"] = updated_payload
@@ -210,16 +215,10 @@ def export_transcript(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                if "verbatim_text" in segment.keys():
-                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                        lines.append(segment["speaker_id"] + ": " + segment["verbatim_text"] + "\n")
-                    else:
-                        lines.append(segment["verbatim_text"] + "\n")
+                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                    lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
                 else:
-                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                        lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
-                    else:
-                        lines.append(segment["text"] + "\n")
+                    lines.append(segment["text"] + "\n")
         filename = "transcript.srt"
         content = "\n".join(lines)
     elif export_type == "vtt":
@@ -228,37 +227,31 @@ def export_transcript(request):
             if "text" in segment.keys():
                 lines.append(str(index + 1))
                 lines.append(segment["start_time"] + " --> " + segment["end_time"])
-                if "verbatim_text" in segment.keys():
-                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                        lines.append(segment["speaker_id"] + ": " + segment["verbatim_text"] + "\n")
-                    else:
-                        lines.append(segment["verbatim_text"] + "\n")
+                if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
+                    lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
                 else:
-                    if len(segment.get("speaker_id", "")) > 0 and with_speaker_info:
-                        lines.append(segment["speaker_id"] + ": " + segment["text"] + "\n")
-                    else:
-                        lines.append(segment["text"] + "\n")
+                    lines.append(segment["text"] + "\n")
         filename = "transcript.vtt"
         content = "\n".join(lines)
     elif export_type == "txt":
         for index, segment in enumerate(payload):
             if "text" in segment.keys():
-                if "verbatim_text" in segment.keys():
-                    lines.append(segment["verbatim_text"])
-                else:
-                    lines.append(segment["text"])
+                lines.append(segment["text"])
         filename = "transcript.txt"
         content = convert_to_paragraph(lines, task.video.name)
     elif export_type == "docx":
         for index, segment in enumerate(payload):
             if "text" in segment.keys():
-                if "verbatim_text" in segment.keys():
-                    lines.append(segment["verbatim_text"])
-                else:
-                    lines.append(segment["text"])
+                lines.append(segment["text"])
         filename = "transcript.txt"
         content = convert_to_paragraph(lines, task.video.name)
         return convert_to_docx(content)
+    elif export_type == "mail-screenshot-docx":
+        convert_to_paragraph_with_images.delay(payload, task.video.name, user.email, task_id, task.video.description)
+        return Response(
+            {"message": "Document will be emailed."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     elif export_type == "ytt":
         return Response(
             {"message": "Soemthing went wrong!."},
@@ -304,54 +297,31 @@ def export_transcript(request):
 
     elif export_type == "sbv":
         for index, segment in enumerate(payload):
-            if "verbatim_text" in segment.keys():
-                lines.append(
-                    segment["start_time"]
-                    + ","
-                    + segment["end_time"]
-                    + "\n"
-                    + segment["verbatim_text"]
-                    + "\n"
-                )
-            else:
-                lines.append(
-                    segment["start_time"]
-                    + ","
-                    + segment["end_time"]
-                    + "\n"
-                    + segment["text"]
-                    + "\n"
-                )
+            lines.append(
+                segment["start_time"]
+                + ","
+                + segment["end_time"]
+                + "\n"
+                + segment["text"]
+                + "\n"
+            )
         filename = "transcript.sbv"
         content = "\n".join(lines)
 
     elif export_type == "TTML":
         lines = generate_ttml(payload)
         for index, segment in enumerate(payload):
-            if "verbatim_text" in segment.keys():
-                lines.append(
-                    "\t\t\t<p xml:id='subtitle"
-                    + str(index + 1)
-                    + "' begin='"
-                    + segment["start_time"]
-                    + "' end='"
-                    + segment["end_time"]
-                    + "' style='s1'>"
-                    + segment["verbatim_text"].replace(",", "<br/>")
-                    + "</p>"
-                )
-            else:
-                lines.append(
-                    "\t\t\t<p xml:id='subtitle"
-                    + str(index + 1)
-                    + "' begin='"
-                    + segment["start_time"]
-                    + "' end='"
-                    + segment["end_time"]
-                    + "' style='s1'>"
-                    + segment["text"].replace(",", "<br/>")
-                    + "</p>"
-                )
+            lines.append(
+                "\t\t\t<p xml:id='subtitle"
+                + str(index + 1)
+                + "' begin='"
+                + segment["start_time"]
+                + "' end='"
+                + segment["end_time"]
+                + "' style='s1'>"
+                + segment["text"].replace(",", "<br/>")
+                + "</p>"
+            )
         lines.append("\t\t</div>\n" + "\t</body>\n" + "</tt>\n")
         filename = "transcript.TTML"
         content = "\n".join(lines)

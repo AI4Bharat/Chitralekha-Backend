@@ -18,6 +18,7 @@ from config import (
 )
 from pydub import AudioSegment
 import io
+from video.models import Video
 from datetime import datetime, date, timedelta
 import os
 import wave
@@ -810,6 +811,8 @@ def get_bad_sentences_in_progress_for_transcription(transcription_obj, target_la
     translation = transcription_obj.payload
     compare_with_index = -1
     last_valid_index = -1
+    video_obj = Video.objects.get(pk=transcription_obj.video_id)
+    multiple_speakers = video_obj.multiple_speaker
     for ind, text in enumerate(translation["payload"]):
         if (
             "text" in text.keys()
@@ -881,6 +884,18 @@ def get_bad_sentences_in_progress_for_transcription(transcription_obj, target_la
                 )
             else:
                 pass
+            if multiple_speakers:
+                if text["speaker_id"] == None:
+                    problem_sentences.append(
+                    {
+                        "index": (ind % 50) + 1,
+                        "page_number": (ind // 50) + 1,
+                        "start_time": text["start_time"],
+                        "end_time": text["end_time"],
+                        "text": text["text"],
+                        "issue_type": "Speaker Id not selected.",
+                    }
+                )
         if "text" in text.keys() and len(text["text"]) < 1:
             problem_sentences.append(
                 {
