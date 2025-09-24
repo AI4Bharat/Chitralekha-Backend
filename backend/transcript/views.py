@@ -2605,7 +2605,7 @@ def get_transcription_report(request):
         start_date = parse_date(start_date_str)
         end_date = parse_date(end_date_str) + timedelta(days=1)
         transcripts = transcripts.filter(
-            updated_at__date__range=(start_date.date(), end_date.date())
+            updated_at__gte=start_date, updated_at__lt=end_date
         )
 
     transcripts = transcripts.exclude(
