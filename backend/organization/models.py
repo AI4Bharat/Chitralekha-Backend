@@ -319,13 +319,9 @@ class Invite(models.Model):
     @classmethod
     def send_invite_email(cls, invite, user):
         current_environment = os.getenv("ENV")
-        base_url = (
-            "dev.chitralekha.ai4bharat.org"
-            if current_environment == "dev"
-            else "chitralekha.ai4bharat.org"
-        )
+        base_url = frontend_url
         subject = "Invitation to join Chitralekha Organization"
-        invite_link = f"https://{base_url}/#/invite/{invite.invite_code}"
+        invite_link = f"{base_url}/#/invite/{invite.invite_code}"
         message = "Please use the above link to verify your email address and complete your registration."
 
         try:
