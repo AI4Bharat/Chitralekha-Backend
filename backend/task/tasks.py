@@ -283,6 +283,9 @@ def celery_nmt_call(task_id):
 @celery_app.task(queue="nmt")
 def celery_nmt_tts_call(task_id):
     task_obj = Task.objects.get(pk=task_id)
+    if task_obj.status in ["POST_PROCESS", "COMPLETE"]:
+        logging.info(f"Task {task_id} is already complete (status: {task_obj.status})")
+        return
     translation_obj = Translation.objects.filter(task=task_obj).first()
     source_type = "MACHINE_GENERATED"
     if translation_obj is not None and type(translation_obj.payload) != dict:
