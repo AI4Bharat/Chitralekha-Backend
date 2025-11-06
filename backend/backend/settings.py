@@ -35,7 +35,7 @@ SECRET_KEY = "*" if DEBUG else os.getenv("SECRET_KEY")
 
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"]
 if DEBUG:
-    ALLOWED_HOSTS.append("*")
+    ALLOWED_HOSTS.append("*","localhost", "0.0.0.0")
 
 if os.getenv("ALLOWED_HOSTS", ""):
     additional_hosts = os.getenv("ALLOWED_HOSTS")
