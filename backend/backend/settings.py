@@ -35,7 +35,7 @@ SECRET_KEY = "*" if DEBUG else os.getenv("SECRET_KEY")
 
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"]
 if DEBUG:
-    ALLOWED_HOSTS.append("*","127.0.0.1", "localhost",)
+    ALLOWED_HOSTS.append("*")
 
 if os.getenv("ALLOWED_HOSTS", ""):
     additional_hosts = os.getenv("ALLOWED_HOSTS")
@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "youtube",
     "newsletter",
     "glossary",
+    "django_celery_results",
 ]
 
 MIDDLEWARE = [
@@ -95,6 +96,10 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 DOMAIN = os.getenv("DOMAIN")
 SITE_NAME = os.getenv("DOMAIN")
 DEFAULT_HTTP_PROTOCOL = 'https'
+
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379")
+CELERY_RESULTS_BACKEND = "django-db"
+CELERY_RESULTS_EXTENDED = True
 
 DJOSER = {
     "PASSWORD_RESET_CONFIRM_URL": "forget-password/confirm/{uid}/{token}",

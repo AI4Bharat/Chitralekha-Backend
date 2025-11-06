@@ -47,7 +47,7 @@ router = routers.DefaultRouter()
 # Add the swagger view
 schema_view = get_schema_view(
     openapi.Info(
-        title=app_name + " API Docs",
+        title=(app_name or "API Docs") + " API Docs",
         default_version="v1",
         description=f"API documentation for {app_name} Platform.",
         terms_of_service="https://www.google.com/policies/terms/",
