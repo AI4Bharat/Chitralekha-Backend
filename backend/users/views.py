@@ -444,6 +444,12 @@ class InviteViewSet(viewsets.ViewSet):
             user.languages = request.data.get("languages")
             user.date_joined = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             serialized.save()
+            user.refresh_from_db()
+            # Add user to organization_owners if role is ORG_OWNER
+            if user.role == User.ORG_OWNER and user.organization:
+                user.organization.organization_owners.add(user)
+            user.has_accepted_invite = True
+            user.save()
             return Response({"message": "User signed up"}, status=status.HTTP_200_OK)
         else:
             return Response(
