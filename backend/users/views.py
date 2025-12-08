@@ -274,11 +274,16 @@ class InviteViewSet(viewsets.ViewSet):
             org = None
         valid_user_emails = []
         invalid_emails = []
+        existing_emails = []
 
         for email in emails:
             # Checking if the email is in valid format.
             email = email.lower()
             if re.fullmatch(regex, email):
+                # Skip if user already exists
+                if User.objects.filter(email=email).exists():
+                    existing_emails.append(email)
+                    continue
                 try:
                     user = User(
                         username=generate_random_string(12),
@@ -289,24 +294,33 @@ class InviteViewSet(viewsets.ViewSet):
                     user.set_password(generate_random_string(10))
                     valid_user_emails.append(email)
                     users.append(user)
-                except:
-                    Response(
-                        {"message": "User can't be added"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                except Exception:
+                    invalid_emails.append(email)
             else:
                 invalid_emails.append(email)
+
         if len(valid_user_emails) <= 0:
+            if existing_emails:
+                return Response(
+                    {"message": f"User(s) already exist: {', '.join(existing_emails)}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             return Response(
                 {"message": "No valid emails found"}, status=status.HTTP_400_BAD_REQUEST
             )
-        if len(invalid_emails) == 0:
-            ret_dict = {"message": "Invites sent"}
+
+        # Prepare response message based on partial failures
+        parts = []
+        if len(invalid_emails) > 0:
+            parts.append(f"Invalid emails: {', '.join(invalid_emails)}")
+        if len(existing_emails) > 0:
+            parts.append(f"Already existing users: {', '.join(existing_emails)}")
+
+        if parts:
+            ret_dict = {"message": f"Invites sent partially! {'; '.join(parts)}"}
             ret_status = status.HTTP_201_CREATED
         else:
-            ret_dict = {
-                "message": f"Invites sent partially! Invalid emails: {','.join(invalid_emails)}"
-            }
+            ret_dict = {"message": "Invites sent"}
             ret_status = status.HTTP_201_CREATED
 
         users = User.objects.bulk_create(users)
