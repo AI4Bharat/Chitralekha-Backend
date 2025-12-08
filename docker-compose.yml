@@ -149,7 +149,7 @@ services:
     build: ./nginx
     image: evgeniy-khyst/nginx
     env_file:
-      - ./config.env
+      - ./backend/.env
     volumes:
       - nginx_conf:/etc/nginx/sites
       - letsencrypt_certs:/etc/letsencrypt
@@ -165,7 +165,7 @@ services:
     build: ./certbot
     image: evgeniy-khyst/certbot
     env_file:
-      - ./config.env
+      - ./backend/.env
     volumes:
       - letsencrypt_certs:/etc/letsencrypt
       - certbot_acme_challenge:/var/www/certbot

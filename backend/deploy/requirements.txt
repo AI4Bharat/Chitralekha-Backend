@@ -34,3 +34,4 @@ html2text
 regex
 sentence-transformers
 openai==0.28
+django-celery-results == 2.6.0
