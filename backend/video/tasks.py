@@ -79,7 +79,7 @@ def send_mail_csv_upload(user_id, email_data):
         logging.info("Error in sending mail")
 
 
-@shared_task()
+# @shared_task()
 def create_videos_async(user_id, valid_rows, existing_videos, project_id):
     logging.info("Creating videos Asynchronously")
     email_data = []

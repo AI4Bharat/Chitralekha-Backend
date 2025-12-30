@@ -903,7 +903,7 @@ def upload_csv(request):
 
 
 def call_async_video(user_id, valid_rows, existing_videos, project_id):
-    create_videos_async.delay(user_id, valid_rows, existing_videos, project_id)
+    create_videos_async(user_id, valid_rows, existing_videos, project_id)
 
 
 @swagger_auto_schema(
