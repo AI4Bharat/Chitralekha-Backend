@@ -3880,7 +3880,17 @@ def import_subtitles(request, pk=None):
     else:
         subtitles = subtitles.read().decode("utf-8")
         try:
-            subtitles = convert_srt_to_payload(subtitles)
+            subtitles = convert_srt_to_payload(
+                subtitles, 
+                video=task.video, 
+                is_multi_speaker=task.video.multiple_speaker
+            )
+            # Check if there was an error in speaker validation
+            if isinstance(subtitles, dict) and subtitles.get("error"):
+                return Response(
+                    {"message": subtitles["message"]}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         except Exception as e:
             return Response(
                 {"message": "Invalid file format"}, status=status.HTTP_400_BAD_REQUEST
