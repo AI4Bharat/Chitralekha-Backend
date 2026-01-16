@@ -40,22 +40,85 @@ def convert_vtt_to_payload(vtt_content):
     return json.loads(json.dumps({"payload": sentences_list}))
 
 
-def convert_srt_to_payload(srt_content):
+def convert_srt_to_payload(srt_content, video=None, is_multi_speaker=False):
+    """
+    Convert SRT content to payload format.
+    Handles speaker tags in format "S1:", "S2:", etc. if multi-speaker project.
+    
+    Args:
+        srt_content: String content of SRT file
+        video: Video object to validate speaker names (optional)
+        is_multi_speaker: Boolean indicating if project has multiple speakers
+        
+    Returns:
+        Dict with payload and potential error message
+    """
+    import re
+    
     subs = pysrt.from_string(srt_content)
     sentences_list = []
+    speaker_pattern = re.compile(r'^([A-Za-z0-9]+):\s*(.*)$', re.MULTILINE)
+    found_speakers = set()
+    
     for srt_line in subs:
         start_time = srt_line.start.to_time().strftime("%H:%M:%S.%f")[:-3]
         end_time = srt_line.end.to_time().strftime("%H:%M:%S.%f")[:-3]
-
-        sentences_list.append(
-            {
-                "start_time": start_time,
-                "end_time": end_time,
-                "text": srt_line.text,
-                "unix_start_time": srt_line.start.ordinal / 1000.0,
-                "unix_end_time": srt_line.end.ordinal / 1000.0,
+        
+        text = srt_line.text.strip()
+        speaker_name = None
+        
+        # Check for speaker tag if multi-speaker project
+        if is_multi_speaker and text:
+            # Check first line of text for speaker pattern
+            lines = text.split('\n')
+            first_line = lines[0]
+            match = speaker_pattern.match(first_line)
+            
+            if match:
+                speaker_name = match.group(1)  # Extract speaker name
+                extracted_text = match.group(2)  # Extract text without speaker tag
+                
+                # If there are multiple lines, append remaining lines
+                if len(lines) > 1:
+                    remaining_lines = '\n'.join(lines[1:])
+                    text = extracted_text + "\n" + remaining_lines
+                else:
+                    text = extracted_text
+                
+                found_speakers.add(speaker_name)
+        
+        entry = {
+            "start_time": start_time,
+            "end_time": end_time,
+            "text": text,
+            "unix_start_time": srt_line.start.ordinal / 1000.0,
+            "unix_end_time": srt_line.end.ordinal / 1000.0,
+        }
+        
+        # Add speaker_name only if present
+        if speaker_name:
+            entry["speaker_name"] = speaker_name
+        
+        sentences_list.append(entry)
+    
+    # Validate speaker names if video object is provided
+    if is_multi_speaker and video and found_speakers:
+        video_speakers = set()
+        if video.speaker_info and isinstance(video.speaker_info, dict):
+            # Assuming speaker_info is dict with speaker names as keys or has "speakers" key
+            if "speakers" in video.speaker_info:
+                video_speakers = set(video.speaker_info["speakers"].keys())
+            else:
+                video_speakers = set(video.speaker_info.keys())
+        
+        # Check if found speakers match video speakers
+        if video_speakers and not found_speakers.issubset(video_speakers):
+            invalid_speakers = found_speakers - video_speakers
+            return {
+                "error": True,
+                "message": f"Speaker names in SRT file ({', '.join(invalid_speakers)}) do not match with speakers in video details ({', '.join(video_speakers)})"
             }
-        )
+    
     return json.loads(json.dumps({"payload": sentences_list}))
 
 
