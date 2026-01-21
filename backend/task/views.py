@@ -3851,10 +3851,17 @@ def import_subtitles(request, pk=None):
     logging.info(request.user)
     logging.info(request.user.email)
     logging.info(task.user.email)
-    if request.user.email != task.user.email:
+
+    project = task.video.project_id
+    is_project_manager = request.user in project.managers.all()
+    is_org_owner = request.user.role == User.ORG_OWNER
+    is_admin = request.user.role == User.ADMIN
+    is_superuser = request.user.is_superuser
+
+    if not (is_project_manager or is_org_owner or is_admin or is_superuser):
         return Response(
             {
-                "message": "You are not allowed to import subtitle. Only task assignee can import it."
+                "message": "You are not allowed to import subtitles. Only Project Managers and Org Owners can upload."
             },
             status=status.HTTP_403_FORBIDDEN,
         )
