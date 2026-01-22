@@ -1037,13 +1037,16 @@ class TaskViewSet(ModelViewSet):
                         user = user_ids[0]
 
                     is_active = False
+                    if source_type == "MANUALLY_UPLOADED":
+                        task_status = "NEW"
+                    else:
+                        task_status = "SELECTED_SOURCE"
                     new_task = Task(
                         task_type=task_type,
                         video=video,
                         created_by=request.user,
                         user=user,
-                        target_language=target_language,
-                        status="SELECTED_SOURCE",
+                        status=task_status,
                         eta=eta,
                         description=description,
                         priority=priority,
@@ -1833,12 +1836,17 @@ class TaskViewSet(ModelViewSet):
                             user = User.objects.get(pk=user_id)
                     else:
                         user = user_ids[0]
+                    if source_type == "MANUALLY_UPLOADED":
+                        task_status = "NEW"
+                    else:
+                        task_status = "SELECTED_SOURCE"
+
                     new_task = Task(
                         task_type=task_type,
                         video=video,
                         created_by=request.user,
                         user=user,
-                        status="SELECTED_SOURCE",
+                        status=task_status,  
                         eta=eta,
                         description=description,
                         priority=priority,
@@ -3925,6 +3933,7 @@ def import_subtitles(request, pk=None):
         return Response(
             {"message": "Invalid task type"}, status=status.HTTP_400_BAD_REQUEST
         )
+    task.status = "SELECTED_SOURCE"
     task.is_active = True
     task.save()
     return Response(
