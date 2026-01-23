@@ -1037,13 +1037,16 @@ class TaskViewSet(ModelViewSet):
                         user = user_ids[0]
 
                     is_active = False
+                    if source_type == "MANUALLY_UPLOADED":
+                        task_status = "NEW"
+                    else:
+                        task_status = "SELECTED_SOURCE"
                     new_task = Task(
                         task_type=task_type,
                         video=video,
                         created_by=request.user,
                         user=user,
-                        target_language=target_language,
-                        status="SELECTED_SOURCE",
+                        status=task_status,
                         eta=eta,
                         description=description,
                         priority=priority,
@@ -1833,12 +1836,17 @@ class TaskViewSet(ModelViewSet):
                             user = User.objects.get(pk=user_id)
                     else:
                         user = user_ids[0]
+                    if source_type == "MANUALLY_UPLOADED":
+                        task_status = "NEW"
+                    else:
+                        task_status = "SELECTED_SOURCE"
+
                     new_task = Task(
                         task_type=task_type,
                         video=video,
                         created_by=request.user,
                         user=user,
-                        status="SELECTED_SOURCE",
+                        status=task_status,  
                         eta=eta,
                         description=description,
                         priority=priority,
@@ -3851,10 +3859,17 @@ def import_subtitles(request, pk=None):
     logging.info(request.user)
     logging.info(request.user.email)
     logging.info(task.user.email)
-    if request.user.email != task.user.email:
+
+    project = task.video.project_id
+    is_project_manager = request.user in project.managers.all()
+    is_org_owner = request.user.role == User.ORG_OWNER
+    is_admin = request.user.role == User.ADMIN
+    is_superuser = request.user.is_superuser
+
+    if not (is_project_manager or is_org_owner or is_admin or is_superuser):
         return Response(
             {
-                "message": "You are not allowed to import subtitle. Only task assignee can import it."
+                "message": "You are not allowed to import subtitles. Only Project Managers and Org Owners can upload."
             },
             status=status.HTTP_403_FORBIDDEN,
         )
@@ -3918,6 +3933,7 @@ def import_subtitles(request, pk=None):
         return Response(
             {"message": "Invalid task type"}, status=status.HTTP_400_BAD_REQUEST
         )
+    task.status = "SELECTED_SOURCE"
     task.is_active = True
     task.save()
     return Response(
