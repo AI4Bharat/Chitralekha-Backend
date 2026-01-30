@@ -2,7 +2,7 @@
 
 ## Installation
 
-### Pre-requisites
+### Prerequisites
 
 ```
 pip install -r requirements.txt
@@ -14,7 +14,7 @@ pip install -r requirements.txt
 python manage.py migrate 
 ```
 
-### Create super-user
+### Create superuser
 
 ```
 python manage.py createsuperuser
