@@ -760,20 +760,20 @@ def get_bad_sentences_in_progress(translation_obj, target_language):
                         "issue_type": "Time issue in the sentence.",
                     }
                 )
-            elif "text" in text.keys() and text["end_time"] > (
-                str(0) + str(translation_obj.video.duration) + str(".000")
-            ):
-                problem_sentences.append(
-                    {
-                        "index": (ind % 50) + 1,
-                        "page_number": (ind // 50) + 1,
-                        "start_time": text["start_time"],
-                        "end_time": text["end_time"],
-                        "text": text["text"],
-                        "target_text": text["target_text"],
-                        "issue_type": "Time issue in the sentence.",
-                    }
-                )
+            # elif "text" in text.keys() and text["end_time"] > (
+            #     str(0) + str(translation_obj.video.duration) + str(".000")
+            # ):
+            #     problem_sentences.append(
+            #         {
+            #             "index": (ind % 50) + 1,
+            #             "page_number": (ind // 50) + 1,
+            #             "start_time": text["start_time"],
+            #             "end_time": text["end_time"],
+            #             "text": text["text"],
+            #             "target_text": text["target_text"],
+            #             "issue_type": "Time issue in the sentence.",
+            #         }
+            #     )
             elif "text" in text.keys() and text["start_time"] == text["end_time"]:
                 problem_sentences.append(
                     {
@@ -858,19 +858,19 @@ def get_bad_sentences_in_progress_for_transcription(transcription_obj, target_la
                         "issue_type": "Time issue in the sentence.",
                     }
                 )
-            elif "text" in text.keys() and text["end_time"] > (
-                str(0) + str(transcription_obj.video.duration) + str(".000")
-            ):
-                problem_sentences.append(
-                    {
-                        "index": (ind % 50) + 1,
-                        "page_number": (ind // 50) + 1,
-                        "start_time": text["start_time"],
-                        "end_time": text["end_time"],
-                        "text": text["text"],
-                        "issue_type": "Time issue in the sentence.",
-                    }
-                )
+            # elif "text" in text.keys() and text["end_time"] > (
+            #     str(0) + str(transcription_obj.video.duration) + str(".000")
+            # ):
+            #     problem_sentences.append(
+            #         {
+            #             "index": (ind % 50) + 1,
+            #             "page_number": (ind // 50) + 1,
+            #             "start_time": text["start_time"],
+            #             "end_time": text["end_time"],
+            #             "text": text["text"],
+            #             "issue_type": "Time issue in the sentence.",
+            #         }
+            #     )
             elif "text" in text.keys() and text["start_time"] == text["end_time"]:
                 problem_sentences.append(
                     {
