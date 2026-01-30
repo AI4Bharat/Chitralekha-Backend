@@ -27,7 +27,7 @@ from translation.models import Translation
 from voiceover.models import VoiceOver
 from video.models import Video
 from task.models import Task
-from azure.storage.blob import BlobServiceClient
+from utils.storage_factory import get_storage_provider
 from config import storage_account_key, connection_string, reports_container_name
 from django.conf import settings
 import logging
@@ -37,27 +37,20 @@ from utils.email_template import send_email_template_with_attachment
 
 
 def send_mail_with_report(subject, body, user, csv_file_paths):
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+    storage = get_storage_provider(reports_container=True)
     report_urls = []
 
     for file_path in csv_file_paths:
-        blob_client = blob_service_client.get_blob_client(
-            container=reports_container_name, blob=file_path
-        )
-        with open(file_path, "rb") as data:
-            try:
-                if not blob_client.exists():
-                    blob_client.upload_blob(data)
-                    logging.info("Report uploaded successfully!")
-                    logging.info(blob_client.url)
-                else:
-                    blob_client.delete_blob()
-                    logging.info("Old Report deleted successfully!")
-                    blob_client.upload_blob(data)
-                    logging.info("New Report uploaded successfully!")
-            except Exception as e:
-                logging.info("This report can't be uploaded")
-        report_urls.append(blob_client.url)
+        local_file = file_path
+        remote_file = file_path
+
+        try:
+            url = storage.upload(local_file, remote_file)
+            logging.info("Report uploaded successfully!")
+            logging.info(url)
+            report_urls.append(url)
+        except Exception as e:
+            logging.info("This report can't be uploaded")
 
     if len(report_urls) == 1:
         try:

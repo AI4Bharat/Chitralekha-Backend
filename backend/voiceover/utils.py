@@ -2,7 +2,6 @@ import requests
 from uuid import UUID
 import uuid
 import json
-from azure.storage.blob import BlobServiceClient
 import logging
 from config import (
     storage_account_key,
@@ -18,6 +17,7 @@ from config import (
 )
 from pydub import AudioSegment
 import io
+from utils.storage_factory import get_storage_provider
 from video.models import Video
 from datetime import datetime, date, timedelta
 import os
@@ -73,91 +73,67 @@ def validate_uuid4(val):
 
 
 def download_from_azure_blob(file_path):
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-    encoded_file_path = file_path.split("/")[-1]
-    encoded_url_path = urllib.parse.unquote(encoded_file_path)
-    blob_client = blob_service_client.get_blob_client(
-        container=container_name, blob=encoded_url_path
-    )
-    with open(file=file_path.split("/")[-1], mode="wb") as sample_blob:
-        download_stream = blob_client.download_blob()
-        sample_blob.write(download_stream.readall())
+    local_destination_path = file_path.split("/")[-1]
+    remote_file_path = urllib.parse.unquote(local_destination_path)
 
+    storage = get_storage_provider()
+
+    storage.download(remote_file_path, local_destination_path)
 
 def download_json_from_azure_blob(app_name, video_id, task_id, target_language):
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-    container_client = blob_service_client.get_container_client(container_name)
-
-    # Create the exact filename
     file_name = "{}_Video_{}_{}_{}.json".format(
         app_name, video_id, task_id, target_language
     )
     print(file_name)
-    # Get blob client
-    blob_client = blob_service_client.get_blob_client(
-        container=container_name, blob=file_name
-    )
 
-    # Download the blob
+    storage = get_storage_provider()
+
     try:
-        download_stream = blob_client.download_blob()
-        print(download_stream)
-        file_content = download_stream.readall().decode("utf-8")
+        file_content_bytes = storage.read_bytes(file_name)
+        
+        file_content = file_content_bytes.decode("utf-8")
         json_data = json.loads(file_content)
         return json_data
     except Exception as e:
         raise FileNotFoundError(
-            f"File {file_name} not found in the container. Error: {str(e)}"
+            f"File {file_name} not found in the storage container/bucket. Error: {str(e)}"
         )
 
 
 def upload_video(file_path):
-    full_path = file_path + ".mp4"
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-    blob_client = blob_service_client.get_blob_client(
-        container=container_name, blob=file_path.split("/")[-1] + ".mp4"
-    )
-    with open(full_path, "rb") as data:
-        try:
-            if not blob_client.exists():
-                blob_client.upload_blob(data)
-                logging.info("Video uploaded successfully!")
-                logging.info(blob_client.url)
-            else:
-                blob_client.delete_blob()
-                logging.info("Old Video deleted successfully!")
-                blob_client.upload_blob(data)
-                logging.info("New video uploaded successfully!")
-        except Exception as e:
-            logging.info("This video can't be uploaded")
-    return blob_client.url
+    local_file_to_upload = file_path + ".mp4"
+    remote_file_name = file_path.split("/")[-1] + ".mp4"
+
+    storage = get_storage_provider()
+
+    try:
+        url = storage.upload(local_file_to_upload, remote_file_name)
+        logging.info("Video uploaded successfully!")
+        logging.info(url)
+        return url
+    except Exception as e:
+        logging.info("This video can't be uploaded")
+        return None
 
 
 def upload_json(file_path, voice_over_obj):
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     voice_over_payload = voice_over_obj.payload
     json_object = json.dumps(voice_over_payload)
 
-    with open(file_path.split("/")[-1] + ".json", "w") as outfile:
+    local_file_name = file_path.split("/")[-1] + ".json"
+    remote_file_name = local_file_name
+
+    with open(local_file_name, "w") as outfile:
         outfile.write(json_object)
 
-    blob_client_json = blob_service_client.get_blob_client(
-        container=container_name, blob=file_path.split("/")[-1] + ".json"
-    )
+    storage = get_storage_provider()
 
-    with open(file_path.split("/")[-1] + ".json", "rb") as data:
-        try:
-            if not blob_client_json.exists():
-                blob_client_json.upload_blob(data)
-                logging.info("Voice Over payload uploaded successfully!")
-                logging.info(blob_client_json.url)
-            else:
-                blob_client_json.delete_blob()
-                logging.info("Old Voice Over payload deleted successfully!")
-                blob_client_json.upload_blob(data)
-                logging.info("New Voice Over payload successfully!")
-        except Exception as e:
-            logging.info("This Voice Over payload can't be uploaded")
+    try:
+        url = storage.upload(local_file_name, remote_file_name)
+        logging.info("Voice Over payload uploaded successfully!")
+        logging.info(url)
+    except Exception as e:
+        logging.info("This Voice Over payload can't be uploaded")
 
 
 def uploadToBlobStorage(file_path, voice_over_obj):
@@ -178,50 +154,42 @@ def uploadToBlobStorage(file_path, voice_over_obj):
 
 
 def upload_audio_to_azure_blob(file_path, export_type, export):
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     if export == False:
         AudioSegment.from_wav(file_path + "final.wav").export(
             file_path + "final.flac", format="flac"
         )
-        full_path_audio = file_path + "final.flac"
-        blob_client_audio = blob_service_client.get_blob_client(
-            container=container_name, blob=file_path.split("/")[-1] + ".flac"
-        )
+        local_file_to_upload = file_path + "final.flac"
+        remote_file_name = file_path.split("/")[-1] + ".flac"
     else:
-        full_path_audio = file_path.replace(".flac", "") + "." + export_type
-        blob_client_audio = blob_service_client.get_blob_client(
-            container=container_name,
-            blob=file_path.split("/")[-1].replace(".flac", "") + "." + export_type,
-        )
-    with open(full_path_audio, "rb") as data:
-        try:
-            if not blob_client_audio.exists():
-                blob_client_audio.upload_blob(data)
-                logging.info("Audio uploaded successfully!")
-                logging.info(blob_client_audio.url)
-            else:
-                blob_client_audio.delete_blob()
-                logging.info("Old Audio deleted successfully!")
-                blob_client_audio.upload_blob(data)
-                logging.info("New audio uploaded successfully!")
-        except Exception as e:
-            logging.info("This audio can't be uploaded")
-    return blob_client_audio.url
+        local_file_to_upload = file_path.replace(".flac", "") + "." + export_type
+        remote_file_name = file_path.split("/")[-1].replace(".flac", "") + "." + export_type
+
+    storage = get_storage_provider()
+
+    try:
+        url = storage.upload(local_file_to_upload, remote_file_name)
+        logging.info("Audio uploaded successfully!")
+        logging.info(url)
+        return url
+    except Exception as e:
+        logging.info("This audio can't be uploaded")
+        return None
 
 
 def upload_zip_to_azure(zip_file_path):
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-    blob_client_zip = blob_service_client.get_blob_client(
-        container=container_name, blob=zip_file_path
-    )
-    with open(zip_file_path, "rb") as f:
-        try:
-            blob_client_zip.upload_blob(f)
-            logging.info("Audio zip uploaded successfully!")
-            logging.info(blob_client_zip.url)
-        except Exception as e:
-            logging.info("This audio_zip can't be uploaded")
-    return blob_client_zip.url
+    storage = get_storage_provider()
+
+    local_file = zip_file_path
+    remote_file = zip_file_path
+
+    try:
+        url = storage.upload(local_file, remote_file)
+        logging.info("Audio zip uploaded successfully!")
+        logging.info(url)
+        return url
+    except Exception as e:
+        logging.info("This audio_zip can't be uploaded")
+        return None
 
 
 def get_tts_output(tts_input, target_language, multiple_speaker, gender, id):

@@ -1,7 +1,6 @@
 import requests
 from uuid import UUID
 import json
-from azure.storage.blob import BlobServiceClient
 import logging
 from config import (
     connection_string,

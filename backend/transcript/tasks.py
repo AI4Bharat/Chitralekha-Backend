@@ -3,8 +3,6 @@ from celery import shared_task
 from backend.celery import celery_app
 import json
 import logging
-from azure.storage.blob import BlobServiceClient
-import logging
 from config import (
     storage_account_key,
     connection_string,
