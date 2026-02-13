@@ -1,5 +1,5 @@
 # Chitralekha Backend
-Transcribe your videos and translate it into Indic languages.
+Transcribe your videos and translate them into Indic languages.
 
 This repository contains the [Chitralekha](https://github.com/AI4Bharat/Chitralekha) Backend codebase. The backend is built using Django Rest Framework.
 
@@ -9,7 +9,7 @@ You can watch a demo of our tool - [Video](https://youtu.be/l9jUcja0E94)
 
 - Recommended [Python: 3.7+](https://www.python.org/downloads/).
 - `cd backend`
-- Installing dependencies: `pip install deploy/requirements.txt`
+- Install dependencies: `pip install -r deploy/requirements-dev.txt`
 
 ### Create a Virtual Environment
 
