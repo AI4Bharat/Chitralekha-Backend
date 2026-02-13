@@ -459,6 +459,11 @@ def get_org_report_tasks(
                     "label": "Task Id",
                     "viewColumns": False,
                 },
+                "project_id": {
+                    "value": task.video.project_id.id,
+                    "label": "Project Id",
+                    "viewColumns": False,
+                },
                 "project_name": {
                     "value": task.video.project_id.title,
                     "label": "Project Name",
