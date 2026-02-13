@@ -858,7 +858,7 @@ def create_video(
     new_request.method = "GET"
     user = User.objects.get(id=user_id)
     new_request.user = user
-    new_request.GET["multimedia_url"] = ytlink
+    new_request.GET["multimedia_url"] = url
     new_request.GET["lang"] = lang
     new_request.GET["project_id"] = project_id
     new_request.GET["task_description"] = task_description
@@ -869,7 +869,7 @@ def create_video(
     new_request.GET["assignee"] = assignee
     new_request.GET["task_type"] = task_type
     new_request.GET["target_language"] = target_language
-    new_request.GET["ytlink"] = ""
+    new_request.GET["ytlink"] = ytlink
     return get_video_func(new_request)
 
 
