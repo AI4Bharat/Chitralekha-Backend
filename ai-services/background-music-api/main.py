@@ -3,10 +3,10 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 from yt_dlp.extractor import get_info_extractor
 from moviepy.editor import VideoFileClip, AudioFileClip, concatenate_audioclips
+from utils.storage_factory import get_storage_provider
 from spleeter.separator import Separator
 import shutil
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
-from azure.storage.blob import BlobServiceClient
 from config import (
     storage_account_key,
     connection_string,
@@ -102,36 +102,26 @@ def utils_add_bg_music(file_path, video_link):
 
 
 def upload_audio_to_azure_blob(file_path, export_type, export):
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
     if export == False:
         AudioSegment.from_wav(file_path + "final.wav").export(
             file_path + "final.flac", format="flac"
         )
-        full_path_audio = file_path + "final.flac"
-        blob_client_audio = blob_service_client.get_blob_client(
-            container=container_name, blob=file_path.split("/")[-1] + ".flac"
-        )
+        local_file_to_upload = file_path + "final.flac"
+        remote_file_name = file_path.split("/")[-1] + ".flac"
     else:
-        full_path_audio = file_path.replace(".flac", "") + "." + export_type
-        blob_client_audio = blob_service_client.get_blob_client(
-            container=container_name,
-            blob=file_path.split("/")[-1].replace(".flac", "") + "." + export_type,
-        )
-    with open(full_path_audio, "rb") as data:
-        try:
-            if not blob_client_audio.exists():
-                blob_client_audio.upload_blob(data)
-                print("Audio uploaded successfully!")
-                print(blob_client_audio.url)
-            else:
-                blob_client_audio.delete_blob()
-                print("Old Audio deleted successfully!")
-                blob_client_audio.upload_blob(data)
-                print("New audio uploaded successfully!")
-        except Exception as e:
-            print("This audio can't be uploaded")
-    return blob_client_audio.url
+        local_file_to_upload = file_path.replace(".flac", "") + "." + export_type
+        remote_file_name = file_path.split("/")[-1].replace(".flac", "") + "." + export_type
 
+    storage = get_storage_provider()
+    
+    try:
+        url = storage.upload(local_file_to_upload, remote_file_name)
+        print("Audio uploaded successfully!")
+        print(url)
+        return url
+    except Exception as e:
+        print("This audio can't be uploaded")
+        return None
 
 if __name__ == "__main__":
     os.mkdir("temporary_audio_storage")
@@ -143,16 +133,12 @@ class BGMusicRequest(BaseModel):
 
 
 def download_from_azure_blob(file_path):
-    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-    encoded_file_path = file_path.split("/")[-1]
-    encoded_url_path = urllib.parse.unquote(encoded_file_path)
-    blob_client = blob_service_client.get_blob_client(
-        container=container_name, blob=encoded_url_path
-    )
-    with open(file=file_path.split("/")[-1], mode="wb") as sample_blob:
-        download_stream = blob_client.download_blob()
-        sample_blob.write(download_stream.readall())
+    remote_file_path = urllib.parse.unquote(file_path.split("/")[-1])
+    local_destination_path = file_path.split("/")[-1]
 
+    storage = get_storage_provider()
+
+    storage.download(remote_file_path, local_destination_path)
 
 @app.post("/add_background_music")
 async def add_background_music(audio_request: BGMusicRequest):
